@@ -31,6 +31,10 @@ export default function AccountsMain() {
     currency: 'USD',
     type: 'Backtest',
   });
+  const [riskType, setRiskType] = useState('fixed');
+  const [riskValue, setRiskValue] = useState('');
+  const [riskUnit, setRiskUnit] = useState('percent');
+
   const [deleteAlert, setDeleteAlert] = useState({ show: false, accountId: null, accountName: '', tradesCount: 0 });
   const [loadingDelete, setLoadingDelete] = useState(false);
   const [successAlert, setSuccessAlert] = useState({ show: false, message: '' });
@@ -53,6 +57,9 @@ export default function AccountsMain() {
   const openCreate = () => {
     setEditingId(null);
     setFormData({ name: '', balance: '', currency: 'USD', type: 'Backtest' });
+    setRiskType('fixed');
+    setRiskValue('');
+    setRiskUnit('percent');
     setModalOpen(true);
   };
 
@@ -65,6 +72,9 @@ export default function AccountsMain() {
       currency: account.currency,
       type: account.type || 'Backtest',
     });
+    setRiskType(account.riskType || 'fixed');
+    setRiskValue(account.riskValue !== undefined ? account.riskValue : '');
+    setRiskUnit(account.riskUnit || 'percent');
     setModalOpen(true);
   };
 
@@ -88,6 +98,9 @@ export default function AccountsMain() {
       balance: parseFloat(balance),
       currency,
       type,
+      riskType,
+      riskValue: riskType === 'fixed' ? parseFloat(riskValue) || 0 : null,
+      riskUnit: riskType === 'fixed' ? riskUnit : null,
     };
 
     try {
@@ -166,6 +179,23 @@ export default function AccountsMain() {
     );
   }
 
+  const getCurrencySymbol = (currency) => {
+    switch (currency) {
+      case 'USD': return '$';
+      case 'EUR': return '€';
+      case 'INR': return '₹';
+      case 'GBP': return '£';
+      default: return '$';
+    }
+  };
+
+  const formatRiskValue = (account) => {
+    if (account.riskType === 'variable' || !account.riskType) return '—';
+    const value = account.riskValue !== undefined && account.riskValue !== null ? account.riskValue : 0;
+    const unit = account.riskUnit === 'percent' ? '%' : getCurrencySymbol(account.currency);
+    return `${value}${unit}`;
+  };
+
   return (
     <div style={{ padding: '20px 0' }}>
       {/* Header with count */}
@@ -186,7 +216,9 @@ export default function AccountsMain() {
                 <th>Balance</th>
                 <th>Currency</th>
                 <th>Type</th>
-                <th>P&L</th>              {/* NEW COLUMN */}
+                <th>Risk Type</th>
+                <th>Risk Value</th>
+                <th>P&L</th>
                 <th style={{ textAlign: 'center' }}>Actions</th>
               </tr>
             </thead>
@@ -223,7 +255,9 @@ export default function AccountsMain() {
                         {acc.type || 'Backtest'}
                       </span>
                     </td>
-                    <td>{getPnL(acc)}</td>   {/* NEW COLUMN VALUE */}
+                    <td style={{ textTransform: 'capitalize' }}>{acc.riskType || '—'}</td>
+                    <td>{formatRiskValue(acc)}</td>
+                    <td>{getPnL(acc)}</td>
                     <td style={{ textAlign: 'center' }}>
                       <button
                         onClick={() => openEdit(acc)}
@@ -407,6 +441,102 @@ export default function AccountsMain() {
                     ))}
                   </select>
                 </div>
+                <div style={{ marginBottom: '20px' }}>
+                  <label style={{ display: 'block', marginBottom: '4px', fontSize: '13px', color: 'var(--text-dim)' }}>
+                    Risk Type
+                  </label>
+                  <select
+                    value={riskType}
+                    onChange={(e) => setRiskType(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      background: 'var(--bg-alt)',
+                      border: '1px solid var(--border-soft)',
+                      borderRadius: '6px',
+                      color: 'var(--text)',
+                      fontSize: '14px',
+                      fontFamily: 'var(--mono)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <option value="fixed">Fixed Risk</option>
+                    <option value="variable">Variable Risk</option>
+                  </select>
+                </div>
+
+                {riskType === 'fixed' ? (
+                  <div style={{ marginBottom: '20px' }}>
+                    <label style={{ display: 'block', marginBottom: '4px', fontSize: '13px', color: 'var(--text-dim)' }}>
+                      Risk Value
+                    </label>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <div style={{ position: 'relative', flex: 1 }}>
+                        <input
+                          type="number"
+                          value={riskValue}
+                          onChange={(e) => setRiskValue(e.target.value)}
+                          required
+                          min="0"
+                          step="0.01"
+                          style={{
+                            width: '100%',
+                            padding: '8px 40px 8px 12px',
+                            background: 'var(--bg-alt)',
+                            border: '1px solid var(--border-soft)',
+                            borderRadius: '6px',
+                            color: 'var(--text)',
+                            fontSize: '14px',
+                            fontFamily: 'var(--mono)',
+                          }}
+                          placeholder="0.00"
+                        />
+                        <span
+                          style={{
+                            position: 'absolute',
+                            right: '12px',
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            color: 'var(--text-dim)',
+                            fontSize: '14px',
+                            fontFamily: 'var(--mono)',
+                            pointerEvents: 'none',
+                          }}
+                        >
+                          {riskUnit === 'percent' ? '%' : getCurrencySymbol(formData.currency)}
+                        </span>
+                      </div>
+                      <select
+                        value={riskUnit}
+                        onChange={(e) => setRiskUnit(e.target.value)}
+                        style={{
+                          padding: '8px 12px',
+                          background: 'var(--bg-alt)',
+                          border: '1px solid var(--border-soft)',
+                          borderRadius: '6px',
+                          color: 'var(--text)',
+                          fontSize: '14px',
+                          fontFamily: 'var(--mono)',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        <option value="percent">Risk Percent</option>
+                        <option value="amount">Risk Amount</option>
+                      </select>
+                    </div>
+                  </div>
+                ) : (
+                  <p
+                    style={{
+                      marginBottom: '20px',
+                      fontSize: '13px',
+                      color: 'var(--text-dim)',
+                      fontFamily: 'var(--mono)',
+                    }}
+                  >
+                    Variable Risk will consider Risk Amount from Trades itself.
+                  </p>
+                )}
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
                   <button
                     type="button"

@@ -21,6 +21,9 @@ export async function createAccount(userId, accountData) {
     balance: accountData.balance,
     currency: accountData.currency,
     type: accountData.type || 'Backtest',
+    riskType: accountData.riskType || 'fixed',
+    riskValue: accountData.riskValue !== undefined ? accountData.riskValue : null,
+    riskUnit: accountData.riskUnit || 'percent',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
