@@ -35,16 +35,7 @@ export default function AppLayout() {
   const renderContent = () => {
     switch (activeTab) {
       case 'dashboard':
-        return (
-          <DashboardMain
-            sessionData={sessionData}
-            dowData={dowData}
-            dirData={dirData}
-            setupData={setupData}
-            factorData={factorData}
-            maxAbs={maxAbs}
-          />
-        );
+        return <DashboardMain sessionData={sessionData} dowData={dowData} dirData={dirData} setupData={setupData} factorData={factorData} maxAbs={maxAbs} />;
       case 'journal':
         return <JournalMain />;
       case 'accounts':
@@ -55,7 +46,7 @@ export default function AppLayout() {
   };
 
   return (
-    <div style={{ display: 'flex' }}>
+    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
       <Sidebar
         isOpen={sidebarOpen}
         onToggle={toggleSidebar}
@@ -64,8 +55,8 @@ export default function AppLayout() {
         user={user}
         onLogout={handleLogout}
       />
-      <div className={`content-wrapper ${sidebarOpen ? 'with-sidebar-open' : 'with-sidebar-closed'}`}>
-        <main style={{ maxWidth: 'auto', margin: '0 auto', padding: '26px 28px' }}>
+      <div className={`content-wrapper ${sidebarOpen ? 'with-sidebar-open' : 'with-sidebar-closed'}`} style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0, minHeight: 0 }}>
+        <main style={{ maxWidth: 'auto', margin: '0 auto', padding: '26px 28px', flex: 1, display: 'flex', flexDirection: 'column', width: '100%', boxSizing: 'border-box', minWidth: 0, minHeight: 0 }}>
           {renderContent()}
         </main>
       </div>

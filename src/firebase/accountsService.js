@@ -9,7 +9,6 @@ import {
   deleteDoc,
   query,
   where,
-  orderBy,
   onSnapshot,
 } from 'firebase/firestore';
 
@@ -32,21 +31,23 @@ export async function createAccount(userId, accountData) {
 export async function getAccounts(userId) {
   const q = query(
     collection(db, ACCOUNTS_COLLECTION),
-    where('userId', '==', userId),
-    orderBy('createdAt', 'desc')
+    where('userId', '==', userId)
   );
   const snapshot = await getDocs(q);
-  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  const accounts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  // Sort client-side (newest first)
+  accounts.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  return accounts;
 }
 
 export function subscribeToAccounts(userId, callback) {
   const q = query(
     collection(db, ACCOUNTS_COLLECTION),
-    where('userId', '==', userId),
-    orderBy('createdAt', 'desc')
+    where('userId', '==', userId)
   );
   return onSnapshot(q, (snapshot) => {
-    const accounts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    let accounts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    accounts.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
     callback(accounts);
   });
 }
