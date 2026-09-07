@@ -2,6 +2,8 @@
 import { useState, useEffect } from 'react';
 import { FaPlus, FaEdit, FaTrash } from 'react-icons/fa';
 import Portal from '../common/Portal';
+import Alert from '../common/Alert';
+import LoadingOverlay from '../common/LoadingOverlay';
 import { useAuth } from '../../context/AuthContext';
 import {
   createAccount,
@@ -9,6 +11,10 @@ import {
   deleteAccount,
   subscribeToAccounts,
 } from '../../firebase/accountsService';
+import {
+  getTrades,
+  deleteTradesByAccountId,
+} from '../../firebase/tradesService';
 
 const CURRENCIES = ['USD', 'EUR', 'INR', 'GBP'];
 const ACCOUNT_TYPES = ['Backtest', 'Live', 'Demo'];
@@ -25,6 +31,10 @@ export default function AccountsMain() {
     currency: 'USD',
     type: 'Backtest',
   });
+  const [deleteAlert, setDeleteAlert] = useState({ show: false, accountId: null, accountName: '', tradesCount: 0 });
+  const [loadingDelete, setLoadingDelete] = useState(false);
+  const [successAlert, setSuccessAlert] = useState({ show: false, message: '' });
+  const [errorAlert, setErrorAlert] = useState({ show: false, message: '' });
 
   // Real‑time subscription to user's accounts
   useEffect(() => {
@@ -93,15 +103,44 @@ export default function AccountsMain() {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm('Delete this account?')) {
-      try {
-        await deleteAccount(id);
-      } catch (error) {
-        console.error('Error deleting account:', error);
-        alert('Failed to delete account. Please try again.');
-      }
+  const handleDelete = async (account) => {
+  // Fetch trades count for this account
+    try {
+      const trades = await getTrades(account.id);
+      const tradesCount = trades.length;
+      setDeleteAlert({
+        show: true,
+        accountId: account.id,
+        accountName: account.name,
+        tradesCount,
+      });
+    } catch (error) {
+      console.error('Error fetching trades count:', error);
+      setErrorAlert({ show: true, message: 'Failed to fetch trades count. Please try again.' });
     }
+  };
+
+  const confirmDelete = async () => {
+    const { accountId, accountName, tradesCount } = deleteAlert;
+    if (!accountId) return;
+    setLoadingDelete(true);
+    try {
+      // Delete all trades first, then the account
+      await deleteTradesByAccountId(accountId);
+      await deleteAccount(accountId);
+      setDeleteAlert({ show: false, accountId: null, accountName: '', tradesCount: 0 });
+      setSuccessAlert({ show: true, message: `Account "${accountName}" and ${tradesCount} trade(s) deleted successfully.` });
+    } catch (error) {
+      console.error('Error deleting account and trades:', error);
+      setDeleteAlert({ show: false, accountId: null, accountName: '', tradesCount: 0 });
+      setErrorAlert({ show: true, message: 'Failed to delete account and trades. Please try again.' });
+    } finally {
+      setLoadingDelete(false);
+    }
+  };
+
+  const cancelDelete = () => {
+    setDeleteAlert({ show: false, accountId: null, accountName: '', tradesCount: 0 });
   };
 
   const formatCurrency = (amount, currency) => {
@@ -203,7 +242,7 @@ export default function AccountsMain() {
                         <FaEdit />
                       </button>
                       <button
-                        onClick={() => handleDelete(acc.id)}
+                        onClick={() => handleDelete(acc)}
                         style={{
                           background: 'none',
                           border: 'none',
@@ -395,6 +434,41 @@ export default function AccountsMain() {
           </div>
         </Portal>
       )}
+
+      <Alert
+        isOpen={deleteAlert.show}
+        title="Delete Account"
+        message={`Deleting account "${deleteAlert.accountName}" will also delete ${deleteAlert.tradesCount} associated trade(s). This cannot be undone.`}
+        type="confirm"
+        confirmText="Delete"
+        cancelText="Cancel"
+        onConfirm={confirmDelete}
+        onCancel={cancelDelete}
+        showCancel={true}
+      />
+
+      {loadingDelete && <LoadingOverlay message="Deleting account and trades..." />}
+
+      <Alert
+        isOpen={successAlert.show}
+        title="Success"
+        message={successAlert.message}
+        type="success"
+        confirmText="OK"
+        onConfirm={() => setSuccessAlert({ show: false, message: '' })}
+        showCancel={false}
+      />
+
+      <Alert
+        isOpen={errorAlert.show}
+        title="Error"
+        message={errorAlert.message}
+        type="error"
+        confirmText="OK"
+        onConfirm={() => setErrorAlert({ show: false, message: '' })}
+        showCancel={false}
+      />
+
     </div>
   );
 }

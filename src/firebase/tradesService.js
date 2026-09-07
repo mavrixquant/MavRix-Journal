@@ -114,6 +114,12 @@ export async function deleteTrade(tradeId) {
   await deleteDoc(docRef);
 }
 
+export async function deleteTradesByAccountId(accountId) {
+  const trades = await getTrades(accountId);
+  const deletes = trades.map(trade => deleteDoc(doc(db, TRADES_COLLECTION, trade.id)));
+  await Promise.all(deletes);
+}
+
 export async function renameCustomColumn(accountId, oldName, newName) {
   // Get all trades for the account
   const trades = await getTrades(accountId);
