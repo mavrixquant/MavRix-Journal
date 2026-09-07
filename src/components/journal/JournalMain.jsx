@@ -77,11 +77,14 @@ export default function JournalMain() {
   const [errorAlert, setErrorAlert] = useState({ show: false, message: '' });
   const [deleteAlert, setDeleteAlert] = useState({ show: false, tradeId: null });
 
+
   const [customColumnsModalOpen, setCustomColumnsModalOpen] = useState(false);
   const [editingColumn, setEditingColumn] = useState(null); // { oldName, newName }
   const [deleteColumnAlert, setDeleteColumnAlert] = useState({ show: false, columnName: '' });
   const [loadingCustomColumn, setLoadingCustomColumn] = useState(false);
   const [newColumnName, setNewColumnName] = useState('');
+  const [customSelectValues, setCustomSelectValues] = useState({});
+  const [customTextValues, setCustomTextValues] = useState({});
 
   useEffect(() => {
     if (!user) return;
@@ -116,6 +119,21 @@ export default function JournalMain() {
     return Array.from(allKeys).sort();
   }, [trades]);
 
+  const customColumnOptions = useMemo(() => {
+    const options = {};
+    dynamicColumns.forEach(col => {
+      const values = new Set();
+      trades.forEach(trade => {
+        const val = trade[col];
+        if (val !== undefined && val !== null && String(val).trim() !== '') {
+          values.add(String(val).trim());
+        }
+      });
+      options[col] = Array.from(values).sort();
+    });
+    return options;
+  }, [dynamicColumns, trades]);
+
   const allColumns = [...DEFAULT_COLUMNS, ...dynamicColumns];
 
   const handleAccountChange = (e) => {
@@ -125,6 +143,8 @@ export default function JournalMain() {
   const openCreateModal = () => {
     setEditingId(null);
     setFormData({ date: '', entryTime: '', exitTime: '', direction: 'Long', mae: '', mfe: '' });
+    setCustomSelectValues({});
+    setCustomTextValues({});
     setModalOpen(true);
   };
 
@@ -138,17 +158,57 @@ export default function JournalMain() {
       mae: trade.mae || '',
       mfe: trade.mfe || '',
     });
+    // Initialize custom column states from trade data
+    const selects = {};
+    const texts = {};
+    dynamicColumns.forEach(col => {
+      const val = trade[col] !== undefined ? String(trade[col]) : '';
+      const options = customColumnOptions[col] || [];
+      if (options.length <= 10) {
+        // If value exists in options, preselect it; otherwise set to '__other__' and put value in text
+        if (val && options.includes(val)) {
+          selects[col] = val;
+        } else if (val) {
+          selects[col] = '__other__';
+          texts[col] = val;
+        } else {
+          selects[col] = '';
+        }
+      } else {
+        texts[col] = val;
+      }
+    });
+    setCustomSelectValues(selects);
+    setCustomTextValues(texts);
     setModalOpen(true);
   };
 
   const closeModal = () => {
     setModalOpen(false);
     setEditingId(null);
+    setCustomSelectValues({});
+    setCustomTextValues({});
   };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleCustomSelectChange = (columnName, value) => {
+    setCustomSelectValues(prev => ({ ...prev, [columnName]: value }));
+    if (value !== '__other__') {
+      // Clear any previously typed "other" text for this column
+      setCustomTextValues(prev => {
+        const newPrev = { ...prev };
+        delete newPrev[columnName];
+        return newPrev;
+      });
+    }
+  };
+
+  const handleCustomTextChange = (columnName, value) => {
+    setCustomTextValues(prev => ({ ...prev, [columnName]: value }));
   };
 
   const handleSubmit = async (e) => {
@@ -157,6 +217,23 @@ export default function JournalMain() {
     if (!date || !entryTime || !exitTime) return;
 
     const tradeData = { date, entryTime, exitTime, direction, mae: Number(mae) || 0, mfe: Number(mfe) || 0 };
+
+    dynamicColumns.forEach(col => {
+      const options = customColumnOptions[col] || [];
+      if (options.length <= 10) {
+        const selected = customSelectValues[col];
+        if (selected === '__other__') {
+          tradeData[col] = (customTextValues[col] || '').trim();
+        } else if (selected) {
+          tradeData[col] = selected;
+        } else {
+          // No selection, leave as empty string?
+          tradeData[col] = '';
+        }
+      } else {
+        tradeData[col] = (customTextValues[col] || '').trim();
+      }
+    });
 
     // Check for duplicates using the new trade object
     const duplicates = checkDuplicateTradeIds([tradeData], editingId ? editingId : null);
@@ -685,6 +762,78 @@ export default function JournalMain() {
                   <label style={{ display: 'block', marginBottom: '4px', fontSize: '13px', color: 'var(--text-dim)' }}>MFE</label>
                   <input type="number" name="mfe" value={formData.mfe} onChange={handleChange} step="0.01" style={{ width: '100%', padding: '8px 12px', background: 'var(--bg-alt)', border: '1px solid var(--border-soft)', borderRadius: '6px', color: 'var(--text)', fontSize: '14px', fontFamily: 'var(--mono)' }} placeholder="0.00" />
                 </div>
+                {dynamicColumns.map(col => {
+                  const options = customColumnOptions[col] || [];
+                  const useDropdown = options.length <= 10;
+                  return (
+                    <div key={col} style={{ marginBottom: '12px' }}>
+                      <label style={{ display: 'block', marginBottom: '4px', fontSize: '13px', color: 'var(--text-dim)' }}>
+                        {formatColumnHeader(col)}
+                      </label>
+                      {useDropdown ? (
+                        <>
+                          <select
+                            value={customSelectValues[col] || ''}
+                            onChange={(e) => handleCustomSelectChange(col, e.target.value)}
+                            style={{
+                              width: '100%',
+                              padding: '8px 12px',
+                              background: 'var(--bg-alt)',
+                              border: '1px solid var(--border-soft)',
+                              borderRadius: '6px',
+                              color: 'var(--text)',
+                              fontSize: '14px',
+                              fontFamily: 'var(--mono)',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            <option value="">Select...</option>
+                            {options.map(opt => (
+                              <option key={opt} value={opt}>{opt}</option>
+                            ))}
+                            <option value="__other__">Other…</option>
+                          </select>
+                          {customSelectValues[col] === '__other__' && (
+                            <input
+                              type="text"
+                              value={customTextValues[col] || ''}
+                              onChange={(e) => handleCustomTextChange(col, e.target.value)}
+                              placeholder={`Enter ${formatColumnHeader(col)}`}
+                              style={{
+                                width: '100%',
+                                padding: '8px 12px',
+                                background: 'var(--bg-alt)',
+                                border: '1px solid var(--border-soft)',
+                                borderRadius: '6px',
+                                color: 'var(--text)',
+                                fontSize: '14px',
+                                fontFamily: 'var(--mono)',
+                                marginTop: '6px',
+                              }}
+                            />
+                          )}
+                        </>
+                      ) : (
+                        <input
+                          type="text"
+                          value={customTextValues[col] || ''}
+                          onChange={(e) => handleCustomTextChange(col, e.target.value)}
+                          placeholder={`Enter ${formatColumnHeader(col)}`}
+                          style={{
+                            width: '100%',
+                            padding: '8px 12px',
+                            background: 'var(--bg-alt)',
+                            border: '1px solid var(--border-soft)',
+                            borderRadius: '6px',
+                            color: 'var(--text)',
+                            fontSize: '14px',
+                            fontFamily: 'var(--mono)',
+                          }}
+                        />
+                      )}
+                    </div>
+                  );
+                })}
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
                   <button type="button" onClick={closeModal} className="btn-upload" style={{ borderStyle: 'solid', padding: '6px 16px' }}>Cancel</button>
                   <button type="submit" className="btn-upload" style={{ borderStyle: 'solid', borderColor: 'var(--amber)', color: 'var(--amber)', padding: '6px 16px' }}>{editingId ? 'Update' : 'Add'}</button>
