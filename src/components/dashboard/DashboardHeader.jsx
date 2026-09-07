@@ -1,21 +1,21 @@
-// src/components/dashboard/Header.jsx
+// src/components/dashboard/DashboardHeader.jsx
 import { useState } from 'react';
-import { useAppContext } from '../../../context/AppContext';
-import { useFilters } from '../../../hooks/useFilters';
-import RRTabs from '../filters/RRTabs';
-import DynamicFilters from '../filters/DynamicFilters';
-import SessionTimeModal from '../filters/SessionTimeModal';
-import LimitsModal from '../filters/LimitsModal';
-import OptimizeModal from '../optimize/OptimizeModal';
+import { useAppContext } from '../../context/AppContext';
+import { useFilters } from '../../hooks/useFilters';
+import RRTabs from './filters/RRTabs';
+import DynamicFilters from './filters/DynamicFilters';
+import SessionTimeModal from './filters/SessionTimeModal';
+import LimitsModal from './filters/LimitsModal';
+import OptimizeModal from './optimize/OptimizeModal';
 
-export default function Header() {
+export default function DashboardHeader({ user, onLogout }) {   // ← ADD PROPS HERE
   const { state } = useAppContext();
   const { resetAllFilters } = useFilters();
   const [showSessionModal, setShowSessionModal] = useState(false);
   const [showLimitsModal, setShowLimitsModal] = useState(false);
   const [showOptimizeModal, setShowOptimizeModal] = useState(false);
 
-  // Build label for session/time filter
+  // Helper to build session/time label
   const getSTLabel = () => {
     if (state.stMode === 'session') {
       if (state.selectedSessions.length === 0) return 'All Sessions';
@@ -26,7 +26,6 @@ export default function Header() {
     }
   };
 
-  // Build label for limits
   const getLimitsLabel = () => {
     switch (state.activeFilterType) {
       case 'none': return 'No Limits';
@@ -42,56 +41,54 @@ export default function Header() {
       <div className="header-row">
         <div>
           <div className="brand-eyebrow"><span className="dot"></span>SYSTEM://BACKTEST-ENGINE&nbsp;v1</div>
+          <h1>Backtest Dashboard</h1>
+          <div className="subtitle">
+            {state.trades.length > 0 
+              ? `${state.trades.length} trades loaded · SL fixed at 12.5pt`
+              : 'Waiting for a trade log to be loaded…'}
+          </div>
         </div>
         <div className="upload-zone">
-          <span id="fileStatus" style={{ color: 'var(--text-faint)', fontSize: '11px' }}>
+          {user && (
+            <span style={{ fontFamily: 'var(--mono)', fontSize: '12px', color: 'var(--text-dim)', marginRight: '8px' }}>
+              {user.email}
+            </span>
+          )}
+          <button onClick={onLogout} className="btn-upload" style={{ borderStyle: 'solid' }}>
+            Logout
+          </button>
+          <span id="fileStatus" style={{ color: 'var(--text-faint)', fontSize: '11px', marginLeft: '8px' }}>
             {state.fileStatus}
           </span>
         </div>
       </div>
 
+      {/* RR bar and filters - keep unchanged */}
       <div className="rr-bar">
         <span className="rr-label">Target R:R</span>
         <RRTabs />
-        <button    className="btn-upload" style={{ borderStyle: 'solid', borderColor: 'var(--white)', color: 'var(--white)', padding: '8px 14px' }}>
-          📊 Sheet
-        </button>
-        <button    className="btn-upload" style={{ borderStyle: 'solid', borderColor: 'green', color: 'var(--white)', padding: '8px 14px' }}>
-          💾 Save
-        </button>
 
-        <div className="filters" id="filterContainer">
+        <div className="filters">
           <DynamicFilters />
 
-          {/* Session / Time button */}
           <div className="filter-group">
-            <button
-              className="btn-upload"
-              onClick={() => setShowSessionModal(true)}
-              style={{ borderStyle: 'solid', padding: '8px 14px' }}
-            >
+            <button className="btn-upload" onClick={() => setShowSessionModal(true)} style={{ borderStyle: 'solid', padding: '8px 14px' }}>
               ⏱️ Session / Time
             </button>
-            {/* <span style={{ fontFamily: 'var(--mono)', fontSize: '10px', color: 'var(--text-faint)' }}>
+            <span style={{ fontFamily: 'var(--mono)', fontSize: '10px', color: 'var(--text-faint)' }}>
               {getSTLabel()}
-            </span> */}
+            </span>
           </div>
 
-          {/* Limits button */}
           <div className="filter-group">
-            <button
-              className="btn-upload"
-              onClick={() => setShowLimitsModal(true)}
-              style={{ borderStyle: 'solid', padding: '8px 14px' }}
-            >
+            <button className="btn-upload" onClick={() => setShowLimitsModal(true)} style={{ borderStyle: 'solid', padding: '8px 14px' }}>
               ⚙️ Limits
             </button>
-            {/* <span style={{ fontFamily: 'var(--mono)', fontSize: '10px', color: 'var(--text-faint)' }}>
+            <span style={{ fontFamily: 'var(--mono)', fontSize: '10px', color: 'var(--text-faint)' }}>
               {getLimitsLabel()}
-            </span> */}
+            </span>
           </div>
 
-          {/* Optimize button (placeholder for now) */}
           <div className="filter-group">
             <button
               className="btn-upload"
@@ -101,8 +98,8 @@ export default function Header() {
               🔍 Optimize
             </button>
           </div>
+
           <button className="btn-reset" onClick={resetAllFilters}>✕ Reset filters</button>
-          
         </div>
       </div>
 

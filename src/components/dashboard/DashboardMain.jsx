@@ -1,29 +1,24 @@
 // src/components/dashboard/DashboardMain.jsx
-
-import DashboardHeader from './layout/DashboardHeader';
-import DashboardFooter from './layout/DashboardFooter';
+import DashboardHeader from './DashboardHeader';
+import DashboardFooter from './DashboardFooter';
 import Hero from './sections/Hero';
 import KPIGrid from './sections/KPIGrid';
 import Calendar from './sections/Calendar';
-import WeeklyCards from './sections/WeeklyCards';
+import WeeklyChart from './sections/WeeklyCards';
 import TradeTable from './sections/TradeTable';
 import RRCompareChart from './charts/RRCompareChart';
 import TimeChart from './charts/TimeChart';
 import CategoryBarChart from './charts/CategoryBarChart';
 import BreakdownBars from './elements/BreakdownBars';
 
-export default function Dashboard({ 
-  sessionData, 
-  dowData, 
-  dirData, 
-  setupData, 
-  factorData, 
-  maxAbs 
-}) {
+// ✅ ADD props: user, onLogout
+export default function DashboardMain({ user, onLogout, sessionData, dowData, dirData, setupData, factorData, maxAbs }) {
   return (
     <>
-      {/* Two-column grid */}
-      <DashboardHeader />
+      {/* Pass user and onLogout to Header */}
+      <DashboardHeader user={user} onLogout={onLogout} />
+
+      {/* Dashboard grid */}
       <div className="dashboard-grid">
         {/* LEFT COLUMN */}
         <div className="grid-col">
@@ -34,7 +29,7 @@ export default function Dashboard({
             </div>
             <Calendar />
             <span style={{ display: 'block', height: '30px' }}></span>
-            <WeeklyCards />
+            <WeeklyChart />
           </div>
           <RRCompareChart />
           <div className="grid-2">
@@ -96,7 +91,7 @@ export default function Dashboard({
         </div>
       </div>
 
-      {/* Trade Log (full width) */}
+      {/* Trade Log */}
       <div className="section-title" style={{ marginTop: '40px' }}>
         <span className="idx"></span>Trade Log
         <div className="line"></div>
