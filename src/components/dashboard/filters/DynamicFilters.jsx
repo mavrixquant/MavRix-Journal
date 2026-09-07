@@ -1,7 +1,7 @@
 // src/components/filters/DynamicFilters.jsx
 import { useState, useEffect, useRef } from 'react';
-import { useAppContext } from '../../context/AppContext';
-import { useFilters } from '../../hooks/useFilters';
+import { useAppContext } from '../../../context/AppContext';
+import { useFilters } from '../../../hooks/useFilters';
 
 export default function DynamicFilters() {
   const { state } = useAppContext();

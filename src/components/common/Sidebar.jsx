@@ -5,7 +5,6 @@ import navLogo from '../../assets/navLOGO.png';
 const navItems = [
   { id: 'dashboard', label: 'Dashboard', icon: <FaChartPie size={22} /> },
   { id: 'journal', label: 'Journal', icon: <FaBook size={22} /> },
-  { id: 'backtest', label: 'Backtest', icon: <FaChartLine size={22} /> },
   { id: 'accounts', label: 'Accounts', icon: <FaUsers size={22} /> },
 ];
 

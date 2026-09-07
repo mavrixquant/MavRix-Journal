@@ -1,13 +1,12 @@
 // src/App.jsx
 import { useState } from 'react';
 import { useAppContext } from "./context/AppContext";
-import UploadGate from "./components/upload/UploadGate";
-import Sidebar from './components/layout/Sidebar';
-import Journal from "./components/tabs/Journal";
-import Backtest from "./components/tabs/Backtest";
-import Accounts from "./components/tabs/Accounts";
-import Dashboard from "./components/tabs/Dashboard";   // <-- new import
 import { useStats } from "./hooks/useStats";
+import UploadGate from "./components/upload/UploadGate";
+import Sidebar from './components/common/Sidebar';
+import DashboardMain from './components/dashboard/DashboardMain';
+import JournalMain from './components/journal/JournalMain';
+import AccountsMain from './components/accounts/AccountsMain';
 
 function App() {
   const { state } = useAppContext();
@@ -41,7 +40,7 @@ function App() {
     switch (activeTab) {
       case 'dashboard':
         return (
-          <Dashboard
+          <DashboardMain
             sessionData={sessionData}
             dowData={dowData}
             dirData={dirData}
@@ -51,11 +50,9 @@ function App() {
           />
         );
       case 'journal':
-        return <Journal />;
-      case 'backtest':
-        return <Backtest />;
+        return <JournalMain />;
       case 'accounts':
-        return <Accounts />;
+        return <AccountsMain />;
       default:
         return <div>Page not found</div>;
     }

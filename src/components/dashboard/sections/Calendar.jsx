@@ -1,6 +1,6 @@
 // src/components/dashboard/Calendar.jsx
 import { useState, useMemo } from 'react';
-import { useStats } from '../../hooks/useStats';
+import { useStats } from '../../../hooks/useStats';
 
 const formatR = (v) => (v >= 0 ? '+' : '') + v.toFixed(2) + 'R';
 const colorForR = (v) => (v > 0 ? 'var(--win)' : v < 0 ? 'var(--loss)' : 'var(--be)');

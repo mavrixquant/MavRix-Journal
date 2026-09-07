@@ -1,7 +1,7 @@
 // src/components/filters/LimitsModal.jsx
 import { useState } from 'react';
-import { useFilters } from '../../hooks/useFilters';
-import Portal from '../common/Portal';
+import { useFilters } from '../../../hooks/useFilters';
+import Portal from '../../common/Portal';
 
 export default function LimitsModal({ isOpen, onClose }) {
   const { activeFilterType, filterParams, setActiveFilterType, setFilterParams } = useFilters();

@@ -1,6 +1,6 @@
-// src/components/dashboard/EquityChart.jsx
+// src/components/dashboard/charts/EquityChart.jsx
 import { Line } from 'react-chartjs-2';
-import { useStats } from '../../hooks/useStats';
+import { useStats } from '../../../hooks/useStats';
 
 const COLORS = {
   amber: '#FFB020',

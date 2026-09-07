@@ -1,9 +1,9 @@
 // src/components/dashboard/Hero.jsx
-import { useStats } from '../../hooks/useStats';
-import { useAppContext } from '../../context/AppContext';
-import { applyFilters } from '../../utils/filterHelpers';
-import { computeStats } from '../../utils/statsEngine';
-import EquityChart from './EquityChart';
+import { useStats } from '../../../hooks/useStats';
+import { useAppContext } from '../../../context/AppContext';
+import { applyFilters } from '../../../utils/filterHelpers';
+import { computeStats } from '../../../utils/statsEngine';
+import EquityChart from '../charts/EquityChart';   // chart moved to charts/
 
 const RR_LEVELS = [1, 2, 3, 4, 5, 6, 7, 8];
 

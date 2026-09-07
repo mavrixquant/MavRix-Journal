@@ -1,5 +1,5 @@
 // src/components/dashboard/KPIGrid.jsx
-import { useStats } from '../../hooks/useStats';
+import { useStats } from '../../../hooks/useStats';
 
 const formatR = (v) => (v >= 0 ? '+' : '') + v.toFixed(2) + 'R';
 const formatPct = (v) => v.toFixed(1) + '%';

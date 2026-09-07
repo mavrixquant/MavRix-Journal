@@ -1,8 +1,8 @@
 // src/components/filters/SessionTimeModal.jsx
 import { useState } from 'react';
-import { useFilters } from '../../hooks/useFilters';
-import { generateTimeBlocks } from '../../utils/timeHelpers';
-import Portal from '../common/Portal';
+import { useFilters } from '../../../hooks/useFilters';
+import { generateTimeBlocks } from '../../../utils/timeHelpers';
+import Portal from '../../common/Portal';
 
 const SESSIONS = ['Asia', 'London', 'NY Pre-Market', 'NY AM', 'NY Lunch', 'NY PM', 'After Hours'];
 

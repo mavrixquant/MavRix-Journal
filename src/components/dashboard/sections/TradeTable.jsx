@@ -1,6 +1,6 @@
 // src/components/dashboard/TradeTable.jsx
 import { useState, useMemo } from 'react';
-import { useStats } from '../../hooks/useStats';
+import { useStats } from '../../../hooks/useStats';
 
 export default function TradeTable() {
   const { stats } = useStats();

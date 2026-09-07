@@ -1,5 +1,5 @@
 // src/components/filters/RRTabs.jsx
-import { useAppContext, actions } from '../../context/AppContext';
+import { useAppContext, actions } from '../../../context/AppContext';
 
 const RR_LEVELS = [1, 2, 3, 4, 5, 6, 7, 8];
 

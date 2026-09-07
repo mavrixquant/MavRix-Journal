@@ -1,7 +1,7 @@
 // src/components/dashboard/Header.jsx
 import { useState } from 'react';
-import { useAppContext } from '../../context/AppContext';
-import { useFilters } from '../../hooks/useFilters';
+import { useAppContext } from '../../../context/AppContext';
+import { useFilters } from '../../../hooks/useFilters';
 import RRTabs from '../filters/RRTabs';
 import DynamicFilters from '../filters/DynamicFilters';
 import SessionTimeModal from '../filters/SessionTimeModal';

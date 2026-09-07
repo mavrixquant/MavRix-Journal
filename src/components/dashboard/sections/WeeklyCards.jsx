@@ -1,8 +1,8 @@
 // src/components/dashboard/WeeklyChart.jsx
 import { Bar } from 'react-chartjs-2';
 import { useMemo } from 'react';
-import { useStats } from '../../hooks/useStats';
-import { getWeekStart } from '../../utils/timeHelpers';
+import { useStats } from '../../../hooks/useStats';
+import { getWeekStart } from '../../../utils/timeHelpers';
 
 const COLORS = {
   win: '#35C4A1',

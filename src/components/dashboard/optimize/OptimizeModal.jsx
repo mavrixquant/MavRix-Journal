@@ -1,8 +1,8 @@
 // src/components/optimize/OptimizeModal.jsx
 import { useState, useEffect, useRef, useMemo } from 'react';
-import Portal from '../common/Portal';
-import { useOptimization } from '../../hooks/useOptimization';
-import { useAppContext } from '../../context/AppContext';
+import Portal from '../../common/Portal';
+import { useOptimization } from '../../../hooks/useOptimization';
+import { useAppContext } from '../../../context/AppContext';
 
 const RR_LEVELS = [1, 2, 3, 4, 5, 6, 7, 8];
 const OPTIMIZE_PAGE_SIZE = 50;
