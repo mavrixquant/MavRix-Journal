@@ -7,6 +7,7 @@ import {
   getDocs,
   updateDoc,
   deleteDoc,
+  deleteField,
   query,
   where,
   onSnapshot,
@@ -15,7 +16,7 @@ import {
 const TRADES_COLLECTION = 'trades';
 
 // Generate a unique trade ID from trade data
-function generateTradeId(trade) {
+export function generateTradeId(trade) {
   const { date, entryTime, exitTime, direction } = trade;
   // Ensure all fields are present and sanitized
   const parts = [date, entryTime, exitTime, direction || '']
@@ -111,4 +112,41 @@ export async function updateTrade(tradeId, tradeData) {
 export async function deleteTrade(tradeId) {
   const docRef = doc(db, TRADES_COLLECTION, tradeId);
   await deleteDoc(docRef);
+}
+
+export async function renameCustomColumn(accountId, oldName, newName) {
+  // Get all trades for the account
+  const trades = await getTrades(accountId);
+  const updates = trades
+    .filter(trade => trade[oldName] !== undefined)
+    .map(trade => {
+      const tradeRef = doc(db, TRADES_COLLECTION, trade.id);
+      return updateDoc(tradeRef, {
+        [newName]: trade[oldName],
+        [oldName]: deleteField(),
+      });
+    });
+  await Promise.all(updates);
+}
+
+export async function deleteCustomColumn(accountId, columnName) {
+  const trades = await getTrades(accountId);
+  const updates = trades
+    .filter(trade => trade[columnName] !== undefined)
+    .map(trade => {
+      const tradeRef = doc(db, TRADES_COLLECTION, trade.id);
+      return updateDoc(tradeRef, {
+        [columnName]: deleteField(),
+      });
+    });
+  await Promise.all(updates);
+}
+
+export async function addCustomColumn(accountId, columnName) {
+  const trades = await getTrades(accountId);
+  const updates = trades.map(trade => {
+    const tradeRef = doc(db, TRADES_COLLECTION, trade.id);
+    return updateDoc(tradeRef, { [columnName]: '' });
+  });
+  await Promise.all(updates);
 }

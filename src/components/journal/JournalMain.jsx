@@ -3,7 +3,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { FaEdit, FaTrash, FaDownload } from 'react-icons/fa';
 import { useAuth } from '../../context/AuthContext';
 import { subscribeToAccounts } from '../../firebase/accountsService';
-import { subscribeToTrades, createTrade, updateTrade, deleteTrade, createTrades } from '../../firebase/tradesService';
+import { subscribeToTrades, createTrade, updateTrade, deleteTrade, createTrades, generateTradeId, renameCustomColumn, deleteCustomColumn, addCustomColumn } from '../../firebase/tradesService';
 import Portal from '../common/Portal';
 import Alert from '../common/Alert';
 import LoadingOverlay from '../common/LoadingOverlay';
@@ -19,6 +19,21 @@ const SAMPLE_TRADE = {
   'Direction': 'Long',
   'MAE': 8.20,
   'MFE': 15.40,
+};
+
+
+
+const getColumnMinWidth = (col) => {
+  switch (col) {
+    case 'tradeId': return '100px';
+    case 'date': return '80px';
+    case 'entryTime': return '80px';
+    case 'exitTime': return '80px';
+    case 'direction': return '70px';
+    case 'mae': return '70px';
+    case 'mfe': return '70px';
+    default: return '120px'; // dynamic columns
+  }
 };
 
 const formatColumnHeader = (key) => {
@@ -60,6 +75,13 @@ export default function JournalMain() {
   const [loadingUpload, setLoadingUpload] = useState(false);
   const [successAlert, setSuccessAlert] = useState({ show: false, message: '' });
   const [errorAlert, setErrorAlert] = useState({ show: false, message: '' });
+  const [deleteAlert, setDeleteAlert] = useState({ show: false, tradeId: null });
+
+  const [customColumnsModalOpen, setCustomColumnsModalOpen] = useState(false);
+  const [editingColumn, setEditingColumn] = useState(null); // { oldName, newName }
+  const [deleteColumnAlert, setDeleteColumnAlert] = useState({ show: false, columnName: '' });
+  const [loadingCustomColumn, setLoadingCustomColumn] = useState(false);
+  const [newColumnName, setNewColumnName] = useState('');
 
   useEffect(() => {
     if (!user) return;
@@ -136,6 +158,16 @@ export default function JournalMain() {
 
     const tradeData = { date, entryTime, exitTime, direction, mae: Number(mae) || 0, mfe: Number(mfe) || 0 };
 
+    // Check for duplicates using the new trade object
+    const duplicates = checkDuplicateTradeIds([tradeData], editingId ? editingId : null);
+    if (duplicates.length > 0) {
+      setErrorAlert({
+        show: true,
+        message: `Trade ID already exists: ${duplicates[0]}. Please change date, times, or direction.`,
+      });
+      return;
+    }
+
     try {
       if (editingId) {
         await updateTrade(editingId, tradeData);
@@ -149,14 +181,134 @@ export default function JournalMain() {
     }
   };
 
-  const handleDelete = async (tradeId) => {
-    if (window.confirm('Delete this trade?')) {
-      try {
-        await deleteTrade(tradeId);
-      } catch (err) {
-        console.error(err);
-        setErrorAlert({ show: true, message: 'Failed to delete trade: ' + err.message });
+  const handleDelete = (tradeId) => {
+    setDeleteAlert({ show: true, tradeId });
+  };
+
+  const confirmDelete = async () => {
+    const { tradeId } = deleteAlert;
+    if (!tradeId) return;
+    try {
+      await deleteTrade(tradeId);
+      setDeleteAlert({ show: false, tradeId: null });
+    } catch (err) {
+      console.error(err);
+      setDeleteAlert({ show: false, tradeId: null });
+      setErrorAlert({ show: true, message: 'Failed to delete trade: ' + err.message });
+    }
+  };
+
+  const cancelDelete = () => {
+    setDeleteAlert({ show: false, tradeId: null });
+  };
+
+  const checkDuplicateTradeIds = (tradeArray, excludeId = null) => {
+  // Use the state variable `trades` (already defined via useState)
+    const existingIds = new Set(
+      trades
+        .filter(t => t.id !== excludeId)
+        .map(t => t.tradeId)
+    );
+    const duplicates = [];
+    for (const trade of tradeArray) {
+      const tid = generateTradeId(trade);
+      if (existingIds.has(tid)) {
+        duplicates.push(tid);
       }
+    }
+    return duplicates;
+  };
+
+  const openCustomColumnsModal = () => {
+    setCustomColumnsModalOpen(true);
+    setEditingColumn(null);
+  };
+
+  const closeCustomColumnsModal = () => {
+    setCustomColumnsModalOpen(false);
+    setEditingColumn(null);
+  };
+
+  const handleEditColumnClick = (columnName) => {
+    setEditingColumn({ oldName: columnName, newName: columnName });
+  };
+
+  const handleColumnNameChange = (e) => {
+    const { value } = e.target;
+    setEditingColumn(prev => ({ ...prev, newName: value }));
+  };
+
+  const handleSaveColumnRename = async () => {
+    if (!editingColumn) return;
+    const { oldName, newName } = editingColumn;
+    if (!newName || newName.trim() === '') {
+      setErrorAlert({ show: true, message: 'Column name cannot be empty.' });
+      return;
+    }
+    const trimmedNewName = newName.trim();
+    // Prevent renaming to a default column or existing column
+    if (DEFAULT_COLUMNS.includes(trimmedNewName) || dynamicColumns.includes(trimmedNewName) && trimmedNewName !== oldName) {
+      setErrorAlert({ show: true, message: 'Column name already exists or is reserved.' });
+      return;
+    }
+    setLoadingCustomColumn(true);
+    try {
+      await renameCustomColumn(selectedAccountId, oldName, trimmedNewName);
+      setEditingColumn(null);
+      setSuccessAlert({ show: true, message: `Column "${oldName}" renamed to "${trimmedNewName}".` });
+    } catch (err) {
+      console.error(err);
+      setErrorAlert({ show: true, message: 'Failed to rename column: ' + err.message });
+    } finally {
+      setLoadingCustomColumn(false);
+    }
+  };
+
+  const handleDeleteColumnClick = (columnName) => {
+    setDeleteColumnAlert({ show: true, columnName });
+  };
+
+  const confirmDeleteColumn = async () => {
+    const { columnName } = deleteColumnAlert;
+    if (!columnName) return;
+    setLoadingCustomColumn(true);
+    try {
+      await deleteCustomColumn(selectedAccountId, columnName);
+      setDeleteColumnAlert({ show: false, columnName: '' });
+      setSuccessAlert({ show: true, message: `Column "${columnName}" deleted from all trades.` });
+    } catch (err) {
+      console.error(err);
+      setDeleteColumnAlert({ show: false, columnName: '' });
+      setErrorAlert({ show: true, message: 'Failed to delete column: ' + err.message });
+    } finally {
+      setLoadingCustomColumn(false);
+    }
+  };
+
+  const cancelDeleteColumn = () => {
+    setDeleteColumnAlert({ show: false, columnName: '' });
+  };
+
+  const handleAddColumn = async () => {
+    const name = newColumnName.trim();
+    if (!name) {
+      setErrorAlert({ show: true, message: 'Column name cannot be empty.' });
+      return;
+    }
+    if (DEFAULT_COLUMNS.includes(name) || dynamicColumns.includes(name)) {
+      setErrorAlert({ show: true, message: 'Column name already exists or is reserved.' });
+      return;
+    }
+    setLoadingCustomColumn(true);
+    try {
+      await addCustomColumn(selectedAccountId, name);
+      setNewColumnName('');
+      setSuccessAlert({ show: true, message: `Column "${name}" added to all trades.` });
+    } catch (err) {
+      console.error(err);
+      setErrorAlert({ show: true, message: 'Failed to add column: ' + err.message });
+    } finally {
+      setLoadingCustomColumn(false);
     }
   };
 
@@ -263,6 +415,16 @@ export default function JournalMain() {
           return;
         }
 
+        // Check for duplicate trade IDs before showing confirmation
+        const duplicates = checkDuplicateTradeIds(tradesData); // pass the parsed array
+        if (duplicates.length > 0) {
+          setErrorAlert({
+            show: true,
+            message: `Upload blocked. ${duplicates.length} trade(s) already exist. First duplicate ID: ${duplicates[0]}.`,
+          });
+          return;
+        }
+
         setConfirmAlert({
           show: true,
           tradesCount: tradesData.length,
@@ -345,6 +507,13 @@ export default function JournalMain() {
           </select>
         </div>
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          <button
+            className="btn-upload"
+            onClick={openCustomColumnsModal}
+            style={{ borderStyle: 'solid', borderWidth: '1px', color: 'var(--white)', borderColor: 'var(--white)', padding: '8px 14px' }}
+          >
+            Manage Custom Columns
+          </button>
           <button className="btn-upload" onClick={openCreateModal} style={{ borderStyle: 'solid', padding: '8px 14px' }}>
             + Add Trade
           </button>
@@ -366,7 +535,7 @@ export default function JournalMain() {
         minHeight: 0,
         minWidth: 0
       }}>
-        <table style={{ width: '100%', minWidth: 'auto', tableLayout: 'fixed' }}>
+        <table style={{ width: '100%', minWidth: 'auto', tableLayout: 'auto' }}>
           {/* 
             Column widths:
             - Default columns: fixed percentages to keep them compact.
@@ -374,23 +543,10 @@ export default function JournalMain() {
             - Actions: fixed width.
             If dynamic columns exceed available space, horizontal scroll appears.
           */}
-          <colgroup>
-            <col style={{ width: '10%', minWidth: '100px' }} />  {/* tradeId */}
-            <col style={{ width: '5%', minWidth: '80px' }} />    {/* date */}
-            <col style={{ width: '5%', minWidth: '80px' }} />    {/* entryTime */}
-            <col style={{ width: '5%', minWidth: '80px' }} />    {/* exitTime */}
-            <col style={{ width: '4%', minWidth: '70px' }} />    {/* direction */}
-            <col style={{ width: '4%', minWidth: '70px' }} />    {/* mae */}
-            <col style={{ width: '4%', minWidth: '70px' }} />    {/* mfe */}
-            {dynamicColumns.map((col, idx) => (
-              <col key={idx} style={{ width: 'auto', minWidth: '120px' }} />
-            ))}
-            <col style={{ width: '80px', minWidth: '80px' }} />  {/* Actions */}
-          </colgroup>
           <thead>
             <tr>
               {allColumns.map((col) => (
-                <th key={col} style={{ textAlign: col === 'direction' ? 'center' : 'left' }}>
+                <th key={col} style={{ textAlign: col === 'direction' ? 'center' : 'left', minWidth: getColumnMinWidth(col), }} >
                   {formatColumnHeader(col)}
                 </th>
               ))}
@@ -409,26 +565,49 @@ export default function JournalMain() {
                 <tr key={trade.id}>
                   {allColumns.map((col) => {
                     let value = trade[col];
+                    const baseStyle = {
+                      minWidth: getColumnMinWidth(col),
+                    };
                     if (col === 'direction') {
                       return (
-                        <td key={col} className={value === 'Long' ? 'dir-long' : 'dir-short'} style={{ textAlign: 'center' }}>
+                        <td
+                          key={col}
+                          className={value === 'Long' ? 'dir-long' : 'dir-short'}
+                          style={{ ...baseStyle, textAlign: 'center' }}
+                        >
                           {value || '—'}
                         </td>
                       );
                     }
                     if (col === 'mae' || col === 'mfe') {
-                      return <td key={col}>{value !== undefined ? Number(value).toFixed(2) : '—'}</td>;
+                      return (
+                        <td key={col} style={baseStyle}>
+                          {value !== undefined ? Number(value).toFixed(2) : '—'}
+                        </td>
+                      );
                     }
                     if (col === 'date') {
-                      return <td key={col}>{value || '—'}</td>;
+                      return <td key={col} style={baseStyle}>{value || '—'}</td>;
                     }
                     if (col === 'entryTime' || col === 'exitTime') {
-                      return <td key={col}>{formatTimeWithAMPM(value)}</td>;
+                      return <td key={col} style={baseStyle}>{formatTimeWithAMPM(value)}</td>;
                     }
                     if (col === 'tradeId') {
-                      return <td key={col} style={{ fontFamily: 'var(--mono)', fontSize: '11px', color: 'var(--text-faint)' }}>{value || '—'}</td>;
+                      return (
+                        <td
+                          key={col}
+                          style={{
+                            ...baseStyle,
+                            fontFamily: 'var(--mono)',
+                            fontSize: '11px',
+                            color: 'var(--text-faint)',
+                          }}
+                        >
+                          {value || '—'}
+                        </td>
+                      );
                     }
-                    return <td key={col}>{value !== undefined && value !== null ? String(value) : '—'}</td>;
+                    return <td key={col} style={baseStyle}>{value !== undefined && value !== null ? String(value) : '—'}</td>;
                   })}
                   <td className="sticky-col-right" style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
                     <button
@@ -516,10 +695,122 @@ export default function JournalMain() {
         </Portal>
       )}
 
+      {customColumnsModalOpen && (
+        <Portal>
+          <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) closeCustomColumnsModal(); }}>
+            <div className="modal-content" style={{ maxWidth: '420px' }}>
+              <h2 style={{ fontFamily: 'var(--disp)', marginBottom: '16px' }}>Manage Custom Columns</h2>
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+                <input
+                  type="text"
+                  value={newColumnName}
+                  onChange={(e) => setNewColumnName(e.target.value)}
+                  placeholder="New column name"
+                  style={{
+                    flex: 1,
+                    padding: '6px 10px',
+                    background: 'var(--panel)',
+                    border: '1px solid var(--border-soft)',
+                    borderRadius: '4px',
+                    color: 'var(--text)',
+                    fontFamily: 'var(--mono)',
+                    fontSize: '13px',
+                  }}
+                />
+                <button
+                  onClick={handleAddColumn}
+                  className="btn-upload"
+                  style={{ borderStyle: 'solid', padding: '4px 10px', fontSize: '11px' }}
+                  disabled={loadingCustomColumn}
+                >
+                  Add
+                </button>
+              </div>
+              {dynamicColumns.length === 0 ? (
+                <p style={{ color: 'var(--text-dim)', fontFamily: 'var(--mono)', fontSize: '13px' }}>
+                  No custom columns found.
+                </p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '300px', overflowY: 'auto' }}>
+                  {dynamicColumns.map(col => (
+                    <div key={col} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', padding: '8px', border: '1px solid var(--border-soft)', borderRadius: '6px', background: 'var(--bg-alt)' }}>
+                      {editingColumn && editingColumn.oldName === col ? (
+                        <>
+                          <input
+                            type="text"
+                            value={editingColumn.newName}
+                            onChange={handleColumnNameChange}
+                            style={{
+                              flex: 1,
+                              padding: '6px 10px',
+                              background: 'var(--panel)',
+                              border: '1px solid var(--border-soft)',
+                              borderRadius: '4px',
+                              color: 'var(--text)',
+                              fontFamily: 'var(--mono)',
+                              fontSize: '13px',
+                            }}
+                            autoFocus
+                          />
+                          <button
+                            onClick={handleSaveColumnRename}
+                            className="btn-upload"
+                            style={{ borderStyle: 'solid', padding: '4px 10px', fontSize: '11px' }}
+                          >
+                            Save
+                          </button>
+                          <button
+                            onClick={() => setEditingColumn(null)}
+                            className="btn-upload"
+                            style={{ borderStyle: 'solid', padding: '4px 10px', fontSize: '11px' }}
+                          >
+                            Cancel
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <span style={{ fontFamily: 'var(--mono)', fontSize: '13px', color: 'var(--text)' }}>{formatColumnHeader(col)}</span>
+                          <div style={{ display: 'flex', gap: '10px' }}>
+                            <button
+                              onClick={() => handleEditColumnClick(col)}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-dim)', fontSize: '14px' }}
+                              onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--amber)')}
+                              onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-dim)')}
+                            >
+                              <FaEdit />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteColumnClick(col)}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-dim)', fontSize: '14px' }}
+                              onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--loss)')}
+                              onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-dim)')}
+                            >
+                              <FaTrash />
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px' }}>
+                <button onClick={closeCustomColumnsModal} className="btn-upload" style={{ borderStyle: 'solid', padding: '6px 16px' }}>
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </Portal>
+      )}
+
       <Alert isOpen={confirmAlert.show} title="Confirm Upload" message={`Are you sure you want to add ${confirmAlert.tradesCount} trades to this account?`} type="confirm" confirmText="Upload" cancelText="Cancel" onConfirm={confirmAlert.onConfirm} onCancel={confirmAlert.onCancel} showCancel={true} />
       {loadingUpload && <LoadingOverlay message="Uploading trades..." />}
+      {loadingCustomColumn && <LoadingOverlay message="Updating columns..." />}
       <Alert isOpen={successAlert.show} title="Success" message={successAlert.message} type="success" confirmText="OK" onConfirm={() => setSuccessAlert({ show: false, message: '' })} showCancel={false} />
       <Alert isOpen={errorAlert.show} title="Error" message={errorAlert.message} type="error" confirmText="OK" onConfirm={() => setErrorAlert({ show: false, message: '' })} showCancel={false} />
+      <Alert isOpen={deleteAlert.show} title="Delete Trade" message="Are you sure you want to delete this trade?" type="confirm" confirmText="Delete" cancelText="Cancel" onConfirm={confirmDelete} onCancel={cancelDelete} showCancel={true}/>
+      <Alert isOpen={deleteColumnAlert.show} title="Delete Column" message={`Are you sure you want to delete the column "${deleteColumnAlert.columnName}" from all trades? This cannot be undone.`} type="confirm" confirmText="Delete" cancelText="Cancel" onConfirm={confirmDeleteColumn} onCancel={cancelDeleteColumn} showCancel={true} />
     </div>
   );
 }

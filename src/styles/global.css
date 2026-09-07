@@ -1584,8 +1584,10 @@ footer b { color: var(--text-dim); }
 .sticky-col-right {
   position: sticky;
   right: 0;
-  background: var(--panel);           /* match table background */
-  z-index: 2;                         /* above other body cells */
+  background: var(--panel);
+  z-index: 2;
+  width: 80px;
+  min-width: 80px;
 }
 
 /* Header cell: sticky both top and right */
