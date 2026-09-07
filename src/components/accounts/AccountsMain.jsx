@@ -2,38 +2,58 @@
 import { useState, useEffect } from 'react';
 import { FaPlus, FaEdit, FaTrash } from 'react-icons/fa';
 import Portal from '../common/Portal';
+import { useAuth } from '../../context/AuthContext';
+import {
+  createAccount,
+  updateAccount,
+  deleteAccount,
+  subscribeToAccounts,
+} from '../../firebase/accountsService';
 
 const CURRENCIES = ['USD', 'EUR', 'INR', 'GBP'];
+const ACCOUNT_TYPES = ['Backtest', 'Live', 'Demo'];
 
 export default function AccountsMain() {
+  const { user } = useAuth();
   const [accounts, setAccounts] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
-  const [formData, setFormData] = useState({ name: '', balance: '', currency: 'USD' });
+  const [formData, setFormData] = useState({
+    name: '',
+    balance: '',
+    currency: 'USD',
+    type: 'Backtest',
+  });
 
-  // Load from localStorage
+  // Real‑time subscription to user's accounts
   useEffect(() => {
-    const saved = localStorage.getItem('accounts');
-    if (saved) setAccounts(JSON.parse(saved));
-  }, []);
+    if (!user) return;
 
-  // Save to localStorage
-  useEffect(() => {
-    localStorage.setItem('accounts', JSON.stringify(accounts));
-  }, [accounts]);
+    setLoading(true);
+    const unsubscribe = subscribeToAccounts(user.uid, (fetchedAccounts) => {
+      setAccounts(fetchedAccounts);
+      setLoading(false);
+    });
 
+    return () => unsubscribe();
+  }, [user]);
+
+  // Open create modal
   const openCreate = () => {
     setEditingId(null);
-    setFormData({ name: '', balance: '', currency: 'USD' });
+    setFormData({ name: '', balance: '', currency: 'USD', type: 'Backtest' });
     setModalOpen(true);
   };
 
+  // Open edit modal with existing data
   const openEdit = (account) => {
     setEditingId(account.id);
     setFormData({
       name: account.name,
       balance: account.balance,
       currency: account.currency,
+      type: account.type || 'Backtest',
     });
     setModalOpen(true);
   };
@@ -48,30 +68,39 @@ export default function AccountsMain() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    const { name, balance, currency } = formData;
+    const { name, balance, currency, type } = formData;
     if (!name.trim() || !balance) return;
 
-    const account = {
-      id: editingId || Date.now().toString(),
+    const accountData = {
       name: name.trim(),
       balance: parseFloat(balance),
       currency,
-      createdAt: editingId ? undefined : new Date().toISOString(),
+      type,
     };
 
-    if (editingId) {
-      setAccounts(prev => prev.map(acc => acc.id === editingId ? account : acc));
-    } else {
-      setAccounts(prev => [...prev, account]);
+    try {
+      if (editingId) {
+        await updateAccount(editingId, accountData);
+      } else {
+        await createAccount(user.uid, accountData);
+      }
+      closeModal();
+    } catch (error) {
+      console.error('Error saving account:', error);
+      alert('Failed to save account. Please try again.');
     }
-    closeModal();
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     if (window.confirm('Delete this account?')) {
-      setAccounts(prev => prev.filter(acc => acc.id !== id));
+      try {
+        await deleteAccount(id);
+      } catch (error) {
+        console.error('Error deleting account:', error);
+        alert('Failed to delete account. Please try again.');
+      }
     }
   };
 
@@ -83,9 +112,30 @@ export default function AccountsMain() {
     }).format(amount);
   };
 
+  // PLACEHOLDER: Compute P&L later
+  const getPnL = (account) => {
+    // TODO: Calculate P&L based on journal entries or other logic
+    return '—';
+    // Or return '0.00' if you prefer
+  };
+
+  if (loading) {
+    return (
+      <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-dim)' }}>
+        Loading accounts...
+      </div>
+    );
+  }
+
   return (
     <div style={{ padding: '20px 0' }}>
-      <h2 style={{ fontFamily: 'var(--disp)', marginBottom: '16px' }}>Accounts</h2>
+      {/* Header with count */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+        <h2 style={{ fontFamily: 'var(--disp)' }}>Accounts</h2>
+        <span style={{ fontFamily: 'var(--mono)', fontSize: '12px', color: 'var(--text-faint)' }}>
+          {accounts.length} account{accounts.length !== 1 ? 's' : ''}
+        </span>
+      </div>
 
       {/* Table */}
       <div className="panel" style={{ marginBottom: '16px' }}>
@@ -96,13 +146,15 @@ export default function AccountsMain() {
                 <th>Name</th>
                 <th>Balance</th>
                 <th>Currency</th>
+                <th>Type</th>
+                <th>P&L</th>              {/* NEW COLUMN */}
                 <th style={{ textAlign: 'center' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
               {accounts.length === 0 ? (
                 <tr>
-                  <td colSpan="4" className="empty-state">No accounts. Click the + button to create one.</td>
+                  <td colSpan="6" className="empty-state">No accounts. Click the + button to create one.</td>
                 </tr>
               ) : (
                 accounts.map(acc => (
@@ -110,10 +162,32 @@ export default function AccountsMain() {
                     <td>{acc.name}</td>
                     <td>{formatCurrency(acc.balance, acc.currency)}</td>
                     <td>{acc.currency}</td>
+                    <td>
+                      <span
+                        style={{
+                          padding: '2px 10px',
+                          borderRadius: '12px',
+                          fontSize: '11px',
+                          fontWeight: '600',
+                          background: acc.type === 'Live' 
+                            ? 'var(--win-dim)' 
+                            : acc.type === 'Demo' 
+                            ? 'var(--amber-dim)' 
+                            : 'var(--panel-2)',
+                          color: acc.type === 'Live' 
+                            ? 'var(--win)' 
+                            : acc.type === 'Demo' 
+                            ? 'var(--amber)' 
+                            : 'var(--text-dim)',
+                        }}
+                      >
+                        {acc.type || 'Backtest'}
+                      </span>
+                    </td>
+                    <td>{getPnL(acc)}</td>   {/* NEW COLUMN VALUE */}
                     <td style={{ textAlign: 'center' }}>
                       <button
                         onClick={() => openEdit(acc)}
-                        className="icon-btn edit"
                         style={{
                           background: 'none',
                           border: 'none',
@@ -130,7 +204,6 @@ export default function AccountsMain() {
                       </button>
                       <button
                         onClick={() => handleDelete(acc.id)}
-                        className="icon-btn delete"
                         style={{
                           background: 'none',
                           border: 'none',
@@ -245,7 +318,7 @@ export default function AccountsMain() {
                     placeholder="0.00"
                   />
                 </div>
-                <div style={{ marginBottom: '20px' }}>
+                <div style={{ marginBottom: '14px' }}>
                   <label style={{ display: 'block', marginBottom: '4px', fontSize: '13px', color: 'var(--text-dim)' }}>
                     Currency
                   </label>
@@ -267,6 +340,31 @@ export default function AccountsMain() {
                   >
                     {CURRENCIES.map(curr => (
                       <option key={curr} value={curr}>{curr}</option>
+                    ))}
+                  </select>
+                </div>
+                <div style={{ marginBottom: '20px' }}>
+                  <label style={{ display: 'block', marginBottom: '4px', fontSize: '13px', color: 'var(--text-dim)' }}>
+                    Account Type
+                  </label>
+                  <select
+                    name="type"
+                    value={formData.type}
+                    onChange={handleChange}
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      background: 'var(--bg-alt)',
+                      border: '1px solid var(--border-soft)',
+                      borderRadius: '6px',
+                      color: 'var(--text)',
+                      fontSize: '14px',
+                      fontFamily: 'var(--mono)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {ACCOUNT_TYPES.map(type => (
+                      <option key={type} value={type}>{type}</option>
                     ))}
                   </select>
                 </div>
