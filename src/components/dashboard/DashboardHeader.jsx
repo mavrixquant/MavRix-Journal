@@ -8,7 +8,7 @@ import SessionTimeModal from './filters/SessionTimeModal';
 import LimitsModal from './filters/LimitsModal';
 import OptimizeModal from './optimize/OptimizeModal';
 
-export default function DashboardHeader({ user, onLogout }) {   // ← ADD PROPS HERE
+export default function DashboardHeader() {
   const { state } = useAppContext();
   const { resetAllFilters } = useFilters();
   const [showSessionModal, setShowSessionModal] = useState(false);
@@ -41,7 +41,6 @@ export default function DashboardHeader({ user, onLogout }) {   // ← ADD PROPS
       <div className="header-row">
         <div>
           <div className="brand-eyebrow"><span className="dot"></span>SYSTEM://BACKTEST-ENGINE&nbsp;v1</div>
-          <h1>Backtest Dashboard</h1>
           <div className="subtitle">
             {state.trades.length > 0 
               ? `${state.trades.length} trades loaded · SL fixed at 12.5pt`
@@ -49,21 +48,13 @@ export default function DashboardHeader({ user, onLogout }) {   // ← ADD PROPS
           </div>
         </div>
         <div className="upload-zone">
-          {user && (
-            <span style={{ fontFamily: 'var(--mono)', fontSize: '12px', color: 'var(--text-dim)', marginRight: '8px' }}>
-              {user.email}
-            </span>
-          )}
-          <button onClick={onLogout} className="btn-upload" style={{ borderStyle: 'solid' }}>
-            Logout
-          </button>
-          <span id="fileStatus" style={{ color: 'var(--text-faint)', fontSize: '11px', marginLeft: '8px' }}>
+          <span id="fileStatus" style={{ color: 'var(--text-faint)', fontSize: '11px' }}>
             {state.fileStatus}
           </span>
         </div>
       </div>
 
-      {/* RR bar and filters - keep unchanged */}
+      {/* RR bar and filters */}
       <div className="rr-bar">
         <span className="rr-label">Target R:R</span>
         <RRTabs />
@@ -75,18 +66,18 @@ export default function DashboardHeader({ user, onLogout }) {   // ← ADD PROPS
             <button className="btn-upload" onClick={() => setShowSessionModal(true)} style={{ borderStyle: 'solid', padding: '8px 14px' }}>
               ⏱️ Session / Time
             </button>
-            <span style={{ fontFamily: 'var(--mono)', fontSize: '10px', color: 'var(--text-faint)' }}>
+            {/* <span style={{ fontFamily: 'var(--mono)', fontSize: '10px', color: 'var(--text-faint)' }}>
               {getSTLabel()}
-            </span>
+            </span> */}
           </div>
 
           <div className="filter-group">
             <button className="btn-upload" onClick={() => setShowLimitsModal(true)} style={{ borderStyle: 'solid', padding: '8px 14px' }}>
               ⚙️ Limits
             </button>
-            <span style={{ fontFamily: 'var(--mono)', fontSize: '10px', color: 'var(--text-faint)' }}>
+            {/* <span style={{ fontFamily: 'var(--mono)', fontSize: '10px', color: 'var(--text-faint)' }}>
               {getLimitsLabel()}
-            </span>
+            </span> */}
           </div>
 
           <div className="filter-group">

@@ -19,8 +19,7 @@ export default function AppLayout() {
     await signOut(auth);
   };
 
-  // Data aggregations (same as before)
-  const { stats, groupBy } = useStats();
+  const { groupBy } = useStats();
   const sessionOrder = ["Asia", "London", "NY Pre-Market", "NY AM", "NY Lunch", "NY PM", "After Hours"];
   const dowOrder = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
   const sessionData = groupBy((o) => o.session, sessionOrder);
@@ -38,8 +37,6 @@ export default function AppLayout() {
       case 'dashboard':
         return (
           <DashboardMain
-            user={user}
-            onLogout={handleLogout}
             sessionData={sessionData}
             dowData={dowData}
             dirData={dirData}
@@ -59,9 +56,15 @@ export default function AppLayout() {
 
   return (
     <div style={{ display: 'flex' }}>
-      <Sidebar isOpen={sidebarOpen} onToggle={toggleSidebar} activeTab={activeTab} onTabChange={setActiveTab} />
+      <Sidebar
+        isOpen={sidebarOpen}
+        onToggle={toggleSidebar}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        user={user}
+        onLogout={handleLogout}
+      />
       <div className={`content-wrapper ${sidebarOpen ? 'with-sidebar-open' : 'with-sidebar-closed'}`}>
-        {/* ✅ Header removed from here */}
         <main style={{ maxWidth: 'auto', margin: '0 auto', padding: '26px 28px' }}>
           {renderContent()}
         </main>

@@ -1,5 +1,5 @@
-// src/components/layout/Sidebar.jsx
-import { FaChartPie, FaBook, FaChartLine, FaUsers, FaBars, FaTimes } from 'react-icons/fa';
+// src/components/common/Sidebar.jsx
+import { FaChartPie, FaBook, FaUsers, FaBars, FaTimes, FaUserCircle, FaSignOutAlt } from 'react-icons/fa';
 import navLogo from '../../assets/navLOGO.png';
 
 const navItems = [
@@ -8,7 +8,9 @@ const navItems = [
   { id: 'accounts', label: 'Accounts', icon: <FaUsers size={22} /> },
 ];
 
-export default function Sidebar({ isOpen, onToggle, activeTab, onTabChange }) {
+export default function Sidebar({ isOpen, onToggle, activeTab, onTabChange, user, onLogout }) {
+  const displayName = user?.displayName || user?.email || 'User';
+
   return (
     <div className={`sidebar ${isOpen ? 'open' : 'closed'}`}>
       {/* Header: Logo + Toggle */}
@@ -21,7 +23,7 @@ export default function Sidebar({ isOpen, onToggle, activeTab, onTabChange }) {
             </button>
           </>
         ) : (
-          <button className="sidebar-toggle" onClick={onToggle}>
+          <button className="sidebar-toggle" onClick={onToggle} title="Expand sidebar">
             <FaBars size={24} />
           </button>
         )}
@@ -34,12 +36,29 @@ export default function Sidebar({ isOpen, onToggle, activeTab, onTabChange }) {
             key={item.id}
             className={`nav-item ${item.id === activeTab ? 'active' : ''}`}
             onClick={() => onTabChange(item.id)}
+            title={!isOpen ? item.label : ''}   // Show tooltip only when closed
           >
             <span className="nav-icon">{item.icon}</span>
             {isOpen && <span className="nav-label">{item.label}</span>}
           </div>
         ))}
       </nav>
+
+      {/* Bottom: User Info + Logout */}
+      <div className="sidebar-footer">
+        <div className="sidebar-user" title={!isOpen ? displayName : ''}>
+          <FaUserCircle size={isOpen ? 28 : 24} className="sidebar-user-icon" />
+          {isOpen && <span className="sidebar-user-name">{displayName}</span>}
+        </div>
+        <button 
+          className="sidebar-logout-btn" 
+          onClick={onLogout} 
+          title="Logout"
+        >
+          <FaSignOutAlt size={isOpen ? 18 : 20} />
+          {isOpen && <span>Logout</span>}
+        </button>
+      </div>
     </div>
   );
 }

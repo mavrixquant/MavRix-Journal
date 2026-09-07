@@ -2,9 +2,11 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { auth } from '../firebase/config';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 
 export default function Signup() {
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -19,7 +21,10 @@ export default function Signup() {
       return;
     }
     try {
-      await createUserWithEmailAndPassword(auth, email, password);
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      // Set display name
+      const fullName = `${firstName.trim()} ${lastName.trim()}`.trim();
+      await updateProfile(userCredential.user, { displayName: fullName });
       navigate('/dashboard');
     } catch (err) {
       setError(err.message);
@@ -32,6 +37,24 @@ export default function Signup() {
         <h1>Create Account</h1>
         <p className="auth-sub">Start your journey</p>
         <form onSubmit={handleSubmit}>
+          <div style={{ display: 'flex', gap: '12px' }}>
+            <input
+              type="text"
+              placeholder="First Name"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              required
+              style={{ flex: 1 }}
+            />
+            <input
+              type="text"
+              placeholder="Last Name"
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+              required
+              style={{ flex: 1 }}
+            />
+          </div>
           <input
             type="email"
             placeholder="Email"

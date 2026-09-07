@@ -11,14 +11,11 @@ import TimeChart from './charts/TimeChart';
 import CategoryBarChart from './charts/CategoryBarChart';
 import BreakdownBars from './elements/BreakdownBars';
 
-// ✅ ADD props: user, onLogout
-export default function DashboardMain({ user, onLogout, sessionData, dowData, dirData, setupData, factorData, maxAbs }) {
+export default function DashboardMain({ sessionData, dowData, dirData, setupData, factorData, maxAbs }) {
   return (
     <>
-      {/* Pass user and onLogout to Header */}
-      <DashboardHeader user={user} onLogout={onLogout} />
-
-      {/* Dashboard grid */}
+      <DashboardHeader />
+      {/* rest remains unchanged */}
       <div className="dashboard-grid">
         {/* LEFT COLUMN */}
         <div className="grid-col">
@@ -49,7 +46,6 @@ export default function DashboardMain({ user, onLogout, sessionData, dowData, di
             </div>
           </div>
         </div>
-
         {/* RIGHT COLUMN */}
         <div className="grid-col">
           <KPIGrid />

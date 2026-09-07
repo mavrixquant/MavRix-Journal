@@ -1398,3 +1398,64 @@ footer b { color: var(--text-dim); }
   font-family: var(--mono);
   font-size: 18px;
 }
+
+/* Sidebar footer (user & logout) */
+.sidebar-footer {
+  border-top: 1px solid var(--border-soft);
+  padding: 12px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: auto;
+}
+
+.sidebar-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 6px;
+  color: var(--text-dim);
+}
+.sidebar-user-icon {
+  color: var(--text-faint);
+}
+.sidebar-user-name {
+  font-family: var(--mono);
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar-logout-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 13px;
+  transition: background 0.2s, color 0.2s;
+  width: 100%;
+}
+.sidebar-logout-btn:hover {
+  background: var(--panel-2);
+  color: var(--loss);
+}
+
+/* When sidebar is closed, adjust footer */
+.sidebar.closed .sidebar-footer {
+  padding: 12px 4px;
+  align-items: center;
+}
+.sidebar.closed .sidebar-user {
+  justify-content: center;
+}
+.sidebar.closed .sidebar-logout-btn {
+  justify-content: center;
+  padding: 6px;
+}
