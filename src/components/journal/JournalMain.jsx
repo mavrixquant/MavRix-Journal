@@ -10,15 +10,17 @@ import LoadingOverlay from '../common/LoadingOverlay';
 import * as XLSX from 'xlsx';
 
 const DIRECTIONS = ['Long', 'Short'];
-const DEFAULT_COLUMNS = ['tradeId', 'date', 'entryTime', 'exitTime', 'direction', 'mae', 'mfe'];
-const TEMPLATE_HEADERS = ['Date', 'Entry Time', 'Exit Time', 'Direction', 'MAE', 'MFE'];
+const DEFAULT_COLUMNS = ['tradeId', 'date', 'entryTime', 'exitTime', 'direction', 'symbol', 'mae', 'mfe', 'pnl'];
+const TEMPLATE_HEADERS = ['Date', 'Entry Time', 'Exit Time', 'Direction', 'Symbol', 'MAE', 'MFE', 'P&L'];
 const SAMPLE_TRADE = {
   'Date': '2026-09-07',
   'Entry Time': '09:30',
   'Exit Time': '10:15',
   'Direction': 'Long',
+  'Symbol': 'NQ',
   'MAE': 8.20,
   'MFE': 15.40,
+  'P&L': 12.34,
 };
 
 
@@ -30,9 +32,11 @@ const getColumnMinWidth = (col) => {
     case 'entryTime': return '80px';
     case 'exitTime': return '80px';
     case 'direction': return '70px';
+    case 'symbol': return '70px';
     case 'mae': return '70px';
     case 'mfe': return '70px';
-    default: return '120px'; // dynamic columns
+    case 'pnl': return '70px';
+    default: return '120px';
   }
 };
 
@@ -66,8 +70,10 @@ export default function JournalMain() {
     entryTime: '',
     exitTime: '',
     direction: 'Long',
+    symbol: '',
     mae: '',
     mfe: '',
+    pnl: '',
   });
   const fileInputRef = useRef(null);
 
@@ -142,7 +148,7 @@ export default function JournalMain() {
 
   const openCreateModal = () => {
     setEditingId(null);
-    setFormData({ date: '', entryTime: '', exitTime: '', direction: 'Long', mae: '', mfe: '' });
+    setFormData({ date: '', entryTime: '', exitTime: '', direction: 'Long', symbol: '', mae: '', mfe: '', pnl: '' });
     setCustomSelectValues({});
     setCustomTextValues({});
     setModalOpen(true);
@@ -155,8 +161,10 @@ export default function JournalMain() {
       entryTime: trade.entryTime || '',
       exitTime: trade.exitTime || '',
       direction: trade.direction || 'Long',
+      symbol: trade.symbol || '',
       mae: trade.mae || '',
       mfe: trade.mfe || '',
+      pnl: trade.pnl !== undefined ? trade.pnl : '',
     });
     // Initialize custom column states from trade data
     const selects = {};
@@ -213,10 +221,19 @@ export default function JournalMain() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const { date, entryTime, exitTime, direction, mae, mfe } = formData;
+    const { date, entryTime, exitTime, direction, symbol, mae, mfe, pnl } = formData;
     if (!date || !entryTime || !exitTime) return;
 
-    const tradeData = { date, entryTime, exitTime, direction, mae: Number(mae) || 0, mfe: Number(mfe) || 0 };
+    const tradeData = {
+      date,
+      entryTime,
+      exitTime,
+      direction,
+      symbol: symbol || '',
+      mae: Number(mae) || 0,
+      mfe: Number(mfe) || 0,
+      pnl: pnl !== '' ? Number(pnl) : '',
+    };
 
     dynamicColumns.forEach(col => {
       const options = customColumnOptions[col] || [];
@@ -455,8 +472,10 @@ export default function JournalMain() {
           else if (trimmed === 'Entry Time') headerMap[trimmed] = 'entryTime';
           else if (trimmed === 'Exit Time') headerMap[trimmed] = 'exitTime';
           else if (trimmed === 'Direction') headerMap[trimmed] = 'direction';
+          else if (trimmed === 'Symbol') headerMap[trimmed] = 'symbol';
           else if (trimmed === 'MAE') headerMap[trimmed] = 'mae';
           else if (trimmed === 'MFE') headerMap[trimmed] = 'mfe';
+          else if (trimmed === 'P&L') headerMap[trimmed] = 'pnl';
           else headerMap[trimmed] = trimmed;
         });
 
@@ -477,6 +496,11 @@ export default function JournalMain() {
             if (!trade.date || !trade.entryTime || !trade.exitTime) return null;
             trade.mae = parseFloat(trade.mae) || 0;
             trade.mfe = parseFloat(trade.mfe) || 0;
+            if (trade.pnl !== undefined && trade.pnl !== '') {
+              trade.pnl = parseFloat(trade.pnl) || 0;
+            } else {
+              trade.pnl = '';
+            }
             Object.keys(trade).forEach((k) => {
               if (trade[k] === undefined || trade[k] === null) delete trade[k];
             });
@@ -656,10 +680,11 @@ export default function JournalMain() {
                         </td>
                       );
                     }
-                    if (col === 'mae' || col === 'mfe') {
+                    if (col === 'mae' || col === 'mfe' || col === 'pnl') {
+                      const displayValue = value !== undefined && value !== '' ? Number(value).toFixed(2) : '—';
                       return (
                         <td key={col} style={baseStyle}>
-                          {value !== undefined ? Number(value).toFixed(2) : '—'}
+                          {displayValue}
                         </td>
                       );
                     }
@@ -753,6 +778,38 @@ export default function JournalMain() {
                   <select name="direction" value={formData.direction} onChange={handleChange} style={{ width: '100%', padding: '8px 12px', background: 'var(--bg-alt)', border: '1px solid var(--border-soft)', borderRadius: '6px', color: 'var(--text)', fontSize: '14px', fontFamily: 'var(--mono)', cursor: 'pointer' }}>
                     {DIRECTIONS.map((dir) => (<option key={dir} value={dir}>{dir}</option>))}
                   </select>
+                </div>
+                <div style={{ marginBottom: '12px' }}>
+                  <label style={{ display: 'block', marginBottom: '4px', fontSize: '13px', color: 'var(--text-dim)' }}>Symbol</label>
+                  <input
+                    type="text"
+                    name="symbol"
+                    value={formData.symbol}
+                    onChange={handleChange}
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      background: 'var(--bg-alt)',
+                      border: '1px solid var(--border-soft)',
+                      borderRadius: '6px',
+                      color: 'var(--text)',
+                      fontSize: '14px',
+                      fontFamily: 'var(--mono)',
+                    }}
+                    placeholder="e.g., NQ, ES"
+                  />
+                </div>
+                <div style={{ marginBottom: '20px' }}>
+                  <label style={{ display: 'block', marginBottom: '4px', fontSize: '13px', color: 'var(--text-dim)' }}>P&L</label>
+                  <input
+                    type="number"
+                    name="pnl"
+                    value={formData.pnl}
+                    onChange={handleChange}
+                    step="0.01"
+                    style={{ width: '100%', padding: '8px 12px', background: 'var(--bg-alt)', border: '1px solid var(--border-soft)', borderRadius: '6px', color: 'var(--text)', fontSize: '14px', fontFamily: 'var(--mono)' }}
+                    placeholder="0.00"
+                  />
                 </div>
                 <div style={{ marginBottom: '12px' }}>
                   <label style={{ display: 'block', marginBottom: '4px', fontSize: '13px', color: 'var(--text-dim)' }}>MAE</label>

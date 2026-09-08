@@ -17,9 +17,9 @@ const TRADES_COLLECTION = 'trades';
 
 // Generate a unique trade ID from trade data
 export function generateTradeId(trade) {
-  const { date, entryTime, exitTime, direction } = trade;
+  const { date, entryTime, exitTime, direction, symbol } = trade;
   // Ensure all fields are present and sanitized
-  const parts = [date, entryTime, exitTime, direction || '']
+  const parts = [date, entryTime, exitTime, direction || '', symbol || '']
     .map(String)
     .map(s => s.trim().replace(/[^a-zA-Z0-9]/g, '_'));
   return parts.join('_');
