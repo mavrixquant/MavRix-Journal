@@ -21,22 +21,8 @@ export default function DashboardMain({ sessionData, dowData, dirData, setupData
       <DashboardHeader />
 
       <div className="dashboard-grid">
+        
         {/* LEFT COLUMN */}
-        <div className="grid-col">
-          <div className="panel">
-            <div className="panel-head">
-              <span className="panel-title">Monthly Calendar</span>
-              <span className="panel-note">R at selected target · weekly total on right</span>
-            </div>
-            <Calendar />
-            <span style={{ display: 'block', height: '30px' }}></span>
-            <WeeklyChart />
-          </div>
-
-          <RRCompareChart />
-        </div>
-
-        {/* RIGHT COLUMN */}
         <div className="grid-col">
           <KPIGrid />
           <Hero />
@@ -73,6 +59,23 @@ export default function DashboardMain({ sessionData, dowData, dirData, setupData
             </div>
           </div>
         </div>
+
+        {/* RIGHT COLUMN */}
+        <div className="grid-col">
+          <div className="panel">
+            <div className="panel-head">
+              <span className="panel-title">Monthly Calendar</span>
+              <span className="panel-note">R at selected target · weekly total on right</span>
+            </div>
+            <Calendar />
+            <span style={{ display: 'block', height: '30px' }}></span>
+            <WeeklyChart />
+          </div>
+
+          <RRCompareChart />
+        </div>
+
+        
       </div>
 
       {/* Trade Log */}
