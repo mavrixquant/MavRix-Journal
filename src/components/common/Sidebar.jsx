@@ -1,6 +1,7 @@
 // src/components/common/Sidebar.jsx
-import { FaChartPie, FaBook, FaUsers, FaBars, FaTimes, FaUserCircle, FaSignOutAlt } from 'react-icons/fa';
+import { FaChartPie, FaBook, FaUsers, FaUserCircle, FaSignOutAlt } from 'react-icons/fa';
 import navLogo from '../../assets/navLOGO.png';
+import smLogo from '../../assets/smLOGO.png';
 
 const navItems = [
   { id: 'dashboard', label: 'Dashboard', icon: <FaChartPie size={22} /> },
@@ -8,23 +9,33 @@ const navItems = [
   { id: 'accounts', label: 'Accounts', icon: <FaUsers size={22} /> },
 ];
 
-export default function Sidebar({ isOpen, onToggle, activeTab, onTabChange, user, onLogout }) {
+export default function Sidebar({ isOpen, onToggle, activeTab, onTabChange, user, onLogout, onMouseEnter, onMouseLeave }) {
   const displayName = user?.displayName || user?.email || 'User';
 
   return (
-    <div className={`sidebar ${isOpen ? 'open' : 'closed'}`}>
-      {/* Header: Logo + Toggle */}
-      <div className="sidebar-header">
+    <div
+      className={`sidebar ${isOpen ? 'open' : 'closed'}`}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+    >
+      {/* Header: Logo acts as toggle, aligned left like nav items */}
+      <div className="sidebar-header" style={{ justifyContent: 'flex-start', paddingLeft: isOpen ? '12px' : '12px' }}>
         {isOpen ? (
-          <>
-            <img src={navLogo} alt="Logo" className="sidebar-logo-img" />
-            <button className="sidebar-toggle" onClick={onToggle}>
-              <FaTimes size={20} />
-            </button>
-          </>
+          <img
+            src={navLogo}
+            alt="Logo"
+            className="sidebar-logo-img"
+            onClick={onToggle}
+            style={{ cursor: 'pointer' }}
+          />
         ) : (
-          <button className="sidebar-toggle" onClick={onToggle} title="Expand sidebar">
-            <FaBars size={24} />
+          <button
+            className="sidebar-toggle"
+            onClick={onToggle}
+            title="Expand sidebar"
+            style={{ background: 'none', border: 'none', padding: 0, margin: 0 }}
+          >
+            <img src={smLogo} alt="Logo" style={{ height: '40px', width: 'auto' }} />
           </button>
         )}
       </div>
@@ -36,7 +47,7 @@ export default function Sidebar({ isOpen, onToggle, activeTab, onTabChange, user
             key={item.id}
             className={`nav-item ${item.id === activeTab ? 'active' : ''}`}
             onClick={() => onTabChange(item.id)}
-            title={!isOpen ? item.label : ''}   // Show tooltip only when closed
+            title={!isOpen ? item.label : ''}
           >
             <span className="nav-icon">{item.icon}</span>
             {isOpen && <span className="nav-label">{item.label}</span>}

@@ -1,5 +1,5 @@
 // src/components/AppLayout.jsx
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { signOut } from 'firebase/auth';
 import { auth } from '../firebase/config';
@@ -11,12 +11,40 @@ import { useStats } from '../hooks/useStats';
 
 export default function AppLayout() {
   const { user } = useAuth();
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const toggleSidebar = () => setSidebarOpen(prev => !prev);
+  const [isHovering, setIsHovering] = useState(false);
+  const closeTimeoutRef = useRef(null);
   const [activeTab, setActiveTab] = useState('dashboard');
 
   const handleLogout = async () => {
     await signOut(auth);
+  };
+
+  const isSidebarOpen = isHovering;
+
+  const handleSidebarMouseEnter = () => {
+    if (closeTimeoutRef.current) {
+      clearTimeout(closeTimeoutRef.current);
+      closeTimeoutRef.current = null;
+    }
+    setIsHovering(true);
+  };
+
+  const handleSidebarMouseLeave = () => {
+    if (closeTimeoutRef.current) {
+      clearTimeout(closeTimeoutRef.current);
+    }
+    closeTimeoutRef.current = setTimeout(() => {
+      setIsHovering(false);
+    }, 300);
+  };
+
+  const toggleSidebar = () => {
+    // Clear any pending close to avoid immediate closure after manual open
+    if (closeTimeoutRef.current) {
+      clearTimeout(closeTimeoutRef.current);
+      closeTimeoutRef.current = null;
+    }
+    setIsHovering(prev => !prev);
   };
 
   const { groupBy } = useStats();
@@ -48,15 +76,17 @@ export default function AppLayout() {
   return (
     <div style={{ minHeight: '100vh' }}>
       <Sidebar
-        isOpen={sidebarOpen}
+        isOpen={isSidebarOpen}
         onToggle={toggleSidebar}
         activeTab={activeTab}
         onTabChange={setActiveTab}
         user={user}
         onLogout={handleLogout}
+        onMouseEnter={handleSidebarMouseEnter}
+        onMouseLeave={handleSidebarMouseLeave}
       />
       <div
-        className={`content-wrapper ${sidebarOpen ? 'with-sidebar-open' : 'with-sidebar-closed'}`}
+        className={`content-wrapper ${isSidebarOpen ? 'with-sidebar-open' : 'with-sidebar-closed'}`}
         style={{ transition: 'margin-left 0.3s ease' }}
       >
         <main style={{ padding: '26px 28px', width: '100%', boxSizing: 'border-box' }}>
