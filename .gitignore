@@ -23,4 +23,10 @@ dist-ssr
 *.sln
 *.sw?
 
-src/firebase/config.js
+# Environment variables (ignored)
+.env
+.env.local
+.env.*.local
+
+# Keep example env file tracked
+!.env.example
