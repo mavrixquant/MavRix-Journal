@@ -44,6 +44,8 @@ export default function AccountsMain() {
   const [successAlert, setSuccessAlert] = useState({ show: false, message: '' });
   const [errorAlert, setErrorAlert] = useState({ show: false, message: '' });
 
+  const [pnlMap, setPnlMap] = useState({})
+
   // Real‑time subscription to user's accounts
   useEffect(() => {
     if (!user) return;
@@ -56,6 +58,34 @@ export default function AccountsMain() {
 
     return () => unsubscribe();
   }, [user]);
+
+  useEffect(() => {
+    if (!accounts.length) return;
+    let isMounted = true;
+
+    const fetchPnlForAccounts = async () => {
+      const map = {};
+      await Promise.all(
+        accounts.map(async (acc) => {
+          try {
+            const trades = await getTrades(acc.id);
+            const totalPnl = trades.reduce((sum, t) => {
+              const pnl = parseFloat(t.pnl);
+              return sum + (isNaN(pnl) ? 0 : pnl);
+            }, 0);
+            map[acc.id] = { pnl: totalPnl, count: trades.length };
+          } catch (err) {
+            console.error(`Error fetching trades for account ${acc.id}:`, err);
+            map[acc.id] = { pnl: 0, count: 0 };
+          }
+        })
+      );
+      if (isMounted) setPnlMap(map);
+    };
+
+    fetchPnlForAccounts();
+    return () => { isMounted = false; };
+  }, [accounts]);
 
   // Open create modal
   const openCreate = () => {
@@ -179,9 +209,14 @@ export default function AccountsMain() {
 
   // PLACEHOLDER: Compute P&L later
   const getPnL = (account) => {
-    // TODO: Calculate P&L based on journal entries or other logic
-    return '—';
-    // Or return '0.00' if you prefer
+    const data = pnlMap[account.id];
+    if (!data || data.count === 0) return '—';
+    const { pnl, count } = data;
+    const formatted = formatCurrency(pnl, account.currency);
+    const color = pnl > 0 ? 'var(--win)' : pnl < 0 ? 'var(--loss)' : 'var(--text-dim)';
+    return (
+      <span style={{ color }}>{formatted}</span>
+    );
   };
 
   if (loading) {
@@ -283,7 +318,9 @@ export default function AccountsMain() {
                     <td style={{ textTransform: 'capitalize' }}>{acc.slType || '—'}</td>
                     <td>{formatSlValue(acc)}</td>
                     <td>{getPnL(acc)}</td>
-                    <td>0</td>
+                    <td style={{ textAlign: 'center', fontFamily: 'var(--mono)', color: 'var(--text-dim)' }}>
+                      {pnlMap[acc.id]?.count || 0}
+                    </td>
                     <td style={{ textAlign: 'center' }}>
                       <button
                         onClick={() => openEdit(acc)}
