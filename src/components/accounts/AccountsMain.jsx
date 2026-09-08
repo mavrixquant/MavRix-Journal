@@ -141,9 +141,10 @@ export default function AccountsMain() {
       riskType,
       riskValue: riskType === 'fixed' ? parseFloat(riskValue) || 0 : null,
       riskUnit: riskType === 'fixed' ? riskUnit : null,
-      slType,
-      slValue: slType === 'fixed' ? parseFloat(slValue) || 0 : null,
-      slUnit: slType === 'fixed' ? slUnit : null,
+      // SL fields only for Backtest type
+      slType: type === 'Backtest' ? slType : null,
+      slValue: type === 'Backtest' && slType === 'fixed' ? parseFloat(slValue) || 0 : null,
+      slUnit: type === 'Backtest' && slType === 'fixed' ? slUnit : null,
     };
 
     try {
@@ -600,63 +601,17 @@ export default function AccountsMain() {
                     Variable Risk will consider Risk Amount from Trades itself.
                   </p>
                 )}
-                <div style={{ marginBottom: '20px' }}>
-                  <label style={{ display: 'block', marginBottom: '4px', fontSize: '13px', color: 'var(--text-dim)' }}>
-                    SL Type
-                  </label>
-                  <select
-                    value={slType}
-                    onChange={(e) => setSlType(e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      background: 'var(--bg-alt)',
-                      border: '1px solid var(--border-soft)',
-                      borderRadius: '6px',
-                      color: 'var(--text)',
-                      fontSize: '14px',
-                      fontFamily: 'var(--mono)',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <option value="fixed">Fixed SL</option>
-                    <option value="variable">Variable SL</option>
-                  </select>
-                </div>
 
-                {slType === 'fixed' ? (
-                  <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
-                    <div style={{ flex: 1 }}>
+                {/* SL Type and SL Value only for Backtest accounts */}
+                {formData.type === 'Backtest' && (
+                  <>
+                    <div style={{ marginBottom: '20px' }}>
                       <label style={{ display: 'block', marginBottom: '4px', fontSize: '13px', color: 'var(--text-dim)' }}>
-                        SL Value
-                      </label>
-                      <input
-                        type="number"
-                        value={slValue}
-                        onChange={(e) => setSlValue(e.target.value)}
-                        required
-                        min="0"
-                        step="0.01"
-                        style={{
-                          width: '100%',
-                          padding: '8px 12px',
-                          background: 'var(--bg-alt)',
-                          border: '1px solid var(--border-soft)',
-                          borderRadius: '6px',
-                          color: 'var(--text)',
-                          fontSize: '14px',
-                          fontFamily: 'var(--mono)',
-                        }}
-                        placeholder="0.00"
-                      />
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <label style={{ display: 'block', marginBottom: '4px', fontSize: '13px', color: 'var(--text-dim)' }}>
-                        Unit
+                        SL Type
                       </label>
                       <select
-                        value={slUnit}
-                        onChange={(e) => setSlUnit(e.target.value)}
+                        value={slType}
+                        onChange={(e) => setSlType(e.target.value)}
                         style={{
                           width: '100%',
                           padding: '8px 12px',
@@ -669,23 +624,76 @@ export default function AccountsMain() {
                           cursor: 'pointer',
                         }}
                       >
-                        <option value="ticks">Ticks/Pips</option>
-                        <option value="points">Points</option>
+                        <option value="fixed">Fixed SL</option>
+                        <option value="variable">Variable SL</option>
                       </select>
                     </div>
-                  </div>
-                ) : (
-                  <p
-                    style={{
-                      marginBottom: '20px',
-                      fontSize: '13px',
-                      color: 'var(--text-dim)',
-                      fontFamily: 'var(--mono)',
-                    }}
-                  >
-                    Variable SL will be determined per trade.
-                  </p>
+
+                    {slType === 'fixed' ? (
+                      <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
+                        <div style={{ flex: 1 }}>
+                          <label style={{ display: 'block', marginBottom: '4px', fontSize: '13px', color: 'var(--text-dim)' }}>
+                            SL Value
+                          </label>
+                          <input
+                            type="number"
+                            value={slValue}
+                            onChange={(e) => setSlValue(e.target.value)}
+                            required
+                            min="0"
+                            step="0.01"
+                            style={{
+                              width: '100%',
+                              padding: '8px 12px',
+                              background: 'var(--bg-alt)',
+                              border: '1px solid var(--border-soft)',
+                              borderRadius: '6px',
+                              color: 'var(--text)',
+                              fontSize: '14px',
+                              fontFamily: 'var(--mono)',
+                            }}
+                            placeholder="0.00"
+                          />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <label style={{ display: 'block', marginBottom: '4px', fontSize: '13px', color: 'var(--text-dim)' }}>
+                            Unit
+                          </label>
+                          <select
+                            value={slUnit}
+                            onChange={(e) => setSlUnit(e.target.value)}
+                            style={{
+                              width: '100%',
+                              padding: '8px 12px',
+                              background: 'var(--bg-alt)',
+                              border: '1px solid var(--border-soft)',
+                              borderRadius: '6px',
+                              color: 'var(--text)',
+                              fontSize: '14px',
+                              fontFamily: 'var(--mono)',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            <option value="ticks">Ticks/Pips</option>
+                            <option value="points">Points</option>
+                          </select>
+                        </div>
+                      </div>
+                    ) : (
+                      <p
+                        style={{
+                          marginBottom: '20px',
+                          fontSize: '13px',
+                          color: 'var(--text-dim)',
+                          fontFamily: 'var(--mono)',
+                        }}
+                      >
+                        Variable SL will be determined per trade.
+                      </p>
+                    )}
+                  </>
                 )}
+
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
                   <button
                     type="button"

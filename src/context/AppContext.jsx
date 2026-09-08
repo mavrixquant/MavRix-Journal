@@ -1,33 +1,26 @@
-// src/context/AppContext.jsx
 import { createContext, useContext, useReducer, useMemo } from 'react';
 
-// ---------- Initial State ----------
 const initialState = {
-  // Raw trades (enriched)
   trades: [],
-  // Currently selected R:R (1-8)
   currentR: 1,
-  // Dynamic filter selections: { columnKey: [selectedValues] }
   filterSelections: {},
-  // Dynamic filter keys (column names from Excel)
   dynamicFilterKeys: [],
-  // Session/Time filter state
-  stMode: 'session',        // 'session' or 'time'
+  stMode: 'session',
   selectedSessions: [],
   selectedTimeBlocks: [],
-  // Advanced limits filter
-  activeFilterType: 'none', // 'none', 'day', 'session', 'rrLimit'
+  activeFilterType: 'none',
   filterParams: {
     sessionLimit: 2,
     dayLimit: 2,
     winLimit: 2,
     lossLimit: 2,
   },
-  // UI state
   isUploadGateVisible: true,
   fileStatus: 'no file loaded',
   subtitleText: 'Waiting for a trade log to be loaded…',
-  // Optimization state (stored here for global access)
+  // NEW: accounts state
+  accounts: [],
+  selectedAccountId: null,
   optimize: {
     columnEnabled: {},
     columnValues: {},
@@ -42,7 +35,6 @@ const initialState = {
   },
 };
 
-// ---------- Action Types ----------
 const ACTION_TYPES = {
   SET_TRADES: 'SET_TRADES',
   SET_CURRENT_R: 'SET_CURRENT_R',
@@ -57,6 +49,8 @@ const ACTION_TYPES = {
   RESET_FILTERS: 'RESET_FILTERS',
   SET_OPTIMIZE: 'SET_OPTIMIZE',
   RESET_OPTIMIZE: 'RESET_OPTIMIZE',
+  SET_ACCOUNTS: 'SET_ACCOUNTS',
+  SET_SELECTED_ACCOUNT_ID: 'SET_SELECTED_ACCOUNT_ID',
 };
 
 // ---------- Reducer ----------
@@ -114,6 +108,10 @@ function appReducer(state, action) {
           sortDir: -1,
         },
       };
+    case ACTION_TYPES.SET_ACCOUNTS:
+      return { ...state, accounts: action.payload };
+    case ACTION_TYPES.SET_SELECTED_ACCOUNT_ID:
+      return { ...state, selectedAccountId: action.payload };
     default:
       return state;
   }

@@ -23,8 +23,6 @@ const SAMPLE_TRADE = {
   'P&L': 12.34,
 };
 
-
-
 const getColumnMinWidth = (col) => {
   switch (col) {
     case 'tradeId': return '100px';
@@ -77,15 +75,19 @@ export default function JournalMain() {
   });
   const fileInputRef = useRef(null);
 
+  // Search and sort state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortKey, setSortKey] = useState('date');
+  const [sortDir, setSortDir] = useState(1); // 1 = asc, -1 = desc
+
   const [confirmAlert, setConfirmAlert] = useState({ show: false, tradesCount: 0, onConfirm: null, onCancel: null });
   const [loadingUpload, setLoadingUpload] = useState(false);
   const [successAlert, setSuccessAlert] = useState({ show: false, message: '' });
   const [errorAlert, setErrorAlert] = useState({ show: false, message: '' });
   const [deleteAlert, setDeleteAlert] = useState({ show: false, tradeId: null });
 
-
   const [customColumnsModalOpen, setCustomColumnsModalOpen] = useState(false);
-  const [editingColumn, setEditingColumn] = useState(null); // { oldName, newName }
+  const [editingColumn, setEditingColumn] = useState(null);
   const [deleteColumnAlert, setDeleteColumnAlert] = useState({ show: false, columnName: '' });
   const [loadingCustomColumn, setLoadingCustomColumn] = useState(false);
   const [newColumnName, setNewColumnName] = useState('');
@@ -142,6 +144,55 @@ export default function JournalMain() {
 
   const allColumns = [...DEFAULT_COLUMNS, ...dynamicColumns];
 
+  // Filter and sort trades for display
+  const filteredAndSortedTrades = useMemo(() => {
+    let result = [...trades];
+    const q = searchQuery.trim().toLowerCase();
+    if (q) {
+      result = result.filter(trade => {
+        // Search in default columns
+        for (const col of DEFAULT_COLUMNS) {
+          const val = trade[col];
+          if (val !== undefined && val !== null && String(val).toLowerCase().includes(q)) return true;
+        }
+        // Search in dynamic columns
+        for (const col of dynamicColumns) {
+          const val = trade[col];
+          if (val !== undefined && val !== null && String(val).toLowerCase().includes(q)) return true;
+        }
+        return false;
+      });
+    }
+    // Sort
+    result.sort((a, b) => {
+      let va = a[sortKey];
+      let vb = b[sortKey];
+      if (sortKey === 'date') {
+        va = new Date(va);
+        vb = new Date(vb);
+      } else if (sortKey === 'mae' || sortKey === 'mfe' || sortKey === 'pnl') {
+        va = Number(va) || 0;
+        vb = Number(vb) || 0;
+      } else if (typeof va === 'string') {
+        va = va.toLowerCase();
+        vb = vb.toLowerCase();
+      }
+      if (va < vb) return -1 * sortDir;
+      if (va > vb) return 1 * sortDir;
+      return 0;
+    });
+    return result;
+  }, [trades, searchQuery, sortKey, sortDir, dynamicColumns]);
+
+  const handleSort = (key) => {
+    if (sortKey === key) {
+      setSortDir(prev => -prev);
+    } else {
+      setSortKey(key);
+      setSortDir(1);
+    }
+  };
+
   const handleAccountChange = (e) => {
     setSelectedAccountId(e.target.value);
   };
@@ -166,14 +217,12 @@ export default function JournalMain() {
       mfe: trade.mfe || '',
       pnl: trade.pnl !== undefined ? trade.pnl : '',
     });
-    // Initialize custom column states from trade data
     const selects = {};
     const texts = {};
     dynamicColumns.forEach(col => {
       const val = trade[col] !== undefined ? String(trade[col]) : '';
       const options = customColumnOptions[col] || [];
       if (options.length <= 10) {
-        // If value exists in options, preselect it; otherwise set to '__other__' and put value in text
         if (val && options.includes(val)) {
           selects[col] = val;
         } else if (val) {
@@ -206,7 +255,6 @@ export default function JournalMain() {
   const handleCustomSelectChange = (columnName, value) => {
     setCustomSelectValues(prev => ({ ...prev, [columnName]: value }));
     if (value !== '__other__') {
-      // Clear any previously typed "other" text for this column
       setCustomTextValues(prev => {
         const newPrev = { ...prev };
         delete newPrev[columnName];
@@ -244,7 +292,6 @@ export default function JournalMain() {
         } else if (selected) {
           tradeData[col] = selected;
         } else {
-          // No selection, leave as empty string?
           tradeData[col] = '';
         }
       } else {
@@ -252,7 +299,6 @@ export default function JournalMain() {
       }
     });
 
-    // Check for duplicates using the new trade object
     const duplicates = checkDuplicateTradeIds([tradeData], editingId ? editingId : null);
     if (duplicates.length > 0) {
       setErrorAlert({
@@ -297,7 +343,6 @@ export default function JournalMain() {
   };
 
   const checkDuplicateTradeIds = (tradeArray, excludeId = null) => {
-  // Use the state variable `trades` (already defined via useState)
     const existingIds = new Set(
       trades
         .filter(t => t.id !== excludeId)
@@ -340,8 +385,7 @@ export default function JournalMain() {
       return;
     }
     const trimmedNewName = newName.trim();
-    // Prevent renaming to a default column or existing column
-    if (DEFAULT_COLUMNS.includes(trimmedNewName) || dynamicColumns.includes(trimmedNewName) && trimmedNewName !== oldName) {
+    if (DEFAULT_COLUMNS.includes(trimmedNewName) || (dynamicColumns.includes(trimmedNewName) && trimmedNewName !== oldName)) {
       setErrorAlert({ show: true, message: 'Column name already exists or is reserved.' });
       return;
     }
@@ -516,8 +560,7 @@ export default function JournalMain() {
           return;
         }
 
-        // Check for duplicate trade IDs before showing confirmation
-        const duplicates = checkDuplicateTradeIds(tradesData); // pass the parsed array
+        const duplicates = checkDuplicateTradeIds(tradesData);
         if (duplicates.length > 0) {
           setErrorAlert({
             show: true,
@@ -628,47 +671,57 @@ export default function JournalMain() {
         </div>
       </div>
 
+      {/* Search and count */}
+      <div className="table-controls" style={{ marginBottom: '12px', display: 'flex', gap: '10px', alignItems: 'center', flexShrink: 0 }}>
+        <input
+          className="search-box"
+          placeholder="Search trades…"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+        />
+        <span className="panel-note mono">{filteredAndSortedTrades.length} trades</span>
+      </div>
+
       {/* Table Wrapper */}
       <div className="table-wrap" style={{
         width: '100%',
         overflow: 'auto',
-        flex: 1,
         minHeight: 0,
-        minWidth: 0
+        minWidth: 0,
+        height: 'calc(100vh - 220px)', // fill screen height minus other elements
+        overflowY: 'auto',
+        overflowX: 'auto',
       }}>
         <table style={{ width: '100%', minWidth: 'auto', tableLayout: 'auto' }}>
-          {/* 
-            Column widths:
-            - Default columns: fixed percentages to keep them compact.
-            - Dynamic columns: auto width with min-width, so they get remaining space.
-            - Actions: fixed width.
-            If dynamic columns exceed available space, horizontal scroll appears.
-          */}
           <thead>
             <tr>
               {allColumns.map((col) => (
-                <th key={col} style={{ textAlign: col === 'direction' ? 'center' : 'left', minWidth: getColumnMinWidth(col), }} >
+                <th
+                  key={col}
+                  style={{ textAlign: col === 'direction' ? 'center' : 'left', minWidth: getColumnMinWidth(col), cursor: 'pointer' }}
+                  onClick={() => handleSort(col)}
+                  title={`Sort by ${formatColumnHeader(col)}`}
+                >
                   {formatColumnHeader(col)}
+                  {sortKey === col && (sortDir === 1 ? ' ↑' : ' ↓')}
                 </th>
               ))}
               <th className="sticky-col-right" style={{ textAlign: 'center' }}>Actions</th>
             </tr>
           </thead>
           <tbody>
-            {trades.length === 0 ? (
+            {filteredAndSortedTrades.length === 0 ? (
               <tr>
                 <td colSpan={allColumns.length + 1} className="empty-state">
-                  No trades for this account yet.
+                  No trades found.
                 </td>
               </tr>
             ) : (
-              trades.map((trade) => (
+              filteredAndSortedTrades.map((trade) => (
                 <tr key={trade.id}>
                   {allColumns.map((col) => {
                     let value = trade[col];
-                    const baseStyle = {
-                      minWidth: getColumnMinWidth(col),
-                    };
+                    const baseStyle = { minWidth: getColumnMinWidth(col) };
                     if (col === 'direction') {
                       return (
                         <td
@@ -751,7 +804,7 @@ export default function JournalMain() {
         </table>
       </div>
 
-      {/* Modal and Alerts – unchanged */}
+      {/* Modals and Alerts */}
       {modalOpen && (
         <Portal>
           <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) closeModal(); }}>
@@ -760,7 +813,6 @@ export default function JournalMain() {
                 {editingId ? 'Edit Trade' : 'Add Trade'}
               </h2>
               <form onSubmit={handleSubmit}>
-                {/* form fields – unchanged for brevity */}
                 <div style={{ marginBottom: '12px' }}>
                   <label style={{ display: 'block', marginBottom: '4px', fontSize: '13px', color: 'var(--text-dim)' }}>Date</label>
                   <input type="date" name="date" value={formData.date} onChange={handleChange} required style={{ width: '100%', padding: '8px 12px', background: 'var(--bg-alt)', border: '1px solid var(--border-soft)', borderRadius: '6px', color: 'var(--text)', fontSize: '14px', fontFamily: 'var(--mono)' }} />

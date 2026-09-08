@@ -8,7 +8,11 @@ export default function KPIGrid() {
   const { stats, currentR } = useStats();
 
   if (!stats || stats.n === 0) {
-    return <div style={{ color: 'var(--text-faint)', textAlign: 'center', padding: '20px' }}>No data</div>;
+    return (
+      <div className="panel">
+        <div style={{ color: 'var(--text-faint)', textAlign: 'center', padding: '20px' }}>No data</div>
+      </div>
+    );
   }
 
   const kpis = [

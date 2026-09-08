@@ -1,5 +1,5 @@
 // src/components/dashboard/Calendar.jsx
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useStats } from '../../../hooks/useStats';
 
 const formatR = (v) => (v >= 0 ? '+' : '') + v.toFixed(2) + 'R';
@@ -16,10 +16,12 @@ export default function Calendar() {
     return uniqueMonths;
   }, [stats]);
 
-  // Set default month to latest if not set
-  if (months.length > 0 && selectedMonth === null) {
-    setSelectedMonth(months[months.length - 1]);
-  }
+  // Set default month to earliest when months change and no valid selection exists
+  useEffect(() => {
+    if (months.length > 0 && (selectedMonth === null || !months.includes(selectedMonth))) {
+      setSelectedMonth(months[0]);
+    }
+  }, [months, selectedMonth]);
 
   // Group outcomes by date
   const byDate = useMemo(() => {
@@ -76,12 +78,7 @@ export default function Calendar() {
       }
     }
 
-    // Fill remaining empty cells at end? We already have weeks array.
-
-    // Ensure we have exactly as many weeks as needed
-    // We'll pad the last week if needed (already done by push when dow===6 or end)
-    // Now build week cells: each week has 7 day cells + 1 week summary cell
-
+    // Build week rows
     const cells = [];
     let dayIndex = 0;
     for (let w = 0; w < weeks.length; w++) {
@@ -104,7 +101,7 @@ export default function Calendar() {
   };
 
   if (!stats || stats.outcomes.length === 0 || months.length === 0 || !calendarData) {
-    return <div style={{ color: 'var(--text-faint)', padding: '20px', textAlign: 'center' }}>No calendar data</div>;
+    return <div style={{ color: 'var(--text-faint)', padding: '200px', textAlign: 'center' }}>No calendar data</div>;
   }
 
   const { cells, maxAbs } = calendarData;
@@ -130,13 +127,11 @@ export default function Calendar() {
 
       {/* Calendar grid */}
       <div className="cal-grid">
-        {/* Day headers */}
         {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
           <div key={d} className="cal-dow">{d}</div>
         ))}
         <div className="cal-dow cal-dow-week">Week</div>
 
-        {/* Render each week row */}
         {cells.map((cell, idx) => {
           const { days: dayCells, weekR, weekN } = cell;
           const weekBg = !weekN ? 'transparent' :

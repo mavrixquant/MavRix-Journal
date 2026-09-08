@@ -13,8 +13,8 @@ export default function Hero() {
 
   if (!stats || stats.n === 0) {
     return (
-      <div className="hero" style={{ textAlign: 'center', padding: '40px' }}>
-        <div style={{ color: 'var(--text-faint)' }}>No trades match current filters.</div>
+      <div className="panel">
+        <div style={{ color: 'var(--text-faint)', textAlign: 'center', padding: '20px' }}>No data</div>
       </div>
     );
   }

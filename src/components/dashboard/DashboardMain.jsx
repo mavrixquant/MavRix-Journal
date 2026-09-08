@@ -9,13 +9,17 @@ import TradeTable from './sections/TradeTable';
 import RRCompareChart from './charts/RRCompareChart';
 import TimeChart from './charts/TimeChart';
 import CategoryBarChart from './charts/CategoryBarChart';
-import BreakdownBars from './elements/BreakdownBars';
+import { useAppContext } from '../../context/AppContext';
 
 export default function DashboardMain({ sessionData, dowData, dirData, setupData, factorData, maxAbs }) {
+  const { state } = useAppContext();
+  const selectedAccount = state.accounts.find(acc => acc.id === state.selectedAccountId) || null;
+  const isBacktest = selectedAccount?.type === 'Backtest';
+
   return (
     <>
       <DashboardHeader />
-      {/* rest remains unchanged */}
+
       <div className="dashboard-grid">
         {/* LEFT COLUMN */}
         <div className="grid-col">
@@ -28,32 +32,16 @@ export default function DashboardMain({ sessionData, dowData, dirData, setupData
             <span style={{ display: 'block', height: '30px' }}></span>
             <WeeklyChart />
           </div>
+
           <RRCompareChart />
-          <div className="grid-2">
-            <div className="panel">
-              <div className="panel-head">
-                <span className="panel-title">By Setup</span>
-                <span className="panel-note">Total R · Win Rate</span>
-              </div>
-              <BreakdownBars data={setupData} maxAbs={maxAbs} />
-            </div>
-            <div className="panel">
-              <div className="panel-head">
-                <span className="panel-title">By Setup Factor</span>
-                <span className="panel-note">Total R · Win Rate</span>
-              </div>
-              <BreakdownBars data={factorData} maxAbs={maxAbs} />
-            </div>
-          </div>
         </div>
+
         {/* RIGHT COLUMN */}
         <div className="grid-col">
           <KPIGrid />
           <Hero />
           <div className="time-chart-container">
-            <div className="chart-box">
-              <TimeChart />
-            </div>
+            <TimeChart />
           </div>
           <div className="grid-3">
             <div className="panel">

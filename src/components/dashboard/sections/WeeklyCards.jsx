@@ -37,7 +37,7 @@ export default function WeeklyChart() {
   }, [stats]);
 
   if (!weeklyData || weeklyData.weeks.length === 0) {
-    return <div style={{ color: 'var(--text-faint)', textAlign: 'center', padding: '20px' }}>No weekly data</div>;
+    return <div style={{ color: 'var(--text-faint)', textAlign: 'center', padding: '20px' }}></div>;
   }
 
   const { weeks, data, labels, map } = weeklyData;

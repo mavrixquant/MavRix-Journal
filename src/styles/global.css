@@ -175,7 +175,7 @@ body {
    ============================================ */
 header {
     border-bottom: 1px solid var(--border-soft);
-    padding: 22px 28px 18px;
+    padding: 22px 28px 22px;
     position: sticky;
     top: 0;
     z-index: 50;
@@ -772,52 +772,6 @@ main {
     box-sizing: border-box;
 }
 .time-chart-container .chart-box { height: 280px; }
-
-/* ============================================
-   BREAKDOWN BARS
-   ============================================ */
-.bd-row {
-    margin-bottom: 12px;
-}
-.bd-row:last-child { margin-bottom: 0; }
-
-.bd-top {
-    display: flex;
-    justify-content: space-between;
-    font-size: 12px;
-    margin-bottom: 5px;
-}
-
-.bd-name {
-    color: var(--text);
-    font-weight: 500;
-}
-
-.bd-meta {
-    font-family: var(--mono);
-    font-size: 10.5px;
-    color: var(--text-faint);
-}
-
-.bd-track {
-    height: 7px;
-    background: var(--bg-alt);
-    border-radius: 4px;
-    overflow: hidden;
-    position: relative;
-}
-
-.bd-fill {
-    height: 100%;
-    border-radius: 4px;
-    transition: width .3s;
-}
-.bd-fill.win {
-    background: linear-gradient(90deg, var(--win-dim), var(--win));
-}
-.bd-fill.loss {
-    background: linear-gradient(90deg, var(--loss), var(--loss-dim));
-}
 
 /* ============================================
    CALENDAR

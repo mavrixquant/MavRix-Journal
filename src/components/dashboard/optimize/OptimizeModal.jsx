@@ -32,10 +32,18 @@ export default function OptimizeModal({ isOpen, onClose }) {
   const [rrPanelOpen, setRrPanelOpen] = useState(false);
   const panelRefs = useRef({});
 
-  // Get available filter columns (excluding 'session')
+  // Get available filter columns: only those with >1 and <10 unique values, excluding 'session'
   const filterColumns = useMemo(() => {
-    return state.dynamicFilterKeys.filter(k => k.toLowerCase() !== 'session');
-  }, [state.dynamicFilterKeys]);
+    const counts = {};
+    state.dynamicFilterKeys.forEach(key => {
+      counts[key] = new Set(state.trades.map(t => t.dynamic[key])).size;
+    });
+    return state.dynamicFilterKeys.filter(key =>
+      key.toLowerCase() !== 'session' &&
+      counts[key] > 1 &&
+      counts[key] < 10
+    );
+  }, [state.dynamicFilterKeys, state.trades]);
 
   // Get all possible values for a column
   const getColumnOptions = (key) => {
@@ -85,7 +93,6 @@ export default function OptimizeModal({ isOpen, onClose }) {
     setRrPanelOpen(prev => !prev);
   };
 
-  // ✅ FIXED: Just call toggleColumn - it handles both enabled state AND column values
   const handleColumnToggle = (key, enabled) => {
     toggleColumn(key, enabled);
   };
@@ -151,7 +158,6 @@ export default function OptimizeModal({ isOpen, onClose }) {
 
   const hasEnabledColumns = Object.values(columnEnabled).some(v => v === true);
 
-  // Stop propagation for checkbox clicks to prevent panel from closing
   const stopPropagation = (e) => e.stopPropagation();
 
   return (

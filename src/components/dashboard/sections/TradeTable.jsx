@@ -1,40 +1,71 @@
-// src/components/dashboard/TradeTable.jsx
+// src/components/dashboard/sections/TradeTable.jsx
 import { useState, useMemo } from 'react';
+import { useAppContext } from '../../../context/AppContext';
 import { useStats } from '../../../hooks/useStats';
 
+function formatTimeWithAMPM(timeStr) {
+  if (!timeStr) return '—';
+  if (/^\d{2}:\d{2}/.test(timeStr)) {
+    const [hours, minutes] = timeStr.split(':').map(Number);
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    const hours12 = hours % 12 || 12;
+    return `${String(hours12).padStart(2, '0')}:${String(minutes).padStart(2, '0')} ${ampm}`;
+  }
+  return timeStr;
+}
+
 export default function TradeTable() {
+  const { state } = useAppContext();
   const { stats } = useStats();
   const [searchQuery, setSearchQuery] = useState('');
   const [sortKey, setSortKey] = useState('date');
-  const [sortDir, setSortDir] = useState(1); // 1 = asc, -1 = desc
+  const [sortDir, setSortDir] = useState(1);
 
   const outcomes = stats?.outcomes || [];
+  const dynamicKeys = state.dynamicFilterKeys || [];
 
-  // Filter and sort
+  const baseColumns = ['date', 'entry', 'exit', 'dir', 'mae', 'mfe', 'rAchieved', 'result'];
+  const allColumns = [...baseColumns, ...dynamicKeys.filter(key => !baseColumns.includes(key))];
+
   const filteredRows = useMemo(() => {
     let rows = [...outcomes];
     const q = searchQuery.trim().toLowerCase();
     if (q) {
-      rows = rows.filter(r =>
-        (r.notes || '').toLowerCase().includes(q) ||
-        (r.setup || '').toLowerCase().includes(q) ||
-        (r.factors || '').toLowerCase().includes(q) ||
-        (r.date || '').toLowerCase().includes(q) ||
-        (r.session || '').toLowerCase().includes(q)
-      );
+      rows = rows.filter(r => {
+        for (const col of baseColumns) {
+          const val = r[col];
+          if (val !== undefined && val !== null && String(val).toLowerCase().includes(q)) return true;
+        }
+        for (const key of dynamicKeys) {
+          const val = r.dynamic?.[key];
+          if (val !== undefined && val !== null && String(val).toLowerCase().includes(q)) return true;
+        }
+        if (r.notes && r.notes.toLowerCase().includes(q)) return true;
+        return false;
+      });
     }
-    // Sort
     rows.sort((a, b) => {
-      let va = a[sortKey];
-      let vb = b[sortKey];
-      if (typeof va === 'string') va = va.toLowerCase();
-      if (typeof vb === 'string') vb = vb.toLowerCase();
+      let va, vb;
+      if (dynamicKeys.includes(sortKey)) {
+        va = a.dynamic?.[sortKey] || '';
+        vb = b.dynamic?.[sortKey] || '';
+      } else {
+        va = a[sortKey];
+        vb = b[sortKey];
+      }
+      if (sortKey === 'date') {
+        va = new Date(va);
+        vb = new Date(vb);
+      } else if (typeof va === 'string') {
+        va = va.toLowerCase();
+        vb = vb.toLowerCase();
+      }
       if (va < vb) return -1 * sortDir;
       if (va > vb) return 1 * sortDir;
       return 0;
     });
     return rows;
-  }, [outcomes, searchQuery, sortKey, sortDir]);
+  }, [outcomes, searchQuery, sortKey, sortDir, dynamicKeys, baseColumns]);
 
   const handleSort = (key) => {
     if (sortKey === key) {
@@ -46,65 +77,73 @@ export default function TradeTable() {
   };
 
   if (outcomes.length === 0) {
-    return <div className="empty-state">No trades match current filters.</div>;
+    return (
+      <div style={{ color: 'var(--text-faint)', textAlign: 'center', padding: '20px' }}>No data</div>
+    );
   }
+
+  const getValue = (row, col) => {
+    if (dynamicKeys.includes(col)) {
+      return row.dynamic?.[col];
+    }
+    return row[col];
+  };
+
+  const renderCell = (row, col) => {
+    const val = getValue(row, col);
+    if (val === undefined || val === null) return '—';
+    switch (col) {
+      case 'date':
+        return val || '—';
+      case 'entry':
+      case 'exit':
+        return formatTimeWithAMPM(val);
+      case 'mae':
+      case 'mfe':
+        return Number(val).toFixed(2);
+      case 'rAchieved':
+        return Number(val).toFixed(2) + 'R';
+      case 'result':
+        return <span className={`tag ${val}`}>{val.toUpperCase()}</span>;
+      case 'dir':
+        return <span className={val === 'Long' ? 'dir-long' : 'dir-short'}>{val}</span>;
+      default:
+        return String(val);
+    }
+  };
 
   return (
     <div>
       <div className="table-controls">
         <input
           className="search-box"
-          placeholder="Search notes, setup, factor, date…"
+          placeholder="Search trades…"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
         <span className="panel-note mono">{filteredRows.length} trades</span>
       </div>
-      <div className="table-wrap">
-        <table id="tradeTable">
+      {/* Added max-height and vertical scroll to show ~15 rows initially */}
+      <div className="table-wrap" style={{ maxHeight: '500px', overflowY: 'auto' }}>
+        <table>
           <thead>
             <tr>
-              <th data-key="date" onClick={() => handleSort('date')}>Date {sortKey === 'date' && (sortDir === 1 ? '↑' : '↓')}</th>
-              <th data-key="entry" onClick={() => handleSort('entry')}>Entry {sortKey === 'entry' && (sortDir === 1 ? '↑' : '↓')}</th>
-              <th data-key="exit" onClick={() => handleSort('exit')}>Exit {sortKey === 'exit' && (sortDir === 1 ? '↑' : '↓')}</th>
-              <th data-key="dir" onClick={() => handleSort('dir')}>Dir {sortKey === 'dir' && (sortDir === 1 ? '↑' : '↓')}</th>
-              <th data-key="setup" onClick={() => handleSort('setup')}>Setup {sortKey === 'setup' && (sortDir === 1 ? '↑' : '↓')}</th>
-              <th data-key="factors" onClick={() => handleSort('factors')}>Factors {sortKey === 'factors' && (sortDir === 1 ? '↑' : '↓')}</th>
-              <th data-key="pcz" onClick={() => handleSort('pcz')}>PCZ {sortKey === 'pcz' && (sortDir === 1 ? '↑' : '↓')}</th>
-              <th data-key="vwap" onClick={() => handleSort('vwap')}>VWAP {sortKey === 'vwap' && (sortDir === 1 ? '↑' : '↓')}</th>
-              <th data-key="early" onClick={() => handleSort('early')}>Early {sortKey === 'early' && (sortDir === 1 ? '↑' : '↓')}</th>
-              <th data-key="session" onClick={() => handleSort('session')}>Session {sortKey === 'session' && (sortDir === 1 ? '↑' : '↓')}</th>
-              <th data-key="mae" onClick={() => handleSort('mae')}>MAE {sortKey === 'mae' && (sortDir === 1 ? '↑' : '↓')}</th>
-              <th data-key="mfe" onClick={() => handleSort('mfe')}>MFE {sortKey === 'mfe' && (sortDir === 1 ? '↑' : '↓')}</th>
-              <th data-key="rAchieved" onClick={() => handleSort('rAchieved')}>R Reach {sortKey === 'rAchieved' && (sortDir === 1 ? '↑' : '↓')}</th>
-              <th data-key="result" onClick={() => handleSort('result')}>Outcome {sortKey === 'result' && (sortDir === 1 ? '↑' : '↓')}</th>
-              <th data-key="notes" onClick={() => handleSort('notes')}>Notes {sortKey === 'notes' && (sortDir === 1 ? '↑' : '↓')}</th>
+              {allColumns.map(col => (
+                <th key={col} onClick={() => handleSort(col)} style={{ cursor: 'pointer' }}>
+                  {col === 'dir' ? 'Dir' : col === 'rAchieved' ? 'R Reach' : col === 'result' ? 'Outcome' : col}
+                  {sortKey === col && (sortDir === 1 ? ' ↑' : ' ↓')}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
-            {filteredRows.length === 0 ? (
-              <tr><td colSpan="15"><div className="empty-state">No trades match search.</div></td></tr>
-            ) : (
-              filteredRows.map(r => (
-                <tr key={r.id}>
-                  <td>{r.date}</td>
-                  <td>{r.entry}</td>
-                  <td>{r.exit}</td>
-                  <td className={r.dir === 'Long' ? 'dir-long' : 'dir-short'}>{r.dir}</td>
-                  <td>{r.setup}</td>
-                  <td>{r.factors}</td>
-                  <td>{r.pcz}</td>
-                  <td>{r.vwap}</td>
-                  <td>{r.early}</td>
-                  <td>{r.session}</td>
-                  <td>{r.mae.toFixed(2)}</td>
-                  <td>{r.mfe.toFixed(2)}</td>
-                  <td>{r.rAchieved.toFixed(2)}R</td>
-                  <td><span className={`tag ${r.result}`}>{r.result.toUpperCase()}</span></td>
-                  <td style={{ maxWidth: '220px', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.notes || '—'}</td>
-                </tr>
-              ))
-            )}
+            {filteredRows.map((row, idx) => (
+              <tr key={row.id || idx}>
+                {allColumns.map(col => (
+                  <td key={col}>{renderCell(row, col)}</td>
+                ))}
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>

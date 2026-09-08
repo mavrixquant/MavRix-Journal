@@ -14,7 +14,7 @@ export default function CategoryBarChart({ data, label, horizontal = false }) {
   // If no data, show placeholder
   if (!data || data.length === 0) {
     return (
-      <div style={{ color: 'var(--text-faint)', textAlign: 'center', paddingTop: '30px', height: '100%' }}>
+      <div style={{ color: 'var(--text-faint)', textAlign: 'center', paddingTop: '40px', height: '100%' }}>
         No data
       </div>
     );

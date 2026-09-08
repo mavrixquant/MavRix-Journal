@@ -2,6 +2,7 @@
 import { Bar } from 'react-chartjs-2';
 import { useStats } from '../../../hooks/useStats';
 import { computeStats } from '../../../utils/statsEngine';
+import { useAppContext } from '../../../context/AppContext';
 
 const RR_LEVELS = [1, 2, 3, 4, 5, 6, 7, 8];
 const COLORS = {
@@ -13,7 +14,41 @@ const COLORS = {
 };
 
 export default function RRCompareChart() {
+  const { state } = useAppContext();
   const { filteredTrades } = useStats();
+
+  const selectedAccount = state.accounts.find(acc => acc.id === state.selectedAccountId) || null;
+  const isBacktest = selectedAccount?.type === 'Backtest';
+
+  // Check if no trades loaded
+  if (!filteredTrades || filteredTrades.length === 0) {
+    return (
+      <div className="panel">
+        <div style={{ color: 'var(--text-faint)', textAlign: 'center', padding: '85px' }}>No data</div>
+      </div>
+    );
+  }
+
+  // If account is not Backtest, show placeholder
+  if (!isBacktest) {
+    return (
+      <div className="panel" style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '85px 20px',
+        color: 'var(--text-faint)',
+        fontFamily: 'var(--mono)',
+        fontSize: '14px',
+        textAlign: 'center',
+        border: '1px dashed var(--border)',
+        background: 'var(--panel)',
+        borderRadius: '12px',
+      }}>
+        Only Available for Backtest (Type) Accounts
+      </div>
+    );
+  }
 
   // Compute stats for each RR level
   const statsData = RR_LEVELS.map(r => computeStats(filteredTrades, r));

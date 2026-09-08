@@ -46,7 +46,7 @@ export default function AppLayout() {
   };
 
   return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
+    <div style={{ minHeight: '100vh' }}>
       <Sidebar
         isOpen={sidebarOpen}
         onToggle={toggleSidebar}
@@ -55,8 +55,11 @@ export default function AppLayout() {
         user={user}
         onLogout={handleLogout}
       />
-      <div className={`content-wrapper ${sidebarOpen ? 'with-sidebar-open' : 'with-sidebar-closed'}`} style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0, minHeight: 0 }}>
-        <main style={{ maxWidth: 'auto', margin: '0 auto', padding: '26px 28px', flex: 1, display: 'flex', flexDirection: 'column', width: '100%', boxSizing: 'border-box', minWidth: 0, minHeight: 0 }}>
+      <div
+        className={`content-wrapper ${sidebarOpen ? 'with-sidebar-open' : 'with-sidebar-closed'}`}
+        style={{ transition: 'margin-left 0.3s ease' }}
+      >
+        <main style={{ padding: '26px 28px', width: '100%', boxSizing: 'border-box' }}>
           {renderContent()}
         </main>
       </div>

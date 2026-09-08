@@ -25,9 +25,7 @@ export default function TimeChart() {
 
   if (!timeData || timeData.length === 0) {
     return (
-      <div style={{ color: 'var(--text-faint)', textAlign: 'center', paddingTop: '40px', height: '100%' }}>
-        No time data available
-      </div>
+      <div style={{ color: 'var(--text-faint)', textAlign: 'center', padding: '115px' }}>No data</div>
     );
   }
 
@@ -110,5 +108,9 @@ export default function TimeChart() {
     },
   };
 
-  return <Bar data={chartData} options={options} />;
+  return (
+    <div className="chart-box">
+      <Bar data={chartData} options={options} />
+    </div>
+  );
 }
