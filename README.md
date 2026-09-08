@@ -1,16 +1,30 @@
-# React + Vite
+# Trading Analytics Dashboard
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A modern, full‑stack trading analytics platform built with React, Vite, and Firebase. Track your trades, visualize performance, run backtests, and maintain a detailed journal—all in one place.
 
-Currently, two official plugins are available:
+## ✨ Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **Interactive Landing Page** – Beautiful entry point with animated sections.
+- **Secure Authentication** – Email/password login & signup via Firebase Auth.
+- **Account Management** – Create Backtest, Live, or Demo accounts with risk & stop‑loss settings.
+- **Trade Journal** – Upload via XLSX or manually add trades. Supports custom columns, dynamic filtering, search, and sorting.
+- **Advanced Dashboard** – Real‑time metrics: equity curve, win rate, profit factor, expectancy, drawdown, calendar view, weekly summaries.
+- **Backtesting Engine** – Compare R:R targets (1:1 to 1:8), apply dynamic filters, and run optimization to find the best combinations.
+- **Responsive Sidebar** – Hover‑to‑open on desktop, toggle on mobile.
+- **Firestore Integration** – All data stored securely in the cloud.
 
-## React Compiler
+## 🛠 Tech Stack
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **Frontend:** React 18, Vite, Chart.js (react-chartjs-2), React Router
+- **Backend:** Firebase (Authentication, Firestore)
+- **Styling:** Custom CSS with CSS variables, Google Fonts (Inter, IBM Plex Mono, Space Grotesk)
+- **Deployment:** Netlify (GitHub integration)
 
-## Expanding the ESLint configuration
+## 🚀 Getting Started
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+### Prerequisites
+
+- Node.js (v18+)
+- npm or yarn
+- Firebase project (for Auth & Firestore)
+- Netlify account (optional, for deployment)
