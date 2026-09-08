@@ -24,6 +24,9 @@ export async function createAccount(userId, accountData) {
     riskType: accountData.riskType || 'fixed',
     riskValue: accountData.riskValue !== undefined ? accountData.riskValue : null,
     riskUnit: accountData.riskUnit || 'percent',
+    slType: accountData.slType || 'fixed',
+    slValue: accountData.slValue !== undefined ? accountData.slValue : null,
+    slUnit: accountData.slUnit || 'ticks',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };

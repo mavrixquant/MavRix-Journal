@@ -35,6 +35,10 @@ export default function AccountsMain() {
   const [riskValue, setRiskValue] = useState('');
   const [riskUnit, setRiskUnit] = useState('percent');
 
+  const [slType, setSlType] = useState('fixed');
+  const [slValue, setSlValue] = useState('');
+  const [slUnit, setSlUnit] = useState('ticks');
+
   const [deleteAlert, setDeleteAlert] = useState({ show: false, accountId: null, accountName: '', tradesCount: 0 });
   const [loadingDelete, setLoadingDelete] = useState(false);
   const [successAlert, setSuccessAlert] = useState({ show: false, message: '' });
@@ -60,6 +64,9 @@ export default function AccountsMain() {
     setRiskType('fixed');
     setRiskValue('');
     setRiskUnit('percent');
+    setSlType('fixed');
+    setSlValue('');
+    setSlUnit('ticks');
     setModalOpen(true);
   };
 
@@ -75,6 +82,9 @@ export default function AccountsMain() {
     setRiskType(account.riskType || 'fixed');
     setRiskValue(account.riskValue !== undefined ? account.riskValue : '');
     setRiskUnit(account.riskUnit || 'percent');
+    setSlType(account.slType || 'fixed');
+    setSlValue(account.slValue !== undefined ? account.slValue : '');
+    setSlUnit(account.slUnit || 'ticks');
     setModalOpen(true);
   };
 
@@ -101,6 +111,9 @@ export default function AccountsMain() {
       riskType,
       riskValue: riskType === 'fixed' ? parseFloat(riskValue) || 0 : null,
       riskUnit: riskType === 'fixed' ? riskUnit : null,
+      slType,
+      slValue: slType === 'fixed' ? parseFloat(slValue) || 0 : null,
+      slUnit: slType === 'fixed' ? slUnit : null,
     };
 
     try {
@@ -196,6 +209,13 @@ export default function AccountsMain() {
     return `${value}${unit}`;
   };
 
+  const formatSlValue = (account) => {
+    if (account.slType === 'variable' || !account.slType) return '—';
+    const value = account.slValue !== undefined && account.slValue !== null ? account.slValue : 0;
+    const unit = account.slUnit === 'ticks' ? ' ticks' : ' pts';
+    return `${value}${unit}`;
+  };
+
   return (
     <div style={{ padding: '20px 0' }}>
       {/* Header with count */}
@@ -218,14 +238,17 @@ export default function AccountsMain() {
                 <th>Type</th>
                 <th>Risk Type</th>
                 <th>Risk Value</th>
+                <th>SL Type</th>
+                <th>SL Value</th>
                 <th>P&L</th>
+                <th>Trades</th>
                 <th style={{ textAlign: 'center' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
               {accounts.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="empty-state">No accounts. Click the + button to create one.</td>
+                  <td colSpan="11" className="empty-state">No accounts. Click the + button to create one.</td>
                 </tr>
               ) : (
                 accounts.map(acc => (
@@ -257,7 +280,10 @@ export default function AccountsMain() {
                     </td>
                     <td style={{ textTransform: 'capitalize' }}>{acc.riskType || '—'}</td>
                     <td>{formatRiskValue(acc)}</td>
+                    <td style={{ textTransform: 'capitalize' }}>{acc.slType || '—'}</td>
+                    <td>{formatSlValue(acc)}</td>
                     <td>{getPnL(acc)}</td>
+                    <td>0</td>
                     <td style={{ textAlign: 'center' }}>
                       <button
                         onClick={() => openEdit(acc)}
@@ -535,6 +561,92 @@ export default function AccountsMain() {
                     }}
                   >
                     Variable Risk will consider Risk Amount from Trades itself.
+                  </p>
+                )}
+                <div style={{ marginBottom: '20px' }}>
+                  <label style={{ display: 'block', marginBottom: '4px', fontSize: '13px', color: 'var(--text-dim)' }}>
+                    SL Type
+                  </label>
+                  <select
+                    value={slType}
+                    onChange={(e) => setSlType(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      background: 'var(--bg-alt)',
+                      border: '1px solid var(--border-soft)',
+                      borderRadius: '6px',
+                      color: 'var(--text)',
+                      fontSize: '14px',
+                      fontFamily: 'var(--mono)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <option value="fixed">Fixed SL</option>
+                    <option value="variable">Variable SL</option>
+                  </select>
+                </div>
+
+                {slType === 'fixed' ? (
+                  <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ display: 'block', marginBottom: '4px', fontSize: '13px', color: 'var(--text-dim)' }}>
+                        SL Value
+                      </label>
+                      <input
+                        type="number"
+                        value={slValue}
+                        onChange={(e) => setSlValue(e.target.value)}
+                        required
+                        min="0"
+                        step="0.01"
+                        style={{
+                          width: '100%',
+                          padding: '8px 12px',
+                          background: 'var(--bg-alt)',
+                          border: '1px solid var(--border-soft)',
+                          borderRadius: '6px',
+                          color: 'var(--text)',
+                          fontSize: '14px',
+                          fontFamily: 'var(--mono)',
+                        }}
+                        placeholder="0.00"
+                      />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ display: 'block', marginBottom: '4px', fontSize: '13px', color: 'var(--text-dim)' }}>
+                        Unit
+                      </label>
+                      <select
+                        value={slUnit}
+                        onChange={(e) => setSlUnit(e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '8px 12px',
+                          background: 'var(--bg-alt)',
+                          border: '1px solid var(--border-soft)',
+                          borderRadius: '6px',
+                          color: 'var(--text)',
+                          fontSize: '14px',
+                          fontFamily: 'var(--mono)',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        <option value="ticks">Ticks/Pips</option>
+                        <option value="points">Points</option>
+                      </select>
+                    </div>
+                  </div>
+                ) : (
+                  <p
+                    style={{
+                      marginBottom: '20px',
+                      fontSize: '13px',
+                      color: 'var(--text-dim)',
+                      fontFamily: 'var(--mono)',
+                    }}
+                  >
+                    Variable SL will be determined per trade.
                   </p>
                 )}
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
