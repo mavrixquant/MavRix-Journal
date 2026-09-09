@@ -1553,3 +1553,28 @@ thead th.sticky-col-right {
 tbody tr:hover td.sticky-col-right {
   background: var(--panel-2);         /* match row hover background */
 }
+
+.btn-google {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.05);
+  color: #F3F4F6;
+  font-size: 15px;
+  font-weight: 500;
+  padding: 13px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  transition: all 0.2s ease;
+}
+.btn-google:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+.btn-google:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
