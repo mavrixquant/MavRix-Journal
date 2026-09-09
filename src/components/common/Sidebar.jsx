@@ -1,4 +1,3 @@
-// src/components/common/Sidebar.jsx
 import { FaChartPie, FaBook, FaUsers, FaUserCircle, FaSignOutAlt } from 'react-icons/fa';
 import navLogo from '../../assets/navLOGO.png';
 import smLogo from '../../assets/smLOGO.png';
@@ -9,7 +8,17 @@ const navItems = [
   { id: 'accounts', label: 'Accounts', icon: <FaUsers size={22} /> },
 ];
 
-export default function Sidebar({ isOpen, onToggle, activeTab, onTabChange, user, onLogout, onMouseEnter, onMouseLeave }) {
+export default function Sidebar({
+  isOpen,
+  onToggle,
+  activeTab,
+  onTabChange,
+  user,
+  onLogout,
+  onMouseEnter,
+  onMouseLeave,
+  onAccountClick, // <-- new prop
+}) {
   const displayName = user?.displayName || user?.email || 'User';
 
   return (
@@ -18,7 +27,7 @@ export default function Sidebar({ isOpen, onToggle, activeTab, onTabChange, user
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
     >
-      {/* Header: Logo acts as toggle, aligned left like nav items */}
+      {/* Header: Logo acts as toggle */}
       <div className="sidebar-header" style={{ justifyContent: 'flex-start', paddingLeft: isOpen ? '12px' : '12px' }}>
         {isOpen ? (
           <img
@@ -57,13 +66,18 @@ export default function Sidebar({ isOpen, onToggle, activeTab, onTabChange, user
 
       {/* Bottom: User Info + Logout */}
       <div className="sidebar-footer">
-        <div className="sidebar-user" title={!isOpen ? displayName : ''}>
+        <div
+          className="sidebar-user"
+          title={!isOpen ? displayName : ''}
+          onClick={onAccountClick}
+          style={{ cursor: 'pointer' }}
+        >
           <FaUserCircle size={isOpen ? 28 : 24} className="sidebar-user-icon" />
           {isOpen && <span className="sidebar-user-name">{displayName}</span>}
         </div>
-        <button 
-          className="sidebar-logout-btn" 
-          onClick={onLogout} 
+        <button
+          className="sidebar-logout-btn"
+          onClick={onLogout}
           title="Logout"
         >
           <FaSignOutAlt size={isOpen ? 18 : 20} />

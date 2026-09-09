@@ -1,9 +1,9 @@
-// src/components/AppLayout.jsx
 import { useState, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { signOut } from 'firebase/auth';
 import { auth } from '../firebase/config';
 import Sidebar from './common/Sidebar';
+import AccountModal from './common/AccountModal';
 import DashboardMain from './dashboard/DashboardMain';
 import JournalMain from './journal/JournalMain';
 import AccountsMain from './accounts/AccountsMain';
@@ -14,6 +14,7 @@ export default function AppLayout() {
   const [isHovering, setIsHovering] = useState(false);
   const closeTimeoutRef = useRef(null);
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
 
   const handleLogout = async () => {
     await signOut(auth);
@@ -39,7 +40,6 @@ export default function AppLayout() {
   };
 
   const toggleSidebar = () => {
-    // Clear any pending close to avoid immediate closure after manual open
     if (closeTimeoutRef.current) {
       clearTimeout(closeTimeoutRef.current);
       closeTimeoutRef.current = null;
@@ -84,6 +84,7 @@ export default function AppLayout() {
         onLogout={handleLogout}
         onMouseEnter={handleSidebarMouseEnter}
         onMouseLeave={handleSidebarMouseLeave}
+        onAccountClick={() => setIsAccountModalOpen(true)}
       />
       <div
         className={`content-wrapper ${isSidebarOpen ? 'with-sidebar-open' : 'with-sidebar-closed'}`}
@@ -93,6 +94,10 @@ export default function AppLayout() {
           {renderContent()}
         </main>
       </div>
+      <AccountModal
+        isOpen={isAccountModalOpen}
+        onClose={() => setIsAccountModalOpen(false)}
+      />
     </div>
   );
 }

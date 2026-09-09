@@ -2,7 +2,6 @@
 import { useState } from 'react';
 import DashboardMain from './dashboard/DashboardMain';
 import JournalMain from './journal/JournalMain';
-import BacktestMain from './backtest/BacktestMain';
 import AccountsMain from './accounts/AccountsMain';
 import { useStats } from '../hooks/useStats';
 
@@ -17,8 +16,6 @@ export default function AppRouter() {
         return <DashboardMain />; // you may need to pass props
       case 'journal':
         return <JournalMain />;
-      case 'backtest':
-        return <BacktestMain />;
       case 'accounts':
         return <AccountsMain />;
       default:
