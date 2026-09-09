@@ -140,6 +140,58 @@ export default function DashboardMain({ sessionData, dowData, dirData, setupData
           >
             {/* LEFT COLUMN */}
             <div className="grid-col" style={{ display: 'flex', flexDirection: 'column', gap: '16px', minWidth: 0 }}>
+              <div
+                className="panel"
+                style={{
+                  background: 'var(--panel-bg, #12161f)',
+                  border: '1px solid var(--border-soft, rgba(255, 255, 255, 0.08))',
+                  borderRadius: '12px',
+                  padding: '16px',
+                  boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)',
+                  overflow: 'hidden',
+                }}
+              >
+                <div
+                  className="panel-head"
+                  style={{
+                    display: 'flex',
+                    justify: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: '14px',
+                    paddingBottom: '8px',
+                    borderBottom: '1px solid var(--border-soft, rgba(255, 255, 255, 0.06))',
+                  }}
+                >
+                  <span className="panel-title" style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text, #f0f2f5)' }}>
+                    Monthly Calendar
+                  </span>
+                  <span className="panel-note" style={{ fontSize: '10px', fontFamily: 'var(--mono, monospace)', color: 'var(--text-dim, #8f9bba)' }}>
+                    Target R & Weekly
+                  </span>
+                </div>
+                <Calendar />
+                <div style={{ height: '20px' }}></div>
+                <WeeklyChart />
+              </div>
+
+              <div
+                className="panel"
+                style={{
+                  background: 'var(--panel-bg, #12161f)',
+                  border: '1px solid var(--border-soft, rgba(255, 255, 255, 0.08))',
+                  borderRadius: '12px',
+                  padding: '14px',
+                  boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)',
+                  overflow: 'hidden',
+                }}
+              >
+                <RRCompareChart />
+              </div>
+            </div>
+            
+
+            {/* RIGHT COLUMN */}
+            <div className="grid-col" style={{ display: 'flex', flexDirection: 'column', gap: '16px', minWidth: 0 }}>
               <KPIGrid />
               <Hero />
 
@@ -273,57 +325,6 @@ export default function DashboardMain({ sessionData, dowData, dirData, setupData
                     <CategoryBarChart data={dirData} horizontal={false} />
                   </div>
                 </div>
-              </div>
-            </div>
-
-            {/* RIGHT COLUMN */}
-            <div className="grid-col" style={{ display: 'flex', flexDirection: 'column', gap: '16px', minWidth: 0 }}>
-              <div
-                className="panel"
-                style={{
-                  background: 'var(--panel-bg, #12161f)',
-                  border: '1px solid var(--border-soft, rgba(255, 255, 255, 0.08))',
-                  borderRadius: '12px',
-                  padding: '16px',
-                  boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)',
-                  overflow: 'hidden',
-                }}
-              >
-                <div
-                  className="panel-head"
-                  style={{
-                    display: 'flex',
-                    justify: 'space-between',
-                    alignItems: 'center',
-                    marginBottom: '14px',
-                    paddingBottom: '8px',
-                    borderBottom: '1px solid var(--border-soft, rgba(255, 255, 255, 0.06))',
-                  }}
-                >
-                  <span className="panel-title" style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text, #f0f2f5)' }}>
-                    Monthly Calendar
-                  </span>
-                  <span className="panel-note" style={{ fontSize: '10px', fontFamily: 'var(--mono, monospace)', color: 'var(--text-dim, #8f9bba)' }}>
-                    Target R & Weekly
-                  </span>
-                </div>
-                <Calendar />
-                <div style={{ height: '20px' }}></div>
-                <WeeklyChart />
-              </div>
-
-              <div
-                className="panel"
-                style={{
-                  background: 'var(--panel-bg, #12161f)',
-                  border: '1px solid var(--border-soft, rgba(255, 255, 255, 0.08))',
-                  borderRadius: '12px',
-                  padding: '14px',
-                  boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)',
-                  overflow: 'hidden',
-                }}
-              >
-                <RRCompareChart />
               </div>
             </div>
           </div>
