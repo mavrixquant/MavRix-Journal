@@ -88,7 +88,7 @@ export default function AppLayout() {
       />
       <div
         className={`content-wrapper ${isSidebarOpen ? 'with-sidebar-open' : 'with-sidebar-closed'}`}
-        style={{ transition: 'margin-left 0.3s ease' }}
+        style={{ marginLeft: '68px' }}
       >
         <main style={{ padding: '26px 28px', width: '100%', boxSizing: 'border-box' }}>
           {renderContent()}

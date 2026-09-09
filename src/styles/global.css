@@ -524,12 +524,12 @@ h1 {
 
 /* Filter Controls & Toolbars */
 .filter-toolbar {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16px;
-    padding: 12px 16px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
 }
 
 .filter-toolbar-section {
@@ -539,9 +539,10 @@ h1 {
 }
 
 .filter-actions-group {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
 }
 
 .filters,
@@ -669,6 +670,15 @@ h1 {
     width: 13px;
     height: 13px;
     flex-shrink: 0;
+}
+
+.btn-toolbar,
+.btn-toolbar-reset {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap; /* Prevents button text from awkwardly breaking onto 2 lines */
+  gap: 6px;
 }
 
 /* Multi-select filter dropdown */
@@ -1676,7 +1686,6 @@ footer b { color: var(--text-dim); }
     }
     .filter-toolbar-section {
         width: 100%;
-        justify-content: space-between;
     }
     .filter-actions-group {
         display: grid;
