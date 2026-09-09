@@ -658,13 +658,13 @@ export default function JournalMain() {
           >
             Manage Custom Columns
           </button>
-          <button className="btn-upload" onClick={openCreateModal} style={{ borderStyle: 'solid', padding: '8px 14px' }}>
+          <button className="btn-upload" onClick={openCreateModal} style={{ borderStyle: 'solid', padding: '8px 14px', borderColor: 'var(--amber)', color: 'var(--amber)' }}>
             + Add Trade
           </button>
           <button className="btn-upload" onClick={handleDownloadTemplate} style={{ borderStyle: 'solid', padding: '8px 14px' }}>
             <FaDownload style={{ marginRight: '6px' }} /> Template
           </button>
-          <label className="btn-upload" style={{ borderStyle: 'solid', padding: '8px 14px', cursor: 'pointer' }}>
+          <label className="btn-upload" style={{ borderStyle: 'solid', padding: '8px 14px', cursor: 'pointer', borderColor: 'var(--blue)', color: 'var(--blue)' }} onClick={() => fileInputRef.current.click()}>
             ⇪ Upload XLSX
             <input type="file" ref={fileInputRef} accept=".xlsx,.xls" onChange={handleFileUpload} style={{ display: 'none' }} />
           </label>
@@ -805,147 +805,439 @@ export default function JournalMain() {
       </div>
 
       {/* Modals and Alerts */}
+      {/* Modal */}
       {modalOpen && (
         <Portal>
-          <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) closeModal(); }}>
-            <div className="modal-content">
-              <h2 style={{ fontFamily: 'var(--disp)', marginBottom: '16px' }}>
-                {editingId ? 'Edit Trade' : 'Add Trade'}
-              </h2>
-              <form onSubmit={handleSubmit}>
-                <div style={{ marginBottom: '12px' }}>
-                  <label style={{ display: 'block', marginBottom: '4px', fontSize: '13px', color: 'var(--text-dim)' }}>Date</label>
-                  <input type="date" name="date" value={formData.date} onChange={handleChange} required style={{ width: '100%', padding: '8px 12px', background: 'var(--bg-alt)', border: '1px solid var(--border-soft)', borderRadius: '6px', color: 'var(--text)', fontSize: '14px', fontFamily: 'var(--mono)' }} />
+          <div 
+            className="modal-overlay" 
+            onClick={(e) => { if (e.target === e.currentTarget) closeModal(); }}
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(5, 7, 10, 0.75)',
+              backdropFilter: 'blur(4px)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 1000,
+              padding: '16px',
+            }}
+          >
+            <div 
+              className="modal-content"
+              style={{
+                width: '100%',
+                maxWidth: '560px',
+                maxHeight: '90vh',
+                overflowY: 'auto',
+                background: 'var(--panel-bg, #12161f)',
+                border: '1px solid var(--border-soft, rgba(255, 255, 255, 0.08))',
+                borderRadius: '14px',
+                boxShadow: '0 20px 40px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05)',
+                padding: '24px',
+                color: 'var(--text, #f0f2f5)',
+              }}
+            >
+              {/* Header */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', paddingBottom: '12px', borderBottom: '1px solid var(--border-soft, rgba(255,255,255,0.08))' }}>
+                <div>
+                  <h2 style={{ fontFamily: 'var(--disp)', fontSize: '20px', fontWeight: '600', margin: 0, color: 'var(--text)' }}>
+                    {editingId ? 'Edit Trade' : 'Add Trade'}
+                  </h2>
+                  <p style={{ margin: '4px 0 0', fontSize: '12px', color: 'var(--text-dim)', fontFamily: 'var(--mono)' }}>
+                    {editingId ? 'Update execution details and metrics' : 'Log a new trade execution'}
+                  </p>
                 </div>
-                <div style={{ marginBottom: '12px' }}>
-                  <label style={{ display: 'block', marginBottom: '4px', fontSize: '13px', color: 'var(--text-dim)' }}>Entry Time</label>
-                  <input type="time" name="entryTime" value={formData.entryTime} onChange={handleChange} required style={{ width: '100%', padding: '8px 12px', background: 'var(--bg-alt)', border: '1px solid var(--border-soft)', borderRadius: '6px', color: 'var(--text)', fontSize: '14px', fontFamily: 'var(--mono)' }} />
+                <button
+                  type="button"
+                  onClick={closeModal}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--text-dim)',
+                    fontSize: '20px',
+                    cursor: 'pointer',
+                    padding: '4px 8px',
+                    borderRadius: '6px',
+                    lineHeight: 1,
+                    transition: 'all 0.2s',
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text)'; e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-dim)'; e.currentTarget.style.background = 'none'; }}
+                >
+                  ✕
+                </button>
+              </div>
+
+              <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {/* Timing Row: Date, Entry Time, Exit Time */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr', gap: '12px' }}>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '11px', fontWeight: '600', color: 'var(--text-dim)', letterSpacing: '0.4px', textTransform: 'uppercase' }}>
+                      Date
+                    </label>
+                    <input 
+                      type="date" 
+                      name="date" 
+                      value={formData.date} 
+                      onChange={handleChange} 
+                      required 
+                      style={{ 
+                        width: '100%', 
+                        padding: '9px 12px', 
+                        background: 'var(--bg-alt, #0d1017)', 
+                        border: '1px solid var(--border-soft, rgba(255,255,255,0.1))', 
+                        borderRadius: '8px', 
+                        color: 'var(--text)', 
+                        fontSize: '13px', 
+                        fontFamily: 'var(--mono)',
+                        outline: 'none',
+                        boxSizing: 'border-box'
+                      }} 
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '11px', fontWeight: '600', color: 'var(--text-dim)', letterSpacing: '0.4px', textTransform: 'uppercase' }}>
+                      Entry Time
+                    </label>
+                    <input 
+                      type="time" 
+                      name="entryTime" 
+                      value={formData.entryTime} 
+                      onChange={handleChange} 
+                      required 
+                      style={{ 
+                        width: '100%', 
+                        padding: '9px 10px', 
+                        background: 'var(--bg-alt, #0d1017)', 
+                        border: '1px solid var(--border-soft, rgba(255,255,255,0.1))', 
+                        borderRadius: '8px', 
+                        color: 'var(--text)', 
+                        fontSize: '13px', 
+                        fontFamily: 'var(--mono)',
+                        outline: 'none',
+                        boxSizing: 'border-box'
+                      }} 
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '11px', fontWeight: '600', color: 'var(--text-dim)', letterSpacing: '0.4px', textTransform: 'uppercase' }}>
+                      Exit Time
+                    </label>
+                    <input 
+                      type="time" 
+                      name="exitTime" 
+                      value={formData.exitTime} 
+                      onChange={handleChange} 
+                      required 
+                      style={{ 
+                        width: '100%', 
+                        padding: '9px 10px', 
+                        background: 'var(--bg-alt, #0d1017)', 
+                        border: '1px solid var(--border-soft, rgba(255,255,255,0.1))', 
+                        borderRadius: '8px', 
+                        color: 'var(--text)', 
+                        fontSize: '13px', 
+                        fontFamily: 'var(--mono)',
+                        outline: 'none',
+                        boxSizing: 'border-box'
+                      }} 
+                    />
+                  </div>
                 </div>
-                <div style={{ marginBottom: '12px' }}>
-                  <label style={{ display: 'block', marginBottom: '4px', fontSize: '13px', color: 'var(--text-dim)' }}>Exit Time</label>
-                  <input type="time" name="exitTime" value={formData.exitTime} onChange={handleChange} required style={{ width: '100%', padding: '8px 12px', background: 'var(--bg-alt)', border: '1px solid var(--border-soft)', borderRadius: '6px', color: 'var(--text)', fontSize: '14px', fontFamily: 'var(--mono)' }} />
+
+                {/* Asset Row: Direction & Symbol */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '11px', fontWeight: '600', color: 'var(--text-dim)', letterSpacing: '0.4px', textTransform: 'uppercase' }}>
+                      Direction
+                    </label>
+                    <select 
+                      name="direction" 
+                      value={formData.direction} 
+                      onChange={handleChange} 
+                      style={{ 
+                        width: '100%', 
+                        padding: '9px 12px', 
+                        background: 'var(--bg-alt, #0d1017)', 
+                        border: '1px solid var(--border-soft, rgba(255,255,255,0.1))', 
+                        borderRadius: '8px', 
+                        color: 'var(--text)', 
+                        fontSize: '13px', 
+                        fontFamily: 'var(--mono)', 
+                        cursor: 'pointer',
+                        outline: 'none',
+                        boxSizing: 'border-box'
+                      }}
+                    >
+                      {DIRECTIONS.map((dir) => (
+                        <option key={dir} value={dir}>{dir}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '11px', fontWeight: '600', color: 'var(--text-dim)', letterSpacing: '0.4px', textTransform: 'uppercase' }}>
+                      Symbol
+                    </label>
+                    <input
+                      type="text"
+                      name="symbol"
+                      value={formData.symbol}
+                      onChange={handleChange}
+                      style={{
+                        width: '100%',
+                        padding: '9px 12px',
+                        background: 'var(--bg-alt, #0d1017)',
+                        border: '1px solid var(--border-soft, rgba(255,255,255,0.1))',
+                        borderRadius: '8px',
+                        color: 'var(--text)',
+                        fontSize: '13px',
+                        fontFamily: 'var(--mono)',
+                        outline: 'none',
+                        boxSizing: 'border-box'
+                      }}
+                      placeholder="e.g., NQ, ES, AAPL"
+                    />
+                  </div>
                 </div>
-                <div style={{ marginBottom: '12px' }}>
-                  <label style={{ display: 'block', marginBottom: '4px', fontSize: '13px', color: 'var(--text-dim)' }}>Direction</label>
-                  <select name="direction" value={formData.direction} onChange={handleChange} style={{ width: '100%', padding: '8px 12px', background: 'var(--bg-alt)', border: '1px solid var(--border-soft)', borderRadius: '6px', color: 'var(--text)', fontSize: '14px', fontFamily: 'var(--mono)', cursor: 'pointer' }}>
-                    {DIRECTIONS.map((dir) => (<option key={dir} value={dir}>{dir}</option>))}
-                  </select>
-                </div>
-                <div style={{ marginBottom: '12px' }}>
-                  <label style={{ display: 'block', marginBottom: '4px', fontSize: '13px', color: 'var(--text-dim)' }}>Symbol</label>
-                  <input
-                    type="text"
-                    name="symbol"
-                    value={formData.symbol}
-                    onChange={handleChange}
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      background: 'var(--bg-alt)',
-                      border: '1px solid var(--border-soft)',
-                      borderRadius: '6px',
-                      color: 'var(--text)',
-                      fontSize: '14px',
-                      fontFamily: 'var(--mono)',
-                    }}
-                    placeholder="e.g., NQ, ES"
-                  />
-                </div>
-                <div style={{ marginBottom: '20px' }}>
-                  <label style={{ display: 'block', marginBottom: '4px', fontSize: '13px', color: 'var(--text-dim)' }}>P&L</label>
-                  <input
-                    type="number"
-                    name="pnl"
-                    value={formData.pnl}
-                    onChange={handleChange}
-                    step="0.01"
-                    style={{ width: '100%', padding: '8px 12px', background: 'var(--bg-alt)', border: '1px solid var(--border-soft)', borderRadius: '6px', color: 'var(--text)', fontSize: '14px', fontFamily: 'var(--mono)' }}
-                    placeholder="0.00"
-                  />
-                </div>
-                <div style={{ marginBottom: '12px' }}>
-                  <label style={{ display: 'block', marginBottom: '4px', fontSize: '13px', color: 'var(--text-dim)' }}>MAE</label>
-                  <input type="number" name="mae" value={formData.mae} onChange={handleChange} step="0.01" style={{ width: '100%', padding: '8px 12px', background: 'var(--bg-alt)', border: '1px solid var(--border-soft)', borderRadius: '6px', color: 'var(--text)', fontSize: '14px', fontFamily: 'var(--mono)' }} placeholder="0.00" />
-                </div>
-                <div style={{ marginBottom: '20px' }}>
-                  <label style={{ display: 'block', marginBottom: '4px', fontSize: '13px', color: 'var(--text-dim)' }}>MFE</label>
-                  <input type="number" name="mfe" value={formData.mfe} onChange={handleChange} step="0.01" style={{ width: '100%', padding: '8px 12px', background: 'var(--bg-alt)', border: '1px solid var(--border-soft)', borderRadius: '6px', color: 'var(--text)', fontSize: '14px', fontFamily: 'var(--mono)' }} placeholder="0.00" />
-                </div>
-                {dynamicColumns.map(col => {
-                  const options = customColumnOptions[col] || [];
-                  const useDropdown = options.length <= 10;
-                  return (
-                    <div key={col} style={{ marginBottom: '12px' }}>
-                      <label style={{ display: 'block', marginBottom: '4px', fontSize: '13px', color: 'var(--text-dim)' }}>
-                        {formatColumnHeader(col)}
+
+                {/* Performance Metrics Card: P&L, MAE, MFE */}
+                <div style={{
+                  padding: '14px',
+                  background: 'rgba(255, 255, 255, 0.02)',
+                  border: '1px solid var(--border-soft, rgba(255,255,255,0.06))',
+                  borderRadius: '10px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '12px',
+                }}>
+                  <div style={{ fontSize: '11px', fontWeight: '700', letterSpacing: '0.5px', textTransform: 'uppercase', color: 'var(--amber, #ffb020)' }}>
+                    Trade Execution Metrics
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '6px', fontSize: '11px', color: 'var(--text-dim)', textTransform: 'uppercase' }}>
+                        P&L
                       </label>
-                      {useDropdown ? (
-                        <>
-                          <select
-                            value={customSelectValues[col] || ''}
-                            onChange={(e) => handleCustomSelectChange(col, e.target.value)}
-                            style={{
-                              width: '100%',
-                              padding: '8px 12px',
-                              background: 'var(--bg-alt)',
-                              border: '1px solid var(--border-soft)',
-                              borderRadius: '6px',
-                              color: 'var(--text)',
-                              fontSize: '14px',
-                              fontFamily: 'var(--mono)',
-                              cursor: 'pointer',
-                            }}
-                          >
-                            <option value="">Select...</option>
-                            {options.map(opt => (
-                              <option key={opt} value={opt}>{opt}</option>
-                            ))}
-                            <option value="__other__">Other…</option>
-                          </select>
-                          {customSelectValues[col] === '__other__' && (
-                            <input
-                              type="text"
-                              value={customTextValues[col] || ''}
-                              onChange={(e) => handleCustomTextChange(col, e.target.value)}
-                              placeholder={`Enter ${formatColumnHeader(col)}`}
-                              style={{
-                                width: '100%',
-                                padding: '8px 12px',
-                                background: 'var(--bg-alt)',
-                                border: '1px solid var(--border-soft)',
-                                borderRadius: '6px',
-                                color: 'var(--text)',
-                                fontSize: '14px',
-                                fontFamily: 'var(--mono)',
-                                marginTop: '6px',
-                              }}
-                            />
-                          )}
-                        </>
-                      ) : (
-                        <input
-                          type="text"
-                          value={customTextValues[col] || ''}
-                          onChange={(e) => handleCustomTextChange(col, e.target.value)}
-                          placeholder={`Enter ${formatColumnHeader(col)}`}
-                          style={{
-                            width: '100%',
-                            padding: '8px 12px',
-                            background: 'var(--bg-alt)',
-                            border: '1px solid var(--border-soft)',
-                            borderRadius: '6px',
-                            color: 'var(--text)',
-                            fontSize: '14px',
-                            fontFamily: 'var(--mono)',
-                          }}
-                        />
-                      )}
+                      <input
+                        type="number"
+                        name="pnl"
+                        value={formData.pnl}
+                        onChange={handleChange}
+                        step="0.01"
+                        style={{
+                          width: '100%',
+                          padding: '8px 10px',
+                          background: 'var(--bg-alt, #0d1017)',
+                          border: '1px solid var(--border-soft, rgba(255,255,255,0.1))',
+                          borderRadius: '6px',
+                          color: 'var(--text)',
+                          fontSize: '13px',
+                          fontFamily: 'var(--mono)',
+                          outline: 'none',
+                          boxSizing: 'border-box'
+                        }}
+                        placeholder="0.00"
+                      />
                     </div>
-                  );
-                })}
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-                  <button type="button" onClick={closeModal} className="btn-upload" style={{ borderStyle: 'solid', padding: '6px 16px' }}>Cancel</button>
-                  <button type="submit" className="btn-upload" style={{ borderStyle: 'solid', borderColor: 'var(--amber)', color: 'var(--amber)', padding: '6px 16px' }}>{editingId ? 'Update' : 'Add'}</button>
+
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '6px', fontSize: '11px', color: 'var(--text-dim)', textTransform: 'uppercase' }}>
+                        MAE
+                      </label>
+                      <input 
+                        type="number" 
+                        name="mae" 
+                        value={formData.mae} 
+                        onChange={handleChange} 
+                        step="0.01" 
+                        style={{ 
+                          width: '100%', 
+                          padding: '8px 10px', 
+                          background: 'var(--bg-alt, #0d1017)', 
+                          border: '1px solid var(--border-soft, rgba(255,255,255,0.1))', 
+                          borderRadius: '6px', 
+                          color: 'var(--text)', 
+                          fontSize: '13px', 
+                          fontFamily: 'var(--mono)',
+                          outline: 'none',
+                          boxSizing: 'border-box'
+                        }} 
+                        placeholder="0.00" 
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '6px', fontSize: '11px', color: 'var(--text-dim)', textTransform: 'uppercase' }}>
+                        MFE
+                      </label>
+                      <input 
+                        type="number" 
+                        name="mfe" 
+                        value={formData.mfe} 
+                        onChange={handleChange} 
+                        step="0.01" 
+                        style={{ 
+                          width: '100%', 
+                          padding: '8px 10px', 
+                          background: 'var(--bg-alt, #0d1017)', 
+                          border: '1px solid var(--border-soft, rgba(255,255,255,0.1))', 
+                          borderRadius: '6px', 
+                          color: 'var(--text)', 
+                          fontSize: '13px', 
+                          fontFamily: 'var(--mono)',
+                          outline: 'none',
+                          boxSizing: 'border-box'
+                        }} 
+                        placeholder="0.00" 
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Custom/Dynamic Columns Section */}
+                {dynamicColumns.length > 0 && (
+                  <div style={{
+                    padding: '14px',
+                    background: 'rgba(255, 255, 255, 0.02)',
+                    border: '1px solid var(--border-soft, rgba(255,255,255,0.06))',
+                    borderRadius: '10px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '12px',
+                  }}>
+                    <div style={{ fontSize: '11px', fontWeight: '700', letterSpacing: '0.5px', textTransform: 'uppercase', color: 'var(--text-dim)' }}>
+                      Custom Attributes
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: dynamicColumns.length > 1 ? '1fr 1fr' : '1fr', gap: '12px' }}>
+                      {dynamicColumns.map(col => {
+                        const options = customColumnOptions[col] || [];
+                        const useDropdown = options.length <= 10;
+                        return (
+                          <div key={col}>
+                            <label style={{ display: 'block', marginBottom: '6px', fontSize: '11px', color: 'var(--text-dim)', textTransform: 'uppercase' }}>
+                              {formatColumnHeader(col)}
+                            </label>
+                            {useDropdown ? (
+                              <>
+                                <select
+                                  value={customSelectValues[col] || ''}
+                                  onChange={(e) => handleCustomSelectChange(col, e.target.value)}
+                                  style={{
+                                    width: '100%',
+                                    padding: '8px 10px',
+                                    background: 'var(--bg-alt, #0d1017)',
+                                    border: '1px solid var(--border-soft, rgba(255,255,255,0.1))',
+                                    borderRadius: '6px',
+                                    color: 'var(--text)',
+                                    fontSize: '13px',
+                                    fontFamily: 'var(--mono)',
+                                    cursor: 'pointer',
+                                    outline: 'none',
+                                    boxSizing: 'border-box'
+                                  }}
+                                >
+                                  <option value="">Select...</option>
+                                  {options.map(opt => (
+                                    <option key={opt} value={opt}>{opt}</option>
+                                  ))}
+                                  <option value="__other__">Other…</option>
+                                </select>
+                                {customSelectValues[col] === '__other__' && (
+                                  <input
+                                    type="text"
+                                    value={customTextValues[col] || ''}
+                                    onChange={(e) => handleCustomTextChange(col, e.target.value)}
+                                    placeholder={`Enter ${formatColumnHeader(col)}`}
+                                    style={{
+                                      width: '100%',
+                                      padding: '8px 10px',
+                                      background: 'var(--bg-alt, #0d1017)',
+                                      border: '1px solid var(--border-soft, rgba(255,255,255,0.1))',
+                                      borderRadius: '6px',
+                                      color: 'var(--text)',
+                                      fontSize: '13px',
+                                      fontFamily: 'var(--mono)',
+                                      marginTop: '6px',
+                                      outline: 'none',
+                                      boxSizing: 'border-box'
+                                    }}
+                                  />
+                                )}
+                              </>
+                            ) : (
+                              <input
+                                type="text"
+                                value={customTextValues[col] || ''}
+                                onChange={(e) => handleCustomTextChange(col, e.target.value)}
+                                placeholder={`Enter ${formatColumnHeader(col)}`}
+                                style={{
+                                  width: '100%',
+                                  padding: '8px 10px',
+                                  background: 'var(--bg-alt, #0d1017)',
+                                  border: '1px solid var(--border-soft, rgba(255,255,255,0.1))',
+                                  borderRadius: '6px',
+                                  color: 'var(--text)',
+                                  fontSize: '13px',
+                                  fontFamily: 'var(--mono)',
+                                  outline: 'none',
+                                  boxSizing: 'border-box'
+                                }}
+                              />
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Action Buttons */}
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '8px', paddingTop: '16px', borderTop: '1px solid var(--border-soft, rgba(255,255,255,0.08))' }}>
+                  <button 
+                    type="button" 
+                    onClick={closeModal} 
+                    style={{ 
+                      padding: '8px 18px', 
+                      background: 'transparent', 
+                      border: '1px solid var(--border-soft, rgba(255,255,255,0.15))', 
+                      borderRadius: '8px', 
+                      color: 'var(--text-dim)', 
+                      fontSize: '13px', 
+                      fontWeight: '500', 
+                      cursor: 'pointer',
+                      transition: 'all 0.2s'
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.3)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-dim)'; e.currentTarget.style.borderColor = 'var(--border-soft, rgba(255,255,255,0.15))'; }}
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    type="submit" 
+                    style={{ 
+                      padding: '8px 22px', 
+                      background: 'var(--amber, #ffb020)', 
+                      border: 'none', 
+                      borderRadius: '8px', 
+                      color: '#0A0D13', 
+                      fontSize: '13px', 
+                      fontWeight: '600', 
+                      cursor: 'pointer',
+                      boxShadow: '0 2px 8px rgba(255,176,32,0.3)',
+                      transition: 'all 0.2s'
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(255,176,32,0.4)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(255,176,32,0.3)'; }}
+                  >
+                    {editingId ? 'Update Trade' : 'Add Trade'}
+                  </button>
                 </div>
               </form>
             </div>
@@ -953,45 +1245,154 @@ export default function JournalMain() {
         </Portal>
       )}
 
+      {/* Custom Columns Management Modal */}
       {customColumnsModalOpen && (
         <Portal>
-          <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) closeCustomColumnsModal(); }}>
-            <div className="modal-content" style={{ maxWidth: '420px' }}>
-              <h2 style={{ fontFamily: 'var(--disp)', marginBottom: '16px' }}>Manage Custom Columns</h2>
-              <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+          <div 
+            className="modal-overlay" 
+            onClick={(e) => { if (e.target === e.currentTarget) closeCustomColumnsModal(); }}
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(5, 7, 10, 0.75)',
+              backdropFilter: 'blur(4px)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 1000,
+              padding: '16px',
+            }}
+          >
+            <div 
+              className="modal-content" 
+              style={{ 
+                width: '100%',
+                maxWidth: '460px', 
+                maxHeight: '85vh',
+                overflowY: 'auto',
+                background: 'var(--panel-bg, #12161f)',
+                border: '1px solid var(--border-soft, rgba(255, 255, 255, 0.08))',
+                borderRadius: '14px',
+                boxShadow: '0 20px 40px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05)',
+                padding: '24px',
+                color: 'var(--text, #f0f2f5)',
+              }}
+            >
+              {/* Modal Header */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', paddingBottom: '12px', borderBottom: '1px solid var(--border-soft, rgba(255,255,255,0.08))' }}>
+                <div>
+                  <h2 style={{ fontFamily: 'var(--disp)', fontSize: '18px', fontWeight: '600', margin: 0, color: 'var(--text)' }}>
+                    Manage Custom Columns
+                  </h2>
+                  <p style={{ margin: '4px 0 0', fontSize: '12px', color: 'var(--text-dim)', fontFamily: 'var(--mono)' }}>
+                    Add, rename, or remove custom trade data attributes
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={closeCustomColumnsModal}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--text-dim)',
+                    fontSize: '18px',
+                    cursor: 'pointer',
+                    padding: '4px 8px',
+                    borderRadius: '6px',
+                    lineHeight: 1,
+                    transition: 'all 0.2s',
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text)'; e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-dim)'; e.currentTarget.style.background = 'none'; }}
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Add New Column Input Bar */}
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
                 <input
                   type="text"
                   value={newColumnName}
                   onChange={(e) => setNewColumnName(e.target.value)}
-                  placeholder="New column name"
+                  placeholder="New column name..."
                   style={{
                     flex: 1,
-                    padding: '6px 10px',
-                    background: 'var(--panel)',
-                    border: '1px solid var(--border-soft)',
-                    borderRadius: '4px',
+                    padding: '9px 12px',
+                    background: 'var(--bg-alt, #0d1017)',
+                    border: '1px solid var(--border-soft, rgba(255, 255, 255, 0.1))',
+                    borderRadius: '8px',
                     color: 'var(--text)',
                     fontFamily: 'var(--mono)',
                     fontSize: '13px',
+                    outline: 'none',
+                    boxSizing: 'border-box',
                   }}
                 />
                 <button
                   onClick={handleAddColumn}
-                  className="btn-upload"
-                  style={{ borderStyle: 'solid', padding: '4px 10px', fontSize: '11px' }}
-                  disabled={loadingCustomColumn}
+                  disabled={loadingCustomColumn || !newColumnName.trim()}
+                  style={{
+                    padding: '8px 18px',
+                    background: loadingCustomColumn || !newColumnName.trim() ? 'rgba(255, 176, 32, 0.3)' : 'var(--amber, #ffb020)',
+                    border: 'none',
+                    borderRadius: '8px',
+                    color: '#0A0D13',
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    cursor: loadingCustomColumn || !newColumnName.trim() ? 'not-allowed' : 'pointer',
+                    transition: 'all 0.2s',
+                    whiteSpace: 'nowrap',
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!loadingCustomColumn && newColumnName.trim()) {
+                      e.currentTarget.style.transform = 'translateY(-1px)';
+                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(255,176,32,0.3)';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
                 >
-                  Add
+                  {loadingCustomColumn ? 'Adding...' : 'Add Column'}
                 </button>
               </div>
+
+              {/* Existing Columns List */}
               {dynamicColumns.length === 0 ? (
-                <p style={{ color: 'var(--text-dim)', fontFamily: 'var(--mono)', fontSize: '13px' }}>
-                  No custom columns found.
-                </p>
+                <div style={{
+                  padding: '24px',
+                  textAlign: 'center',
+                  background: 'rgba(255, 255, 255, 0.02)',
+                  border: '1px dashed var(--border-soft, rgba(255, 255, 255, 0.1))',
+                  borderRadius: '10px',
+                  marginBottom: '20px'
+                }}>
+                  <p style={{ color: 'var(--text-dim)', fontFamily: 'var(--mono)', fontSize: '13px', margin: 0 }}>
+                    No custom columns defined yet.
+                  </p>
+                </div>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '300px', overflowY: 'auto' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '280px', overflowY: 'auto', marginBottom: '20px', paddingRight: '2px' }}>
                   {dynamicColumns.map(col => (
-                    <div key={col} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', padding: '8px', border: '1px solid var(--border-soft)', borderRadius: '6px', background: 'var(--bg-alt)' }}>
+                    <div 
+                      key={col} 
+                      style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'space-between', 
+                        gap: '10px', 
+                        padding: '10px 14px', 
+                        border: '1px solid var(--border-soft, rgba(255, 255, 255, 0.08))', 
+                        borderRadius: '8px', 
+                        background: 'rgba(255, 255, 255, 0.02)',
+                        transition: 'background 0.2s',
+                      }}
+                    >
                       {editingColumn && editingColumn.oldName === col ? (
                         <>
                           <input
@@ -1001,47 +1402,103 @@ export default function JournalMain() {
                             style={{
                               flex: 1,
                               padding: '6px 10px',
-                              background: 'var(--panel)',
-                              border: '1px solid var(--border-soft)',
-                              borderRadius: '4px',
+                              background: 'var(--bg-alt, #0d1017)',
+                              border: '1px solid var(--amber, #ffb020)',
+                              borderRadius: '6px',
                               color: 'var(--text)',
                               fontFamily: 'var(--mono)',
                               fontSize: '13px',
+                              outline: 'none',
                             }}
                             autoFocus
                           />
-                          <button
-                            onClick={handleSaveColumnRename}
-                            className="btn-upload"
-                            style={{ borderStyle: 'solid', padding: '4px 10px', fontSize: '11px' }}
-                          >
-                            Save
-                          </button>
-                          <button
-                            onClick={() => setEditingColumn(null)}
-                            className="btn-upload"
-                            style={{ borderStyle: 'solid', padding: '4px 10px', fontSize: '11px' }}
-                          >
-                            Cancel
-                          </button>
+                          <div style={{ display: 'flex', gap: '6px' }}>
+                            <button
+                              onClick={handleSaveColumnRename}
+                              style={{
+                                padding: '5px 12px',
+                                background: 'var(--amber, #ffb020)',
+                                border: 'none',
+                                borderRadius: '6px',
+                                color: '#0A0D13',
+                                fontSize: '12px',
+                                fontWeight: '600',
+                                cursor: 'pointer',
+                              }}
+                            >
+                              Save
+                            </button>
+                            <button
+                              onClick={() => setEditingColumn(null)}
+                              style={{
+                                padding: '5px 12px',
+                                background: 'transparent',
+                                border: '1px solid var(--border-soft, rgba(255,255,255,0.15))',
+                                borderRadius: '6px',
+                                color: 'var(--text-dim)',
+                                fontSize: '12px',
+                                cursor: 'pointer',
+                              }}
+                            >
+                              Cancel
+                            </button>
+                          </div>
                         </>
                       ) : (
                         <>
-                          <span style={{ fontFamily: 'var(--mono)', fontSize: '13px', color: 'var(--text)' }}>{formatColumnHeader(col)}</span>
-                          <div style={{ display: 'flex', gap: '10px' }}>
+                          <span style={{ fontFamily: 'var(--mono)', fontSize: '13px', color: 'var(--text)', fontWeight: '500' }}>
+                            {formatColumnHeader(col)}
+                          </span>
+                          <div style={{ display: 'flex', gap: '8px' }}>
                             <button
                               onClick={() => handleEditColumnClick(col)}
-                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-dim)', fontSize: '14px' }}
-                              onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--amber)')}
-                              onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-dim)')}
+                              title="Edit Column Name"
+                              style={{ 
+                                background: 'rgba(255,255,255,0.04)', 
+                                border: '1px solid rgba(255,255,255,0.08)', 
+                                borderRadius: '6px',
+                                padding: '6px 8px',
+                                cursor: 'pointer', 
+                                color: 'var(--text-dim)', 
+                                fontSize: '13px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                transition: 'all 0.2s',
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.color = 'var(--amber, #ffb020)';
+                                e.currentTarget.style.borderColor = 'rgba(255,176,32,0.3)';
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.color = 'var(--text-dim)';
+                                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
+                              }}
                             >
                               <FaEdit />
                             </button>
                             <button
                               onClick={() => handleDeleteColumnClick(col)}
-                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-dim)', fontSize: '14px' }}
-                              onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--loss)')}
-                              onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-dim)')}
+                              title="Delete Column"
+                              style={{ 
+                                background: 'rgba(255,255,255,0.04)', 
+                                border: '1px solid rgba(255,255,255,0.08)', 
+                                borderRadius: '6px',
+                                padding: '6px 8px',
+                                cursor: 'pointer', 
+                                color: 'var(--text-dim)', 
+                                fontSize: '13px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                transition: 'all 0.2s',
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.color = 'var(--loss, #ff4d4d)';
+                                e.currentTarget.style.borderColor = 'rgba(255,77,77,0.3)';
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.color = 'var(--text-dim)';
+                                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
+                              }}
                             >
                               <FaTrash />
                             </button>
@@ -1052,8 +1509,25 @@ export default function JournalMain() {
                   ))}
                 </div>
               )}
-              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px' }}>
-                <button onClick={closeCustomColumnsModal} className="btn-upload" style={{ borderStyle: 'solid', padding: '6px 16px' }}>
+
+              {/* Modal Footer */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '16px', borderTop: '1px solid var(--border-soft, rgba(255,255,255,0.08))' }}>
+                <button 
+                  onClick={closeCustomColumnsModal} 
+                  style={{ 
+                    padding: '8px 20px', 
+                    background: 'transparent', 
+                    border: '1px solid var(--border-soft, rgba(255,255,255,0.15))', 
+                    borderRadius: '8px', 
+                    color: 'var(--text-dim)', 
+                    fontSize: '13px', 
+                    fontWeight: '500', 
+                    cursor: 'pointer',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.3)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-dim)'; e.currentTarget.style.borderColor = 'var(--border-soft, rgba(255,255,255,0.15))'; }}
+                >
                   Close
                 </button>
               </div>
