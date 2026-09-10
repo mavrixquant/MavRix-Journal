@@ -1,17 +1,39 @@
-// src/components/journal/JournalMain.jsx
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { FaEdit, FaTrash, FaDownload } from 'react-icons/fa';
+import { 
+  FaEdit, 
+  FaTrash, 
+  FaDownload, 
+  FaPlus, 
+  FaColumns, 
+  FaFileUpload, 
+  FaSearch, 
+  FaTimes, 
+  FaSortAmountUp, 
+  FaSortAmountDown
+} from 'react-icons/fa';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
+
 import { useAuth } from '../../context/AuthContext';
 import { subscribeToAccounts } from '../../firebase/accountsService';
-import { subscribeToTrades, createTrade, updateTrade, deleteTrade, createTrades, generateTradeId, renameCustomColumn, deleteCustomColumn, addCustomColumn } from '../../firebase/tradesService';
+import { 
+  subscribeToTrades, 
+  createTrade, 
+  updateTrade, 
+  deleteTrade, 
+  createTrades, 
+  generateTradeId, 
+  deleteCustomColumn, 
+  addCustomColumn 
+} from '../../firebase/tradesService';
 import Portal from '../common/Portal';
 import Alert from '../common/Alert';
 import LoadingOverlay from '../common/LoadingOverlay';
 import * as XLSX from 'xlsx';
 
 const DIRECTIONS = ['Long', 'Short'];
-const DEFAULT_COLUMNS = ['tradeId', 'date', 'entryTime', 'exitTime', 'direction', 'symbol', 'mae', 'mfe', 'pnl'];
-const TEMPLATE_HEADERS = ['Date', 'Entry Time', 'Exit Time', 'Direction', 'Symbol', 'MAE', 'MFE', 'P&L'];
+const DEFAULT_COLUMNS = ['tradeId', 'date', 'entryTime', 'exitTime', 'direction', 'symbol', 'mae', 'mfe', 'pnl', 'notes'];
+const TEMPLATE_HEADERS = ['Date', 'Entry Time', 'Exit Time', 'Direction', 'Symbol', 'MAE', 'MFE', 'P&L', 'Notes'];
 const SAMPLE_TRADE = {
   'Date': '2026-09-07',
   'Entry Time': '09:30',
@@ -21,21 +43,7 @@ const SAMPLE_TRADE = {
   'MAE': 8.20,
   'MFE': 15.40,
   'P&L': 12.34,
-};
-
-const getColumnMinWidth = (col) => {
-  switch (col) {
-    case 'tradeId': return '100px';
-    case 'date': return '80px';
-    case 'entryTime': return '80px';
-    case 'exitTime': return '80px';
-    case 'direction': return '70px';
-    case 'symbol': return '70px';
-    case 'mae': return '70px';
-    case 'mfe': return '70px';
-    case 'pnl': return '70px';
-    default: return '120px';
-  }
+  'Notes': 'Breakout above resistance level'
 };
 
 const formatColumnHeader = (key) => {
@@ -55,6 +63,66 @@ const formatTimeWithAMPM = (timeStr) => {
   return timeStr;
 };
 
+// Custom Dark Mode Theme for React Datepicker
+const darkDatePickerStyles = `
+  .react-datepicker-wrapper {
+    width: 100%;
+  }
+  .react-datepicker {
+    background-color: #12161f !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    border-radius: 12px !important;
+    font-family: inherit !important;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6) !important;
+    overflow: hidden;
+  }
+  .react-datepicker__header {
+    background-color: #0d1017 !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+    padding-top: 10px !important;
+  }
+  .react-datepicker__current-month,
+  .react-datepicker__day-name {
+    color: #f8fafc !important;
+    font-weight: 600 !important;
+  }
+  .react-datepicker__day {
+    color: #cbd5e1 !important;
+    border-radius: 6px !important;
+    transition: all 0.15s ease !important;
+  }
+  .react-datepicker__day:hover {
+    background-color: rgba(255, 176, 32, 0.2) !important;
+    color: #ffb020 !important;
+  }
+  .react-datepicker__day--selected,
+  .react-datepicker__day--keyboard-selected {
+    background-color: #ffb020 !important;
+    color: #0a0d13 !important;
+    font-weight: 700 !important;
+  }
+  .react-datepicker__day--outside-month {
+    color: #475569 !important;
+  }
+  .react-datepicker__navigation-icon::before {
+    border-color: #94a3b8 !important;
+  }
+  .custom-date-input {
+    width: 100%;
+    padding: 9px 12px;
+    background: #0d1017;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    color: #ffffff;
+    font-size: 13px;
+    outline: none;
+    box-sizing: border-box;
+  }
+  .custom-date-input:focus {
+    border-color: #ffb020;
+  }
+`;
+
 export default function JournalMain() {
   const { user } = useAuth();
   const [accounts, setAccounts] = useState([]);
@@ -63,8 +131,9 @@ export default function JournalMain() {
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  
   const [formData, setFormData] = useState({
-    date: '',
+    date: null,
     entryTime: '',
     exitTime: '',
     direction: 'Long',
@@ -72,13 +141,13 @@ export default function JournalMain() {
     mae: '',
     mfe: '',
     pnl: '',
+    notes: ''
   });
   const fileInputRef = useRef(null);
 
-  // Search and sort state
   const [searchQuery, setSearchQuery] = useState('');
   const [sortKey, setSortKey] = useState('date');
-  const [sortDir, setSortDir] = useState(1); // 1 = asc, -1 = desc
+  const [sortDir, setSortDir] = useState(-1);
 
   const [confirmAlert, setConfirmAlert] = useState({ show: false, tradesCount: 0, onConfirm: null, onCancel: null });
   const [loadingUpload, setLoadingUpload] = useState(false);
@@ -87,7 +156,6 @@ export default function JournalMain() {
   const [deleteAlert, setDeleteAlert] = useState({ show: false, tradeId: null });
 
   const [customColumnsModalOpen, setCustomColumnsModalOpen] = useState(false);
-  const [editingColumn, setEditingColumn] = useState(null);
   const [deleteColumnAlert, setDeleteColumnAlert] = useState({ show: false, columnName: '' });
   const [loadingCustomColumn, setLoadingCustomColumn] = useState(false);
   const [newColumnName, setNewColumnName] = useState('');
@@ -144,18 +212,33 @@ export default function JournalMain() {
 
   const allColumns = [...DEFAULT_COLUMNS, ...dynamicColumns];
 
-  // Filter and sort trades for display
+  const stats = useMemo(() => {
+    let totalPnl = 0;
+    let winCount = 0;
+    let lossCount = 0;
+
+    trades.forEach((t) => {
+      const pnlVal = Number(t.pnl) || 0;
+      totalPnl += pnlVal;
+      if (pnlVal > 0) winCount++;
+      else if (pnlVal < 0) lossCount++;
+    });
+
+    const totalClosed = winCount + lossCount;
+    const winRate = totalClosed > 0 ? ((winCount / totalClosed) * 100).toFixed(1) : '0.0';
+
+    return { totalPnl, winRate, totalTrades: trades.length };
+  }, [trades]);
+
   const filteredAndSortedTrades = useMemo(() => {
     let result = [...trades];
     const q = searchQuery.trim().toLowerCase();
     if (q) {
       result = result.filter(trade => {
-        // Search in default columns
         for (const col of DEFAULT_COLUMNS) {
           const val = trade[col];
           if (val !== undefined && val !== null && String(val).toLowerCase().includes(q)) return true;
         }
-        // Search in dynamic columns
         for (const col of dynamicColumns) {
           const val = trade[col];
           if (val !== undefined && val !== null && String(val).toLowerCase().includes(q)) return true;
@@ -163,7 +246,7 @@ export default function JournalMain() {
         return false;
       });
     }
-    // Sort
+
     result.sort((a, b) => {
       let va = a[sortKey];
       let vb = b[sortKey];
@@ -193,13 +276,9 @@ export default function JournalMain() {
     }
   };
 
-  const handleAccountChange = (e) => {
-    setSelectedAccountId(e.target.value);
-  };
-
   const openCreateModal = () => {
     setEditingId(null);
-    setFormData({ date: '', entryTime: '', exitTime: '', direction: 'Long', symbol: '', mae: '', mfe: '', pnl: '' });
+    setFormData({ date: null, entryTime: '', exitTime: '', direction: 'Long', symbol: '', mae: '', mfe: '', pnl: '', notes: '' });
     setCustomSelectValues({});
     setCustomTextValues({});
     setModalOpen(true);
@@ -208,7 +287,7 @@ export default function JournalMain() {
   const openEditModal = (trade) => {
     setEditingId(trade.id);
     setFormData({
-      date: trade.date || '',
+      date: trade.date ? new Date(trade.date + 'T00:00:00') : null,
       entryTime: trade.entryTime || '',
       exitTime: trade.exitTime || '',
       direction: trade.direction || 'Long',
@@ -216,6 +295,7 @@ export default function JournalMain() {
       mae: trade.mae || '',
       mfe: trade.mfe || '',
       pnl: trade.pnl !== undefined ? trade.pnl : '',
+      notes: trade.notes || '',
     });
     const selects = {};
     const texts = {};
@@ -269,11 +349,19 @@ export default function JournalMain() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const { date, entryTime, exitTime, direction, symbol, mae, mfe, pnl } = formData;
+    const { date, entryTime, exitTime, direction, symbol, mae, mfe, pnl, notes } = formData;
     if (!date || !entryTime || !exitTime) return;
 
+    let formattedDate = date;
+    if (date instanceof Date) {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      formattedDate = `${year}-${month}-${day}`;
+    }
+
     const tradeData = {
-      date,
+      date: formattedDate,
       entryTime,
       exitTime,
       direction,
@@ -281,6 +369,7 @@ export default function JournalMain() {
       mae: Number(mae) || 0,
       mfe: Number(mfe) || 0,
       pnl: pnl !== '' ? Number(pnl) : '',
+      notes: notes ? notes.trim() : '',
     };
 
     dynamicColumns.forEach(col => {
@@ -338,10 +427,6 @@ export default function JournalMain() {
     }
   };
 
-  const cancelDelete = () => {
-    setDeleteAlert({ show: false, tradeId: null });
-  };
-
   const checkDuplicateTradeIds = (tradeArray, excludeId = null) => {
     const existingIds = new Set(
       trades
@@ -360,50 +445,10 @@ export default function JournalMain() {
 
   const openCustomColumnsModal = () => {
     setCustomColumnsModalOpen(true);
-    setEditingColumn(null);
   };
 
   const closeCustomColumnsModal = () => {
     setCustomColumnsModalOpen(false);
-    setEditingColumn(null);
-  };
-
-  const handleEditColumnClick = (columnName) => {
-    setEditingColumn({ oldName: columnName, newName: columnName });
-  };
-
-  const handleColumnNameChange = (e) => {
-    const { value } = e.target;
-    setEditingColumn(prev => ({ ...prev, newName: value }));
-  };
-
-  const handleSaveColumnRename = async () => {
-    if (!editingColumn) return;
-    const { oldName, newName } = editingColumn;
-    if (!newName || newName.trim() === '') {
-      setErrorAlert({ show: true, message: 'Column name cannot be empty.' });
-      return;
-    }
-    const trimmedNewName = newName.trim();
-    if (DEFAULT_COLUMNS.includes(trimmedNewName) || (dynamicColumns.includes(trimmedNewName) && trimmedNewName !== oldName)) {
-      setErrorAlert({ show: true, message: 'Column name already exists or is reserved.' });
-      return;
-    }
-    setLoadingCustomColumn(true);
-    try {
-      await renameCustomColumn(selectedAccountId, oldName, trimmedNewName);
-      setEditingColumn(null);
-      setSuccessAlert({ show: true, message: `Column "${oldName}" renamed to "${trimmedNewName}".` });
-    } catch (err) {
-      console.error(err);
-      setErrorAlert({ show: true, message: 'Failed to rename column: ' + err.message });
-    } finally {
-      setLoadingCustomColumn(false);
-    }
-  };
-
-  const handleDeleteColumnClick = (columnName) => {
-    setDeleteColumnAlert({ show: true, columnName });
   };
 
   const confirmDeleteColumn = async () => {
@@ -421,10 +466,6 @@ export default function JournalMain() {
     } finally {
       setLoadingCustomColumn(false);
     }
-  };
-
-  const cancelDeleteColumn = () => {
-    setDeleteColumnAlert({ show: false, columnName: '' });
   };
 
   const handleAddColumn = async () => {
@@ -520,6 +561,7 @@ export default function JournalMain() {
           else if (trimmed === 'MAE') headerMap[trimmed] = 'mae';
           else if (trimmed === 'MFE') headerMap[trimmed] = 'mfe';
           else if (trimmed === 'P&L') headerMap[trimmed] = 'pnl';
+          else if (trimmed === 'Notes') headerMap[trimmed] = 'notes';
           else headerMap[trimmed] = trimmed;
         });
 
@@ -545,6 +587,7 @@ export default function JournalMain() {
             } else {
               trade.pnl = '';
             }
+            trade.notes = trade.notes ? String(trade.notes).trim() : '';
             Object.keys(trade).forEach((k) => {
               if (trade[k] === undefined || trade[k] === null) delete trade[k];
             });
@@ -600,216 +643,401 @@ export default function JournalMain() {
   };
 
   if (loading) {
-    return <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-dim)' }}>Loading...</div>;
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh', color: 'var(--text-dim, #94a3b8)', fontFamily: 'var(--mono, monospace)' }}>
+        <LoadingOverlay message="Loading journal..." />
+      </div>
+    );
   }
 
   if (accounts.length === 0) {
-    return <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-dim)' }}>No accounts. Go to Accounts tab to create one.</div>;
+    return (
+      <div style={{ padding: '60px 20px', textAlign: 'center', color: 'var(--text-dim, #94a3b8)', maxWidth: '400px', margin: '0 auto' }}>
+        <h3 style={{ color: 'var(--text, #f8fafc)', marginBottom: '8px' }}>No Accounts Found</h3>
+        <p style={{ fontSize: '14px', lineHeight: '1.5', marginBottom: '20px' }}>Create an account in the Accounts section to start logging and tracking your trades.</p>
+      </div>
+    );
   }
 
   return (
     <div style={{
-      padding: '20px 0',
+      padding: '24px',
       width: '100%',
       boxSizing: 'border-box',
       display: 'flex',
       flexDirection: 'column',
-      flex: 1,
-      minHeight: 0,
-      minWidth: 0,
-      overflow: 'visible'
+      gap: '20px',
+      maxWidth: '1600px',
+      margin: '0 auto'
     }}>
-      {/* Header */}
+      <style>{darkDatePickerStyles}</style>
+
+      {/* Header Section */}
       <div style={{
+        background: 'rgba(18, 22, 31, 0.75)',
+        backdropFilter: 'blur(12px)',
+        border: '1px solid rgba(255, 255, 255, 0.08)',
+        borderRadius: '16px',
+        padding: '20px 24px',
         display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
         flexWrap: 'wrap',
-        gap: '12px',
-        marginBottom: '20px',
-        flexShrink: 0
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: '20px',
+        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <label style={{ fontFamily: 'var(--mono)', fontSize: '13px', color: 'var(--text-dim)' }}>Account:</label>
-          <select
-            value={selectedAccountId}
-            onChange={handleAccountChange}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <span style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#94a3b8', fontWeight: 600, marginBottom: '4px' }}>Active Account</span>
+            <select
+              value={selectedAccountId}
+              onChange={(e) => setSelectedAccountId(e.target.value)}
+              style={{
+                padding: '8px 16px',
+                background: '#0d1017',
+                border: '1px solid rgba(255, 255, 255, 0.12)',
+                borderRadius: '8px',
+                color: '#f8fafc',
+                fontSize: '14px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                outline: 'none',
+                minWidth: '180px',
+                boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.4)'
+              }}
+            >
+              {accounts.map((acc) => (
+                <option key={acc.id} value={acc.id}>{acc.name}</option>
+              ))}
+            </select>
+          </div>
+
+          <div style={{ width: '1px', height: '36px', background: 'rgba(255,255,255,0.08)', margin: '0 8px' }} />
+
+          <div style={{ display: 'flex', gap: '24px' }}>
+            <div>
+              <span style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#94a3b8', fontWeight: 600, display: 'block' }}>Net P&L</span>
+              <span style={{ fontSize: '16px', fontWeight: '700', color: stats.totalPnl >= 0 ? '#10b981' : '#ef4444', fontFamily: 'var(--mono, monospace)' }}>
+                {stats.totalPnl >= 0 ? `+$${stats.totalPnl.toFixed(2)}` : `-$${Math.abs(stats.totalPnl).toFixed(2)}`}
+              </span>
+            </div>
+            <div>
+              <span style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#94a3b8', fontWeight: 600, display: 'block' }}>Win Rate</span>
+              <span style={{ fontSize: '16px', fontWeight: '700', color: '#f8fafc', fontFamily: 'var(--mono, monospace)' }}>
+                {stats.winRate}%
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+          <button
+            onClick={openCustomColumnsModal}
             style={{
-              padding: '8px 12px',
-              background: 'var(--bg-alt)',
-              border: '1px solid var(--border-soft)',
-              borderRadius: '6px',
-              color: 'var(--text)',
-              fontFamily: 'var(--mono)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '9px 14px',
+              background: 'rgba(255, 255, 255, 0.05)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              borderRadius: '8px',
+              color: '#e2e8f0',
               fontSize: '13px',
+              fontWeight: 500,
               cursor: 'pointer',
+              transition: 'all 0.2s'
             }}
           >
-            {accounts.map((acc) => (
-              <option key={acc.id} value={acc.id}>{acc.name}</option>
-            ))}
-          </select>
-        </div>
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-          <button
-            className="btn-upload"
-            onClick={openCustomColumnsModal}
-            style={{ borderStyle: 'solid', borderWidth: '1px', color: 'var(--white)', borderColor: 'var(--white)', padding: '8px 14px' }}
+            <FaColumns style={{ fontSize: '12px', color: '#94a3b8' }} /> Columns
+          </button>
+
+          <button 
+            onClick={handleDownloadTemplate} 
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '9px 14px',
+              background: 'rgba(255, 255, 255, 0.05)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              borderRadius: '8px',
+              color: '#e2e8f0',
+              fontSize: '13px',
+              fontWeight: 500,
+              cursor: 'pointer',
+              transition: 'all 0.2s'
+            }}
           >
-            Manage Custom Columns
+            <FaDownload style={{ fontSize: '12px', color: '#94a3b8' }} /> Template
           </button>
-          <button className="btn-upload" onClick={openCreateModal} style={{ borderStyle: 'solid', padding: '8px 14px', borderColor: 'var(--amber)', color: 'var(--amber)' }}>
-            + Add Trade
-          </button>
-          <button className="btn-upload" onClick={handleDownloadTemplate} style={{ borderStyle: 'solid', padding: '8px 14px' }}>
-            <FaDownload style={{ marginRight: '6px' }} /> Template
-          </button>
-          <label className="btn-upload" style={{ borderStyle: 'solid', padding: '8px 14px', cursor: 'pointer', borderColor: 'var(--blue)', color: 'var(--blue)' }} onClick={() => fileInputRef.current.click()}>
-            ⇪ Upload XLSX
+
+          <label style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '9px 14px',
+            background: 'rgba(59, 130, 246, 0.1)',
+            border: '1px solid rgba(59, 130, 246, 0.3)',
+            borderRadius: '8px',
+            color: '#60a5fa',
+            fontSize: '13px',
+            fontWeight: 600,
+            cursor: 'pointer',
+            transition: 'all 0.2s'
+          }}>
+            <FaFileUpload style={{ fontSize: '12px' }} /> Upload
             <input type="file" ref={fileInputRef} accept=".xlsx,.xls" onChange={handleFileUpload} style={{ display: 'none' }} />
           </label>
+
+          <button 
+            onClick={openCreateModal} 
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '9px 16px',
+              background: 'linear-gradient(135deg, #ffb020 0%, #f59e0b 100%)',
+              border: 'none',
+              borderRadius: '8px',
+              color: '#0a0d13',
+              fontSize: '13px',
+              fontWeight: 700,
+              cursor: 'pointer',
+              boxShadow: '0 4px 12px rgba(255, 176, 32, 0.25)',
+              transition: 'all 0.2s'
+            }}
+          >
+            <FaPlus style={{ fontSize: '11px' }} /> Add Trade
+          </button>
         </div>
       </div>
 
-      {/* Search and count */}
-      <div className="table-controls" style={{ marginBottom: '12px', display: 'flex', gap: '10px', alignItems: 'center', flexShrink: 0 }}>
-        <input
-          className="search-box"
-          placeholder="Search trades…"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
-        <span className="panel-note mono">{filteredAndSortedTrades.length} trades</span>
-      </div>
-
-      {/* Table Wrapper */}
-      <div className="table-wrap" style={{
-        width: '100%',
-        overflow: 'auto',
-        minHeight: 0,
-        minWidth: 0,
-        height: 'calc(100vh - 220px)', // fill screen height minus other elements
-        overflowY: 'auto',
-        overflowX: 'auto',
+      {/* Data Table Container */}
+      <div style={{
+        background: 'rgba(18, 22, 31, 0.75)',
+        backdropFilter: 'blur(12px)',
+        border: '1px solid rgba(255, 255, 255, 0.08)',
+        borderRadius: '16px',
+        display: 'flex',
+        flexDirection: 'column',
+        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)',
+        overflow: 'hidden'
       }}>
-        <table style={{ width: '100%', minWidth: 'auto', tableLayout: 'auto' }}>
-          <thead>
-            <tr>
-              {allColumns.map((col) => (
-                <th
-                  key={col}
-                  style={{ textAlign: col === 'direction' ? 'center' : 'left', minWidth: getColumnMinWidth(col), cursor: 'pointer' }}
-                  onClick={() => handleSort(col)}
-                  title={`Sort by ${formatColumnHeader(col)}`}
-                >
-                  {formatColumnHeader(col)}
-                  {sortKey === col && (sortDir === 1 ? ' ↑' : ' ↓')}
+        {/* Table Control Bar */}
+        <div style={{
+          padding: '16px 20px',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: '12px',
+          flexWrap: 'wrap'
+        }}>
+          <div style={{ position: 'relative', width: '320px', maxWidth: '100%' }}>
+            <FaSearch style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#64748b', fontSize: '13px' }} />
+            <input
+              placeholder="Search symbol, notes, columns..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '9px 12px 9px 36px',
+                background: '#0d1017',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                borderRadius: '8px',
+                color: '#f8fafc',
+                fontSize: '13px',
+                outline: 'none',
+                boxSizing: 'border-box'
+              }}
+            />
+            {searchQuery && (
+              <button 
+                onClick={() => setSearchQuery('')}
+                style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#64748b', cursor: 'pointer' }}
+              >
+                <FaTimes />
+              </button>
+            )}
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '12px', color: '#94a3b8', fontFamily: 'var(--mono, monospace)' }}>
+              Showing <strong style={{ color: '#f8fafc' }}>{filteredAndSortedTrades.length}</strong> of {trades.length} trades
+            </span>
+          </div>
+        </div>
+
+        {/* Table Display */}
+        <div style={{ width: '100%', overflowX: 'auto', maxHeight: 'calc(100vh - 340px)', overflowY: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '800px' }}>
+            <thead>
+              <tr style={{ background: 'rgba(255, 255, 255, 0.02)', borderBottom: '1px solid rgba(255, 255, 255, 0.08)' }}>
+                {allColumns.map((col) => (
+                  <th
+                    key={col}
+                    onClick={() => handleSort(col)}
+                    style={{
+                      padding: '12px 16px',
+                      fontSize: '11px',
+                      fontWeight: '700',
+                      letterSpacing: '0.05em',
+                      textTransform: 'uppercase',
+                      color: sortKey === col ? '#ffb020' : '#94a3b8',
+                      cursor: 'pointer',
+                      userSelect: 'none',
+                      whiteSpace: 'nowrap',
+                      textAlign: col === 'direction' ? 'center' : 'left'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: col === 'direction' ? 'center' : 'flex-start' }}>
+                      {formatColumnHeader(col)}
+                      {sortKey === col ? (
+                        sortDir === 1 ? <FaSortAmountUp style={{ fontSize: '11px' }} /> : <FaSortAmountDown style={{ fontSize: '11px' }} />
+                      ) : null}
+                    </div>
+                  </th>
+                ))}
+                <th style={{ padding: '12px 16px', fontSize: '11px', fontWeight: '700', letterSpacing: '0.05em', textTransform: 'uppercase', color: '#94a3b8', textAlign: 'right' }}>
+                  Actions
                 </th>
-              ))}
-              <th className="sticky-col-right" style={{ textAlign: 'center' }}>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredAndSortedTrades.length === 0 ? (
-              <tr>
-                <td colSpan={allColumns.length + 1} className="empty-state">
-                  No trades found.
-                </td>
               </tr>
-            ) : (
-              filteredAndSortedTrades.map((trade) => (
-                <tr key={trade.id}>
-                  {allColumns.map((col) => {
-                    let value = trade[col];
-                    const baseStyle = { minWidth: getColumnMinWidth(col) };
-                    if (col === 'direction') {
-                      return (
-                        <td
-                          key={col}
-                          className={value === 'Long' ? 'dir-long' : 'dir-short'}
-                          style={{ ...baseStyle, textAlign: 'center' }}
-                        >
-                          {value || '—'}
-                        </td>
-                      );
-                    }
-                    if (col === 'mae' || col === 'mfe' || col === 'pnl') {
-                      const displayValue = value !== undefined && value !== '' ? Number(value).toFixed(2) : '—';
-                      return (
-                        <td key={col} style={baseStyle}>
-                          {displayValue}
-                        </td>
-                      );
-                    }
-                    if (col === 'date') {
-                      return <td key={col} style={baseStyle}>{value || '—'}</td>;
-                    }
-                    if (col === 'entryTime' || col === 'exitTime') {
-                      return <td key={col} style={baseStyle}>{formatTimeWithAMPM(value)}</td>;
-                    }
-                    if (col === 'tradeId') {
-                      return (
-                        <td
-                          key={col}
-                          style={{
-                            ...baseStyle,
-                            fontFamily: 'var(--mono)',
-                            fontSize: '11px',
-                            color: 'var(--text-faint)',
-                          }}
-                        >
-                          {value || '—'}
-                        </td>
-                      );
-                    }
-                    return <td key={col} style={baseStyle}>{value !== undefined && value !== null ? String(value) : '—'}</td>;
-                  })}
-                  <td className="sticky-col-right" style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
-                    <button
-                      onClick={() => openEditModal(trade)}
-                      style={{
-                        background: 'none',
-                        border: 'none',
-                        color: 'var(--text-dim)',
-                        cursor: 'pointer',
-                        marginRight: '12px',
-                        fontSize: '16px',
-                        transition: 'color 0.2s',
-                      }}
-                      onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--amber)')}
-                      onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-dim)')}
-                    >
-                      <FaEdit />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(trade.id)}
-                      style={{
-                        background: 'none',
-                        border: 'none',
-                        color: 'var(--text-dim)',
-                        cursor: 'pointer',
-                        fontSize: '16px',
-                        transition: 'color 0.2s',
-                      }}
-                      onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--loss)')}
-                      onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-dim)')}
-                    >
-                      <FaTrash />
-                    </button>
+            </thead>
+            <tbody>
+              {filteredAndSortedTrades.length === 0 ? (
+                <tr>
+                  <td colSpan={allColumns.length + 1} style={{ padding: '48px 16px', textAlign: 'center', color: '#64748b' }}>
+                    No trades matching your criteria.
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ) : (
+                filteredAndSortedTrades.map((trade) => (
+                  <tr 
+                    key={trade.id} 
+                    style={{ 
+                      borderBottom: '1px solid rgba(255, 255, 255, 0.03)',
+                      transition: 'background 0.15s'
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255, 255, 255, 0.025)')}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                  >
+                    {allColumns.map((col) => {
+                      let value = trade[col];
+                      
+                      if (col === 'direction') {
+                        const isLong = value === 'Long';
+                        return (
+                          <td key={col} style={{ padding: '12px 16px', textAlign: 'center' }}>
+                            <span style={{
+                              display: 'inline-block',
+                              padding: '3px 10px',
+                              borderRadius: '20px',
+                              fontSize: '11px',
+                              fontWeight: '700',
+                              letterSpacing: '0.03em',
+                              background: isLong ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)',
+                              color: isLong ? '#10b981' : '#ef4444',
+                              border: `1px solid ${isLong ? 'rgba(16, 185, 129, 0.25)' : 'rgba(239, 68, 68, 0.25)'}`
+                            }}>
+                              {value ? value.toUpperCase() : '—'}
+                            </span>
+                          </td>
+                        );
+                      }
+
+                      if (col === 'pnl') {
+                        const pnlVal = value !== undefined && value !== '' ? Number(value) : null;
+                        const isWin = pnlVal > 0;
+                        const isLoss = pnlVal < 0;
+                        return (
+                          <td key={col} style={{ padding: '12px 16px', fontFamily: 'var(--mono, monospace)', fontWeight: '600', fontSize: '13px', color: isWin ? '#10b981' : isLoss ? '#ef4444' : '#94a3b8' }}>
+                            {pnlVal !== null ? `${pnlVal >= 0 ? '+' : ''}${pnlVal.toFixed(2)}` : '—'}
+                          </td>
+                        );
+                      }
+
+                      if (col === 'mae' || col === 'mfe') {
+                        return (
+                          <td key={col} style={{ padding: '12px 16px', fontFamily: 'var(--mono, monospace)', fontSize: '13px', color: '#cbd5e1' }}>
+                            {value !== undefined && value !== '' ? Number(value).toFixed(2) : '—'}
+                          </td>
+                        );
+                      }
+
+                      if (col === 'symbol') {
+                        return (
+                          <td key={col} style={{ padding: '12px 16px', fontWeight: '700', fontSize: '13px', color: '#f8fafc' }}>
+                            {value || '—'}
+                          </td>
+                        );
+                      }
+
+                      if (col === 'entryTime' || col === 'exitTime') {
+                        return (
+                          <td key={col} style={{ padding: '12px 16px', fontFamily: 'var(--mono, monospace)', fontSize: '12px', color: '#94a3b8' }}>
+                            {formatTimeWithAMPM(value)}
+                          </td>
+                        );
+                      }
+
+                      if (col === 'tradeId') {
+                        return (
+                          <td key={col} style={{ padding: '12px 16px', fontFamily: 'var(--mono, monospace)', fontSize: '11px', color: '#64748b' }}>
+                            {value || '—'}
+                          </td>
+                        );
+                      }
+
+                      return (
+                        <td key={col} style={{ padding: '12px 16px', fontSize: '13px', color: '#cbd5e1' }}>
+                          {value !== undefined && value !== null ? String(value) : '—'}
+                        </td>
+                      );
+                    })}
+
+                    <td style={{ padding: '12px 16px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                      <button
+                        onClick={() => openEditModal(trade)}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: '#94a3b8',
+                          cursor: 'pointer',
+                          padding: '6px',
+                          marginRight: '4px',
+                          borderRadius: '4px'
+                        }}
+                        title="Edit Trade"
+                      >
+                        <FaEdit />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(trade.id)}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: '#94a3b8',
+                          cursor: 'pointer',
+                          padding: '6px',
+                          borderRadius: '4px'
+                        }}
+                        title="Delete Trade"
+                      >
+                        <FaTrash />
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
-      {/* Modals and Alerts */}
-      {/* Modal */}
+      {/* Trade Entry Modal */}
       {modalOpen && (
         <Portal>
           <div 
-            className="modal-overlay" 
             onClick={(e) => { if (e.target === e.currentTarget) closeModal(); }}
             style={{
               position: 'fixed',
@@ -817,8 +1045,8 @@ export default function JournalMain() {
               left: 0,
               right: 0,
               bottom: 0,
-              backgroundColor: 'rgba(5, 7, 10, 0.75)',
-              backdropFilter: 'blur(4px)',
+              backgroundColor: 'rgba(5, 7, 10, 0.8)',
+              backdropFilter: 'blur(6px)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -826,152 +1054,80 @@ export default function JournalMain() {
               padding: '16px',
             }}
           >
-            <div 
-              className="modal-content"
-              style={{
-                width: '100%',
-                maxWidth: '560px',
-                maxHeight: '90vh',
-                overflowY: 'auto',
-                background: 'var(--panel-bg, #12161f)',
-                border: '1px solid var(--border-soft, rgba(255, 255, 255, 0.08))',
-                borderRadius: '14px',
-                boxShadow: '0 20px 40px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05)',
-                padding: '24px',
-                color: 'var(--text, #f0f2f5)',
-              }}
-            >
-              {/* Header */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', paddingBottom: '12px', borderBottom: '1px solid var(--border-soft, rgba(255,255,255,0.08))' }}>
+            <div style={{
+              width: '100%',
+              maxWidth: '540px',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              background: '#12161f',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              borderRadius: '16px',
+              boxShadow: '0 24px 48px rgba(0, 0, 0, 0.6)',
+              padding: '24px',
+              color: '#f8fafc',
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', paddingBottom: '12px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
                 <div>
-                  <h2 style={{ fontFamily: 'var(--disp)', fontSize: '20px', fontWeight: '600', margin: 0, color: 'var(--text)' }}>
-                    {editingId ? 'Edit Trade' : 'Add Trade'}
+                  <h2 style={{ fontSize: '18px', fontWeight: '700', margin: 0 }}>
+                    {editingId ? 'Edit Trade Execution' : 'Log New Trade'}
                   </h2>
-                  <p style={{ margin: '4px 0 0', fontSize: '12px', color: 'var(--text-dim)', fontFamily: 'var(--mono)' }}>
-                    {editingId ? 'Update execution details and metrics' : 'Log a new trade execution'}
+                  <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#94a3b8' }}>
+                    {editingId ? 'Modify recorded position details' : 'Enter trade performance and metadata'}
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={closeModal}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    color: 'var(--text-dim)',
-                    fontSize: '20px',
-                    cursor: 'pointer',
-                    padding: '4px 8px',
-                    borderRadius: '6px',
-                    lineHeight: 1,
-                    transition: 'all 0.2s',
-                  }}
-                  onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text)'; e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-dim)'; e.currentTarget.style.background = 'none'; }}
+                  style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '18px', cursor: 'pointer', padding: '4px' }}
                 >
-                  ✕
+                  <FaTimes />
                 </button>
               </div>
 
               <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                {/* Timing Row: Date, Entry Time, Exit Time */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr', gap: '12px' }}>
+                
+                {/* Date and Time Inputs */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
                   <div>
-                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '11px', fontWeight: '600', color: 'var(--text-dim)', letterSpacing: '0.4px', textTransform: 'uppercase' }}>
-                      Date
-                    </label>
-                    <input 
-                      type="date" 
-                      name="date" 
-                      value={formData.date} 
-                      onChange={handleChange} 
-                      required 
-                      style={{ 
-                        width: '100%', 
-                        padding: '9px 12px', 
-                        background: 'var(--bg-alt, #0d1017)', 
-                        border: '1px solid var(--border-soft, rgba(255,255,255,0.1))', 
-                        borderRadius: '8px', 
-                        color: 'var(--text)', 
-                        fontSize: '13px', 
-                        fontFamily: 'var(--mono)',
-                        outline: 'none',
-                        boxSizing: 'border-box'
-                      }} 
+                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '11px', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase' }}>Date</label>
+                    <DatePicker
+                      selected={formData.date}
+                      onChange={(d) => setFormData(prev => ({ ...prev, date: d }))}
+                      dateFormat="yyyy-MM-dd"
+                      placeholderText="Select Date"
+                      className="custom-date-input"
                     />
                   </div>
+
                   <div>
-                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '11px', fontWeight: '600', color: 'var(--text-dim)', letterSpacing: '0.4px', textTransform: 'uppercase' }}>
-                      Entry Time
-                    </label>
-                    <input 
-                      type="time" 
-                      name="entryTime" 
-                      value={formData.entryTime} 
-                      onChange={handleChange} 
-                      required 
-                      style={{ 
-                        width: '100%', 
-                        padding: '9px 10px', 
-                        background: 'var(--bg-alt, #0d1017)', 
-                        border: '1px solid var(--border-soft, rgba(255,255,255,0.1))', 
-                        borderRadius: '8px', 
-                        color: 'var(--text)', 
-                        fontSize: '13px', 
-                        fontFamily: 'var(--mono)',
-                        outline: 'none',
-                        boxSizing: 'border-box'
-                      }} 
+                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '11px', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase' }}>Entry Time</label>
+                    <input
+                      type="time"
+                      value={formData.entryTime}
+                      onChange={(e) => setFormData(prev => ({ ...prev, entryTime: e.target.value }))}
+                      className="custom-date-input"
                     />
                   </div>
+
                   <div>
-                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '11px', fontWeight: '600', color: 'var(--text-dim)', letterSpacing: '0.4px', textTransform: 'uppercase' }}>
-                      Exit Time
-                    </label>
-                    <input 
-                      type="time" 
-                      name="exitTime" 
-                      value={formData.exitTime} 
-                      onChange={handleChange} 
-                      required 
-                      style={{ 
-                        width: '100%', 
-                        padding: '9px 10px', 
-                        background: 'var(--bg-alt, #0d1017)', 
-                        border: '1px solid var(--border-soft, rgba(255,255,255,0.1))', 
-                        borderRadius: '8px', 
-                        color: 'var(--text)', 
-                        fontSize: '13px', 
-                        fontFamily: 'var(--mono)',
-                        outline: 'none',
-                        boxSizing: 'border-box'
-                      }} 
+                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '11px', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase' }}>Exit Time</label>
+                    <input
+                      type="time"
+                      value={formData.exitTime}
+                      onChange={(e) => setFormData(prev => ({ ...prev, exitTime: e.target.value }))}
+                      className="custom-date-input"
                     />
                   </div>
                 </div>
 
-                {/* Asset Row: Direction & Symbol */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                   <div>
-                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '11px', fontWeight: '600', color: 'var(--text-dim)', letterSpacing: '0.4px', textTransform: 'uppercase' }}>
-                      Direction
-                    </label>
+                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '11px', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase' }}>Direction</label>
                     <select 
                       name="direction" 
                       value={formData.direction} 
                       onChange={handleChange} 
-                      style={{ 
-                        width: '100%', 
-                        padding: '9px 12px', 
-                        background: 'var(--bg-alt, #0d1017)', 
-                        border: '1px solid var(--border-soft, rgba(255,255,255,0.1))', 
-                        borderRadius: '8px', 
-                        color: 'var(--text)', 
-                        fontSize: '13px', 
-                        fontFamily: 'var(--mono)', 
-                        cursor: 'pointer',
-                        outline: 'none',
-                        boxSizing: 'border-box'
-                      }}
+                      className="custom-date-input"
                     >
                       {DIRECTIONS.map((dir) => (
                         <option key={dir} value={dir}>{dir}</option>
@@ -980,173 +1136,67 @@ export default function JournalMain() {
                   </div>
 
                   <div>
-                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '11px', fontWeight: '600', color: 'var(--text-dim)', letterSpacing: '0.4px', textTransform: 'uppercase' }}>
-                      Symbol
-                    </label>
+                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '11px', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase' }}>Symbol</label>
                     <input
                       type="text"
                       name="symbol"
                       value={formData.symbol}
                       onChange={handleChange}
-                      style={{
-                        width: '100%',
-                        padding: '9px 12px',
-                        background: 'var(--bg-alt, #0d1017)',
-                        border: '1px solid var(--border-soft, rgba(255,255,255,0.1))',
-                        borderRadius: '8px',
-                        color: 'var(--text)',
-                        fontSize: '13px',
-                        fontFamily: 'var(--mono)',
-                        outline: 'none',
-                        boxSizing: 'border-box'
-                      }}
                       placeholder="e.g., NQ, ES, AAPL"
+                      className="custom-date-input"
                     />
                   </div>
                 </div>
 
-                {/* Performance Metrics Card: P&L, MAE, MFE */}
-                <div style={{
-                  padding: '14px',
-                  background: 'rgba(255, 255, 255, 0.02)',
-                  border: '1px solid var(--border-soft, rgba(255,255,255,0.06))',
-                  borderRadius: '10px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '12px',
-                }}>
-                  <div style={{ fontSize: '11px', fontWeight: '700', letterSpacing: '0.5px', textTransform: 'uppercase', color: 'var(--amber, #ffb020)' }}>
-                    Trade Execution Metrics
-                  </div>
-
+                <div style={{ padding: '14px', background: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255, 255, 255, 0.06)', borderRadius: '10px' }}>
+                  <span style={{ display: 'block', fontSize: '11px', fontWeight: '700', letterSpacing: '0.05em', textTransform: 'uppercase', color: '#ffb020', marginBottom: '10px' }}>Execution Metrics</span>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
                     <div>
-                      <label style={{ display: 'block', marginBottom: '6px', fontSize: '11px', color: 'var(--text-dim)', textTransform: 'uppercase' }}>
-                        P&L
-                      </label>
-                      <input
-                        type="number"
-                        name="pnl"
-                        value={formData.pnl}
-                        onChange={handleChange}
-                        step="0.01"
-                        style={{
-                          width: '100%',
-                          padding: '8px 10px',
-                          background: 'var(--bg-alt, #0d1017)',
-                          border: '1px solid var(--border-soft, rgba(255,255,255,0.1))',
-                          borderRadius: '6px',
-                          color: 'var(--text)',
-                          fontSize: '13px',
-                          fontFamily: 'var(--mono)',
-                          outline: 'none',
-                          boxSizing: 'border-box'
-                        }}
-                        placeholder="0.00"
-                      />
+                      <label style={{ display: 'block', marginBottom: '4px', fontSize: '11px', color: '#94a3b8' }}>P&L ($)</label>
+                      <input type="number" name="pnl" value={formData.pnl} onChange={handleChange} step="0.01" placeholder="0.00" className="custom-date-input" />
                     </div>
-
                     <div>
-                      <label style={{ display: 'block', marginBottom: '6px', fontSize: '11px', color: 'var(--text-dim)', textTransform: 'uppercase' }}>
-                        MAE
-                      </label>
-                      <input 
-                        type="number" 
-                        name="mae" 
-                        value={formData.mae} 
-                        onChange={handleChange} 
-                        step="0.01" 
-                        style={{ 
-                          width: '100%', 
-                          padding: '8px 10px', 
-                          background: 'var(--bg-alt, #0d1017)', 
-                          border: '1px solid var(--border-soft, rgba(255,255,255,0.1))', 
-                          borderRadius: '6px', 
-                          color: 'var(--text)', 
-                          fontSize: '13px', 
-                          fontFamily: 'var(--mono)',
-                          outline: 'none',
-                          boxSizing: 'border-box'
-                        }} 
-                        placeholder="0.00" 
-                      />
+                      <label style={{ display: 'block', marginBottom: '4px', fontSize: '11px', color: '#94a3b8' }}>MAE</label>
+                      <input type="number" name="mae" value={formData.mae} onChange={handleChange} step="0.01" placeholder="0.00" className="custom-date-input" />
                     </div>
-
                     <div>
-                      <label style={{ display: 'block', marginBottom: '6px', fontSize: '11px', color: 'var(--text-dim)', textTransform: 'uppercase' }}>
-                        MFE
-                      </label>
-                      <input 
-                        type="number" 
-                        name="mfe" 
-                        value={formData.mfe} 
-                        onChange={handleChange} 
-                        step="0.01" 
-                        style={{ 
-                          width: '100%', 
-                          padding: '8px 10px', 
-                          background: 'var(--bg-alt, #0d1017)', 
-                          border: '1px solid var(--border-soft, rgba(255,255,255,0.1))', 
-                          borderRadius: '6px', 
-                          color: 'var(--text)', 
-                          fontSize: '13px', 
-                          fontFamily: 'var(--mono)',
-                          outline: 'none',
-                          boxSizing: 'border-box'
-                        }} 
-                        placeholder="0.00" 
-                      />
+                      <label style={{ display: 'block', marginBottom: '4px', fontSize: '11px', color: '#94a3b8' }}>MFE</label>
+                      <input type="number" name="mfe" value={formData.mfe} onChange={handleChange} step="0.01" placeholder="0.00" className="custom-date-input" />
                     </div>
                   </div>
                 </div>
 
-                {/* Custom/Dynamic Columns Section */}
-                {dynamicColumns.length > 0 && (
-                  <div style={{
-                    padding: '14px',
-                    background: 'rgba(255, 255, 255, 0.02)',
-                    border: '1px solid var(--border-soft, rgba(255,255,255,0.06))',
-                    borderRadius: '10px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '12px',
-                  }}>
-                    <div style={{ fontSize: '11px', fontWeight: '700', letterSpacing: '0.5px', textTransform: 'uppercase', color: 'var(--text-dim)' }}>
-                      Custom Attributes
-                    </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '11px', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase' }}>Notes</label>
+                  <input
+                    type="text"
+                    name="notes"
+                    value={formData.notes}
+                    onChange={handleChange}
+                    placeholder="Enter trade notes, execution comments..."
+                    className="custom-date-input"
+                  />
+                </div>
 
+                {dynamicColumns.length > 0 && (
+                  <div style={{ padding: '14px', background: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255, 255, 255, 0.06)', borderRadius: '10px' }}>
+                    <span style={{ display: 'block', fontSize: '11px', fontWeight: '700', letterSpacing: '0.05em', textTransform: 'uppercase', color: '#94a3b8', marginBottom: '10px' }}>Custom Attributes</span>
                     <div style={{ display: 'grid', gridTemplateColumns: dynamicColumns.length > 1 ? '1fr 1fr' : '1fr', gap: '12px' }}>
                       {dynamicColumns.map(col => {
                         const options = customColumnOptions[col] || [];
                         const useDropdown = options.length <= 10;
                         return (
                           <div key={col}>
-                            <label style={{ display: 'block', marginBottom: '6px', fontSize: '11px', color: 'var(--text-dim)', textTransform: 'uppercase' }}>
-                              {formatColumnHeader(col)}
-                            </label>
+                            <label style={{ display: 'block', marginBottom: '4px', fontSize: '11px', color: '#94a3b8' }}>{formatColumnHeader(col)}</label>
                             {useDropdown ? (
                               <>
                                 <select
                                   value={customSelectValues[col] || ''}
                                   onChange={(e) => handleCustomSelectChange(col, e.target.value)}
-                                  style={{
-                                    width: '100%',
-                                    padding: '8px 10px',
-                                    background: 'var(--bg-alt, #0d1017)',
-                                    border: '1px solid var(--border-soft, rgba(255,255,255,0.1))',
-                                    borderRadius: '6px',
-                                    color: 'var(--text)',
-                                    fontSize: '13px',
-                                    fontFamily: 'var(--mono)',
-                                    cursor: 'pointer',
-                                    outline: 'none',
-                                    boxSizing: 'border-box'
-                                  }}
+                                  className="custom-date-input"
                                 >
                                   <option value="">Select...</option>
-                                  {options.map(opt => (
-                                    <option key={opt} value={opt}>{opt}</option>
-                                  ))}
+                                  {options.map(opt => (<option key={opt} value={opt}>{opt}</option>))}
                                   <option value="__other__">Other…</option>
                                 </select>
                                 {customSelectValues[col] === '__other__' && (
@@ -1155,19 +1205,8 @@ export default function JournalMain() {
                                     value={customTextValues[col] || ''}
                                     onChange={(e) => handleCustomTextChange(col, e.target.value)}
                                     placeholder={`Enter ${formatColumnHeader(col)}`}
-                                    style={{
-                                      width: '100%',
-                                      padding: '8px 10px',
-                                      background: 'var(--bg-alt, #0d1017)',
-                                      border: '1px solid var(--border-soft, rgba(255,255,255,0.1))',
-                                      borderRadius: '6px',
-                                      color: 'var(--text)',
-                                      fontSize: '13px',
-                                      fontFamily: 'var(--mono)',
-                                      marginTop: '6px',
-                                      outline: 'none',
-                                      boxSizing: 'border-box'
-                                    }}
+                                    className="custom-date-input"
+                                    style={{ marginTop: '6px' }}
                                   />
                                 )}
                               </>
@@ -1177,18 +1216,7 @@ export default function JournalMain() {
                                 value={customTextValues[col] || ''}
                                 onChange={(e) => handleCustomTextChange(col, e.target.value)}
                                 placeholder={`Enter ${formatColumnHeader(col)}`}
-                                style={{
-                                  width: '100%',
-                                  padding: '8px 10px',
-                                  background: 'var(--bg-alt, #0d1017)',
-                                  border: '1px solid var(--border-soft, rgba(255,255,255,0.1))',
-                                  borderRadius: '6px',
-                                  color: 'var(--text)',
-                                  fontSize: '13px',
-                                  fontFamily: 'var(--mono)',
-                                  outline: 'none',
-                                  boxSizing: 'border-box'
-                                }}
+                                className="custom-date-input"
                               />
                             )}
                           </div>
@@ -1198,44 +1226,11 @@ export default function JournalMain() {
                   </div>
                 )}
 
-                {/* Action Buttons */}
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '8px', paddingTop: '16px', borderTop: '1px solid var(--border-soft, rgba(255,255,255,0.08))' }}>
-                  <button 
-                    type="button" 
-                    onClick={closeModal} 
-                    style={{ 
-                      padding: '8px 18px', 
-                      background: 'transparent', 
-                      border: '1px solid var(--border-soft, rgba(255,255,255,0.15))', 
-                      borderRadius: '8px', 
-                      color: 'var(--text-dim)', 
-                      fontSize: '13px', 
-                      fontWeight: '500', 
-                      cursor: 'pointer',
-                      transition: 'all 0.2s'
-                    }}
-                    onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.3)'; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-dim)'; e.currentTarget.style.borderColor = 'var(--border-soft, rgba(255,255,255,0.15))'; }}
-                  >
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '12px', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+                  <button type="button" onClick={closeModal} style={{ padding: '8px 16px', background: 'transparent', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '8px', color: '#94a3b8', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>
                     Cancel
                   </button>
-                  <button 
-                    type="submit" 
-                    style={{ 
-                      padding: '8px 22px', 
-                      background: 'var(--amber, #ffb020)', 
-                      border: 'none', 
-                      borderRadius: '8px', 
-                      color: '#0A0D13', 
-                      fontSize: '13px', 
-                      fontWeight: '600', 
-                      cursor: 'pointer',
-                      boxShadow: '0 2px 8px rgba(255,176,32,0.3)',
-                      transition: 'all 0.2s'
-                    }}
-                    onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(255,176,32,0.4)'; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(255,176,32,0.3)'; }}
-                  >
+                  <button type="submit" style={{ padding: '8px 20px', background: '#ffb020', border: 'none', borderRadius: '8px', color: '#0a0d13', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>
                     {editingId ? 'Update Trade' : 'Add Trade'}
                   </button>
                 </div>
@@ -1245,304 +1240,58 @@ export default function JournalMain() {
         </Portal>
       )}
 
-      {/* Custom Columns Management Modal */}
+      {/* Column Management Modal */}
       {customColumnsModalOpen && (
         <Portal>
           <div 
-            className="modal-overlay" 
             onClick={(e) => { if (e.target === e.currentTarget) closeCustomColumnsModal(); }}
-            style={{
-              position: 'fixed',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              backgroundColor: 'rgba(5, 7, 10, 0.75)',
-              backdropFilter: 'blur(4px)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              zIndex: 1000,
-              padding: '16px',
-            }}
+            style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(5, 7, 10, 0.8)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '16px' }}
           >
-            <div 
-              className="modal-content" 
-              style={{ 
-                width: '100%',
-                maxWidth: '460px', 
-                maxHeight: '85vh',
-                overflowY: 'auto',
-                background: 'var(--panel-bg, #12161f)',
-                border: '1px solid var(--border-soft, rgba(255, 255, 255, 0.08))',
-                borderRadius: '14px',
-                boxShadow: '0 20px 40px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05)',
-                padding: '24px',
-                color: 'var(--text, #f0f2f5)',
-              }}
-            >
-              {/* Modal Header */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', paddingBottom: '12px', borderBottom: '1px solid var(--border-soft, rgba(255,255,255,0.08))' }}>
-                <div>
-                  <h2 style={{ fontFamily: 'var(--disp)', fontSize: '18px', fontWeight: '600', margin: 0, color: 'var(--text)' }}>
-                    Manage Custom Columns
-                  </h2>
-                  <p style={{ margin: '4px 0 0', fontSize: '12px', color: 'var(--text-dim)', fontFamily: 'var(--mono)' }}>
-                    Add, rename, or remove custom trade data attributes
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={closeCustomColumnsModal}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    color: 'var(--text-dim)',
-                    fontSize: '18px',
-                    cursor: 'pointer',
-                    padding: '4px 8px',
-                    borderRadius: '6px',
-                    lineHeight: 1,
-                    transition: 'all 0.2s',
-                  }}
-                  onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text)'; e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-dim)'; e.currentTarget.style.background = 'none'; }}
-                >
-                  ✕
-                </button>
+            <div style={{ width: '100%', maxWidth: '440px', background: '#12161f', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '16px', boxShadow: '0 24px 48px rgba(0, 0, 0, 0.6)', padding: '24px', color: '#f8fafc' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', paddingBottom: '12px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+                <h2 style={{ fontSize: '16px', fontWeight: '700', margin: 0 }}>Manage Custom Columns</h2>
+                <button type="button" onClick={closeCustomColumnsModal} style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '16px', cursor: 'pointer' }}><FaTimes /></button>
               </div>
 
-              {/* Add New Column Input Bar */}
-              <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
                 <input
                   type="text"
                   value={newColumnName}
                   onChange={(e) => setNewColumnName(e.target.value)}
                   placeholder="New column name..."
-                  style={{
-                    flex: 1,
-                    padding: '9px 12px',
-                    background: 'var(--bg-alt, #0d1017)',
-                    border: '1px solid var(--border-soft, rgba(255, 255, 255, 0.1))',
-                    borderRadius: '8px',
-                    color: 'var(--text)',
-                    fontFamily: 'var(--mono)',
-                    fontSize: '13px',
-                    outline: 'none',
-                    boxSizing: 'border-box',
-                  }}
+                  className="custom-date-input"
+                  style={{ flex: 1 }}
                 />
                 <button
                   onClick={handleAddColumn}
                   disabled={loadingCustomColumn || !newColumnName.trim()}
-                  style={{
-                    padding: '8px 18px',
-                    background: loadingCustomColumn || !newColumnName.trim() ? 'rgba(255, 176, 32, 0.3)' : 'var(--amber, #ffb020)',
-                    border: 'none',
-                    borderRadius: '8px',
-                    color: '#0A0D13',
-                    fontSize: '13px',
-                    fontWeight: '600',
-                    cursor: loadingCustomColumn || !newColumnName.trim() ? 'not-allowed' : 'pointer',
-                    transition: 'all 0.2s',
-                    whiteSpace: 'nowrap',
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!loadingCustomColumn && newColumnName.trim()) {
-                      e.currentTarget.style.transform = 'translateY(-1px)';
-                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(255,176,32,0.3)';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = 'none';
-                  }}
+                  style={{ padding: '8px 16px', background: '#ffb020', border: 'none', borderRadius: '8px', color: '#0a0d13', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}
                 >
-                  {loadingCustomColumn ? 'Adding...' : 'Add Column'}
+                  Add
                 </button>
               </div>
 
-              {/* Existing Columns List */}
-              {dynamicColumns.length === 0 ? (
-                <div style={{
-                  padding: '24px',
-                  textAlign: 'center',
-                  background: 'rgba(255, 255, 255, 0.02)',
-                  border: '1px dashed var(--border-soft, rgba(255, 255, 255, 0.1))',
-                  borderRadius: '10px',
-                  marginBottom: '20px'
-                }}>
-                  <p style={{ color: 'var(--text-dim)', fontFamily: 'var(--mono)', fontSize: '13px', margin: 0 }}>
-                    No custom columns defined yet.
-                  </p>
-                </div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '280px', overflowY: 'auto', marginBottom: '20px', paddingRight: '2px' }}>
-                  {dynamicColumns.map(col => (
-                    <div 
-                      key={col} 
-                      style={{ 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        justifyContent: 'space-between', 
-                        gap: '10px', 
-                        padding: '10px 14px', 
-                        border: '1px solid var(--border-soft, rgba(255, 255, 255, 0.08))', 
-                        borderRadius: '8px', 
-                        background: 'rgba(255, 255, 255, 0.02)',
-                        transition: 'background 0.2s',
-                      }}
-                    >
-                      {editingColumn && editingColumn.oldName === col ? (
-                        <>
-                          <input
-                            type="text"
-                            value={editingColumn.newName}
-                            onChange={handleColumnNameChange}
-                            style={{
-                              flex: 1,
-                              padding: '6px 10px',
-                              background: 'var(--bg-alt, #0d1017)',
-                              border: '1px solid var(--amber, #ffb020)',
-                              borderRadius: '6px',
-                              color: 'var(--text)',
-                              fontFamily: 'var(--mono)',
-                              fontSize: '13px',
-                              outline: 'none',
-                            }}
-                            autoFocus
-                          />
-                          <div style={{ display: 'flex', gap: '6px' }}>
-                            <button
-                              onClick={handleSaveColumnRename}
-                              style={{
-                                padding: '5px 12px',
-                                background: 'var(--amber, #ffb020)',
-                                border: 'none',
-                                borderRadius: '6px',
-                                color: '#0A0D13',
-                                fontSize: '12px',
-                                fontWeight: '600',
-                                cursor: 'pointer',
-                              }}
-                            >
-                              Save
-                            </button>
-                            <button
-                              onClick={() => setEditingColumn(null)}
-                              style={{
-                                padding: '5px 12px',
-                                background: 'transparent',
-                                border: '1px solid var(--border-soft, rgba(255,255,255,0.15))',
-                                borderRadius: '6px',
-                                color: 'var(--text-dim)',
-                                fontSize: '12px',
-                                cursor: 'pointer',
-                              }}
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        </>
-                      ) : (
-                        <>
-                          <span style={{ fontFamily: 'var(--mono)', fontSize: '13px', color: 'var(--text)', fontWeight: '500' }}>
-                            {formatColumnHeader(col)}
-                          </span>
-                          <div style={{ display: 'flex', gap: '8px' }}>
-                            <button
-                              onClick={() => handleEditColumnClick(col)}
-                              title="Edit Column Name"
-                              style={{ 
-                                background: 'rgba(255,255,255,0.04)', 
-                                border: '1px solid rgba(255,255,255,0.08)', 
-                                borderRadius: '6px',
-                                padding: '6px 8px',
-                                cursor: 'pointer', 
-                                color: 'var(--text-dim)', 
-                                fontSize: '13px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                transition: 'all 0.2s',
-                              }}
-                              onMouseEnter={(e) => {
-                                e.currentTarget.style.color = 'var(--amber, #ffb020)';
-                                e.currentTarget.style.borderColor = 'rgba(255,176,32,0.3)';
-                              }}
-                              onMouseLeave={(e) => {
-                                e.currentTarget.style.color = 'var(--text-dim)';
-                                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
-                              }}
-                            >
-                              <FaEdit />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteColumnClick(col)}
-                              title="Delete Column"
-                              style={{ 
-                                background: 'rgba(255,255,255,0.04)', 
-                                border: '1px solid rgba(255,255,255,0.08)', 
-                                borderRadius: '6px',
-                                padding: '6px 8px',
-                                cursor: 'pointer', 
-                                color: 'var(--text-dim)', 
-                                fontSize: '13px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                transition: 'all 0.2s',
-                              }}
-                              onMouseEnter={(e) => {
-                                e.currentTarget.style.color = 'var(--loss, #ff4d4d)';
-                                e.currentTarget.style.borderColor = 'rgba(255,77,77,0.3)';
-                              }}
-                              onMouseLeave={(e) => {
-                                e.currentTarget.style.color = 'var(--text-dim)';
-                                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
-                              }}
-                            >
-                              <FaTrash />
-                            </button>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Modal Footer */}
-              <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '16px', borderTop: '1px solid var(--border-soft, rgba(255,255,255,0.08))' }}>
-                <button 
-                  onClick={closeCustomColumnsModal} 
-                  style={{ 
-                    padding: '8px 20px', 
-                    background: 'transparent', 
-                    border: '1px solid var(--border-soft, rgba(255,255,255,0.15))', 
-                    borderRadius: '8px', 
-                    color: 'var(--text-dim)', 
-                    fontSize: '13px', 
-                    fontWeight: '500', 
-                    cursor: 'pointer',
-                    transition: 'all 0.2s'
-                  }}
-                  onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.3)'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-dim)'; e.currentTarget.style.borderColor = 'var(--border-soft, rgba(255,255,255,0.15))'; }}
-                >
-                  Close
-                </button>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '240px', overflowY: 'auto' }}>
+                {dynamicColumns.map(col => (
+                  <div key={col} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '8px', background: 'rgba(255, 255, 255, 0.02)' }}>
+                    <span style={{ fontSize: '13px', color: '#f8fafc' }}>{formatColumnHeader(col)}</span>
+                    <button onClick={() => setDeleteColumnAlert({ show: true, columnName: col })} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' }}><FaTrash /></button>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
         </Portal>
       )}
 
+      {/* System Alerts */}
       <Alert isOpen={confirmAlert.show} title="Confirm Upload" message={`Are you sure you want to add ${confirmAlert.tradesCount} trades to this account?`} type="confirm" confirmText="Upload" cancelText="Cancel" onConfirm={confirmAlert.onConfirm} onCancel={confirmAlert.onCancel} showCancel={true} />
       {loadingUpload && <LoadingOverlay message="Uploading trades..." />}
       {loadingCustomColumn && <LoadingOverlay message="Updating columns..." />}
       <Alert isOpen={successAlert.show} title="Success" message={successAlert.message} type="success" confirmText="OK" onConfirm={() => setSuccessAlert({ show: false, message: '' })} showCancel={false} />
       <Alert isOpen={errorAlert.show} title="Error" message={errorAlert.message} type="error" confirmText="OK" onConfirm={() => setErrorAlert({ show: false, message: '' })} showCancel={false} />
-      <Alert isOpen={deleteAlert.show} title="Delete Trade" message="Are you sure you want to delete this trade?" type="confirm" confirmText="Delete" cancelText="Cancel" onConfirm={confirmDelete} onCancel={cancelDelete} showCancel={true}/>
-      <Alert isOpen={deleteColumnAlert.show} title="Delete Column" message={`Are you sure you want to delete the column "${deleteColumnAlert.columnName}" from all trades? This cannot be undone.`} type="confirm" confirmText="Delete" cancelText="Cancel" onConfirm={confirmDeleteColumn} onCancel={cancelDeleteColumn} showCancel={true} />
+      <Alert isOpen={deleteAlert.show} title="Delete Trade" message="Are you sure you want to delete this trade?" type="confirm" confirmText="Delete" cancelText="Cancel" onConfirm={confirmDelete} onCancel={() => setDeleteAlert({ show: false, tradeId: null })} showCancel={true}/>
+      <Alert isOpen={deleteColumnAlert.show} title="Delete Column" message={`Are you sure you want to delete the column "${deleteColumnAlert.columnName}" from all trades?`} type="confirm" confirmText="Delete" cancelText="Cancel" onConfirm={confirmDeleteColumn} onCancel={() => setDeleteColumnAlert({ show: false, columnName: '' })} showCancel={true} />
     </div>
   );
 }

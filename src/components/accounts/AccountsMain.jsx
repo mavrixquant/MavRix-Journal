@@ -1,6 +1,17 @@
 // src/components/accounts/AccountsMain.jsx
 import { useState, useEffect } from 'react';
-import { FaPlus, FaEdit, FaTrash } from 'react-icons/fa';
+import { 
+  FaPlus, 
+  FaEdit, 
+  FaTrash, 
+  FaWallet, 
+  FaChartLine, 
+  FaShieldAlt, 
+  FaSlidersH,
+  FaExchangeAlt,
+  FaFolderOpen,
+  FaFilter
+} from 'react-icons/fa';
 import Portal from '../common/Portal';
 import Alert from '../common/Alert';
 import LoadingOverlay from '../common/LoadingOverlay';
@@ -23,6 +34,10 @@ export default function AccountsMain() {
   const { user } = useAuth();
   const [accounts, setAccounts] = useState([]);
   const [loading, setLoading] = useState(true);
+  
+  // Filter state defaulting to 'Live'
+  const [selectedType, setSelectedType] = useState('Live');
+
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [formData, setFormData] = useState({
@@ -46,7 +61,7 @@ export default function AccountsMain() {
 
   const [pnlMap, setPnlMap] = useState({});
 
-  // Real‑time subscription to user's accounts
+  // Real-time subscription to user's accounts
   useEffect(() => {
     if (!user) return;
 
@@ -198,29 +213,10 @@ export default function AccountsMain() {
   const formatCurrency = (amount, currency) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency,
+      currency: currency || 'USD',
       minimumFractionDigits: 2,
-    }).format(amount);
+    }).format(amount || 0);
   };
-
-  const getPnL = (account) => {
-    const data = pnlMap[account.id];
-    if (!data || data.count === 0) return '—';
-    const { pnl } = data;
-    const formatted = formatCurrency(pnl, account.currency);
-    const color = pnl > 0 ? 'var(--win, #20c997)' : pnl < 0 ? 'var(--loss, #ff4d4d)' : 'var(--text-dim, #8f9bba)';
-    return (
-      <span style={{ color, fontWeight: '600' }}>{formatted}</span>
-    );
-  };
-
-  if (loading) {
-    return (
-      <div style={{ padding: '60px 20px', textAlign: 'center', color: 'var(--text-dim, #8f9bba)', fontFamily: 'var(--mono)' }}>
-        Loading accounts...
-      </div>
-    );
-  }
 
   const getCurrencySymbol = (currency) => {
     switch (currency) {
@@ -233,236 +229,356 @@ export default function AccountsMain() {
   };
 
   const formatRiskValue = (account) => {
-    if (account.riskType === 'variable' || !account.riskType) return '—';
+    if (account.riskType === 'variable' || !account.riskType) return 'Variable';
     const value = account.riskValue !== undefined && account.riskValue !== null ? account.riskValue : 0;
     const unit = account.riskUnit === 'percent' ? '%' : getCurrencySymbol(account.currency);
     return `${value}${unit}`;
   };
 
   const formatSlValue = (account) => {
-    if (account.slType === 'variable' || !account.slType) return '—';
+    if (account.slType === 'variable' || !account.slType) return 'Variable';
     const value = account.slValue !== undefined && account.slValue !== null ? account.slValue : 0;
     const unit = account.slUnit === 'ticks' ? ' ticks' : ' pts';
     return `${value}${unit}`;
   };
 
+  // Filter accounts according to selectedType ('All' option included optional)
+  const filteredAccounts = accounts.filter(acc => {
+    if (selectedType === 'All') return true;
+    return (acc.type || 'Backtest') === selectedType;
+  });
+
+  // Calculations for KPI Header Cards based on filtered results
+  const totalBalance = filteredAccounts.reduce((sum, acc) => sum + (parseFloat(acc.balance) || 0), 0);
+  const totalPnlAll = filteredAccounts.reduce((sum, acc) => sum + (pnlMap[acc.id]?.pnl || 0), 0);
+  const totalTradesAll = filteredAccounts.reduce((sum, acc) => sum + (pnlMap[acc.id]?.count || 0), 0);
+
+  if (loading) {
+    return (
+      <div style={{ padding: '80px 20px', textAlign: 'center', color: 'var(--text-dim, #8f9bba)', fontFamily: 'var(--mono)' }}>
+        Loading account metrics...
+      </div>
+    );
+  }
+
   return (
-    <div style={{ padding: '24px 0' }}>
-      {/* Page Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+    <div style={{ padding: '24px 0', maxWidth: '1280px', margin: '0 auto' }}>
+      {/* Top Header Section */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
         <div>
-          <h2 style={{ fontFamily: 'var(--disp)', fontSize: '22px', fontWeight: '600', margin: 0, color: 'var(--text, #f0f2f5)' }}>
-            Trading Accounts
+          <h2 style={{ fontFamily: 'var(--disp)', fontSize: '24px', fontWeight: '700', margin: 0, color: 'var(--text, #f0f2f5)', letterSpacing: '-0.5px' }}>
+            Portfolio Accounts
           </h2>
           <p style={{ margin: '4px 0 0', fontSize: '13px', color: 'var(--text-dim, #8f9bba)' }}>
-            Manage portfolios, balances, and risk preferences
+            Monitor account capital, risk parameters, and aggregate net return
           </p>
         </div>
-        <span style={{ 
-          fontFamily: 'var(--mono)', 
-          fontSize: '12px', 
-          color: 'var(--text-dim)',
-          background: 'rgba(255, 255, 255, 0.04)',
-          border: '1px solid var(--border-soft, rgba(255,255,255,0.08))',
-          padding: '4px 12px',
-          borderRadius: '20px',
-        }}>
-          {accounts.length} {accounts.length === 1 ? 'account' : 'accounts'}
-        </span>
-      </div>
 
-      {/* Main Table Container */}
-      <div 
-        className="panel" 
-        style={{ 
-          marginBottom: '24px',
-          background: 'var(--panel-bg, #12161f)',
-          border: '1px solid var(--border-soft, rgba(255, 255, 255, 0.08))',
-          borderRadius: '12px',
-          overflow: 'hidden',
-          boxShadow: '0 8px 24px rgba(0, 0, 0, 0.2)',
-        }}
-      >
-        <div className="table-wrap" style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
-            <thead>
-              <tr style={{ 
-                borderBottom: '1px solid var(--border-soft, rgba(255, 255, 255, 0.08))',
-                background: 'rgba(0, 0, 0, 0.15)',
-              }}>
-                <th style={{ padding: '14px 16px', color: 'var(--text-dim)', fontWeight: '600', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Name</th>
-                <th style={{ padding: '14px 16px', color: 'var(--text-dim)', fontWeight: '600', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Balance</th>
-                <th style={{ padding: '14px 16px', color: 'var(--text-dim)', fontWeight: '600', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Currency</th>
-                <th style={{ padding: '14px 16px', color: 'var(--text-dim)', fontWeight: '600', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Type</th>
-                <th style={{ padding: '14px 16px', color: 'var(--text-dim)', fontWeight: '600', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Risk Type</th>
-                <th style={{ padding: '14px 16px', color: 'var(--text-dim)', fontWeight: '600', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Risk Value</th>
-                <th style={{ padding: '14px 16px', color: 'var(--text-dim)', fontWeight: '600', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>SL Type</th>
-                <th style={{ padding: '14px 16px', color: 'var(--text-dim)', fontWeight: '600', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>SL Value</th>
-                <th style={{ padding: '14px 16px', color: 'var(--text-dim)', fontWeight: '600', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>P&L</th>
-                <th style={{ padding: '14px 16px', color: 'var(--text-dim)', fontWeight: '600', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'center' }}>Trades</th>
-                <th style={{ padding: '14px 16px', color: 'var(--text-dim)', fontWeight: '600', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'center' }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {accounts.length === 0 ? (
-                <tr>
-                  <td colSpan="11" style={{ padding: '40px', textAlign: 'center', color: 'var(--text-dim)', fontFamily: 'var(--mono)', fontSize: '13px' }}>
-                    No accounts found. Click the floating action button (+) to create one.
-                  </td>
-                </tr>
-              ) : (
-                accounts.map(acc => (
-                  <tr 
-                    key={acc.id}
-                    style={{ 
-                      borderBottom: '1px solid var(--border-soft, rgba(255, 255, 255, 0.04))',
-                      transition: 'background 0.15s ease',
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.02)'}
-                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                  >
-                    <td style={{ padding: '12px 16px', fontWeight: '500', color: 'var(--text)' }}>{acc.name}</td>
-                    <td style={{ padding: '12px 16px', fontFamily: 'var(--mono)', color: 'var(--text)' }}>
-                      {formatCurrency(acc.balance, acc.currency)}
-                    </td>
-                    <td style={{ padding: '12px 16px', fontFamily: 'var(--mono)', color: 'var(--text-dim)' }}>{acc.currency}</td>
-                    <td style={{ padding: '12px 16px' }}>
-                      <span
-                        style={{
-                          padding: '3px 10px',
-                          borderRadius: '12px',
-                          fontSize: '11px',
-                          fontWeight: '600',
-                          display: 'inline-block',
-                          background: acc.type === 'Live' 
-                            ? 'rgba(32, 201, 151, 0.12)' 
-                            : acc.type === 'Demo' 
-                            ? 'rgba(255, 176, 32, 0.12)' 
-                            : 'rgba(255, 255, 255, 0.06)',
-                          color: acc.type === 'Live' 
-                            ? 'var(--win, #20c997)' 
-                            : acc.type === 'Demo' 
-                            ? 'var(--amber, #ffb020)' 
-                            : 'var(--text-dim, #8f9bba)',
-                          border: `1px solid ${
-                            acc.type === 'Live' 
-                              ? 'rgba(32, 201, 151, 0.25)' 
-                              : acc.type === 'Demo' 
-                              ? 'rgba(255, 176, 32, 0.25)' 
-                              : 'rgba(255, 255, 255, 0.1)'
-                          }`,
-                        }}
-                      >
-                        {acc.type || 'Backtest'}
-                      </span>
-                    </td>
-                    <td style={{ padding: '12px 16px', textTransform: 'capitalize', color: 'var(--text-dim)' }}>{acc.riskType || '—'}</td>
-                    <td style={{ padding: '12px 16px', fontFamily: 'var(--mono)', color: 'var(--text)' }}>{formatRiskValue(acc)}</td>
-                    <td style={{ padding: '12px 16px', textTransform: 'capitalize', color: 'var(--text-dim)' }}>{acc.slType || '—'}</td>
-                    <td style={{ padding: '12px 16px', fontFamily: 'var(--mono)', color: 'var(--text)' }}>{formatSlValue(acc)}</td>
-                    <td style={{ padding: '12px 16px', fontFamily: 'var(--mono)' }}>{getPnL(acc)}</td>
-                    <td style={{ padding: '12px 16px', textAlign: 'center', fontFamily: 'var(--mono)', color: 'var(--text-dim)' }}>
-                      {pnlMap[acc.id]?.count || 0}
-                    </td>
-                    <td style={{ padding: '12px 16px', textAlign: 'center' }}>
-                      <div style={{ display: 'inline-flex', gap: '6px' }}>
-                        <button
-                          onClick={() => openEdit(acc)}
-                          title="Edit Account"
-                          style={{
-                            background: 'rgba(255, 255, 255, 0.04)',
-                            border: '1px solid rgba(255, 255, 255, 0.08)',
-                            borderRadius: '6px',
-                            color: 'var(--text-dim)',
-                            cursor: 'pointer',
-                            padding: '6px 8px',
-                            fontSize: '13px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            transition: 'all 0.2s',
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.color = 'var(--amber, #ffb020)';
-                            e.currentTarget.style.borderColor = 'rgba(255, 176, 32, 0.3)';
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.color = 'var(--text-dim)';
-                            e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
-                          }}
-                        >
-                          <FaEdit />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(acc)}
-                          title="Delete Account"
-                          style={{
-                            background: 'rgba(255, 255, 255, 0.04)',
-                            border: '1px solid rgba(255, 255, 255, 0.08)',
-                            borderRadius: '6px',
-                            color: 'var(--text-dim)',
-                            cursor: 'pointer',
-                            padding: '6px 8px',
-                            fontSize: '13px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            transition: 'all 0.2s',
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.color = 'var(--loss, #ff4d4d)';
-                            e.currentTarget.style.borderColor = 'rgba(255, 77, 77, 0.3)';
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.color = 'var(--text-dim)';
-                            e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
-                          }}
-                        >
-                          <FaTrash />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+        {/* Filter Controls & Action Button */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', background: 'var(--panel-bg, #12161f)', border: '1px solid var(--border-soft, rgba(255,255,255,0.08))', padding: '4px', borderRadius: '10px' }}>
+            <span style={{ fontSize: '12px', color: 'var(--text-dim)', padding: '0 8px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <FaFilter size={10} /> Type:
+            </span>
+            {ACCOUNT_TYPES.map((type) => {
+              const active = selectedType === type;
+              return (
+                <button
+                  key={type}
+                  onClick={() => setSelectedType(type)}
+                  style={{
+                    background: active ? 'rgba(255, 176, 32, 0.15)' : 'transparent',
+                    color: active ? 'var(--amber, #ffb020)' : 'var(--text-dim)',
+                    border: active ? '1px solid rgba(255, 176, 32, 0.3)' : 'none',
+                    padding: '6px 12px',
+                    borderRadius: '6px',
+                    fontSize: '12px',
+                    fontWeight: active ? '600' : '500',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  {type}
+                </button>
+              );
+            })}
+          </div>
+
+          <button
+            onClick={openCreate}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              background: 'var(--amber, #ffb020)',
+              color: '#0A0D13',
+              border: 'none',
+              padding: '10px 18px',
+              borderRadius: '8px',
+              fontWeight: '600',
+              fontSize: '13px',
+              cursor: 'pointer',
+              boxShadow: '0 4px 14px rgba(255, 176, 32, 0.25)',
+              transition: 'all 0.2s ease',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 6px 18px rgba(255, 176, 32, 0.35)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 14px rgba(255, 176, 32, 0.25)'; }}
+          >
+            <FaPlus size={12} /> New Account
+          </button>
         </div>
       </div>
 
-      {/* FAB Floating Action Button */}
-      <button
-        onClick={openCreate}
-        className="fab"
-        title="Create New Account"
-        style={{
-          position: 'fixed',
-          bottom: '28px',
-          right: '28px',
-          width: '56px',
-          height: '56px',
-          borderRadius: '50%',
-          background: 'var(--amber, #ffb020)',
-          border: 'none',
-          boxShadow: '0 4px 20px rgba(255,176,32,0.45)',
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: '22px',
-          color: '#0A0D13',
-          transition: 'transform 0.2s, box-shadow 0.2s',
-          zIndex: 10,
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.transform = 'scale(1.08) translateY(-2px)';
-          e.currentTarget.style.boxShadow = '0 6px 26px rgba(255,176,32,0.6)';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.transform = 'scale(1) translateY(0)';
-          e.currentTarget.style.boxShadow = '0 4px 20px rgba(255,176,32,0.45)';
-        }}
-      >
-        <FaPlus />
-      </button>
+      {/* KPI Summary Cards Bar */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '28px' }}>
+        <div style={{ background: 'var(--panel-bg, #12161f)', border: '1px solid var(--border-soft, rgba(255,255,255,0.08))', padding: '18px 20px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <div style={{ width: '44px', height: '44px', borderRadius: '10px', background: 'rgba(255, 176, 32, 0.1)', color: 'var(--amber, #ffb020)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}>
+            <FaWallet />
+          </div>
+          <div>
+            <span style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--text-dim)', fontWeight: '600' }}>Combined Capital</span>
+            <div style={{ fontSize: '18px', fontWeight: '700', fontFamily: 'var(--mono)', color: 'var(--text)', marginTop: '2px' }}>
+              {formatCurrency(totalBalance, 'USD')}
+            </div>
+          </div>
+        </div>
+
+        <div style={{ background: 'var(--panel-bg, #12161f)', border: '1px solid var(--border-soft, rgba(255,255,255,0.08))', padding: '18px 20px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <div style={{ width: '44px', height: '44px', borderRadius: '10px', background: totalPnlAll >= 0 ? 'rgba(32, 201, 151, 0.1)' : 'rgba(255, 77, 77, 0.1)', color: totalPnlAll >= 0 ? 'var(--win, #20c997)' : 'var(--loss, #ff4d4d)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}>
+            <FaChartLine />
+          </div>
+          <div>
+            <span style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--text-dim)', fontWeight: '600' }}>Cumulative P&L</span>
+            <div style={{ fontSize: '18px', fontWeight: '700', fontFamily: 'var(--mono)', color: totalPnlAll > 0 ? 'var(--win, #20c997)' : totalPnlAll < 0 ? 'var(--loss, #ff4d4d)' : 'var(--text)', marginTop: '2px' }}>
+              {formatCurrency(totalPnlAll, 'USD')}
+            </div>
+          </div>
+        </div>
+
+        <div style={{ background: 'var(--panel-bg, #12161f)', border: '1px solid var(--border-soft, rgba(255,255,255,0.08))', padding: '18px 20px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <div style={{ width: '44px', height: '44px', borderRadius: '10px', background: 'rgba(255, 255, 255, 0.05)', color: 'var(--text-dim)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}>
+            <FaExchangeAlt />
+          </div>
+          <div>
+            <span style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--text-dim)', fontWeight: '600' }}>Total Executed Trades</span>
+            <div style={{ fontSize: '18px', fontWeight: '700', fontFamily: 'var(--mono)', color: 'var(--text)', marginTop: '2px' }}>
+              {totalTradesAll}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Account Cards Grid */}
+      {filteredAccounts.length === 0 ? (
+        <div style={{ background: 'var(--panel-bg, #12161f)', border: '1px dashed rgba(255, 255, 255, 0.1)', borderRadius: '14px', padding: '60px 20px', textAlign: 'center' }}>
+          <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'rgba(255,255,255,0.03)', color: 'var(--text-dim)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', marginBottom: '16px' }}>
+            <FaFolderOpen />
+          </div>
+          <h3 style={{ margin: '0 0 8px', fontSize: '16px', color: 'var(--text)' }}>
+            No {selectedType} Accounts Found
+          </h3>
+          <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-dim)', maxWidth: '360px', marginLeft: 'auto', marginRight: 'auto' }}>
+            No accounts matching the selected filter category ({selectedType}).
+          </p>
+          <button
+            onClick={openCreate}
+            style={{
+              marginTop: '20px',
+              background: 'rgba(255, 255, 255, 0.06)',
+              border: '1px solid var(--border-soft, rgba(255, 255, 255, 0.12))',
+              color: 'var(--text)',
+              padding: '8px 16px',
+              borderRadius: '8px',
+              fontSize: '13px',
+              fontWeight: '500',
+              cursor: 'pointer',
+            }}
+          >
+            + Create Account
+          </button>
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '20px' }}>
+          {filteredAccounts.map((acc) => {
+            const accPnl = pnlMap[acc.id]?.pnl || 0;
+            const tradesCount = pnlMap[acc.id]?.count || 0;
+            const isLive = acc.type === 'Live';
+            const isDemo = acc.type === 'Demo';
+
+            return (
+              <div
+                key={acc.id}
+                style={{
+                  background: 'var(--panel-bg, #12161f)',
+                  border: '1px solid var(--border-soft, rgba(255, 255, 255, 0.08))',
+                  borderRadius: '14px',
+                  padding: '20px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  transition: 'all 0.2s ease',
+                  position: 'relative',
+                  overflow: 'hidden',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.18)';
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--border-soft, rgba(255, 255, 255, 0.08))';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                }}
+              >
+                <div>
+                  {/* Top Header Card */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '14px' }}>
+                    <div>
+                      <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '600', color: 'var(--text)' }}>
+                        {acc.name}
+                      </h3>
+                      <span style={{ fontSize: '11px', color: 'var(--text-dim)', fontFamily: 'var(--mono)' }}>
+                        Base: {acc.currency}
+                      </span>
+                    </div>
+                    <span
+                      style={{
+                        padding: '3px 10px',
+                        borderRadius: '20px',
+                        fontSize: '11px',
+                        fontWeight: '600',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.4px',
+                        background: isLive 
+                          ? 'rgba(32, 201, 151, 0.12)' 
+                          : isDemo 
+                          ? 'rgba(255, 176, 32, 0.12)' 
+                          : 'rgba(255, 255, 255, 0.06)',
+                        color: isLive 
+                          ? 'var(--win, #20c997)' 
+                          : isDemo 
+                          ? 'var(--amber, #ffb020)' 
+                          : 'var(--text-dim, #8f9bba)',
+                        border: `1px solid ${
+                          isLive 
+                            ? 'rgba(32, 201, 151, 0.25)' 
+                            : isDemo 
+                            ? 'rgba(255, 176, 32, 0.25)' 
+                            : 'rgba(255, 255, 255, 0.1)'
+                        }`,
+                      }}
+                    >
+                      {acc.type || 'Backtest'}
+                    </span>
+                  </div>
+
+                  {/* Main Metric Highlight */}
+                  <div style={{ padding: '12px 14px', borderRadius: '10px', background: 'rgba(0,0,0,0.2)', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <span style={{ fontSize: '10px', textTransform: 'uppercase', color: 'var(--text-dim)', fontWeight: '600', letterSpacing: '0.5px' }}>Starting Capital</span>
+                      <div style={{ fontSize: '16px', fontWeight: '700', fontFamily: 'var(--mono)', color: 'var(--text)' }}>
+                        {formatCurrency(acc.balance, acc.currency)}
+                      </div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <span style={{ fontSize: '10px', textTransform: 'uppercase', color: 'var(--text-dim)', fontWeight: '600', letterSpacing: '0.5px' }}>Total P&L</span>
+                      <div style={{ fontSize: '16px', fontWeight: '700', fontFamily: 'var(--mono)', color: accPnl > 0 ? 'var(--win, #20c997)' : accPnl < 0 ? 'var(--loss, #ff4d4d)' : 'var(--text-dim)' }}>
+                        {tradesCount === 0 ? '—' : formatCurrency(accPnl, acc.currency)}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Settings Breakdown Grid */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', fontSize: '12px', marginBottom: '16px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-dim)' }}>
+                      <FaShieldAlt style={{ color: 'var(--amber, #ffb020)', flexShrink: 0 }} />
+                      <div>
+                        <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.3px' }}>Risk Model</div>
+                        <div style={{ color: 'var(--text)', fontWeight: '500', textTransform: 'capitalize' }}>
+                          {acc.riskType || '—'} ({formatRiskValue(acc)})
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-dim)' }}>
+                      <FaSlidersH style={{ color: 'var(--amber, #ffb020)', flexShrink: 0 }} />
+                      <div>
+                        <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.3px' }}>Stop Loss</div>
+                        <div style={{ color: 'var(--text)', fontWeight: '500', textTransform: 'capitalize' }}>
+                          {acc.slType || '—'} {acc.type === 'Backtest' && `(${formatSlValue(acc)})`}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Card Footer Actions */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '12px', borderTop: '1px solid var(--border-soft, rgba(255, 255, 255, 0.06))' }}>
+                  <span style={{ fontSize: '12px', color: 'var(--text-dim)', fontFamily: 'var(--mono)' }}>
+                    {tradesCount} {tradesCount === 1 ? 'trade' : 'trades'}
+                  </span>
+
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    <button
+                      onClick={() => openEdit(acc)}
+                      title="Edit Account"
+                      style={{
+                        background: 'rgba(255, 255, 255, 0.04)',
+                        border: '1px solid rgba(255, 255, 255, 0.08)',
+                        borderRadius: '6px',
+                        color: 'var(--text-dim)',
+                        cursor: 'pointer',
+                        padding: '6px 10px',
+                        fontSize: '12px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        transition: 'all 0.2s',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.color = 'var(--amber, #ffb020)';
+                        e.currentTarget.style.borderColor = 'rgba(255, 176, 32, 0.3)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.color = 'var(--text-dim)';
+                        e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
+                      }}
+                    >
+                      <FaEdit /> Edit
+                    </button>
+                    <button
+                      onClick={() => handleDelete(acc)}
+                      title="Delete Account"
+                      style={{
+                        background: 'rgba(255, 255, 255, 0.04)',
+                        border: '1px solid rgba(255, 255, 255, 0.08)',
+                        borderRadius: '6px',
+                        color: 'var(--text-dim)',
+                        cursor: 'pointer',
+                        padding: '6px 10px',
+                        fontSize: '12px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        transition: 'all 0.2s',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.color = 'var(--loss, #ff4d4d)';
+                        e.currentTarget.style.borderColor = 'rgba(255, 77, 77, 0.3)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.color = 'var(--text-dim)';
+                        e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
+                      }}
+                    >
+                      <FaTrash />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* Account Modal */}
       {modalOpen && (
@@ -477,7 +593,7 @@ export default function AccountsMain() {
               right: 0,
               bottom: 0,
               backgroundColor: 'rgba(5, 7, 10, 0.75)',
-              backdropFilter: 'blur(4px)',
+              backdropFilter: 'blur(6px)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -489,25 +605,25 @@ export default function AccountsMain() {
               className="modal-content"
               style={{
                 width: '100%',
-                maxWidth: '520px',
+                maxWidth: '500px',
                 maxHeight: '90vh',
                 overflowY: 'auto',
                 background: 'var(--panel-bg, #12161f)',
                 border: '1px solid var(--border-soft, rgba(255, 255, 255, 0.08))',
-                borderRadius: '14px',
+                borderRadius: '16px',
                 boxShadow: '0 20px 40px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05)',
                 padding: '24px',
                 color: 'var(--text, #f0f2f5)',
               }}
             >
               {/* Header */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', paddingBottom: '12px', borderBottom: '1px solid var(--border-soft, rgba(255,255,255,0.08))' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', paddingBottom: '14px', borderBottom: '1px solid var(--border-soft, rgba(255,255,255,0.08))' }}>
                 <div>
-                  <h2 style={{ fontFamily: 'var(--disp)', fontSize: '20px', fontWeight: '600', margin: 0, color: 'var(--text)' }}>
-                    {editingId ? 'Edit Account' : 'Create Account'}
+                  <h2 style={{ fontFamily: 'var(--disp)', fontSize: '18px', fontWeight: '600', margin: 0, color: 'var(--text)' }}>
+                    {editingId ? 'Edit Trading Account' : 'Create Trading Account'}
                   </h2>
                   <p style={{ margin: '4px 0 0', fontSize: '12px', color: 'var(--text-dim)', fontFamily: 'var(--mono)' }}>
-                    {editingId ? 'Modify trading account parameters' : 'Set up a new trading account and risk strategy'}
+                    {editingId ? 'Update risk rules and account parameters' : 'Set up a portfolio with default risk rules'}
                   </p>
                 </div>
                 <button
@@ -517,15 +633,14 @@ export default function AccountsMain() {
                     background: 'none',
                     border: 'none',
                     color: 'var(--text-dim)',
-                    fontSize: '20px',
+                    fontSize: '18px',
                     cursor: 'pointer',
                     padding: '4px 8px',
                     borderRadius: '6px',
                     lineHeight: 1,
-                    transition: 'all 0.2s',
                   }}
-                  onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text)'; e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-dim)'; e.currentTarget.style.background = 'none'; }}
+                  onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-dim)'; }}
                 >
                   ✕
                 </button>
@@ -534,7 +649,7 @@ export default function AccountsMain() {
               <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 {/* Account Name */}
                 <div>
-                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '12px', fontWeight: '500', color: 'var(--text-dim)', letterSpacing: '0.3px', textTransform: 'uppercase' }}>
+                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '11px', fontWeight: '600', color: 'var(--text-dim)', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
                     Account Name
                   </label>
                   <input
@@ -550,19 +665,19 @@ export default function AccountsMain() {
                       border: '1px solid var(--border-soft, rgba(255,255,255,0.1))',
                       borderRadius: '8px',
                       color: 'var(--text)',
-                      fontSize: '14px',
+                      fontSize: '13px',
                       fontFamily: 'var(--mono)',
                       outline: 'none',
                       boxSizing: 'border-box',
                     }}
-                    placeholder="e.g., Main Backtest Account"
+                    placeholder="e.g., Main Prop Account"
                   />
                 </div>
 
                 {/* Grid for Balance, Currency & Account Type */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1.2fr', gap: '12px' }}>
                   <div>
-                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '12px', fontWeight: '500', color: 'var(--text-dim)', letterSpacing: '0.3px', textTransform: 'uppercase' }}>
+                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '11px', fontWeight: '600', color: 'var(--text-dim)', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
                       Balance
                     </label>
                     <input
@@ -580,7 +695,7 @@ export default function AccountsMain() {
                         border: '1px solid var(--border-soft, rgba(255,255,255,0.1))',
                         borderRadius: '8px',
                         color: 'var(--text)',
-                        fontSize: '14px',
+                        fontSize: '13px',
                         fontFamily: 'var(--mono)',
                         outline: 'none',
                         boxSizing: 'border-box',
@@ -590,7 +705,7 @@ export default function AccountsMain() {
                   </div>
 
                   <div>
-                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '12px', fontWeight: '500', color: 'var(--text-dim)', letterSpacing: '0.3px', textTransform: 'uppercase' }}>
+                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '11px', fontWeight: '600', color: 'var(--text-dim)', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
                       Currency
                     </label>
                     <select
@@ -604,7 +719,7 @@ export default function AccountsMain() {
                         border: '1px solid var(--border-soft, rgba(255,255,255,0.1))',
                         borderRadius: '8px',
                         color: 'var(--text)',
-                        fontSize: '14px',
+                        fontSize: '13px',
                         fontFamily: 'var(--mono)',
                         cursor: 'pointer',
                         outline: 'none',
@@ -618,8 +733,8 @@ export default function AccountsMain() {
                   </div>
 
                   <div>
-                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '12px', fontWeight: '500', color: 'var(--text-dim)', letterSpacing: '0.3px', textTransform: 'uppercase' }}>
-                      Account Type
+                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '11px', fontWeight: '600', color: 'var(--text-dim)', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+                      Type
                     </label>
                     <select
                       name="type"
@@ -632,7 +747,7 @@ export default function AccountsMain() {
                         border: '1px solid var(--border-soft, rgba(255,255,255,0.1))',
                         borderRadius: '8px',
                         color: 'var(--text)',
-                        fontSize: '14px',
+                        fontSize: '13px',
                         fontFamily: 'var(--mono)',
                         cursor: 'pointer',
                         outline: 'none',
@@ -657,13 +772,13 @@ export default function AccountsMain() {
                   gap: '12px',
                 }}>
                   <div style={{ fontSize: '11px', fontWeight: '700', letterSpacing: '0.5px', textTransform: 'uppercase', color: 'var(--amber, #ffb020)' }}>
-                    Risk Configuration
+                    Risk Strategy
                   </div>
 
                   <div style={{ display: 'grid', gridTemplateColumns: riskType === 'fixed' ? '1fr 1fr' : '1fr', gap: '12px', alignItems: 'center' }}>
                     <div>
                       <label style={{ display: 'block', marginBottom: '6px', fontSize: '12px', color: 'var(--text-dim)' }}>
-                        Risk Type
+                        Risk Model
                       </label>
                       <select
                         value={riskType}
@@ -675,7 +790,7 @@ export default function AccountsMain() {
                           border: '1px solid var(--border-soft, rgba(255,255,255,0.1))',
                           borderRadius: '6px',
                           color: 'var(--text)',
-                          fontSize: '13px',
+                          fontSize: '12px',
                           fontFamily: 'var(--mono)',
                           cursor: 'pointer',
                           outline: 'none',
@@ -690,7 +805,7 @@ export default function AccountsMain() {
                     {riskType === 'fixed' && (
                       <div>
                         <label style={{ display: 'block', marginBottom: '6px', fontSize: '12px', color: 'var(--text-dim)' }}>
-                          Risk Value & Unit
+                          Per Trade Target
                         </label>
                         <div style={{ display: 'flex', gap: '6px' }}>
                           <div style={{ position: 'relative', flex: 1 }}>
@@ -703,12 +818,12 @@ export default function AccountsMain() {
                               step="0.01"
                               style={{
                                 width: '100%',
-                                padding: '8px 28px 8px 10px',
+                                padding: '8px 26px 8px 10px',
                                 background: 'var(--bg-alt, #0d1017)',
                                 border: '1px solid var(--border-soft, rgba(255,255,255,0.1))',
                                 borderRadius: '6px',
                                 color: 'var(--text)',
-                                fontSize: '13px',
+                                fontSize: '12px',
                                 fontFamily: 'var(--mono)',
                                 outline: 'none',
                                 boxSizing: 'border-box',
@@ -722,7 +837,7 @@ export default function AccountsMain() {
                                 top: '50%',
                                 transform: 'translateY(-50%)',
                                 color: 'var(--text-dim)',
-                                fontSize: '12px',
+                                fontSize: '11px',
                                 fontFamily: 'var(--mono)',
                                 pointerEvents: 'none',
                               }}
@@ -734,7 +849,7 @@ export default function AccountsMain() {
                             value={riskUnit}
                             onChange={(e) => setRiskUnit(e.target.value)}
                             style={{
-                              padding: '8px 8px',
+                              padding: '8px',
                               background: 'var(--bg-alt, #0d1017)',
                               border: '1px solid var(--border-soft, rgba(255,255,255,0.1))',
                               borderRadius: '6px',
@@ -754,8 +869,8 @@ export default function AccountsMain() {
                   </div>
 
                   {riskType === 'variable' && (
-                    <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-dim)', fontFamily: 'var(--mono)', lineHeight: '1.4' }}>
-                      ℹ Variable Risk will consider Risk Amount individually from recorded Trades.
+                    <p style={{ margin: 0, fontSize: '11px', color: 'var(--text-dim)', fontFamily: 'var(--mono)', lineHeight: '1.4' }}>
+                      ℹ Variable Risk allows individual position sizes per logged trade.
                     </p>
                   )}
                 </div>
@@ -772,13 +887,13 @@ export default function AccountsMain() {
                     gap: '12px',
                   }}>
                     <div style={{ fontSize: '11px', fontWeight: '700', letterSpacing: '0.5px', textTransform: 'uppercase', color: 'var(--amber, #ffb020)' }}>
-                      Stop Loss Configuration
+                      Stop Loss Defaults
                     </div>
 
                     <div style={{ display: 'grid', gridTemplateColumns: slType === 'fixed' ? '1fr 1fr' : '1fr', gap: '12px', alignItems: 'center' }}>
                       <div>
                         <label style={{ display: 'block', marginBottom: '6px', fontSize: '12px', color: 'var(--text-dim)' }}>
-                          SL Type
+                          SL Mode
                         </label>
                         <select
                           value={slType}
@@ -790,7 +905,7 @@ export default function AccountsMain() {
                             border: '1px solid var(--border-soft, rgba(255,255,255,0.1))',
                             borderRadius: '6px',
                             color: 'var(--text)',
-                            fontSize: '13px',
+                            fontSize: '12px',
                             fontFamily: 'var(--mono)',
                             cursor: 'pointer',
                             outline: 'none',
@@ -805,7 +920,7 @@ export default function AccountsMain() {
                       {slType === 'fixed' && (
                         <div>
                           <label style={{ display: 'block', marginBottom: '6px', fontSize: '12px', color: 'var(--text-dim)' }}>
-                            SL Value & Unit
+                            SL Distance
                           </label>
                           <div style={{ display: 'flex', gap: '6px' }}>
                             <input
@@ -822,7 +937,7 @@ export default function AccountsMain() {
                                 border: '1px solid var(--border-soft, rgba(255,255,255,0.1))',
                                 borderRadius: '6px',
                                 color: 'var(--text)',
-                                fontSize: '13px',
+                                fontSize: '12px',
                                 fontFamily: 'var(--mono)',
                                 outline: 'none',
                                 boxSizing: 'border-box',
@@ -833,7 +948,7 @@ export default function AccountsMain() {
                               value={slUnit}
                               onChange={(e) => setSlUnit(e.target.value)}
                               style={{
-                                padding: '8px 8px',
+                                padding: '8px',
                                 background: 'var(--bg-alt, #0d1017)',
                                 border: '1px solid var(--border-soft, rgba(255,255,255,0.1))',
                                 borderRadius: '6px',
@@ -853,8 +968,8 @@ export default function AccountsMain() {
                     </div>
 
                     {slType === 'variable' && (
-                      <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-dim)', fontFamily: 'var(--mono)', lineHeight: '1.4' }}>
-                        ℹ Variable SL will be determined individually per trade.
+                      <p style={{ margin: 0, fontSize: '11px', color: 'var(--text-dim)', fontFamily: 'var(--mono)', lineHeight: '1.4' }}>
+                        ℹ Variable SL defaults will be calculated dynamically on execution.
                       </p>
                     )}
                   </div>
@@ -866,7 +981,7 @@ export default function AccountsMain() {
                     type="button"
                     onClick={closeModal}
                     style={{
-                      padding: '8px 18px',
+                      padding: '8px 16px',
                       background: 'transparent',
                       border: '1px solid var(--border-soft, rgba(255,255,255,0.15))',
                       borderRadius: '8px',
@@ -874,17 +989,14 @@ export default function AccountsMain() {
                       fontSize: '13px',
                       fontWeight: '500',
                       cursor: 'pointer',
-                      transition: 'all 0.2s',
                     }}
-                    onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.3)'; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-dim)'; e.currentTarget.style.borderColor = 'var(--border-soft, rgba(255,255,255,0.15))'; }}
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     style={{
-                      padding: '8px 22px',
+                      padding: '8px 20px',
                       background: 'var(--amber, #ffb020)',
                       border: 'none',
                       borderRadius: '8px',
@@ -893,12 +1005,9 @@ export default function AccountsMain() {
                       fontWeight: '600',
                       cursor: 'pointer',
                       boxShadow: '0 2px 8px rgba(255,176,32,0.3)',
-                      transition: 'all 0.2s',
                     }}
-                    onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(255,176,32,0.4)'; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(255,176,32,0.3)'; }}
                   >
-                    {editingId ? 'Update Account' : 'Create Account'}
+                    {editingId ? 'Save Changes' : 'Create Account'}
                   </button>
                 </div>
               </form>
@@ -907,10 +1016,11 @@ export default function AccountsMain() {
         </Portal>
       )}
 
+      {/* Alert Overlays */}
       <Alert
         isOpen={deleteAlert.show}
         title="Delete Account"
-        message={`Deleting account "${deleteAlert.accountName}" will also delete ${deleteAlert.tradesCount} associated trade(s). This cannot be undone.`}
+        message={`Deleting account "${deleteAlert.accountName}" will also delete ${deleteAlert.tradesCount} associated trade(s). This action cannot be reversed.`}
         type="confirm"
         confirmText="Delete"
         cancelText="Cancel"
