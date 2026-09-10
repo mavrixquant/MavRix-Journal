@@ -1,7 +1,7 @@
 // src/utils/statsEngine.js
 import { outcomeFor } from './filterHelpers';
 
-export function computeStats(trades, R) {
+export function computeStats(trades, R, SL) {
   if (!trades || trades.length === 0) {
     return {
       outcomes: [],
@@ -22,7 +22,7 @@ export function computeStats(trades, R) {
     };
   }
 
-  const outcomes = trades.map(t => ({ ...t, ...outcomeFor(t, R) }))
+  const outcomes = trades.map(t => ({ ...t, ...outcomeFor(t, R, SL) }))
     .sort((a, b) => a.date.localeCompare(b.date) || a.entryMinutes - b.entryMinutes);
 
   const wins = outcomes.filter(o => o.result === 'win');
@@ -45,7 +45,6 @@ export function computeStats(trades, R) {
     equity.push({ x: o.date, y: +cum.toFixed(2) });
   });
 
-  // Streaks
   let curStreak = 0, curType = null;
   let bestWinStreak = 0, worstLossStreak = 0;
   outcomes.forEach(o => {
@@ -85,7 +84,6 @@ export function computeStats(trades, R) {
   };
 }
 
-// Group outcomes by a key function and return aggregated values
 export function groupAgg(outcomes, keyFn, order) {
   const map = new Map();
   outcomes.forEach(o => {

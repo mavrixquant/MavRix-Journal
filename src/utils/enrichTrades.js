@@ -1,6 +1,5 @@
+// src/utils/enrichTrades.js
 import { getSession, get30MinBucket, DOW_NAMES } from './timeHelpers';
-
-const SL = 12.5;
 
 function parseTimeToMinutes(timeStr) {
   if (!timeStr) return 0;
@@ -8,7 +7,6 @@ function parseTimeToMinutes(timeStr) {
   return (h || 0) * 60 + (m || 0);
 }
 
-// Standard fields that should NOT be treated as dynamic columns
 const STANDARD_KEYS = new Set([
   'accountId',
   'tradeId',
@@ -30,13 +28,11 @@ export function enrichTradesFromDB(rawTrades) {
     return { enrichedTrades: [], dynamicKeys: [] };
   }
 
-  // Determine dynamic keys from the union of all keys across trades
   const allKeys = new Set();
   rawTrades.forEach(trade => Object.keys(trade).forEach(key => allKeys.add(key)));
   const dynamicKeys = [...allKeys].filter(key => !STANDARD_KEYS.has(key));
 
   const enrichedTrades = rawTrades.map((trade, index) => {
-    // Parse date
     let dateStr = trade.date;
     if (dateStr instanceof Date) {
       dateStr = dateStr.toISOString().slice(0, 10);
@@ -49,14 +45,12 @@ export function enrichTradesFromDB(rawTrades) {
     const [y, m, d] = dateStr.split('-').map(Number);
     const dateObj = new Date(y, m - 1, d);
 
-    // Map Firestore fields to internal names
     const entryStr = trade.entryTime || '';
     const exitStr = trade.exitTime || entryStr;
     const entryMinutes = parseTimeToMinutes(entryStr);
     const mae = Number(trade.mae) || 0;
     const mfe = Number(trade.mfe) || 0;
 
-    // Build dynamic object
     const dynamic = {};
     dynamicKeys.forEach(key => {
       dynamic[key] = trade[key] !== undefined ? String(trade[key]) : '—';
@@ -85,8 +79,6 @@ export function enrichTradesFromDB(rawTrades) {
       entryMinutes,
       mae,
       mfe,
-      slHit: (mae >= SL),
-      rAchieved: (mae >= SL) ? 0 : +(mfe / SL).toFixed(2),
       dynamic,
     };
   });

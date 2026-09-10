@@ -2,7 +2,6 @@
 import { applyLimitsFilter, applySessionTimeFilter } from './filterHelpers';
 import { computeStats } from './statsEngine';
 
-// Cartesian product of arrays
 export function cartesianProduct(arrays) {
   return arrays.reduce((acc, arr) => {
     const result = [];
@@ -15,7 +14,6 @@ export function cartesianProduct(arrays) {
   }, [[]]);
 }
 
-// Generate all subsets of an array (including empty)
 export function getAllSubsets(arr) {
   const subsets = [[]];
   for (const val of arr) {
@@ -27,14 +25,13 @@ export function getAllSubsets(arr) {
   return subsets;
 }
 
-// Apply a subset combination filter (combo[i] is the allowed values for column i)
 export function applySubsetCombinationFilter(trades, combo, selectedKeys) {
   if (!trades || trades.length === 0) return trades;
   return trades.filter(t => {
     for (let i = 0; i < selectedKeys.length; i++) {
       const key = selectedKeys[i];
       const subset = combo[i];
-      if (subset.length === 0) continue; // no filter on this column
+      if (subset.length === 0) continue;
       const val = t.dynamic[key];
       if (!subset.includes(val)) return false;
     }
@@ -42,7 +39,6 @@ export function applySubsetCombinationFilter(trades, combo, selectedKeys) {
   });
 }
 
-// Run optimization: test all combinations of selected columns and RRs
 export async function runOptimization(
   allTrades,
   columnEnabled,
@@ -54,9 +50,9 @@ export async function runOptimization(
   activeFilterType,
   filterParams,
   currentR,
-  onProgress
+  onProgress,
+  SL = 12.5
 ) {
-  // Gather enabled columns and their selected values
   const selectedColumns = [];
   const selectedValues = [];
   for (const key of Object.keys(columnEnabled)) {
@@ -74,7 +70,6 @@ export async function runOptimization(
     return [];
   }
 
-  // Generate all subsets (non-empty) for each column's values
   const subsetSets = selectedValues.map(vals => {
     const subsets = getAllSubsets(vals);
     return subsets.filter(sub => sub.length > 0);
@@ -90,12 +85,12 @@ export async function runOptimization(
   const combos = cartesianProduct(subsetSets);
   if (combos.length === 0) return [];
 
-  // Base trades: apply Limits and Session/Time filters
   const baseTrades = applyLimitsFilter(
     applySessionTimeFilter(allTrades, stMode, selectedSessions, selectedTimeBlocks),
     activeFilterType,
     filterParams,
-    currentR
+    currentR,
+    SL
   );
 
   if (baseTrades.length === 0) return [];
@@ -110,7 +105,7 @@ export async function runOptimization(
     for (const combo of chunk) {
       for (const rr of rrSelected) {
         const filtered = applySubsetCombinationFilter(baseTrades, combo, selectedColumns);
-        const stats = computeStats(filtered, rr);
+        const stats = computeStats(filtered, rr, SL);
 
         const comboDisplay = combo.map((subset, ci) => {
           const colName = selectedColumns[ci];
@@ -137,10 +132,9 @@ export async function runOptimization(
 
     const pct = Math.round((processed / total) * 100);
     if (onProgress) onProgress(pct, processed, total);
-    await new Promise(resolve => setTimeout(resolve, 0)); // yield to UI
+    await new Promise(resolve => setTimeout(resolve, 0));
   }
 
-  // Sort by totalR descending by default
   results.sort((a, b) => b.totalR - a.totalR);
   return results;
 }

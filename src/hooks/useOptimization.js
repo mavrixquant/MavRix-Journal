@@ -2,6 +2,7 @@
 import { useState, useCallback } from 'react';
 import { useAppContext, actions } from '../context/AppContext';
 import { runOptimization } from '../utils/optimizationEngine';
+import { resolveSL } from '../utils/slResolver';
 
 export function useOptimization() {
   const { state, dispatch } = useAppContext();
@@ -63,6 +64,10 @@ export function useOptimization() {
     setResults([]);
     setIsRunning(true);
 
+    // Resolve the SL (in POINTS) from the currently selected account.
+    const selectedAccount = state.accounts.find(a => a.id === state.selectedAccountId);
+    const SL = resolveSL(selectedAccount);
+
     try {
       const resultsData = await runOptimization(
         state.trades,
@@ -78,7 +83,8 @@ export function useOptimization() {
         (pct, processed, total) => {
           setProgress(pct);
           setStatus(`Processing ${processed}/${total}...`);
-        }
+        },
+        SL   // <-- new last argument
       );
       setResults(resultsData);
       setCurrentPage(1);
@@ -100,6 +106,8 @@ export function useOptimization() {
     state.activeFilterType,
     state.filterParams,
     state.currentR,
+    state.accounts,
+    state.selectedAccountId,
     updateOptimizeState,
   ]);
 

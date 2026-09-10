@@ -24,9 +24,12 @@ export async function createAccount(userId, accountData) {
     riskType: accountData.riskType || 'fixed',
     riskValue: accountData.riskValue !== undefined ? accountData.riskValue : null,
     riskUnit: accountData.riskUnit || 'percent',
-    slType: accountData.slType || 'fixed',
     slValue: accountData.slValue !== undefined ? accountData.slValue : null,
     slUnit: accountData.slUnit || 'ticks',
+    commissionMode: accountData.commissionMode || 'none',
+    commissionValue: accountData.commissionValue !== undefined ? accountData.commissionValue : null,
+    // User-defined column input types: { colName: 'text' | 'dropdown' | 'number' }
+    columnConfigs: accountData.columnConfigs || {},
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
@@ -41,7 +44,6 @@ export async function getAccounts(userId) {
   );
   const snapshot = await getDocs(q);
   const accounts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-  // Sort client-side (newest first)
   accounts.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   return accounts;
 }
@@ -69,4 +71,13 @@ export async function updateAccount(accountId, accountData) {
 export async function deleteAccount(accountId) {
   const docRef = doc(db, ACCOUNTS_COLLECTION, accountId);
   await deleteDoc(docRef);
+}
+
+// Merge-updates the column type config map on an account.
+export async function updateAccountColumnConfigs(accountId, columnConfigs) {
+  const docRef = doc(db, ACCOUNTS_COLLECTION, accountId);
+  await updateDoc(docRef, {
+    columnConfigs: columnConfigs || {},
+    updatedAt: new Date().toISOString(),
+  });
 }

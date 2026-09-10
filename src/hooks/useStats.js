@@ -6,7 +6,7 @@ import { computeStats, groupAgg } from '../utils/statsEngine';
 
 export function useStats() {
   const { state } = useAppContext();
-  const { getFilteredTrades } = useFilters();
+  const { getFilteredTrades, SL } = useFilters();
 
   const filteredTrades = useMemo(() => {
     return getFilteredTrades();
@@ -19,13 +19,14 @@ export function useStats() {
     state.activeFilterType,
     state.filterParams,
     state.currentR,
+    state.selectedAccountId,
+    state.accounts,
   ]);
 
   const stats = useMemo(() => {
-    return computeStats(filteredTrades, state.currentR);
-  }, [filteredTrades, state.currentR]);
+    return computeStats(filteredTrades, state.currentR, SL);
+  }, [filteredTrades, state.currentR, SL]);
 
-  // Group helpers for charts
   const groupBy = (keyFn, order) => {
     return groupAgg(stats.outcomes, keyFn, order);
   };
@@ -35,5 +36,6 @@ export function useStats() {
     filteredTrades,
     groupBy,
     currentR: state.currentR,
+    SL,
   };
 }

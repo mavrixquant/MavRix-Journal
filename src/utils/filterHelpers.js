@@ -1,14 +1,18 @@
 // src/utils/filterHelpers.js
 
-// Outcome evaluation for a single trade at a given R
-export function outcomeFor(trade, R) {
-  const target = 12.5 * R; // SL fixed at 12.5
-  if (trade.slHit) return { result: 'loss', r: -1 };
-  if (trade.mfe >= target) return { result: 'win', r: R };
-  return { result: 'loss', r: -1 };
+// Outcome evaluation for a single trade at a given R and SL (both in points).
+// Returns { result, r, rAchieved } so downstream consumers (TradeTable, etc.)
+// can display the raw "R reached" independent of win/loss classification.
+export function outcomeFor(trade, R, SL) {
+  const target = SL * R;
+  const slHit = trade.mae >= SL;
+  const rAchieved = slHit ? 0 : +(trade.mfe / SL).toFixed(2);
+
+  if (slHit) return { result: 'loss', r: -1, rAchieved };
+  if (trade.mfe >= target) return { result: 'win', r: R, rAchieved };
+  return { result: 'loss', r: -1, rAchieved };
 }
 
-// Apply dynamic filters (multi-select on filter columns)
 export function applyDynamicFilters(trades, filterSelections, dynamicKeys) {
   if (!trades || trades.length === 0) return trades;
   return trades.filter(t => {
@@ -22,7 +26,6 @@ export function applyDynamicFilters(trades, filterSelections, dynamicKeys) {
   });
 }
 
-// Apply session/time filter
 export function applySessionTimeFilter(trades, stMode, selectedSessions, selectedTimeBlocks) {
   if (!trades || trades.length === 0) return trades;
   if (stMode === 'session' && selectedSessions.length === 0) return trades;
@@ -37,12 +40,10 @@ export function applySessionTimeFilter(trades, stMode, selectedSessions, selecte
   });
 }
 
-// Apply limits filter (day, session, or RR limit)
-export function applyLimitsFilter(trades, activeFilterType, filterParams, currentR) {
+export function applyLimitsFilter(trades, activeFilterType, filterParams, currentR, SL) {
   if (!trades || trades.length === 0) return trades;
   if (activeFilterType === 'none') return trades;
 
-  // Sort by date/time to maintain chronological order
   const sorted = [...trades].sort((a, b) => {
     if (a.date === b.date) return a.entryMinutes - b.entryMinutes;
     return a.date.localeCompare(b.date);
@@ -81,7 +82,7 @@ export function applyLimitsFilter(trades, activeFilterType, filterParams, curren
       const day = t.date;
       if (stoppedDays.has(day)) continue;
       const cum = dailyCum.get(day) || 0;
-      const outcome = outcomeFor(t, currentR);
+      const outcome = outcomeFor(t, currentR, SL);
       const newCum = cum + outcome.r;
       result.push(t);
       if (newCum >= winLimit || newCum <= -lossLimit) {
@@ -97,10 +98,9 @@ export function applyLimitsFilter(trades, activeFilterType, filterParams, curren
   return sorted;
 }
 
-// Combined filter: apply all in order
-export function applyFilters(trades, state) {
+export function applyFilters(trades, state, SL) {
   let filtered = applyDynamicFilters(trades, state.filterSelections, state.dynamicFilterKeys);
   filtered = applySessionTimeFilter(filtered, state.stMode, state.selectedSessions, state.selectedTimeBlocks);
-  filtered = applyLimitsFilter(filtered, state.activeFilterType, state.filterParams, state.currentR);
+  filtered = applyLimitsFilter(filtered, state.activeFilterType, state.filterParams, state.currentR, SL);
   return filtered;
 }

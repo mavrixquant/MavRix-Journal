@@ -2,8 +2,6 @@
 import * as XLSX from 'xlsx';
 import { getSession, get30MinBucket, DOW_NAMES } from './timeHelpers';
 
-const SL = 12.5; // fixed stop loss in points
-
 // Helper to convert Excel time number to HH:MM string
 function excelTimeToHHMM(v) {
   if (v == null) return null;
@@ -19,7 +17,6 @@ function parseTime(v) {
   if (v == null) return null;
   if (typeof v === 'number') return excelTimeToHHMM(v);
   if (typeof v === 'string') {
-    // assume already HH:MM or HH:MM:SS, take first 5 chars
     const trimmed = v.trim();
     if (trimmed.length >= 5) return trimmed.slice(0, 5);
     return trimmed;
@@ -27,10 +24,9 @@ function parseTime(v) {
   return null;
 }
 
-// Enrich raw rows with computed fields (session, bucket, dow, slHit, rAchieved)
+// Enrich raw rows with computed fields (session, bucket, dow)
 function enrichTrades(rawRows, dynamicColumnNames) {
   return rawRows.filter(r => r.date && r.entry).map((r, i) => {
-    // Parse date
     let dateStr = r.date;
     if (typeof dateStr === 'number') {
       const d = XLSX.SSF.parse_date_code(dateStr);
@@ -47,7 +43,6 @@ function enrichTrades(rawRows, dynamicColumnNames) {
     const mae = Number(r.mae) || 0;
     const mfe = Number(r.mfe) || 0;
 
-    // Dynamic columns (these are the filterable columns, excluding 'session')
     const dynamic = {};
     dynamicColumnNames.forEach(key => {
       dynamic[key] = r[key] !== undefined ? String(r[key]) : '—';
@@ -57,7 +52,7 @@ function enrichTrades(rawRows, dynamicColumnNames) {
       id: i,
       date: dateStr,
       dateObj,
-      entry: r.entry, // already HH:MM
+      entry: r.entry,
       exit: r.exit || r.entry,
       dir: r.dir || '—',
       setup: r.setup || 'Unlabeled',
@@ -74,8 +69,6 @@ function enrichTrades(rawRows, dynamicColumnNames) {
       entryMinutes,
       mae,
       mfe,
-      slHit: (mae >= SL),
-      rAchieved: (mae >= SL) ? 0 : +(mfe / SL).toFixed(2),
       dynamic,
     };
   });
@@ -87,7 +80,6 @@ function parseTimeToMinutes(timeStr) {
   return (h || 0) * 60 + (m || 0);
 }
 
-// Main function to parse workbook and extract trades
 export function parseWorkbook(workbook, sheetName) {
   const ws = workbook.Sheets[sheetName];
   if (!ws) throw new Error(`Sheet "${sheetName}" not found.`);
@@ -97,7 +89,6 @@ export function parseWorkbook(workbook, sheetName) {
 
   const headers = rows[0].map(h => String(h).trim());
 
-  // Locate essential columns by keyword
   const dateIdx = headers.findIndex(h => /date/i.test(h));
   const entryIdx = headers.findIndex(h => /entry time/i.test(h));
   const exitIdx = headers.findIndex(h => /exit time/i.test(h));
@@ -116,11 +107,9 @@ export function parseWorkbook(workbook, sheetName) {
     throw new Error('Required columns missing: Date, Entry Time, Exit Time, MAE, MFE');
   }
 
-  // Dynamic columns are those between 'Exit Time' and 'MAE' (exclusive)
   const dynamicCols = headers.slice(exitIdx + 1, maeIdx).filter(h => h.length > 0);
   const filteredDynamicCols = dynamicCols.filter(k => k.toLowerCase() !== 'session');
 
-  // Build column mapping
   const colMap = {
     date: dateIdx,
     entry: entryIdx,
@@ -183,7 +172,6 @@ export function parseWorkbook(workbook, sheetName) {
       notes: String(get('notes') || ''),
     };
 
-    // Add dynamic columns
     filteredDynamicCols.forEach(key => {
       const idx = headers.indexOf(key);
       trade[key] = (idx !== -1 && idx < row.length) ? String(row[idx] || '') : '';
@@ -192,7 +180,6 @@ export function parseWorkbook(workbook, sheetName) {
     rawTrades.push(trade);
   }
 
-  // Enrich and return
   return {
     trades: enrichTrades(rawTrades, filteredDynamicCols),
     dynamicKeys: filteredDynamicCols,

@@ -1,4 +1,4 @@
-// src/components/dashboard/RRCompareChart.jsx
+// src/components/dashboard/charts/RRCompareChart.jsx
 import { useMemo, useState, useEffect } from 'react';
 import { Bar } from 'react-chartjs-2';
 import { useStats } from '../../../hooks/useStats';
@@ -47,7 +47,7 @@ function useResponsiveBarConfig() {
 
 export default function RRCompareChart() {
   const { state } = useAppContext();
-  const { filteredTrades } = useStats();
+  const { filteredTrades, SL } = useStats();   // <-- also pull SL
   const barConfig = useResponsiveBarConfig();
 
   const selectedAccount = state?.accounts?.find(acc => acc.id === state?.selectedAccountId) || null;
@@ -56,8 +56,8 @@ export default function RRCompareChart() {
 
   const statsData = useMemo(() => {
     if (!hasTrades || !isBacktest) return [];
-    return RR_LEVELS.map(r => computeStats(filteredTrades, r));
-  }, [filteredTrades, hasTrades, isBacktest]);
+    return RR_LEVELS.map(r => computeStats(filteredTrades, r, SL));   // <-- pass SL
+  }, [filteredTrades, hasTrades, isBacktest, SL]);
 
   const chartData = useMemo(() => {
     if (statsData.length === 0) return null;

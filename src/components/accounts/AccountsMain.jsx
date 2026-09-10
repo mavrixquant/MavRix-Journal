@@ -10,7 +10,8 @@ import {
   FaSlidersH,
   FaExchangeAlt,
   FaFolderOpen,
-  FaFilter
+  FaFilter,
+  FaCoins
 } from 'react-icons/fa';
 import Portal from '../common/Portal';
 import Alert from '../common/Alert';
@@ -50,9 +51,13 @@ export default function AccountsMain() {
   const [riskValue, setRiskValue] = useState('');
   const [riskUnit, setRiskUnit] = useState('percent');
 
-  const [slType, setSlType] = useState('fixed');
+  // SL: default value (optional) + unit (Backtest only)
   const [slValue, setSlValue] = useState('');
   const [slUnit, setSlUnit] = useState('ticks');
+
+  // Commission: mode + value
+  const [commissionMode, setCommissionMode] = useState('none');   // 'none' | 'flat' | 'per_contract'
+  const [commissionValue, setCommissionValue] = useState('');
 
   const [deleteAlert, setDeleteAlert] = useState({ show: false, accountId: null, accountName: '', tradesCount: 0 });
   const [loadingDelete, setLoadingDelete] = useState(false);
@@ -108,9 +113,10 @@ export default function AccountsMain() {
     setRiskType('fixed');
     setRiskValue('');
     setRiskUnit('percent');
-    setSlType('fixed');
     setSlValue('');
     setSlUnit('ticks');
+    setCommissionMode('none');
+    setCommissionValue('');
     setModalOpen(true);
   };
 
@@ -123,11 +129,16 @@ export default function AccountsMain() {
       type: account.type || 'Backtest',
     });
     setRiskType(account.riskType || 'fixed');
-    setRiskValue(account.riskValue !== undefined ? account.riskValue : '');
+    setRiskValue(account.riskValue !== undefined && account.riskValue !== null ? account.riskValue : '');
     setRiskUnit(account.riskUnit || 'percent');
-    setSlType(account.slType || 'fixed');
-    setSlValue(account.slValue !== undefined ? account.slValue : '');
+    setSlValue(account.slValue !== undefined && account.slValue !== null ? account.slValue : '');
     setSlUnit(account.slUnit || 'ticks');
+    setCommissionMode(account.commissionMode || 'none');
+    setCommissionValue(
+      account.commissionValue !== undefined && account.commissionValue !== null
+        ? account.commissionValue
+        : ''
+    );
     setModalOpen(true);
   };
 
@@ -146,6 +157,12 @@ export default function AccountsMain() {
     const { name, balance, currency, type } = formData;
     if (!name.trim() || !balance) return;
 
+    const parsedSl = slValue === '' ? null : parseFloat(slValue);
+    const hasSl = parsedSl !== null && !isNaN(parsedSl) && parsedSl > 0;
+
+    const parsedCommission = commissionValue === '' ? null : parseFloat(commissionValue);
+    const hasCommission = parsedCommission !== null && !isNaN(parsedCommission) && parsedCommission >= 0;
+
     const accountData = {
       name: name.trim(),
       balance: parseFloat(balance),
@@ -154,9 +171,13 @@ export default function AccountsMain() {
       riskType,
       riskValue: riskType === 'fixed' ? parseFloat(riskValue) || 0 : null,
       riskUnit: riskType === 'fixed' ? riskUnit : null,
-      slType: type === 'Backtest' ? slType : null,
-      slValue: type === 'Backtest' && slType === 'fixed' ? parseFloat(slValue) || 0 : null,
-      slUnit: type === 'Backtest' && slType === 'fixed' ? slUnit : null,
+      // SL: Backtest-only, unit always stored, value optional
+      slUnit: type === 'Backtest' ? slUnit : null,
+      slValue: type === 'Backtest' && hasSl ? parsedSl : null,
+      // Commission: available for all account types
+      commissionMode: commissionMode,
+      commissionValue:
+        commissionMode !== 'none' && hasCommission ? parsedCommission : null,
     };
 
     try {
@@ -235,20 +256,36 @@ export default function AccountsMain() {
     return `${value}${unit}`;
   };
 
-  const formatSlValue = (account) => {
-    if (account.slType === 'variable' || !account.slType) return 'Variable';
-    const value = account.slValue !== undefined && account.slValue !== null ? account.slValue : 0;
-    const unit = account.slUnit === 'ticks' ? ' ticks' : ' pts';
-    return `${value}${unit}`;
+  const formatSlUnit = (account) => {
+    if (account.slUnit === 'ticks') return 'Ticks';
+    if (account.slUnit === 'points') return 'Points';
+    return '—';
   };
 
-  // Filter accounts according to selectedType ('All' option included optional)
+  const formatSlDefault = (account) => {
+    if (account.slValue === undefined || account.slValue === null) return null;
+    const unit = account.slUnit === 'ticks' ? ' ticks' : ' pts';
+    return `${account.slValue}${unit}`;
+  };
+
+  // Commission display for the account card
+  const formatCommission = (account) => {
+    const mode = account.commissionMode || 'none';
+    if (mode === 'none') return 'None';
+    const val = account.commissionValue;
+    if (val === undefined || val === null) return 'None';
+    const sym = getCurrencySymbol(account.currency);
+    if (mode === 'flat') return `${sym}${val} flat`;
+    if (mode === 'per_contract') return `${sym}${val}/contract`;
+    return 'None';
+  };
+
+  // Filter accounts according to selectedType
   const filteredAccounts = accounts.filter(acc => {
     if (selectedType === 'All') return true;
     return (acc.type || 'Backtest') === selectedType;
   });
 
-  // Calculations for KPI Header Cards based on filtered results
   const totalBalance = filteredAccounts.reduce((sum, acc) => sum + (parseFloat(acc.balance) || 0), 0);
   const totalPnlAll = filteredAccounts.reduce((sum, acc) => sum + (pnlMap[acc.id]?.pnl || 0), 0);
   const totalTradesAll = filteredAccounts.reduce((sum, acc) => sum + (pnlMap[acc.id]?.count || 0), 0);
@@ -404,6 +441,7 @@ export default function AccountsMain() {
             const tradesCount = pnlMap[acc.id]?.count || 0;
             const isLive = acc.type === 'Live';
             const isDemo = acc.type === 'Demo';
+            const slDefault = formatSlDefault(acc);
 
             return (
               <div
@@ -499,12 +537,29 @@ export default function AccountsMain() {
                       </div>
                     </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-dim)' }}>
-                      <FaSlidersH style={{ color: 'var(--amber, #ffb020)', flexShrink: 0 }} />
+                    {acc.type === 'Backtest' && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-dim)' }}>
+                        <FaSlidersH style={{ color: 'var(--amber, #ffb020)', flexShrink: 0 }} />
+                        <div>
+                          <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.3px' }}>SL Column</div>
+                          <div style={{ color: 'var(--text)', fontWeight: '500' }}>
+                            {formatSlUnit(acc)}
+                            {slDefault && (
+                              <span style={{ color: 'var(--text-dim)', fontWeight: '400' }}>
+                                {' '}· default {slDefault}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-dim)', gridColumn: 'span 2' }}>
+                      <FaCoins style={{ color: 'var(--amber, #ffb020)', flexShrink: 0 }} />
                       <div>
-                        <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.3px' }}>Stop Loss</div>
-                        <div style={{ color: 'var(--text)', fontWeight: '500', textTransform: 'capitalize' }}>
-                          {acc.slType || '—'} {acc.type === 'Backtest' && `(${formatSlValue(acc)})`}
+                        <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.3px' }}>Commission</div>
+                        <div style={{ color: 'var(--text)', fontWeight: '500' }}>
+                          {formatCommission(acc)}
                         </div>
                       </div>
                     </div>
@@ -875,7 +930,7 @@ export default function AccountsMain() {
                   )}
                 </div>
 
-                {/* Section: Stop Loss Settings Card (Only for Backtest) */}
+                {/* Section: Stop Loss Settings Card (Backtest only) */}
                 {formData.type === 'Backtest' && (
                   <div style={{
                     padding: '14px',
@@ -887,17 +942,43 @@ export default function AccountsMain() {
                     gap: '12px',
                   }}>
                     <div style={{ fontSize: '11px', fontWeight: '700', letterSpacing: '0.5px', textTransform: 'uppercase', color: 'var(--amber, #ffb020)' }}>
-                      Stop Loss Defaults
+                      Stop Loss Settings
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: slType === 'fixed' ? '1fr 1fr' : '1fr', gap: '12px', alignItems: 'center' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', alignItems: 'center' }}>
                       <div>
                         <label style={{ display: 'block', marginBottom: '6px', fontSize: '12px', color: 'var(--text-dim)' }}>
-                          SL Mode
+                          Default SL <span style={{ color: 'var(--text-faint, #6b7280)', fontSize: '10px' }}>(optional)</span>
+                        </label>
+                        <input
+                          type="number"
+                          value={slValue}
+                          onChange={(e) => setSlValue(e.target.value)}
+                          min="0"
+                          step="0.01"
+                          style={{
+                            width: '100%',
+                            padding: '8px 10px',
+                            background: 'var(--bg-alt, #0d1017)',
+                            border: '1px solid var(--border-soft, rgba(255,255,255,0.1))',
+                            borderRadius: '6px',
+                            color: 'var(--text)',
+                            fontSize: '12px',
+                            fontFamily: 'var(--mono)',
+                            outline: 'none',
+                            boxSizing: 'border-box',
+                          }}
+                          placeholder="e.g. 12.5"
+                        />
+                      </div>
+
+                      <div>
+                        <label style={{ display: 'block', marginBottom: '6px', fontSize: '12px', color: 'var(--text-dim)' }}>
+                          Unit
                         </label>
                         <select
-                          value={slType}
-                          onChange={(e) => setSlType(e.target.value)}
+                          value={slUnit}
+                          onChange={(e) => setSlUnit(e.target.value)}
                           style={{
                             width: '100%',
                             padding: '8px 12px',
@@ -912,68 +993,121 @@ export default function AccountsMain() {
                             boxSizing: 'border-box',
                           }}
                         >
-                          <option value="fixed">Fixed SL</option>
-                          <option value="variable">Variable SL</option>
+                          <option value="points">Points</option>
+                          <option value="ticks">Ticks</option>
                         </select>
                       </div>
-
-                      {slType === 'fixed' && (
-                        <div>
-                          <label style={{ display: 'block', marginBottom: '6px', fontSize: '12px', color: 'var(--text-dim)' }}>
-                            SL Distance
-                          </label>
-                          <div style={{ display: 'flex', gap: '6px' }}>
-                            <input
-                              type="number"
-                              value={slValue}
-                              onChange={(e) => setSlValue(e.target.value)}
-                              required
-                              min="0"
-                              step="0.01"
-                              style={{
-                                flex: 1,
-                                padding: '8px 10px',
-                                background: 'var(--bg-alt, #0d1017)',
-                                border: '1px solid var(--border-soft, rgba(255,255,255,0.1))',
-                                borderRadius: '6px',
-                                color: 'var(--text)',
-                                fontSize: '12px',
-                                fontFamily: 'var(--mono)',
-                                outline: 'none',
-                                boxSizing: 'border-box',
-                              }}
-                              placeholder="0.00"
-                            />
-                            <select
-                              value={slUnit}
-                              onChange={(e) => setSlUnit(e.target.value)}
-                              style={{
-                                padding: '8px',
-                                background: 'var(--bg-alt, #0d1017)',
-                                border: '1px solid var(--border-soft, rgba(255,255,255,0.1))',
-                                borderRadius: '6px',
-                                color: 'var(--text)',
-                                fontSize: '12px',
-                                fontFamily: 'var(--mono)',
-                                cursor: 'pointer',
-                                outline: 'none',
-                              }}
-                            >
-                              <option value="ticks">Ticks</option>
-                              <option value="points">Points</option>
-                            </select>
-                          </div>
-                        </div>
-                      )}
                     </div>
 
-                    {slType === 'variable' && (
-                      <p style={{ margin: 0, fontSize: '11px', color: 'var(--text-dim)', fontFamily: 'var(--mono)', lineHeight: '1.4' }}>
-                        ℹ Variable SL defaults will be calculated dynamically on execution.
-                      </p>
-                    )}
+                    <p style={{ margin: 0, fontSize: '11px', color: 'var(--text-dim)', fontFamily: 'var(--mono)', lineHeight: '1.5' }}>
+                      ℹ Stop-loss is read from your trade log's <b>SL</b> column (in the unit above). The default value is used only for trades whose SL cell is empty.
+                    </p>
                   </div>
                 )}
+
+                {/* Section: Commission Settings Card (All account types) */}
+                <div style={{
+                  padding: '14px',
+                  background: 'rgba(255, 255, 255, 0.02)',
+                  border: '1px solid var(--border-soft, rgba(255,255,255,0.06))',
+                  borderRadius: '10px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '12px',
+                }}>
+                  <div style={{ fontSize: '11px', fontWeight: '700', letterSpacing: '0.5px', textTransform: 'uppercase', color: 'var(--amber, #ffb020)' }}>
+                    Commission
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: commissionMode === 'none' ? '1fr' : '1fr 1fr', gap: '12px', alignItems: 'center' }}>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '6px', fontSize: '12px', color: 'var(--text-dim)' }}>
+                        Mode
+                      </label>
+                      <select
+                        value={commissionMode}
+                        onChange={(e) => setCommissionMode(e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '8px 12px',
+                          background: 'var(--bg-alt, #0d1017)',
+                          border: '1px solid var(--border-soft, rgba(255,255,255,0.1))',
+                          borderRadius: '6px',
+                          color: 'var(--text)',
+                          fontSize: '12px',
+                          fontFamily: 'var(--mono)',
+                          cursor: 'pointer',
+                          outline: 'none',
+                          boxSizing: 'border-box',
+                        }}
+                      >
+                        <option value="none">None</option>
+                        <option value="flat">Flat per trade</option>
+                        <option value="per_contract">Per contract</option>
+                      </select>
+                    </div>
+
+                    {commissionMode !== 'none' && (
+                      <div>
+                        <label style={{ display: 'block', marginBottom: '6px', fontSize: '12px', color: 'var(--text-dim)' }}>
+                          {commissionMode === 'per_contract' ? 'Per Contract' : 'Per Trade'}
+                        </label>
+                        <div style={{ position: 'relative' }}>
+                          <input
+                            type="number"
+                            value={commissionValue}
+                            onChange={(e) => setCommissionValue(e.target.value)}
+                            min="0"
+                            step="0.01"
+                            style={{
+                              width: '100%',
+                              padding: '8px 26px 8px 10px',
+                              background: 'var(--bg-alt, #0d1017)',
+                              border: '1px solid var(--border-soft, rgba(255,255,255,0.1))',
+                              borderRadius: '6px',
+                              color: 'var(--text)',
+                              fontSize: '12px',
+                              fontFamily: 'var(--mono)',
+                              outline: 'none',
+                              boxSizing: 'border-box',
+                            }}
+                            placeholder="0.00"
+                          />
+                          <span
+                            style={{
+                              position: 'absolute',
+                              right: '10px',
+                              top: '50%',
+                              transform: 'translateY(-50%)',
+                              color: 'var(--text-dim)',
+                              fontSize: '11px',
+                              fontFamily: 'var(--mono)',
+                              pointerEvents: 'none',
+                            }}
+                          >
+                            {getCurrencySymbol(formData.currency)}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {commissionMode === 'per_contract' && (
+                    <p style={{ margin: 0, fontSize: '11px', color: 'var(--text-dim)', fontFamily: 'var(--mono)', lineHeight: '1.5' }}>
+                      ℹ Your Excel must include a <b>Contracts</b> column. Commission per trade = value × contracts.
+                    </p>
+                  )}
+                  {commissionMode === 'flat' && (
+                    <p style={{ margin: 0, fontSize: '11px', color: 'var(--text-dim)', fontFamily: 'var(--mono)', lineHeight: '1.5' }}>
+                      ℹ Same amount charged on every trade.
+                    </p>
+                  )}
+                  {commissionMode === 'none' && (
+                    <p style={{ margin: 0, fontSize: '11px', color: 'var(--text-dim)', fontFamily: 'var(--mono)', lineHeight: '1.5' }}>
+                      ℹ No fees — net P&L will equal gross P&L.
+                    </p>
+                  )}
+                </div>
 
                 {/* Footer Action Buttons */}
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '8px', paddingTop: '16px', borderTop: '1px solid var(--border-soft, rgba(255,255,255,0.08))' }}>
