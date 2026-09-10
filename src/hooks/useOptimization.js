@@ -2,7 +2,6 @@
 import { useState, useCallback } from 'react';
 import { useAppContext, actions } from '../context/AppContext';
 import { runOptimization } from '../utils/optimizationEngine';
-import { resolveSL } from '../utils/slResolver';
 
 export function useOptimization() {
   const { state, dispatch } = useAppContext();
@@ -49,6 +48,14 @@ export function useOptimization() {
   }, [dispatch]);
 
   const runOptimizationAsync = useCallback(async (selectedRRs) => {
+    const selectedAccount = state.accounts.find(a => a.id === state.selectedAccountId);
+
+    // Optimize is Backtest-only (R-multiple sweep is meaningless without per-trade SL)
+    if (!selectedAccount || selectedAccount.type !== 'Backtest') {
+      setStatus('Optimize is only available for Backtest accounts.');
+      return;
+    }
+
     const rrToUse = selectedRRs || state.optimize.rrSelected;
     if (rrToUse.length === 0) {
       setStatus('Please select at least one RR target.');
@@ -63,10 +70,6 @@ export function useOptimization() {
     setProgress(0);
     setResults([]);
     setIsRunning(true);
-
-    // Resolve the SL (in POINTS) from the currently selected account.
-    const selectedAccount = state.accounts.find(a => a.id === state.selectedAccountId);
-    const SL = resolveSL(selectedAccount);
 
     try {
       const resultsData = await runOptimization(
@@ -84,7 +87,7 @@ export function useOptimization() {
           setProgress(pct);
           setStatus(`Processing ${processed}/${total}...`);
         },
-        SL   // <-- new last argument
+        selectedAccount   // ← account object (replaces old SL arg)
       );
       setResults(resultsData);
       setCurrentPage(1);

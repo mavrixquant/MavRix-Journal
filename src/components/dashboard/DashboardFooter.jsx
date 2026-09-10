@@ -4,73 +4,53 @@ import { useAppContext } from '../../context/AppContext';
 const SESSIONS_TEXT =
   'Sessions (ET): Asia 18:00–02:00 · London 02:00–05:00 · NY Pre-Market 05:00–08:30 · NY AM 08:30–11:00 · NY Lunch 11:00–13:30 · NY PM 13:30–16:00 · After Hours 16:00–18:00.';
 
-/**
- * Builds the rule sentence for the footer based on the account's SL config.
- * Extend the switch below as you add new slType values in accountsService.
- */
-function buildSLRule(account) {
-  if (!account) {
-    return 'No account selected — pick an account to see its applied stop-loss rule set.';
+const TICKS_PER_POINT = 4;
+
+function buildBacktestRule(account) {
+  const hasDefault = account?.slValue !== null && account?.slValue !== undefined && Number(account.slValue) > 0;
+  const unit = account?.slUnit === 'ticks' ? 'ticks' : 'points';
+  const defaultPts = hasDefault
+    ? (account.slUnit === 'ticks' ? Number(account.slValue) / TICKS_PER_POINT : Number(account.slValue))
+    : null;
+
+  return (
+    <>
+      <b>R is computed per-trade.</b> Each trade uses its own stop-loss from the{' '}
+      <b>SL</b> column in your log (in points).{' '}
+      {hasDefault
+        ? <>If a trade has no SL, the account default of <b>{Number(account.slValue)} {unit}</b> ({defaultPts} pts) is used.</>
+        : <>No account default is set — every row must have an SL value.</>}{' '}
+      SL counted as <b>HIT</b> when <b>MAE ≥ SL</b>. Win when <b>MFE ≥ SL × R</b>, regardless of MAE
+      (a trade may run to target with zero drawdown and still hit the stop after). Otherwise scored as
+      a loss. No breakeven / scratch bucket.
+    </>
+  );
+}
+
+function buildMoneyRule(account) {
+  const mode = account?.commissionMode || 'none';
+  const val = Number(account?.commissionValue) || 0;
+  const currency = account?.currency || 'USD';
+
+  let commText = 'No commission configured.';
+  if (mode === 'flat' && val > 0) {
+    commText = <>Flat commission of <b>{currency} {val.toFixed(2)}</b> per trade.</>;
+  } else if (mode === 'per_contract' && val > 0) {
+    commText = <>Commission of <b>{currency} {val.toFixed(2)} per contract</b> (multiplied by each trade's Contracts).</>;
   }
 
-  const { slType = 'fixed', slValue, slUnit = 'pt' } = account;
-  const v = slValue ?? '—';
-  const u = slUnit;
-
-  switch (slType) {
-    case 'fixed':
-      return (
-        <>
-          Fixed stop-loss = <b>{v}{u}</b>. SL counted as HIT only when MAE ≥ {v} (a real
-          full-stop excursion). Win when MFE ≥ {v} × R, regardless of MAE — including MAE = 0,
-          since that can mean price ran straight to TP with zero drawdown before falling back to
-          the stop afterward. Otherwise (target not reached), scored as a loss. No breakeven /
-          scratch bucket.
-        </>
-      );
-
-    case 'percent':
-      return (
-        <>
-          Percentage stop-loss = <b>{v}%</b> of entry. SL counted as HIT only when adverse
-          excursion ≥ {v}%. Win when favorable excursion ≥ {v}% × R, regardless of drawdown
-          before the run. Otherwise scored as a loss. No breakeven / scratch bucket.
-        </>
-      );
-
-    case 'atr':
-      return (
-        <>
-          ATR stop-loss = <b>{v} × ATR</b>. SL counted as HIT only when adverse excursion ≥{' '}
-          {v} × ATR. Win when favorable excursion ≥ ({v} × ATR) × R, regardless of drawdown
-          before the run. Otherwise scored as a loss. No breakeven / scratch bucket.
-        </>
-      );
-
-    case 'structure':
-      return (
-        <>
-          Structural stop-loss (<b>{v}{u}</b> buffer beyond swing). SL counted as HIT only when
-          adverse excursion breaches the structural level + buffer. Win when favorable excursion
-          ≥ risk × R. Otherwise scored as a loss. No breakeven / scratch bucket.
-        </>
-      );
-
-    default:
-      // Unknown slType — fail safe with a generic readout instead of the wrong rule.
-      return (
-        <>
-          Stop-loss type: <b>{slType}</b> ({v} {u}). Rule text not yet defined for this type —
-          add a case in <code>buildSLRule</code>.
-        </>
-      );
-  }
+  return (
+    <>
+      <b>Dashboard reflects net P&amp;L.</b> Each trade's net = Gross P&amp;L − commission. Win when{' '}
+      <b>net &gt; 0</b>, loss when <b>net &lt; 0</b>. {commText} No R-multiple is computed for this account type.
+    </>
+  );
 }
 
 export default function DashboardFooter() {
   const { state } = useAppContext();
-  const account =
-    state.accounts.find((a) => a.id === state.selectedAccountId) || null;
+  const account = state.accounts.find((a) => a.id === state.selectedAccountId) || null;
+  const isBacktest = account?.type === 'Backtest';
 
   return (
     <footer
@@ -84,7 +64,8 @@ export default function DashboardFooter() {
         lineHeight: '1.7',
       }}
     >
-      <b>Rules applied{account ? ` — ${account.name}` : ''}:</b> {buildSLRule(account)}
+      <b>Rules applied{account ? ` — ${account.name}` : ''}:</b>{' '}
+      {account ? (isBacktest ? buildBacktestRule(account) : buildMoneyRule(account)) : 'No account selected.'}
       <br />
       {SESSIONS_TEXT}
     </footer>

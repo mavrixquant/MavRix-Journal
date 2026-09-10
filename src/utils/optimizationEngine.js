@@ -51,7 +51,7 @@ export async function runOptimization(
   filterParams,
   currentR,
   onProgress,
-  SL = 12.5
+  account           // ← account object (was: SL = 12.5)
 ) {
   const selectedColumns = [];
   const selectedValues = [];
@@ -76,7 +76,6 @@ export async function runOptimization(
   });
 
   const totalCombos = subsetSets.reduce((a, b) => a * b.length, 1);
-  const totalResults = totalCombos * rrSelected.length;
 
   if (totalCombos > 500000) {
     throw new Error(`Too many combinations (${totalCombos}). Please select fewer columns or values.`);
@@ -90,7 +89,7 @@ export async function runOptimization(
     activeFilterType,
     filterParams,
     currentR,
-    SL
+    account
   );
 
   if (baseTrades.length === 0) return [];
@@ -105,7 +104,7 @@ export async function runOptimization(
     for (const combo of chunk) {
       for (const rr of rrSelected) {
         const filtered = applySubsetCombinationFilter(baseTrades, combo, selectedColumns);
-        const stats = computeStats(filtered, rr, SL);
+        const stats = computeStats(filtered, rr, account);
 
         const comboDisplay = combo.map((subset, ci) => {
           const colName = selectedColumns[ci];
@@ -119,7 +118,8 @@ export async function runOptimization(
           combo: combo.slice(),
           comboDisplay,
           rr,
-          totalR: stats.totalR,
+          totalR: stats.totalR,     // legacy alias (== stats.total in R mode)
+          total: stats.total,
           winRate: stats.winRate,
           profitFactor: stats.profitFactor,
           expectancy: stats.expectancy,

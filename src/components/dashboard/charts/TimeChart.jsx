@@ -1,4 +1,4 @@
-// src/components/dashboard/TimeChart.jsx
+// src/components/dashboard/charts/TimeChart.jsx
 import { useMemo, useState, useEffect } from 'react';
 import { Bar } from 'react-chartjs-2';
 import { useStats } from '../../../hooks/useStats';
@@ -16,48 +16,35 @@ const COLORS = {
   tooltipBorder: '#212836',
 };
 
-// Hook to dynamically derive bar dimensions based on screen width
 function useResponsiveBarConfig() {
   const [config, setConfig] = useState({ maxBarThickness: 48, barPercentage: 0.75, categoryPercentage: 0.85 });
-
   useEffect(() => {
     const updateConfig = () => {
       const width = window.innerWidth;
-      if (width >= 1200) {
-        // Desktop: Bold, full-sized bars
-        setConfig({ maxBarThickness: 52, barPercentage: 0.75, categoryPercentage: 0.85 });
-      } else if (width >= 768) {
-        // Tablet: Balanced width
-        setConfig({ maxBarThickness: 32, barPercentage: 0.65, categoryPercentage: 0.8 });
-      } else {
-        // Mobile: Slim bars to prevent clipping
-        setConfig({ maxBarThickness: 18, barPercentage: 0.55, categoryPercentage: 0.75 });
-      }
+      if (width >= 1200) setConfig({ maxBarThickness: 52, barPercentage: 0.75, categoryPercentage: 0.85 });
+      else if (width >= 768) setConfig({ maxBarThickness: 32, barPercentage: 0.65, categoryPercentage: 0.8 });
+      else setConfig({ maxBarThickness: 18, barPercentage: 0.55, categoryPercentage: 0.75 });
     };
-
     updateConfig();
     window.addEventListener('resize', updateConfig);
     return () => window.removeEventListener('resize', updateConfig);
   }, []);
-
   return config;
 }
 
 export default function TimeChart() {
-  const { stats, groupBy } = useStats();
+  const { stats, groupBy, metric } = useStats();
   const barConfig = useResponsiveBarConfig();
+  const isMoney = metric === '$';
 
-  // Get time buckets in sorted order
   const timeData = useMemo(() => {
     if (!stats || !stats.outcomes || stats.outcomes.length === 0) return [];
-
     const buckets = [...new Set(stats.outcomes.map(o => o.bucket))].sort();
     return groupBy ? groupBy(o => o.bucket, buckets) : [];
   }, [stats, groupBy]);
 
   const chartData = useMemo(() => {
     if (!timeData || timeData.length === 0) return null;
-
     return {
       labels: timeData.map(d => d.label),
       datasets: [
@@ -99,23 +86,13 @@ export default function TimeChart() {
     return {
       responsive: true,
       maintainAspectRatio: false,
-      interaction: {
-        mode: 'index',
-        intersect: false,
-      },
-      animation: {
-        duration: 300,
-      },
+      interaction: { mode: 'index', intersect: false },
+      animation: { duration: 300 },
       plugins: {
         legend: {
-          display: true,
-          position: 'top',
-          align: 'end',
+          display: true, position: 'top', align: 'end',
           labels: {
-            color: COLORS.text,
-            boxWidth: 8,
-            boxHeight: 8,
-            usePointStyle: true,
+            color: COLORS.text, boxWidth: 8, boxHeight: 8, usePointStyle: true,
             pointStyle: 'circle',
             font: { family: "'Inter', sans-serif", size: 11, weight: '500' },
             padding: 16,
@@ -136,19 +113,19 @@ export default function TimeChart() {
           callbacks: {
             title: (items) => items[0]?.label || '',
             label: (item) => {
-              if (item.dataset.label === 'Trades') {
-                return `Trades    : ${item.parsed.y}`;
-              }
+              if (item.dataset.label === 'Trades') return `Trades    : ${item.parsed.y}`;
               return `Win Rate  : ${item.parsed.y.toFixed(1)}%`;
             },
             afterLabel: (item) => {
-              if (item.dataset.label === 'Trades') {
-                const d = timeData[item.dataIndex];
-                if (!d) return '';
-                const totalR = (d.totalR >= 0 ? '+' : '') + d.totalR.toFixed(2);
-                return `Total R   : ${totalR}R`;
+              if (item.dataset.label !== 'Trades') return '';
+              const d = timeData[item.dataIndex];
+              if (!d) return '';
+              const total = d.total ?? d.totalR ?? 0;
+              if (isMoney) {
+                const sign = total >= 0 ? '+' : '-';
+                return `Net P&L   : ${sign}$${Math.abs(total).toFixed(2)}`;
               }
-              return '';
+              return `Total R   : ${(total >= 0 ? '+' : '') + total.toFixed(2)}R`;
             },
           },
         },
@@ -159,85 +136,30 @@ export default function TimeChart() {
           ticks: {
             color: COLORS.textLight,
             font: { family: "'Inter', sans-serif", size: 10, weight: 500 },
-            maxRotation: 45,
-            minRotation: 0,
+            maxRotation: 45, minRotation: 0,
           },
         },
         y: {
-          type: 'linear',
-          display: true,
-          position: 'left',
-          grid: {
-            color: COLORS.grid,
-            drawBorder: false,
-          },
-          title: {
-            display: true,
-            text: 'Trade Count',
-            color: COLORS.text,
-            font: { family: "'Inter', sans-serif", size: 10, weight: '600' },
-          },
-          ticks: {
-            color: COLORS.text,
-            precision: 0,
-            font: { family: "'IBM Plex Mono', monospace", size: 10 },
-          },
+          type: 'linear', display: true, position: 'left',
+          grid: { color: COLORS.grid, drawBorder: false },
+          title: { display: true, text: 'Trade Count', color: COLORS.text, font: { family: "'Inter', sans-serif", size: 10, weight: '600' } },
+          ticks: { color: COLORS.text, precision: 0, font: { family: "'IBM Plex Mono', monospace", size: 10 } },
         },
         y1: {
-          type: 'linear',
-          display: true,
-          position: 'right',
-          grid: { display: false },
-          min: 0,
-          max: 100,
-          title: {
-            display: true,
-            text: 'Win %',
-            color: COLORS.amber,
-            font: { family: "'Inter', sans-serif", size: 10, weight: '600' },
-          },
-          ticks: {
-            color: COLORS.amber,
-            font: { family: "'IBM Plex Mono', monospace", size: 10 },
-            callback: (v) => `${v}%`,
-          },
+          type: 'linear', display: true, position: 'right',
+          grid: { display: false }, min: 0, max: 100,
+          title: { display: true, text: 'Win %', color: COLORS.amber, font: { family: "'Inter', sans-serif", size: 10, weight: '600' } },
+          ticks: { color: COLORS.amber, font: { family: "'IBM Plex Mono', monospace", size: 10 }, callback: (v) => `${v}%` },
         },
       },
     };
-  }, [timeData]);
+  }, [timeData, isMoney]);
 
   if (!timeData || timeData.length === 0) {
     return (
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          height: '100%',
-          minHeight: '220px',
-          color: COLORS.textMuted,
-          fontFamily: "'IBM Plex Mono', monospace",
-          fontSize: '12px',
-          border: `1px dashed ${COLORS.grid}`,
-          borderRadius: '10px',
-          background: 'rgba(17, 21, 31, 0.4)',
-        }}
-      >
-        <svg
-          width="24"
-          height="24"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          style={{ marginBottom: '8px', opacity: 0.6 }}
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"
-          />
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: '220px', color: COLORS.textMuted, fontFamily: "'IBM Plex Mono', monospace", fontSize: '12px', border: `1px dashed ${COLORS.grid}`, borderRadius: '10px', background: 'rgba(17, 21, 31, 0.4)' }}>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ marginBottom: '8px', opacity: 0.6 }}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
         </svg>
         <span>No time distribution data available</span>
       </div>

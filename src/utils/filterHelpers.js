@@ -1,16 +1,29 @@
 // src/utils/filterHelpers.js
+import { getTradeSL, getTradeNetPnl, getMetricMode } from './slResolver';
 
-// Outcome evaluation for a single trade at a given R and SL (both in points).
-// Returns { result, r, rAchieved } so downstream consumers (TradeTable, etc.)
-// can display the raw "R reached" independent of win/loss classification.
-export function outcomeFor(trade, R, SL) {
+// Outcome evaluation for a single trade.
+// Returns { result, score, r, rAchieved }.
+//   R mode: score = R multiple (win → R, loss → -1)
+//   $ mode: score = netPnl in account currency
+// `r` is kept as a legacy alias for `score`.
+export function outcomeFor(trade, R, accountOrSL) {
+  const metric = getMetricMode(accountOrSL);
+
+  if (metric === '$') {
+    const netPnl = getTradeNetPnl(trade, accountOrSL);
+    const result = netPnl > 0 ? 'win' : netPnl < 0 ? 'loss' : 'breakeven';
+    return { result, score: netPnl, r: netPnl, rAchieved: null };
+  }
+
+  // R mode (Backtest)
+  const SL = getTradeSL(trade, accountOrSL);
   const target = SL * R;
   const slHit = trade.mae >= SL;
   const rAchieved = slHit ? 0 : +(trade.mfe / SL).toFixed(2);
 
-  if (slHit) return { result: 'loss', r: -1, rAchieved };
-  if (trade.mfe >= target) return { result: 'win', r: R, rAchieved };
-  return { result: 'loss', r: -1, rAchieved };
+  if (slHit) return { result: 'loss', score: -1, r: -1, rAchieved };
+  if (trade.mfe >= target) return { result: 'win', score: R, r: R, rAchieved };
+  return { result: 'loss', score: -1, r: -1, rAchieved };
 }
 
 export function applyDynamicFilters(trades, filterSelections, dynamicKeys) {
@@ -19,7 +32,7 @@ export function applyDynamicFilters(trades, filterSelections, dynamicKeys) {
     for (const key of dynamicKeys) {
       const selected = filterSelections[key] || [];
       if (selected.length === 0) continue;
-      const val = t.dynamic[key];
+      const val = t.dynamic?.[key];
       if (val == null || !selected.includes(val)) return false;
     }
     return true;
@@ -32,15 +45,16 @@ export function applySessionTimeFilter(trades, stMode, selectedSessions, selecte
   if (stMode === 'time' && selectedTimeBlocks.length === 0) return trades;
 
   return trades.filter(t => {
-    if (stMode === 'session') {
-      return selectedSessions.includes(t.session);
-    } else {
-      return selectedTimeBlocks.includes(t.bucket);
-    }
+    if (stMode === 'session') return selectedSessions.includes(t.session);
+    return selectedTimeBlocks.includes(t.bucket);
   });
 }
 
-export function applyLimitsFilter(trades, activeFilterType, filterParams, currentR, SL) {
+// Limits: day-count, session-count, and outcome-based (rrLimit).
+//   - R mode: cum accumulates R multiples; stop when cum >= winLimit or <= -lossLimit
+//   - $ mode: cum accumulates netPnl; limits interpreted as $ amounts
+// Both branches use the same filterParams { winLimit, lossLimit }.
+export function applyLimitsFilter(trades, activeFilterType, filterParams, currentR, accountOrSL) {
   if (!trades || trades.length === 0) return trades;
   if (activeFilterType === 'none') return trades;
 
@@ -82,15 +96,13 @@ export function applyLimitsFilter(trades, activeFilterType, filterParams, curren
       const day = t.date;
       if (stoppedDays.has(day)) continue;
       const cum = dailyCum.get(day) || 0;
-      const outcome = outcomeFor(t, currentR, SL);
-      const newCum = cum + outcome.r;
+      const outcome = outcomeFor(t, currentR, accountOrSL);
+      const newCum = cum + outcome.score;
       result.push(t);
       if (newCum >= winLimit || newCum <= -lossLimit) {
         stoppedDays.add(day);
-        dailyCum.set(day, newCum);
-      } else {
-        dailyCum.set(day, newCum);
       }
+      dailyCum.set(day, newCum);
     }
     return result;
   }
@@ -98,9 +110,9 @@ export function applyLimitsFilter(trades, activeFilterType, filterParams, curren
   return sorted;
 }
 
-export function applyFilters(trades, state, SL) {
+export function applyFilters(trades, state, accountOrSL) {
   let filtered = applyDynamicFilters(trades, state.filterSelections, state.dynamicFilterKeys);
   filtered = applySessionTimeFilter(filtered, state.stMode, state.selectedSessions, state.selectedTimeBlocks);
-  filtered = applyLimitsFilter(filtered, state.activeFilterType, state.filterParams, state.currentR, SL);
+  filtered = applyLimitsFilter(filtered, state.activeFilterType, state.filterParams, state.currentR, accountOrSL);
   return filtered;
 }

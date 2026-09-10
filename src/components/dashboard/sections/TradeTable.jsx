@@ -14,17 +14,28 @@ function formatTimeWithAMPM(timeStr) {
   return timeStr;
 }
 
+const formatMoney = (v) => {
+  if (v == null || Number.isNaN(Number(v))) return '—';
+  const n = Number(v);
+  const sign = n < 0 ? '-' : '+';
+  return `${sign}$${Math.abs(n).toFixed(2)}`;
+};
+
 export default function TradeTable() {
   const { state } = useAppContext();
-  const { stats } = useStats();
+  const { stats, metric } = useStats();
   const [searchQuery, setSearchQuery] = useState('');
   const [sortKey, setSortKey] = useState('date');
   const [sortDir, setSortDir] = useState(1);
 
+  const isMoney = metric === '$';
   const outcomes = stats?.outcomes || [];
   const dynamicKeys = state.dynamicFilterKeys || [];
 
-  const baseColumns = ['date', 'entry', 'exit', 'dir', 'mae', 'mfe', 'rAchieved', 'result'];
+  const baseColumns = isMoney
+    ? ['date', 'entry', 'exit', 'dir', 'mae', 'mfe', 'score', 'result']
+    : ['date', 'entry', 'exit', 'dir', 'mae', 'mfe', 'rAchieved', 'result'];
+
   const allColumns = [...baseColumns, ...dynamicKeys.filter(key => !baseColumns.includes(key))];
 
   const filteredRows = useMemo(() => {
@@ -53,13 +64,8 @@ export default function TradeTable() {
         va = a[sortKey];
         vb = b[sortKey];
       }
-      if (sortKey === 'date') {
-        va = new Date(va);
-        vb = new Date(vb);
-      } else if (typeof va === 'string') {
-        va = va.toLowerCase();
-        vb = vb.toLowerCase();
-      }
+      if (sortKey === 'date') { va = new Date(va); vb = new Date(vb); }
+      else if (typeof va === 'string') { va = va.toLowerCase(); vb = vb.toLowerCase(); }
       if (va < vb) return -1 * sortDir;
       if (va > vb) return 1 * sortDir;
       return 0;
@@ -68,69 +74,54 @@ export default function TradeTable() {
   }, [outcomes, searchQuery, sortKey, sortDir, dynamicKeys, baseColumns]);
 
   const handleSort = (key) => {
-    if (sortKey === key) {
-      setSortDir(prev => -prev);
-    } else {
-      setSortKey(key);
-      setSortDir(1);
-    }
+    if (sortKey === key) setSortDir(prev => -prev);
+    else { setSortKey(key); setSortDir(1); }
   };
 
   if (outcomes.length === 0) {
-    return (
-      <div style={{ color: 'var(--text-faint)', textAlign: 'center', padding: '20px' }}>No data</div>
-    );
+    return <div style={{ color: 'var(--text-faint)', textAlign: 'center', padding: '20px' }}>No data</div>;
   }
 
-  const getValue = (row, col) => {
-    if (dynamicKeys.includes(col)) {
-      return row.dynamic?.[col];
-    }
-    return row[col];
-  };
+  const getValue = (row, col) => dynamicKeys.includes(col) ? row.dynamic?.[col] : row[col];
 
   const renderCell = (row, col) => {
     const val = getValue(row, col);
     if (val === undefined || val === null) return '—';
     switch (col) {
-      case 'date':
-        return val || '—';
+      case 'date': return val || '—';
       case 'entry':
-      case 'exit':
-        return formatTimeWithAMPM(val);
+      case 'exit': return formatTimeWithAMPM(val);
       case 'mae':
-      case 'mfe':
-        return Number(val).toFixed(2);
-      case 'rAchieved':
-        return Number(val).toFixed(2) + 'R';
-      case 'result':
-        return <span className={`tag ${val}`}>{val.toUpperCase()}</span>;
-      case 'dir':
-        return <span className={val === 'Long' ? 'dir-long' : 'dir-short'}>{val}</span>;
-      default:
-        return String(val);
+      case 'mfe': return Number(val).toFixed(2);
+      case 'rAchieved': return Number(val).toFixed(2) + 'R';
+      case 'score': return formatMoney(val);
+      case 'result': return <span className={`tag ${val}`}>{String(val).toUpperCase()}</span>;
+      case 'dir': return <span className={val === 'Long' ? 'dir-long' : 'dir-short'}>{val}</span>;
+      default: return String(val);
     }
+  };
+
+  const colLabel = (col) => {
+    if (col === 'dir') return 'Dir';
+    if (col === 'rAchieved') return 'R Reach';
+    if (col === 'score') return 'Net P&L';
+    if (col === 'result') return 'Outcome';
+    return col;
   };
 
   return (
     <div>
       <div className="table-controls">
-        <input
-          className="search-box"
-          placeholder="Search trades…"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
+        <input className="search-box" placeholder="Search trades…" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
         <span className="panel-note mono">{filteredRows.length} trades</span>
       </div>
-      {/* Added max-height and vertical scroll to show ~15 rows initially */}
       <div className="table-wrap" style={{ maxHeight: '500px', overflowY: 'auto' }}>
         <table>
           <thead>
             <tr>
               {allColumns.map(col => (
                 <th key={col} onClick={() => handleSort(col)} style={{ cursor: 'pointer' }}>
-                  {col === 'dir' ? 'Dir' : col === 'rAchieved' ? 'R Reach' : col === 'result' ? 'Outcome' : col}
+                  {colLabel(col)}
                   {sortKey === col && (sortDir === 1 ? ' ↑' : ' ↓')}
                 </th>
               ))}
@@ -139,9 +130,7 @@ export default function TradeTable() {
           <tbody>
             {filteredRows.map((row, idx) => (
               <tr key={row.id || idx}>
-                {allColumns.map(col => (
-                  <td key={col}>{renderCell(row, col)}</td>
-                ))}
+                {allColumns.map(col => <td key={col}>{renderCell(row, col)}</td>)}
               </tr>
             ))}
           </tbody>

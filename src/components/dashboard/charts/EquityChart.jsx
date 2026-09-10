@@ -14,17 +14,17 @@ const COLORS = {
 };
 
 export default function EquityChart() {
-  const { stats } = useStats();
+  const { stats, metric } = useStats();
   const equityData = stats?.equity;
+  const isMoney = metric === '$';
 
   const chartData = useMemo(() => {
     if (!equityData || equityData.length === 0) return null;
-
     return {
       labels: equityData.map((_, i) => `Trade #${i + 1}`),
       datasets: [
         {
-          label: 'Cumulative R',
+          label: isMoney ? 'Cumulative Net P&L' : 'Cumulative R',
           data: equityData.map(e => e.y),
           borderColor: COLORS.amber,
           borderWidth: 2,
@@ -46,20 +46,14 @@ export default function EquityChart() {
         },
       ],
     };
-  }, [equityData]);
+  }, [equityData, isMoney]);
 
   const options = useMemo(() => {
     return {
       responsive: true,
       maintainAspectRatio: false,
-      interaction: {
-        mode: 'index',
-        intersect: false,
-      },
-      animation: {
-        duration: 400,
-        easing: 'easeOutQuart',
-      },
+      interaction: { mode: 'index', intersect: false },
+      animation: { duration: 400, easing: 'easeOutQuart' },
       plugins: {
         legend: { display: false },
         tooltip: {
@@ -82,65 +76,34 @@ export default function EquityChart() {
             },
             label: (item) => {
               const val = item.parsed.y;
-              const formattedVal = (val >= 0 ? '+' : '') + val.toFixed(2);
-              return `Equity: ${formattedVal}R`;
+              if (isMoney) {
+                const sign = val >= 0 ? '+' : '-';
+                return `Equity: ${sign}$${Math.abs(val).toFixed(2)}`;
+              }
+              return `Equity: ${(val >= 0 ? '+' : '') + val.toFixed(2)}R`;
             },
           },
         },
       },
       scales: {
-        x: {
-          grid: { display: false },
-          ticks: { display: false },
-        },
+        x: { grid: { display: false }, ticks: { display: false } },
         y: {
-          grid: {
-            color: COLORS.grid,
-            drawBorder: false,
-          },
+          grid: { color: COLORS.grid, drawBorder: false },
           ticks: {
             color: COLORS.text,
             font: { family: "'IBM Plex Mono', monospace", size: 10 },
-            callback: (v) => `${v > 0 ? '+' : ''}${v}R`,
+            callback: (v) => isMoney ? `$${v}` : `${v > 0 ? '+' : ''}${v}R`,
           },
         },
       },
     };
-  }, [equityData]);
+  }, [equityData, isMoney]);
 
-  // Modern styled empty state placeholder
   if (!equityData || equityData.length === 0) {
     return (
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          height: '100%',
-          minHeight: '200px',
-          color: COLORS.textMuted,
-          fontFamily: "'IBM Plex Mono', monospace",
-          fontSize: '12px',
-          border: `1px dashed ${COLORS.grid}`,
-          borderRadius: '10px',
-          background: 'rgba(17, 21, 31, 0.4)',
-        }}
-      >
-        <svg
-          width="24"
-          height="24"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          style={{ marginBottom: '8px', opacity: 0.6 }}
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M2.25 18 9 11.25l4.306 4.306a1.194 1.194 0 0 0 1.581 0l6.363-6.364M22.5 10.5V15m0-4.5h-4.5"
-          />
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: '200px', color: COLORS.textMuted, fontFamily: "'IBM Plex Mono', monospace", fontSize: '12px', border: `1px dashed ${COLORS.grid}`, borderRadius: '10px', background: 'rgba(17, 21, 31, 0.4)' }}>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ marginBottom: '8px', opacity: 0.6 }}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18 9 11.25l4.306 4.306a1.194 1.194 0 0 0 1.581 0l6.363-6.364M22.5 10.5V15m0-4.5h-4.5" />
         </svg>
         <span>No equity curve data recorded</span>
       </div>

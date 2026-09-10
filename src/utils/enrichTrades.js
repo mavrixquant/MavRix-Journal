@@ -7,6 +7,17 @@ function parseTimeToMinutes(timeStr) {
   return (h || 0) * 60 + (m || 0);
 }
 
+// Duration between entry and exit, in minutes.
+// Overnight trades (exit < entry in wall-clock) wrap to next day (+24h).
+function computeDurationMinutes(entryStr, exitStr) {
+  const entryMin = parseTimeToMinutes(entryStr);
+  const exitMin = parseTimeToMinutes(exitStr);
+  let d = exitMin - entryMin;
+  if (d < 0) d += 24 * 60;
+  return d;
+}
+
+// Reserved keys — never treated as user-defined "dynamic" columns.
 const STANDARD_KEYS = new Set([
   'accountId',
   'tradeId',
@@ -18,6 +29,11 @@ const STANDARD_KEYS = new Set([
   'mae',
   'mfe',
   'pnl',
+  'slPoints',
+  'contracts',
+  'commission',
+  'netPnl',
+  'durationMinutes',  // ← new: reserved
   'createdAt',
   'updatedAt',
   'id',
@@ -48,8 +64,16 @@ export function enrichTradesFromDB(rawTrades) {
     const entryStr = trade.entryTime || '';
     const exitStr = trade.exitTime || entryStr;
     const entryMinutes = parseTimeToMinutes(entryStr);
+    const durationMinutes = computeDurationMinutes(entryStr, exitStr);
     const mae = Number(trade.mae) || 0;
     const mfe = Number(trade.mfe) || 0;
+
+    const slPoints = trade.slPoints !== undefined && trade.slPoints !== null
+      ? Number(trade.slPoints)
+      : null;
+    const contracts = trade.contracts !== undefined && trade.contracts !== null
+      ? Number(trade.contracts)
+      : null;
 
     const dynamic = {};
     dynamicKeys.forEach(key => {
@@ -72,11 +96,14 @@ export function enrichTradesFromDB(rawTrades) {
       notes: trade.notes || '',
       symbol: trade.symbol || '—',
       pnl: trade.pnl !== undefined ? Number(trade.pnl) : 0,
+      slPoints,
+      contracts,
       dow: dateObj.getDay(),
       dowName: DOW_NAMES[dateObj.getDay()],
       session: getSession(entryMinutes),
       bucket: get30MinBucket(entryMinutes),
       entryMinutes,
+      durationMinutes,     // ← new
       mae,
       mfe,
       dynamic,
