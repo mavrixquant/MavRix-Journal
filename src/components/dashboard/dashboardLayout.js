@@ -2,7 +2,7 @@
 
 const ROW_HEIGHT = 40;
 
-export const GRID_COLS = 48;
+export const GRID_COLS = 24;
 export const GRID_ROW_HEIGHT = ROW_HEIGHT;
 
 // Maximum number of layouts a user can have saved.
