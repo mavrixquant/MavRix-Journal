@@ -1,3 +1,4 @@
+// src/components/AppLayout.jsx
 import { useState, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { signOut } from 'firebase/auth';
@@ -7,6 +8,7 @@ import AccountModal from './common/AccountModal';
 import DashboardMain from './dashboard/DashboardMain';
 import JournalMain from './journal/JournalMain';
 import AccountsMain from './accounts/AccountsMain';
+import SimulatorPage from './simulator/SimulatorPage';
 import { useStats } from '../hooks/useStats';
 
 export default function AppLayout() {
@@ -16,34 +18,19 @@ export default function AppLayout() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
 
-  const handleLogout = async () => {
-    await signOut(auth);
-  };
-
+  const handleLogout = async () => { await signOut(auth); };
   const isSidebarOpen = isHovering;
 
   const handleSidebarMouseEnter = () => {
-    if (closeTimeoutRef.current) {
-      clearTimeout(closeTimeoutRef.current);
-      closeTimeoutRef.current = null;
-    }
+    if (closeTimeoutRef.current) { clearTimeout(closeTimeoutRef.current); closeTimeoutRef.current = null; }
     setIsHovering(true);
   };
-
   const handleSidebarMouseLeave = () => {
-    if (closeTimeoutRef.current) {
-      clearTimeout(closeTimeoutRef.current);
-    }
-    closeTimeoutRef.current = setTimeout(() => {
-      setIsHovering(false);
-    }, 300);
+    if (closeTimeoutRef.current) clearTimeout(closeTimeoutRef.current);
+    closeTimeoutRef.current = setTimeout(() => setIsHovering(false), 300);
   };
-
   const toggleSidebar = () => {
-    if (closeTimeoutRef.current) {
-      clearTimeout(closeTimeoutRef.current);
-      closeTimeoutRef.current = null;
-    }
+    if (closeTimeoutRef.current) { clearTimeout(closeTimeoutRef.current); closeTimeoutRef.current = null; }
     setIsHovering(prev => !prev);
   };
 
@@ -63,7 +50,19 @@ export default function AppLayout() {
   const renderContent = () => {
     switch (activeTab) {
       case 'dashboard':
-        return <DashboardMain sessionData={sessionData} dowData={dowData} dirData={dirData} setupData={setupData} factorData={factorData} maxAbs={maxAbs} />;
+        return (
+          <DashboardMain
+            sessionData={sessionData}
+            dowData={dowData}
+            dirData={dirData}
+            setupData={setupData}
+            factorData={factorData}
+            maxAbs={maxAbs}
+            onNavigate={setActiveTab}
+          />
+        );
+      case 'simulator':
+        return <SimulatorPage />;
       case 'journal':
         return <JournalMain />;
       case 'accounts':
@@ -87,17 +86,19 @@ export default function AppLayout() {
         onAccountClick={() => setIsAccountModalOpen(true)}
       />
       <div
-        className={`content-wrapper ${isSidebarOpen ? 'with-sidebar-open' : 'with-sidebar-closed'}`}
-        style={{ marginLeft: '68px' }}
+        className="content-wrapper"
+        style={{
+          marginLeft: isSidebarOpen ? '240px' : '68px',
+          transition: 'margin-left 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
+          minHeight: '100vh',
+          overflowX: 'hidden',
+        }}
       >
         <main style={{ padding: '26px 28px', width: '100%', boxSizing: 'border-box' }}>
           {renderContent()}
         </main>
       </div>
-      <AccountModal
-        isOpen={isAccountModalOpen}
-        onClose={() => setIsAccountModalOpen(false)}
-      />
+      <AccountModal isOpen={isAccountModalOpen} onClose={() => setIsAccountModalOpen(false)} />
     </div>
   );
 }
