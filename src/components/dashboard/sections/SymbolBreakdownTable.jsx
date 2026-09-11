@@ -23,7 +23,7 @@ const formatPct = (v) => (v != null && !Number.isNaN(v) ? `${v.toFixed(1)}%` : '
 export default function SymbolBreakdownTable() {
   const { symbolBreakdown } = useStats();
   const [sortKey, setSortKey] = useState('total');
-  const [sortDir, setSortDir] = useState(-1);  // desc by default
+  const [sortDir, setSortDir] = useState(-1);
 
   const sorted = useMemo(() => {
     if (!symbolBreakdown || symbolBreakdown.length === 0) return [];
@@ -58,19 +58,40 @@ export default function SymbolBreakdownTable() {
     );
   }
 
+  // `grow: true` — this column absorbs leftover width.
+  // Others are `width: 1%` + nowrap, so the browser sizes them to their content.
   const headers = [
-    { key: 'symbol',       label: 'Symbol',   align: 'left',   width: '22%' },
-    { key: 'n',            label: 'Trades',   align: 'right',  width: '12%' },
-    { key: 'winRate',      label: 'Win %',    align: 'right',  width: '14%' },
-    { key: 'total',        label: 'Net P&L',  align: 'right',  width: '20%' },
-    { key: 'avgWin',       label: 'Avg Win',  align: 'right',  width: '16%' },
-    { key: 'avgLoss',      label: 'Avg Loss', align: 'right',  width: '16%' },
+    { key: 'symbol',  label: 'Symbol',   align: 'left',  grow: true },
+    { key: 'n',       label: 'Trades',   align: 'right' },
+    { key: 'winRate', label: 'Win %',    align: 'right' },
+    { key: 'total',   label: 'Net P&L',  align: 'right' },
+    { key: 'avgWin',  label: 'Avg Win',  align: 'right' },
+    { key: 'avgLoss', label: 'Avg Loss', align: 'right' },
   ];
+
+  const cellPadding = '9px 12px';
 
   return (
     <div style={{ width: '100%' }}>
-      <div style={{ maxHeight: '320px', overflowY: 'auto', border: `1px solid ${COLORS.grid}`, borderRadius: '10px' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', fontFamily: "'Inter', sans-serif" }}>
+      <div
+        style={{
+          maxHeight: '320px',
+          overflowY: 'auto',
+          overflowX: 'auto',
+          border: `1px solid ${COLORS.grid}`,
+          borderRadius: '10px',
+        }}
+      >
+        <table
+          style={{
+            width: '100%',
+            minWidth: '380px',          /* so it doesn't collapse too far on narrow panels */
+            borderCollapse: 'collapse',
+            fontSize: '12px',
+            fontFamily: "'Inter', sans-serif",
+            tableLayout: 'auto',        /* let the browser size columns by content */
+          }}
+        >
           <thead>
             <tr style={{ position: 'sticky', top: 0, background: '#11151F', zIndex: 1 }}>
               {headers.map(h => (
@@ -88,7 +109,8 @@ export default function SymbolBreakdownTable() {
                     cursor: 'pointer',
                     userSelect: 'none',
                     whiteSpace: 'nowrap',
-                    width: h.width,
+                    /* Grow-column trick: 100% absorbs slack, 1% hugs content */
+                    width: h.grow ? '100%' : '1%',
                     borderBottom: `1px solid ${COLORS.grid}`,
                   }}
                 >
@@ -105,12 +127,12 @@ export default function SymbolBreakdownTable() {
           <tbody>
             {sorted.map((row) => (
               <tr key={row.symbol} style={{ borderBottom: `1px solid ${COLORS.rowBorder}` }}>
-                <td style={{ padding: '9px 12px', fontWeight: '600', color: COLORS.textLight }}>{row.symbol}</td>
-                <td style={{ padding: '9px 12px', textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: COLORS.text }}>{row.n}</td>
-                <td style={{ padding: '9px 12px', textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: row.winRate >= 50 ? COLORS.win : COLORS.loss }}>{formatPct(row.winRate)}</td>
-                <td style={{ padding: '9px 12px', textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", fontWeight: '700', color: row.total >= 0 ? COLORS.win : COLORS.loss }}>{formatMoney(row.total)}</td>
-                <td style={{ padding: '9px 12px', textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: COLORS.win }}>{formatMoney(row.avgWin)}</td>
-                <td style={{ padding: '9px 12px', textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: COLORS.loss }}>{formatMoney(row.avgLoss)}</td>
+                <td style={{ padding: cellPadding, fontWeight: '600', color: COLORS.textLight, whiteSpace: 'nowrap' }}>{row.symbol}</td>
+                <td style={{ padding: cellPadding, textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: COLORS.text, whiteSpace: 'nowrap' }}>{row.n}</td>
+                <td style={{ padding: cellPadding, textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: row.winRate >= 50 ? COLORS.win : COLORS.loss, whiteSpace: 'nowrap' }}>{formatPct(row.winRate)}</td>
+                <td style={{ padding: cellPadding, textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", fontWeight: '700', color: row.total >= 0 ? COLORS.win : COLORS.loss, whiteSpace: 'nowrap' }}>{formatMoney(row.total)}</td>
+                <td style={{ padding: cellPadding, textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: COLORS.win, whiteSpace: 'nowrap' }}>{formatMoney(row.avgWin)}</td>
+                <td style={{ padding: cellPadding, textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: COLORS.loss, whiteSpace: 'nowrap' }}>{formatMoney(row.avgLoss)}</td>
               </tr>
             ))}
           </tbody>
