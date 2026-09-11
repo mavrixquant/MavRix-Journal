@@ -13,9 +13,9 @@ import navLogo from '../../assets/navLOGO.png';
 
 const navItems = [
   { id: 'dashboard', label: 'Dashboard', icon: <FaChartPie size={18} /> },
-  { id: 'simulator', label: 'Simulator', icon: <FaProjectDiagram size={18} />, beta: true },
   { id: 'journal', label: 'Journal', icon: <FaBook size={18} /> },
   { id: 'accounts', label: 'Accounts', icon: <FaUsers size={18} /> },
+  { id: 'simulator', label: 'Simulator', icon: <FaProjectDiagram size={18} />, beta: true },
 ];
 
 export default function Sidebar({

@@ -443,6 +443,12 @@ h1 {
     background: rgba(56, 189, 248, 0.1);
 }
 
+.account-badge.badge-live {
+    color: #3dd800;
+    border-color: rgba(88, 248, 56, 0.3);
+    background: rgba(56, 248, 88, 0.1);
+}
+
 .account-select-wrapper {
     position: relative;
     min-width: 220px;

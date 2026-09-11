@@ -1,6 +1,113 @@
 // src/components/dashboard/sections/KPIGrid.jsx
 import { useStats } from '../../../hooks/useStats';
 
+const KPI_CSS = `
+  .kpi-container {
+    container-type: inline-size;
+    container-name: kpi;
+    width: 100%;
+  }
+
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 12px;
+    width: 100%;
+    font-family: 'Inter', sans-serif;
+  }
+
+  .kpi-card {
+    background-color: #11151F;
+    border: 1px solid #212836;
+    border-radius: 8px;
+    padding: 8px 10px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: 60px;
+    transition: border-color 0.15s ease;
+    cursor: default;
+  }
+  .kpi-card:hover { border-color: #3A4456; }
+
+  .kpi-label {
+    font-size: 9px;
+    font-weight: 700;
+    color: #8892A3;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .kpi-value {
+    font-size: 14px;
+    font-weight: 700;
+    font-family: 'IBM Plex Mono', monospace;
+    margin: 2px 0 1px 0;
+    line-height: 1.1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .kpi-sub {
+    font-size: 9px;
+    color: #545E6E;
+    font-weight: 400;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.2;
+  }
+
+  /* XS panel */
+  @container kpi (max-width: 240px) {
+    .kpi-grid { grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 6px; }
+    .kpi-card { padding: 5px 7px; min-height: 44px; border-radius: 6px; }
+    .kpi-label { font-size: 7.5px; }
+    .kpi-value { font-size: 11.5px; margin: 1px 0; }
+    .kpi-sub { font-size: 7.5px; }
+  }
+
+  /* Small panel */
+  @container kpi (min-width: 241px) and (max-width: 360px) {
+    .kpi-grid { grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); gap: 8px; }
+    .kpi-card { padding: 6px 8px; min-height: 52px; }
+    .kpi-label { font-size: 8px; }
+    .kpi-value { font-size: 12px; }
+    .kpi-sub { font-size: 8px; }
+  }
+
+  /* Medium panel */
+  @container kpi (min-width: 361px) and (max-width: 560px) {
+    .kpi-grid { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 10px; }
+    .kpi-card { padding: 8px 10px; min-height: 58px; }
+    .kpi-label { font-size: 9px; }
+    .kpi-value { font-size: 14px; }
+    .kpi-sub { font-size: 9px; }
+  }
+
+  /* Large panel */
+  @container kpi (min-width: 561px) and (max-width: 800px) {
+    .kpi-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 12px; }
+    .kpi-card { padding: 10px 12px; min-height: 68px; border-radius: 10px; }
+    .kpi-label { font-size: 10px; }
+    .kpi-value { font-size: 16px; }
+    .kpi-sub { font-size: 9.5px; }
+  }
+
+  /* XL panel */
+  @container kpi (min-width: 801px) {
+    .kpi-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 14px; }
+    .kpi-card { padding: 12px 14px; min-height: 78px; border-radius: 12px; }
+    .kpi-label { font-size: 11px; }
+    .kpi-value { font-size: 20px; }
+    .kpi-sub { font-size: 10px; }
+  }
+`;
+
 const formatR = (v) => (v != null && !Number.isNaN(v) ? `${v >= 0 ? '+' : ''}${v.toFixed(2)}R` : '—');
 const formatPct = (v) => (v != null && !Number.isNaN(v) ? `${v.toFixed(1)}%` : '—');
 const formatMoney = (v) => {
@@ -64,36 +171,19 @@ export default function KPIGrid() {
   const getColor = (cls) => cls === 'pos' ? '#35C4A1' : cls === 'neg' ? '#FF5C5C' : cls === 'amber' ? '#FFB020' : '#E7E9EE';
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))', gap: '14px', width: '100%', fontFamily: "'Inter', sans-serif" }}>
-      {kpis.map((k) => (
-        <div
-          key={k.label}
-          style={{
-            backgroundColor: '#11151F',
-            border: '1px solid #212836',
-            borderRadius: '8px',
-            padding: '7px 9px',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between',
-            minHeight: '60px',
-            transition: 'border-color 0.15s ease',
-            cursor: 'default',
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#3A4456'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#212836'; }}
-        >
-          <div style={{ fontSize: '8.5px', fontWeight: '700', color: '#8892A3', letterSpacing: '0.06em', textTransform: 'uppercase', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {k.label}
-          </div>
-          <div style={{ fontSize: '13px', fontWeight: '700', color: getColor(k.cls), fontFamily: "'IBM Plex Mono', monospace", margin: '2px 0 1px 0', lineHeight: '1.1', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {k.value}
-          </div>
-          <div style={{ fontSize: '8.5px', color: '#545E6E', fontWeight: '400', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: '1.2' }}>
-            {k.sub || '—'}
-          </div>
+    <>
+      <style>{KPI_CSS}</style>
+      <div className="kpi-container">
+        <div className="kpi-grid">
+          {kpis.map((k) => (
+            <div key={k.label} className="kpi-card">
+              <div className="kpi-label">{k.label}</div>
+              <div className="kpi-value" style={{ color: getColor(k.cls) }}>{k.value}</div>
+              <div className="kpi-sub">{k.sub || '—'}</div>
+            </div>
+          ))}
         </div>
-      ))}
-    </div>
+      </div>
+    </>
   );
 }

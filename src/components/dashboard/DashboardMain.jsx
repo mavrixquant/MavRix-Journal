@@ -5,10 +5,12 @@ import DashboardHeader from './DashboardHeader';
 import DashboardFooter from './DashboardFooter';
 import {
   GRID_COLS, GRID_ROW_HEIGHT,
-  DEFAULT_LAYOUT, PANEL_META,
-  loadLayout, saveLayout, resetLayout,
+  MAX_LAYOUTS, DEFAULT_LAYOUT, PANEL_META,
+  buildFreshLayout, buildDefaultLayouts, makeLayoutId, makeLayoutName,
 } from './dashboardLayout';
-import { FaEye, FaEyeSlash, FaUndo, FaTimes, FaCheck, FaGripVertical } from 'react-icons/fa';
+import {
+  FaEye, FaEyeSlash, FaUndo, FaTimes, FaCheck, FaGripVertical, FaPlus,
+} from 'react-icons/fa';
 
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
@@ -31,11 +33,14 @@ import { useAppContext } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
 import { useStats } from '../../hooks/useStats';
 import {
-  subscribeToDashboardLayout,
-  saveDashboardLayout,
+  subscribeToUserLayouts,
+  saveUserLayouts,
 } from '../../firebase/accountsService';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
+
+const MAX_NAME_LEN = 24;
+const DEFAULT_NAME_PATTERN = /^Layout \d+$/;
 
 const CSS = `
   .dash-grid .react-grid-item {
@@ -190,6 +195,103 @@ const CSS = `
     border-radius: 12px;
     margin-bottom: 16px;
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+    flex-wrap: wrap;
+  }
+
+  .dash-layout-tabs {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px;
+    background: rgba(0, 0, 0, 0.25);
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .dash-layout-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    font-size: 11.5px;
+    font-weight: 600;
+    font-family: 'IBM Plex Mono', monospace;
+    border-radius: 6px;
+    background: transparent;
+    border: none;
+    color: #8892A3;
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease;
+    white-space: nowrap;
+  }
+  .dash-layout-tab:hover { color: #E7E9EE; background: rgba(255, 255, 255, 0.04); }
+  .dash-layout-tab.active {
+    background: #FFB020;
+    color: #0D1117;
+  }
+
+  .dash-layout-tab-del {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+    background: rgba(0, 0, 0, 0.15);
+    color: inherit;
+    font-size: 9px;
+    font-weight: 700;
+    margin-left: 2px;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+  }
+  .dash-layout-tab-del:hover { background: rgba(0, 0, 0, 0.35); }
+
+  .dash-layout-tab-input {
+    padding: 6px 10px;
+    font-size: 11.5px;
+    font-weight: 600;
+    font-family: 'IBM Plex Mono', monospace;
+    border-radius: 6px;
+    background: #0D1117;
+    border: 1px solid #FFB020;
+    color: #E7E9EE;
+    outline: none;
+    width: 120px;
+    box-shadow: 0 0 0 3px rgba(255, 176, 32, 0.15);
+  }
+
+  .dash-layout-add {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
+    background: transparent;
+    border: 1px dashed rgba(255, 255, 255, 0.15);
+    color: #8892A3;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .dash-layout-add:hover {
+    border-color: #FFB020;
+    color: #FFB020;
+    background: rgba(255, 176, 32, 0.06);
+  }
+  .dash-layout-add:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+    border-color: rgba(255, 255, 255, 0.08);
+    color: #545E6E;
+  }
+
+  .dash-layout-counter {
+    font-size: 10.5px;
+    font-family: 'IBM Plex Mono', monospace;
+    color: #545E6E;
+    font-weight: 600;
+    padding: 0 4px;
   }
 `;
 
@@ -198,9 +300,19 @@ export default function DashboardMain({ sessionData, dowData, dirData, setupData
   const { user } = useAuth();
   const { stats, metric } = useStats();
 
-  const [layout, setLayout] = useState(() => loadLayout());
-  const [draft, setDraft] = useState(null);
+  // Committed (from Firestore)
+  const [layouts, setLayouts] = useState([]);
+  const [activeId, setActiveId] = useState(null);
+
+  // Draft (only during edit mode)
+  const [draftLayouts, setDraftLayouts] = useState(null);
+  const [draftActiveId, setDraftActiveId] = useState(null);
   const [editMode, setEditMode] = useState(false);
+
+  // Rename state
+  const [renamingId, setRenamingId] = useState(null);
+  const [renameValue, setRenameValue] = useState('');
+
   const hydratedRef = useRef(false);
 
   const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < 900);
@@ -210,104 +322,207 @@ export default function DashboardMain({ sessionData, dowData, dirData, setupData
     return () => window.removeEventListener('resize', h);
   }, []);
 
-  // ---- Cloud sync: subscribe to user's saved layout ----
+  // ---- Cloud sync ----
   useEffect(() => {
     if (!user?.uid) return;
-    const unsub = subscribeToDashboardLayout(user.uid, (remoteLayout) => {
+    const unsub = subscribeToUserLayouts(user.uid, (remote) => {
       if (!hydratedRef.current) {
         hydratedRef.current = true;
 
-        if (Array.isArray(remoteLayout) && remoteLayout.length > 0) {
-          // Firestore has a layout → use it, mirror to localStorage
-          setLayout(remoteLayout);
-          saveLayout(remoteLayout);
-        } else {
-          // Firestore empty → push the local (or default) layout up once
-          const local = loadLayout();
-          saveDashboardLayout(user.uid, local).catch((err) =>
-            console.error('[layout] initial push failed:', err)
-          );
+        if (remote && Array.isArray(remote.layouts) && remote.layouts.length > 0) {
+          setLayouts(remote.layouts);
+          setActiveId(remote.activeId);
+
+          if (remote.migratedFromLegacy) {
+            saveUserLayouts(user.uid, remote.layouts, remote.activeId).catch((err) =>
+              console.error('[layouts] legacy migration push failed:', err)
+            );
+          }
+          return;
         }
+
+        const seed = buildDefaultLayouts();
+        setLayouts(seed);
+        setActiveId(seed[0].id);
+        saveUserLayouts(user.uid, seed, seed[0].id).catch((err) =>
+          console.error('[layouts] initial push failed:', err)
+        );
         return;
       }
 
-      // Post-hydration updates (from another tab or device)
-      if (Array.isArray(remoteLayout) && remoteLayout.length > 0) {
-        setLayout(remoteLayout);
-        saveLayout(remoteLayout);
+      if (remote && Array.isArray(remote.layouts) && remote.layouts.length > 0) {
+        if (!editMode) {
+          setLayouts(remote.layouts);
+          setActiveId(remote.activeId);
+        }
       }
     });
-
     return () => unsub();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.uid]);
 
   const hasData = stats && stats.n > 0;
   const isMoney = metric === '$';
   const unitLabel = isMoney ? 'Net P&L' : 'Total R';
 
-  const activeLayout = editMode ? (draft || layout) : layout;
-  const displayItems = useMemo(() => {
-    if (editMode) return activeLayout;
-    return activeLayout
-      .filter(it => it.visible !== false)
+  const committedActive = useMemo(
+    () => layouts.find((l) => l.id === activeId) || null,
+    [layouts, activeId]
+  );
+  const committedItems = useMemo(() => {
+    if (!committedActive) return [];
+    return committedActive.layout
+      .filter((it) => it.visible !== false)
       .slice()
       .sort((a, b) => (a.y - b.y) || (a.x - b.x));
-  }, [activeLayout, editMode]);
+  }, [committedActive]);
 
+  const draftActive = useMemo(
+    () => draftLayouts?.find((l) => l.id === draftActiveId) || null,
+    [draftLayouts, draftActiveId]
+  );
+  const editItems = draftActive?.layout || [];
+
+  const displayItems = editMode ? editItems : committedItems;
+
+  // ---- Edit lifecycle ----
   const enterEdit = () => {
-    setDraft(layout.map(it => ({ ...it })));
+    if (!layouts.length) return;
+    const clone = layouts.map((l) => ({
+      ...l,
+      layout: l.layout.map((it) => ({ ...it })),
+    }));
+    setDraftLayouts(clone);
+    setDraftActiveId(activeId || clone[0].id);
     setEditMode(true);
   };
 
   const cancelEdit = () => {
-    setDraft(null);
+    setDraftLayouts(null);
+    setDraftActiveId(null);
+    setRenamingId(null);
+    setRenameValue('');
     setEditMode(false);
   };
 
   const saveEdit = () => {
-    if (!draft) return;
-    setLayout(draft);
-    saveLayout(draft);                       // local fallback / offline
+    if (!draftLayouts || !draftActiveId) return;
+    setLayouts(draftLayouts);
+    setActiveId(draftActiveId);
     if (user?.uid) {
-      saveDashboardLayout(user.uid, draft).catch((err) =>
-        console.error('[layout] save failed:', err)
+      saveUserLayouts(user.uid, draftLayouts, draftActiveId).catch((err) =>
+        console.error('[layouts] save failed:', err)
       );
     }
-    setDraft(null);
+    setDraftLayouts(null);
+    setDraftActiveId(null);
+    setRenamingId(null);
+    setRenameValue('');
     setEditMode(false);
   };
 
-  const handleReset = () => {
-    const fresh = DEFAULT_LAYOUT.map(it => ({ ...it }));
-    setDraft(fresh);
+  // ---- Layout tab actions ----
+  const switchDraftLayout = (id) => {
+    if (renamingId) commitRename();
+    if (id === draftActiveId) return;
+    setDraftActiveId(id);
   };
 
-  const handleHardReset = () => {
-    const fresh = DEFAULT_LAYOUT.map(it => ({ ...it }));
-    resetLayout();
-    setLayout(fresh);
-    setDraft(fresh);
-    if (user?.uid) {
-      saveDashboardLayout(user.uid, fresh).catch((err) =>
-        console.error('[layout] reset push failed:', err)
-      );
+  const addDraftLayout = () => {
+    if (!draftLayouts) return;
+    if (draftLayouts.length >= MAX_LAYOUTS) return;
+    const newLayout = {
+      id: makeLayoutId(),
+      name: makeLayoutName(draftLayouts.length),
+      layout: buildFreshLayout(),
+    };
+    setDraftLayouts([...draftLayouts, newLayout]);
+    setDraftActiveId(newLayout.id);
+  };
+
+  const deleteDraftLayout = (id) => {
+    if (!draftLayouts || draftLayouts.length <= 1) return;
+    const remaining = draftLayouts.filter((l) => l.id !== id);
+
+    // Renumber only layouts that still have their default auto-generated names.
+    // Custom user names are preserved.
+    const renumbered = remaining.map((l, idx) =>
+      DEFAULT_NAME_PATTERN.test(l.name)
+        ? { ...l, name: makeLayoutName(idx) }
+        : l
+    );
+
+    setDraftLayouts(renumbered);
+    if (draftActiveId === id) {
+      setDraftActiveId(renumbered[0].id);
     }
   };
 
+  // ---- Rename handlers ----
+  const startRename = (id, currentName) => {
+    setRenamingId(id);
+    setRenameValue(currentName);
+  };
+
+  const commitRename = () => {
+    if (!renamingId) return;
+    const trimmed = renameValue.trim().slice(0, MAX_NAME_LEN);
+    if (trimmed) {
+      setDraftLayouts((prev) =>
+        (prev || []).map((l) =>
+          l.id === renamingId ? { ...l, name: trimmed } : l
+        )
+      );
+    }
+    setRenamingId(null);
+    setRenameValue('');
+  };
+
+  const cancelRename = () => {
+    setRenamingId(null);
+    setRenameValue('');
+  };
+
+  // ---- Grid handlers ----
   const handleLayoutChange = (newLayout) => {
-    if (!editMode) return;
-    const byId = new Map(newLayout.map(it => [it.i, it]));
-    setDraft(prev => (prev || []).map(item => {
-      const updated = byId.get(item.i);
-      if (!updated) return item;
-      return { ...item, x: updated.x, y: updated.y, w: updated.w, h: updated.h };
-    }));
+    if (!editMode || !draftActiveId) return;
+    const byId = new Map(newLayout.map((it) => [it.i, it]));
+    setDraftLayouts((prev) =>
+      (prev || []).map((l) => {
+        if (l.id !== draftActiveId) return l;
+        return {
+          ...l,
+          layout: l.layout.map((item) => {
+            const updated = byId.get(item.i);
+            if (!updated) return item;
+            return { ...item, x: updated.x, y: updated.y, w: updated.w, h: updated.h };
+          }),
+        };
+      })
+    );
   };
 
   const toggleVisible = (id) => {
-    setDraft(prev => (prev || []).map(item =>
-      item.i === id ? { ...item, visible: !item.visible } : item
-    ));
+    setDraftLayouts((prev) =>
+      (prev || []).map((l) => {
+        if (l.id !== draftActiveId) return l;
+        return {
+          ...l,
+          layout: l.layout.map((item) =>
+            item.i === id ? { ...item, visible: !item.visible } : item
+          ),
+        };
+      })
+    );
+  };
+
+  const handleReset = () => {
+    setDraftLayouts((prev) =>
+      (prev || []).map((l) => {
+        if (l.id !== draftActiveId) return l;
+        return { ...l, layout: DEFAULT_LAYOUT.map((it) => ({ ...it })) };
+      })
+    );
   };
 
   return (
@@ -335,15 +550,87 @@ export default function DashboardMain({ sessionData, dowData, dirData, setupData
         </div>
       ) : (
         <>
-          {editMode && (
+          {editMode && draftLayouts && (
             <div className="dash-edit-toolbar">
               <FaGripVertical style={{ color: '#FFB020', flexShrink: 0 }} size={16} />
-              <div style={{ flex: 1 }}>
+
+              <div style={{ flex: '0 0 auto', minWidth: '200px' }}>
                 <div style={{ fontSize: '13px', fontWeight: 600, color: '#E7E9EE' }}>Edit Dashboard</div>
                 <div style={{ fontSize: '11px', color: '#8892A3', marginTop: '2px' }}>
-                  Drag panels by their badge · resize from bottom-right corner · toggle visibility with the eye icon
+                  Drag · resize · toggle · <b style={{ color: '#8892A3' }}>double-click a tab to rename</b>
                 </div>
               </div>
+
+              {/* Layout tabs + add + counter */}
+              <div className="dash-layout-tabs">
+                {draftLayouts.map((l) => {
+                  const isActive = l.id === draftActiveId;
+                  const isRenaming = l.id === renamingId;
+                  const canDelete = draftLayouts.length > 1;
+
+                  if (isRenaming) {
+                    return (
+                      <input
+                        key={l.id}
+                        autoFocus
+                        className="dash-layout-tab-input"
+                        value={renameValue}
+                        onChange={(e) => setRenameValue(e.target.value)}
+                        onBlur={commitRename}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') { e.preventDefault(); commitRename(); }
+                          else if (e.key === 'Escape') { e.preventDefault(); cancelRename(); }
+                        }}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        maxLength={MAX_NAME_LEN}
+                      />
+                    );
+                  }
+
+                  return (
+                    <button
+                      key={l.id}
+                      type="button"
+                      className={`dash-layout-tab ${isActive ? 'active' : ''}`}
+                      onClick={() => switchDraftLayout(l.id)}
+                      onDoubleClick={() => startRename(l.id, l.name)}
+                      title="Double-click to rename"
+                    >
+                      {l.name}
+                      {canDelete && isActive && (
+                        <span
+                          className="dash-layout-tab-del"
+                          role="button"
+                          title="Delete this layout"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteDraftLayout(l.id);
+                          }}
+                        >
+                          ✕
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+
+                <button
+                  type="button"
+                  className="dash-layout-add"
+                  onClick={addDraftLayout}
+                  disabled={draftLayouts.length >= MAX_LAYOUTS}
+                  title={draftLayouts.length >= MAX_LAYOUTS ? `Maximum ${MAX_LAYOUTS} layouts` : 'Add new layout'}
+                >
+                  <FaPlus size={10} />
+                </button>
+
+                <span className="dash-layout-counter">
+                  {draftLayouts.length}/{MAX_LAYOUTS}
+                </span>
+              </div>
+
+              <div style={{ flex: 1 }} />
+
               <button onClick={handleReset} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 14px', background: 'transparent', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '8px', color: '#8892A3', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>
                 <FaUndo size={11} /> Reset
               </button>
@@ -377,14 +664,16 @@ export default function DashboardMain({ sessionData, dowData, dirData, setupData
                 draggableHandle=".dash-editor-drag-area"
                 resizeHandles={['se']}
               >
-                {displayItems.map(item => {
+                {displayItems.map((item) => {
                   const hidden = editMode && item.visible === false;
                   return (
                     <div key={item.i}>
                       <div className={`dash-panel ${editMode ? 'dash-editing' : ''} ${hidden ? 'dash-hidden' : ''}`}>
                         {editMode && (
                           <div className="dash-editor-overlay">
-                            <div className="dash-editor-badge dash-editor-drag-area">⠿ {PANEL_META[item.i]?.label || item.i}</div>
+                            <div className="dash-editor-badge dash-editor-drag-area">
+                              ⠿ {PANEL_META[item.i]?.label || item.i}
+                            </div>
                             <button
                               className={`dash-editor-toggle ${item.visible !== false ? 'on' : 'off'}`}
                               onClick={(e) => { e.stopPropagation(); toggleVisible(item.i); }}
@@ -428,7 +717,7 @@ export default function DashboardMain({ sessionData, dowData, dirData, setupData
   );
 }
 
-// ---------- Panel shell ----------
+// ---------- Panel shell (unchanged) ----------
 function PanelContent({ id, isMoney, unitLabel, sessionData, dowData, dirData, onNavigate }) {
   const Panel = ({ title, note, children, padding }) => (
     <div className="dash-panel" style={{ border: 'none', boxShadow: 'none', background: 'transparent', borderRadius: 0, height: '100%' }}>

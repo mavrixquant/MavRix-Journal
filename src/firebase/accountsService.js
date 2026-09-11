@@ -88,21 +88,14 @@ export async function updateAccountColumnConfigs(accountId, columnConfigs) {
 }
 
 // ============================================================
-// User Preferences — Dashboard Layout
-// Stored at users/{uid}.dashboardLayout
-// Doc is created lazily on first write (setDoc with merge).
+// User Preferences — Dashboard Layouts (max 3)
+// Stored at users/{uid}:
+//   dashboardLayouts: [{ id, name, layout: [...] }, ...]
+//   activeDashboardLayoutId: 'layout-xyz'
+// Legacy single-array format (dashboardLayout) is auto-migrated on read.
 // ============================================================
 
-export async function getDashboardLayout(userId) {
-  if (!userId) return null;
-  const ref = doc(db, USERS_COLLECTION, userId);
-  const snap = await getDoc(ref);
-  if (!snap.exists()) return null;
-  const data = snap.data();
-  return Array.isArray(data?.dashboardLayout) ? data.dashboardLayout : null;
-}
-
-export function subscribeToDashboardLayout(userId, callback) {
+export function subscribeToUserLayouts(userId, callback) {
   if (!userId) {
     callback(null);
     return () => {};
@@ -113,23 +106,48 @@ export function subscribeToDashboardLayout(userId, callback) {
     (snap) => {
       if (!snap.exists()) { callback(null); return; }
       const data = snap.data();
-      callback(Array.isArray(data?.dashboardLayout) ? data.dashboardLayout : null);
+
+      // New multi-layout format
+      if (Array.isArray(data.dashboardLayouts) && data.dashboardLayouts.length > 0) {
+        callback({
+          layouts: data.dashboardLayouts,
+          activeId: data.activeDashboardLayoutId || data.dashboardLayouts[0].id,
+        });
+        return;
+      }
+
+      // Legacy single-array format → migrate
+      if (Array.isArray(data.dashboardLayout) && data.dashboardLayout.length > 0) {
+        const migrated = [{
+          id: 'layout-legacy',
+          name: 'Layout 1',
+          layout: data.dashboardLayout,
+        }];
+        callback({
+          layouts: migrated,
+          activeId: 'layout-legacy',
+          migratedFromLegacy: true,
+        });
+        return;
+      }
+
+      callback(null);
     },
     (err) => {
-      console.error('[dashboardLayout] subscription error:', err);
-      // Fail-safe: report null so the caller falls back to local/default
+      console.error('[userLayouts] subscription error:', err);
       callback(null);
     }
   );
 }
 
-export async function saveDashboardLayout(userId, layout) {
+export async function saveUserLayouts(userId, layouts, activeId) {
   if (!userId) return;
   const ref = doc(db, USERS_COLLECTION, userId);
   await setDoc(
     ref,
     {
-      dashboardLayout: Array.isArray(layout) ? layout : [],
+      dashboardLayouts: Array.isArray(layouts) ? layouts : [],
+      activeDashboardLayoutId: activeId || null,
       updatedAt: new Date().toISOString(),
     },
     { merge: true }
