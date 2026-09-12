@@ -1,20 +1,19 @@
 // src/components/simulator/SimulatorPanels.jsx
-import { FaInfoCircle } from 'react-icons/fa';
+import {
+  FaInfoCircle,
+  FaCheckCircle,
+  FaExclamationTriangle,
+  FaShieldAlt,
+  FaBalanceScale,
+  FaArrowDown,
+  FaArrowUp,
+  FaPercent,
+  FaDice,
+  FaLayerGroup,
+  FaRandom,
+} from 'react-icons/fa';
 import FanChart from '../dashboard/monteCarlo/charts/FanChart';
 import DistributionChart from '../dashboard/monteCarlo/charts/DistributionChart';
-
-const COLORS = {
-  amber: '#FFB020',
-  win: '#35C4A1',
-  loss: '#FF5C5C',
-  blue: '#4C8BF5',
-  text: '#8892A3',
-  textMuted: '#545E6E',
-  textLight: '#E7E9EE',
-  border: '#212836',
-  panel: '#11151F',
-  rowBorder: 'rgba(255,255,255,0.04)',
-};
 
 const TABS = [
   { id: 'overview',  label: 'Overview' },
@@ -25,30 +24,539 @@ const TABS = [
   { id: 'targets',   label: 'Targets' },
 ];
 
-const formatValue = (v, isMoney) => {
+/* Format helpers — unit-aware */
+const fmtValue = (v, isMoney) => {
   if (v == null || Number.isNaN(v)) return '—';
   if (isMoney) return `${v < 0 ? '-' : '+'}$${Math.abs(v).toFixed(2)}`;
   return `${v >= 0 ? '+' : ''}${v.toFixed(2)}R`;
 };
+const fmtRatio = (v) => (v == null || Number.isNaN(v) || !isFinite(v)) ? '—' : v.toFixed(2);
+const fmtPct = (v) => (v == null || Number.isNaN(v)) ? '—' : `${v.toFixed(1)}%`;
+const fmtTrades = (v) => (v == null || Number.isNaN(v)) ? '—' : `${Math.round(v)}`;
 
-const formatRatio = (v) => (v == null || Number.isNaN(v) || !isFinite(v)) ? '—' : v.toFixed(2);
-const formatPct = (v) => (v == null || Number.isNaN(v)) ? '—' : `${v.toFixed(1)}%`;
+const METHOD_META = {
+  permutation: {
+    label: 'Permutation',
+    icon: <FaRandom />,
+    tagline: 'Sequence risk · same trades, different order',
+    description: 'Reshuffles your exact same trades into different chronological orders. The total is invariant — only the shape of the path changes. Answers: "how much can sequencing hurt me?" P(Profit) is always 0% or 100% here.',
+    profitMetricMeaningful: false,
+  },
+  bootstrap: {
+    label: 'Bootstrap',
+    icon: <FaDice />,
+    tagline: 'Sample uncertainty · sampling with replacement',
+    description: 'Each run samples N trades with replacement from your trade population. Win/loss mix and totals vary per draw. Answers: "if my next N trades are a random sample from the same edge, what range of outcomes would I see?"',
+    profitMetricMeaningful: true,
+  },
+  block: {
+    label: 'Block Bootstrap',
+    icon: <FaLayerGroup />,
+    tagline: 'Preserves streak clustering',
+    description: 'Samples in blocks of consecutive trades rather than individual trades. This preserves the local autocorrelation of your strategy — streaks stay streaks. More realistic than simple bootstrap if your wins/losses cluster.',
+    profitMetricMeaningful: true,
+  },
+};
 
-// ---------- Shared shell ----------
+/* ------------------------------------------------------------------ */
+/*  CSS                                                                */
+/* ------------------------------------------------------------------ */
+const PAN_CSS = `
+  .sim-panels {
+    --accent: #F59E0B;
+    --accent-2: #FDE68A;
+    --accent-soft: rgba(245,158,11,.10);
+    --accent-soft2: rgba(245,158,11,.28);
+    --line: rgba(255,255,255,.085);
+    --line-soft: rgba(255,255,255,.05);
+    --ink-1: #E7E9EE;
+    --ink-2: #8892A3;
+    --ink-3: #545E6E;
+    --win: #22c55e;
+    --win-2: #86efac;
+    --win-soft: rgba(34,197,94,.10);
+    --win-soft2: rgba(34,197,94,.28);
+    --loss: #ef4444;
+    --loss-2: #fca5a5;
+    --loss-soft: rgba(239,68,68,.10);
+    --loss-soft2: rgba(239,68,68,.28);
 
-function Panel({ title, note, children, style }) {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    color: var(--ink-1);
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Unit badge next to tab bar */
+  .sim-unit-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    border-radius: 99px;
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    background: var(--accent-soft);
+    border: 1px solid var(--accent-soft2);
+    color: var(--accent);
+  }
+
+  /* Tab bar */
+  .sim-tabs {
+    display: flex;
+    gap: 4px;
+    padding: 4px;
+    border-radius: 14px;
+    background: rgba(0,0,0,.32);
+    border: 1px solid var(--line-soft);
+    backdrop-filter: blur(8px);
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .sim-tabs::-webkit-scrollbar { display: none; }
+
+  .sim-tab {
+    padding: 8px 16px;
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: .02em;
+    border-radius: 9px;
+    background: transparent;
+    border: none;
+    color: var(--ink-2);
+    cursor: pointer;
+    transition: all .22s cubic-bezier(.2,.8,.25,1);
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .sim-tab:hover {
+    color: var(--ink-1);
+    background: rgba(255,255,255,.04);
+  }
+  .sim-tab.is-active {
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    color: #0D1117;
+    font-weight: 700;
+    box-shadow: 0 8px 20px -10px rgba(245,158,11,.6), inset 0 1px 0 rgba(255,255,255,.4);
+  }
+
+  /* Panel shell */
+  .sim-panel {
+    position: relative;
+    border-radius: 18px;
+    background: linear-gradient(180deg, rgba(15,18,25,.72), rgba(15,18,25,.55));
+    backdrop-filter: blur(18px) saturate(140%);
+    -webkit-backdrop-filter: blur(18px) saturate(140%);
+    border: 1px solid var(--line);
+    box-shadow:
+      0 20px 50px -30px rgba(0,0,0,.9),
+      inset 0 1px 0 rgba(255,255,255,.03);
+    padding: 16px 18px;
+    overflow: hidden;
+    transition: border-color .25s ease, box-shadow .25s ease;
+  }
+  .sim-panel:hover {
+    border-color: var(--accent-soft2);
+    box-shadow:
+      0 24px 60px -30px rgba(0,0,0,.95),
+      0 0 40px -18px var(--accent-soft2),
+      inset 0 1px 0 rgba(255,255,255,.04);
+  }
+  .sim-panel-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding-bottom: 12px;
+    margin-bottom: 14px;
+    border-bottom: 1px solid var(--line-soft);
+    flex-wrap: wrap;
+  }
+  .sim-panel-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+  }
+  .sim-panel-title::before {
+    content: '';
+    width: 3px;
+    height: 14px;
+    border-radius: 3px;
+    background: linear-gradient(180deg, var(--accent), var(--accent-2));
+    box-shadow: 0 0 10px rgba(245,158,11,.6);
+    flex-shrink: 0;
+  }
+  .sim-panel-note {
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 10.5px;
+    color: var(--ink-3);
+    letter-spacing: .02em;
+  }
+
+  /* KPI strip */
+  .sim-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 12px;
+  }
+  .sim-kpi {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    border-radius: 14px;
+    background: linear-gradient(180deg, rgba(15,18,25,.72), rgba(15,18,25,.55));
+    border: 1px solid var(--line);
+    box-shadow: 0 20px 50px -30px rgba(0,0,0,.9);
+    transition: border-color .25s, transform .25s, box-shadow .25s;
+  }
+  .sim-kpi:hover {
+    border-color: var(--accent-soft2);
+    transform: translateY(-1px);
+    box-shadow:
+      0 24px 60px -30px rgba(0,0,0,.95),
+      0 0 40px -18px var(--accent-soft2);
+  }
+  .sim-kpi-icon {
+    flex-shrink: 0;
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    background: rgba(255,255,255,.04);
+    border: 1px solid var(--line);
+    color: var(--ink-2);
+  }
+  .sim-kpi-icon.is-win {
+    color: var(--win);
+    background: var(--win-soft);
+    border-color: var(--win-soft2);
+    box-shadow: 0 0 24px -10px var(--win-soft2);
+  }
+  .sim-kpi-icon.is-loss {
+    color: var(--loss);
+    background: var(--loss-soft);
+    border-color: var(--loss-soft2);
+    box-shadow: 0 0 24px -10px var(--loss-soft2);
+  }
+  .sim-kpi-icon.is-amber {
+    color: var(--accent);
+    background: var(--accent-soft);
+    border-color: var(--accent-soft2);
+    box-shadow: 0 0 24px -10px var(--accent-soft2);
+  }
+  .sim-kpi-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+  .sim-kpi-label {
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 9.5px;
+    font-weight: 700;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    white-space: nowrap;
+  }
+  .sim-kpi-value {
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 19px;
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: -.01em;
+    color: var(--ink-1);
+    white-space: nowrap;
+  }
+  .sim-kpi-value.pos { color: var(--win); }
+  .sim-kpi-value.neg { color: var(--loss); }
+  .sim-kpi-value.amber { color: var(--accent); }
+  .sim-kpi-sub {
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 10px;
+    color: var(--ink-3);
+    letter-spacing: .02em;
+    white-space: nowrap;
+  }
+
+  /* Methodology card */
+  .sim-method {
+    display: flex;
+    gap: 14px;
+    padding: 16px 18px;
+    border-radius: 14px;
+    background: rgba(255,255,255,.02);
+    border: 1px solid var(--line-soft);
+    margin-bottom: 14px;
+  }
+  .sim-method-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--accent-soft);
+    border: 1px solid var(--accent-soft2);
+    color: var(--accent);
+    font-size: 16px;
+    flex-shrink: 0;
+    box-shadow: 0 0 24px -10px var(--accent-soft2);
+  }
+  .sim-method-body {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+  }
+  .sim-method-name {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .sim-method-name-main {
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+  .sim-method-name-tag {
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 10px;
+    color: var(--ink-3);
+    letter-spacing: .02em;
+  }
+  .sim-method-desc {
+    font-size: 12.5px;
+    line-height: 1.65;
+    color: rgba(255,255,255,.72);
+  }
+
+  /* Info banner */
+  .sim-info-banner {
+    display: flex;
+    gap: 10px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: var(--accent-soft);
+    border: 1px solid var(--accent-soft2);
+    color: rgba(255,255,255,.82);
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 11.5px;
+    line-height: 1.65;
+    letter-spacing: .01em;
+    margin-bottom: 14px;
+  }
+  .sim-info-banner svg {
+    color: var(--accent);
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .sim-info-banner b { color: var(--accent); font-weight: 700; }
+
+  /* Bullet list */
+  .sim-ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    font-size: 12.5px;
+    line-height: 1.6;
+    color: rgba(255,255,255,.72);
+  }
+  .sim-ul li {
+    display: flex;
+    gap: 10px;
+    padding: 8px 12px;
+    border-radius: 10px;
+    background: rgba(255,255,255,.015);
+    border: 1px solid var(--line-soft);
+    align-items: flex-start;
+    transition: border-color .2s ease;
+  }
+  .sim-ul li:hover { border-color: rgba(255,255,255,.12); }
+  .sim-ul li::before {
+    content: '';
+    flex-shrink: 0;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 8px rgba(245,158,11,.5);
+    margin-top: 7px;
+  }
+  .sim-ul li b { color: var(--ink-1); font-weight: 700; }
+  .sim-ul li b.pos { color: var(--win); }
+  .sim-ul li b.neg { color: var(--loss); }
+  .sim-ul li b.amber { color: var(--accent); }
+
+  /* Tables */
+  .sim-table-scroll { overflow-x: auto; }
+  table.sim-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12.5px;
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  }
+  table.sim-table thead th {
+    padding: 10px 12px;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+    border-bottom: 1px solid var(--line);
+    background: rgba(255,255,255,.02);
+    white-space: nowrap;
+    text-align: right;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+  }
+  table.sim-table thead th:first-child { text-align: left; }
+  table.sim-table tbody td {
+    padding: 10px 12px;
+    border-bottom: 1px solid rgba(255,255,255,.03);
+    text-align: right;
+    color: var(--ink-1);
+    letter-spacing: -.005em;
+    white-space: nowrap;
+  }
+  table.sim-table tbody td:first-child {
+    text-align: left;
+    font-weight: 600;
+    color: var(--ink-1);
+    font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  }
+  table.sim-table tbody tr:hover td { background: rgba(255,255,255,.025); }
+  table.sim-table tbody tr:last-child td { border-bottom: none; }
+  table.sim-table tbody td.faint { color: var(--ink-3); }
+  table.sim-table tbody td.pos { color: var(--win); font-weight: 700; }
+  table.sim-table tbody td.neg { color: var(--loss); font-weight: 700; }
+  table.sim-table tbody td.amber { color: var(--accent); font-weight: 700; }
+
+  /* Legend */
+  .sim-legend {
+    display: flex;
+    justify-content: center;
+    gap: 22px;
+    margin-top: 16px;
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 11px;
+    color: var(--ink-2);
+    flex-wrap: wrap;
+  }
+  .sim-legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 8px;
+    background: rgba(255,255,255,.02);
+    border: 1px solid var(--line-soft);
+  }
+  .sim-legend-line {
+    display: inline-block;
+    width: 14px;
+    height: 2px;
+    border-radius: 99px;
+  }
+  .sim-legend-band {
+    display: inline-block;
+    width: 14px;
+    height: 8px;
+    border-radius: 3px;
+  }
+
+  .sim-foot {
+    margin: 14px 0 0;
+    font-size: 11px;
+    color: var(--ink-3);
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    line-height: 1.6;
+    letter-spacing: .01em;
+  }
+  .sim-foot b { color: var(--ink-1); font-weight: 700; }
+
+  .sim-grid-2 {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+    gap: 16px;
+  }
+  .sim-grid-auto {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 16px;
+  }
+
+  .sim-na {
+    padding: 60px 20px;
+    text-align: center;
+    color: var(--ink-2);
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 12.5px;
+    line-height: 1.8;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+  .sim-na-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--accent-soft);
+    border: 1px solid var(--accent-soft2);
+    color: var(--accent);
+    font-size: 20px;
+    margin-bottom: 6px;
+  }
+  .sim-na b { color: var(--accent); font-weight: 700; }
+  .sim-na span { font-size: 11px; opacity: .85; }
+
+  .sim-chart-wrap { height: 520px; }
+  .sim-chart-sm { height: 320px; }
+  .sim-chart-xs { height: 240px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .sim-kpi, .sim-panel, .sim-ul li, table.sim-table tbody td, .sim-tab { transition: none !important; }
+  }
+`;
+
+/* ------------------------------------------------------------------ */
+/*  Small components                                                   */
+/* ------------------------------------------------------------------ */
+function Panel({ title, note, children }) {
   return (
-    <div style={{
-      background: COLORS.panel,
-      border: `1px solid ${COLORS.border}`,
-      borderRadius: '12px',
-      padding: '16px 18px',
-      ...style,
-    }}>
+    <div className="sim-panel">
       {(title || note) && (
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', paddingBottom: '8px', borderBottom: `1px solid ${COLORS.rowBorder}` }}>
-          {title && <span style={{ fontSize: '12px', fontWeight: 700, color: COLORS.text, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{title}</span>}
-          {note && <span style={{ fontSize: '10.5px', color: COLORS.textMuted, fontFamily: "'IBM Plex Mono', monospace" }}>{note}</span>}
+        <div className="sim-panel-head">
+          {title && <span className="sim-panel-title">{title}</span>}
+          {note && <span className="sim-panel-note">{note}</span>}
         </div>
       )}
       {children}
@@ -56,98 +564,258 @@ function Panel({ title, note, children, style }) {
   );
 }
 
-function KPI({ label, value, sub, cls }) {
-  const color = cls === 'pos' ? COLORS.win : cls === 'neg' ? COLORS.loss : cls === 'amber' ? COLORS.amber : COLORS.textLight;
+function KPI({ icon, label, value, sub, cls, iconCls }) {
   return (
-    <div style={{ background: COLORS.panel, border: `1px solid ${COLORS.border}`, borderRadius: '12px', padding: '14px 16px' }}>
-      <div style={{ fontSize: '10.5px', fontWeight: 700, color: COLORS.text, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</div>
-      <div style={{ fontSize: '22px', fontWeight: 700, marginTop: '8px', color, fontFamily: "'IBM Plex Mono', monospace", lineHeight: 1.1 }}>{value}</div>
-      {sub && <div style={{ fontSize: '10.5px', color: COLORS.textMuted, marginTop: '4px' }}>{sub}</div>}
+    <div className="sim-kpi">
+      {icon && <span className={`sim-kpi-icon ${iconCls || ''}`}>{icon}</span>}
+      <div className="sim-kpi-text">
+        <span className="sim-kpi-label">{label}</span>
+        <span className={`sim-kpi-value ${cls || ''}`}>{value}</span>
+        {sub && <span className="sim-kpi-sub">{sub}</span>}
+      </div>
     </div>
   );
 }
 
-// ---------- Panels ----------
+/* ------------------------------------------------------------------ */
+/*  Overview                                                           */
+/* ------------------------------------------------------------------ */
+function OverviewPanel({ result, summary, isMoney, initialCapital }) {
+  const meta = METHOD_META[result.method] || METHOD_META.permutation;
+  const showProfit = meta.profitMetricMeaningful;
 
-function OverviewPanel({ result, summary, isMoney }) {
-  const isPerm = result.method === 'permutation';
   const profitPct = summary.profitPct;
-  const verdict =
-    profitPct >= 90 ? 'Edge looks robust' :
-    profitPct >= 70 ? 'Edge present with normal variance' :
-    profitPct >= 50 ? 'Edge is fragile — sample-dependent' :
-    'No reliable edge detected';
-  const verdictColor =
-    profitPct >= 90 ? COLORS.win :
-    profitPct >= 70 ? COLORS.amber : COLORS.loss;
+  const ruinPct = summary.ruinPct;
 
-  const rows = [
-    { metric: 'Final Equity', values: [summary.p5Final, summary.p25Final, summary.medianFinal, summary.p75Final, summary.p95Final], fmt: (v) => formatValue(v, isMoney) },
-    { metric: 'Max Drawdown', values: [summary.maxDD_p5, summary.maxDD_p25, summary.maxDD_p50, summary.maxDD_p75, summary.maxDD_p95], fmt: (v) => formatValue(v, isMoney) },
-    { metric: 'Sharpe', values: [summary.sharpe_p5, '', summary.sharpe_p50, '', summary.sharpe_p95], fmt: (v) => formatRatio(v) },
-    { metric: 'Sortino (median)', values: ['', '', summary.sortino_p50, '', ''], fmt: (v) => formatRatio(v) },
-    { metric: 'Profit Factor (median)', values: ['', '', summary.pf_p50, '', ''], fmt: (v) => formatRatio(v) },
-    { metric: 'Expectancy (median)', values: ['', '', summary.exp_p50, '', ''], fmt: (v) => formatValue(v, isMoney) },
-    { metric: 'Win Rate (median)', values: ['', '', summary.win_p50, '', ''], fmt: (v) => formatPct(v) },
-  ];
+  // Verdict: profit-focused for bootstrap/block, drawdown-focused for permutation
+  const verdict = (() => {
+    if (showProfit) {
+      if (profitPct >= 90) return { text: 'Edge is statistically robust', cls: 'pos', icon: <FaCheckCircle /> };
+      if (profitPct >= 70) return { text: 'Edge is present with normal variance', cls: 'warn', icon: <FaInfoCircle /> };
+      if (profitPct >= 50) return { text: 'Edge is fragile — sample-dependent', cls: 'warn', icon: <FaExclamationTriangle /> };
+      return { text: 'No reliable edge detected', cls: 'neg', icon: <FaExclamationTriangle /> };
+    }
+    // Permutation: judge by worst-case DD % of capital if we know capital
+    const worstPct = Math.abs(summary.maxDDPct_p5);
+    if (initialCapital <= 0) return { text: 'Sequence stress test', cls: 'warn', icon: <FaInfoCircle /> };
+    if (worstPct < 10) return { text: 'Sequence risk is manageable', cls: 'pos', icon: <FaCheckCircle /> };
+    if (worstPct < 25) return { text: 'Sequence risk is notable', cls: 'warn', icon: <FaInfoCircle /> };
+    return { text: 'Sequence risk is severe — size down', cls: 'neg', icon: <FaExclamationTriangle /> };
+  })();
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
       {/* KPI strip */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '12px' }}>
-        <KPI label="P(Profit)" value={formatPct(profitPct)} sub={`${result.profitCount}/${result.runs} runs`} cls={profitPct >= 50 ? 'pos' : 'neg'} />
-        <KPI label="Risk of Ruin" value={formatPct(summary.ruinPct)} sub={result.ruinThreshold !== null ? `hits ${formatValue(result.ruinThreshold, isMoney)}` : 'no threshold'} cls={summary.ruinPct > 0 ? 'neg' : 'pos'} />
-        <KPI label="Median Final" value={formatValue(summary.medianFinal, isMoney)} sub="50th percentile" cls={summary.medianFinal >= 0 ? 'pos' : 'neg'} />
-        <KPI label="5th %ile Final" value={formatValue(summary.p5Final, isMoney)} sub="worst 5% cutoff" cls={summary.p5Final >= 0 ? 'pos' : 'neg'} />
-        <KPI label="95th %ile Final" value={formatValue(summary.p95Final, isMoney)} sub="best 5% cutoff" cls="pos" />
+      <div className="sim-kpi-grid">
+        {showProfit ? (
+          <KPI
+            icon={<FaPercent />}
+            iconCls={profitPct >= 50 ? 'is-win' : 'is-loss'}
+            label="P(Profit)"
+            value={fmtPct(profitPct)}
+            sub={`${summary.profitCount}/${result.runs} profitable`}
+            cls={profitPct >= 50 ? 'pos' : 'neg'}
+          />
+        ) : (
+          <KPI
+            icon={<FaArrowDown />}
+            iconCls="is-loss"
+            label="Worst 5% Drawdown"
+            value={fmtValue(summary.maxDD_p5, isMoney)}
+            sub={initialCapital > 0 ? `${summary.maxDDPct_p5.toFixed(1)}% of capital` : 'worst-case sequence'}
+            cls="neg"
+          />
+        )}
+        <KPI
+          icon={<FaShieldAlt />}
+          iconCls={ruinPct > 0 ? 'is-loss' : 'is-win'}
+          label="Risk of Ruin"
+          value={fmtPct(ruinPct)}
+          sub={result.ruinThreshold != null ? `breaches ${fmtValue(result.ruinThreshold, isMoney)}` : 'no threshold'}
+          cls={ruinPct > 0 ? 'neg' : 'pos'}
+        />
+        <KPI
+          icon={<FaBalanceScale />}
+          iconCls={summary.medianFinal >= 0 ? 'is-win' : 'is-loss'}
+          label="Median Final"
+          value={fmtValue(summary.medianFinal, isMoney)}
+          sub="50th percentile"
+          cls={summary.medianFinal >= 0 ? 'pos' : 'neg'}
+        />
+        <KPI
+          icon={<FaArrowDown />}
+          iconCls={summary.p5Final >= 0 ? 'is-win' : 'is-loss'}
+          label="5th %ile Final"
+          value={fmtValue(summary.p5Final, isMoney)}
+          sub="worst 5% outcome"
+          cls={summary.p5Final >= 0 ? 'pos' : 'neg'}
+        />
+        <KPI
+          icon={<FaArrowUp />}
+          iconCls="is-win"
+          label="95th %ile Final"
+          value={fmtValue(summary.p95Final, isMoney)}
+          sub="best 5% outcome"
+          cls="pos"
+        />
       </div>
 
       {/* Interpretation */}
       <Panel>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-          <FaInfoCircle style={{ color: COLORS.amber }} />
-          <span style={{ fontSize: '12px', fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', color: COLORS.textLight }}>What this tells you</span>
-          <span style={{ marginLeft: 'auto', fontSize: '11.5px', fontWeight: 700, color: verdictColor }}>{verdict}</span>
+        <div className="sim-interp-head" style={{ display:'flex', alignItems:'center', gap:10, marginBottom:14, flexWrap:'wrap' }}>
+          <span className="sim-interp-icon-tile"><FaInfoCircle /></span>
+          <span className="sim-interp-title" style={{
+            fontFamily: "'IBM Plex Mono', monospace",
+            fontSize: 10.5,
+            fontWeight: 700,
+            letterSpacing: '.14em',
+            textTransform: 'uppercase',
+            color: 'var(--ink-1)',
+          }}>What this tells you</span>
+          <span className={`sim-verdict ${verdict.cls}`} style={{
+            display:'inline-flex', alignItems:'center', gap:6,
+            marginLeft:'auto',
+            fontFamily:"'IBM Plex Mono', monospace",
+            fontSize: 11, fontWeight: 700, letterSpacing: '.04em',
+            padding: '5px 12px', borderRadius: 99,
+            border: `1px solid ${verdict.cls === 'pos' ? 'var(--win-soft2)' : verdict.cls === 'neg' ? 'var(--loss-soft2)' : 'var(--accent-soft2)'}`,
+            color: verdict.cls === 'pos' ? 'var(--win-2)' : verdict.cls === 'neg' ? 'var(--loss-2)' : 'var(--accent)',
+            background: verdict.cls === 'pos' ? 'var(--win-soft)' : verdict.cls === 'neg' ? 'var(--loss-soft)' : 'var(--accent-soft)',
+            whiteSpace:'nowrap',
+          }}>
+            {verdict.icon}
+            {verdict.text}
+          </span>
         </div>
 
-        <p style={{ margin: '0 0 12px', fontSize: '13px', lineHeight: 1.7, color: COLORS.text }}>
-          <b style={{ color: COLORS.textLight }}>Method — {isPerm ? 'Permutation' : 'Bootstrap'}.</b>{' '}
-          {isPerm
-            ? 'Every run reshuffles your exact same trades in a different order. Answers: "How much does sequence-of-trades affect my outcome?" — it isolates order risk.'
-            : 'Every run samples with replacement from your trade distribution. Answers: "If I re-ran this strategy with a different sample from the same underlying edge, what range of outcomes would I see?" — it isolates sample-size uncertainty.'}
-        </p>
+        {/* Methodology card */}
+        <div className="sim-method">
+          <div className="sim-method-icon">{meta.icon}</div>
+          <div className="sim-method-body">
+            <div className="sim-method-name">
+              <span className="sim-method-name-main">{meta.label}</span>
+              <span className="sim-method-name-tag">{meta.tagline}</span>
+            </div>
+            <div className="sim-method-desc">{meta.description}</div>
+          </div>
+        </div>
 
-        <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '13px', lineHeight: 1.9, color: COLORS.text }}>
-          <li><b style={{ color: COLORS.textLight }}>{profitPct.toFixed(0)}%</b> of runs ended profitable. Median outcome: <b style={{ color: COLORS.textLight }}>{formatValue(summary.medianFinal, isMoney)}</b>.</li>
-          <li>Best 5% reached <b style={{ color: COLORS.win }}>{formatValue(summary.p95Final, isMoney)}</b>; worst 5% ended at <b style={{ color: COLORS.loss }}>{formatValue(summary.p5Final, isMoney)}</b>.</li>
-          <li>In the worst 5% of runs you would have suffered a drawdown of at least <b style={{ color: COLORS.loss }}>{formatValue(summary.maxDD_p5, isMoney)}</b>.</li>
-          {summary.ruinPct > 0 && (<li><b style={{ color: COLORS.loss }}>{summary.ruinPct.toFixed(1)}%</b> of runs breached the ruin threshold of {formatValue(result.ruinThreshold, isMoney)}.</li>)}
-          <li>Longest losing streak to expect (95th pct): <b style={{ color: COLORS.textLight }}>{summary.lossStreak_p95} trades</b> in a row.</li>
+        {/* Degenerate metric warning for permutation */}
+        {!showProfit && (
+          <div className="sim-info-banner">
+            <FaInfoCircle />
+            <span>
+              <b>P(Profit) is not meaningful in permutation mode.</b> Since every run
+              uses the exact same trades, the total is identical — profit probability
+              is always 0% or 100%. Focus on <b>drawdown</b> and <b>streaks</b> instead,
+              or switch to <b>Bootstrap</b> for a real profit probability.
+            </span>
+          </div>
+        )}
+
+        <ul className="sim-ul">
+          {showProfit ? (
+            <>
+              <li><span><b>{profitPct.toFixed(1)}%</b> of runs ended profitable. Median: <b>{fmtValue(summary.medianFinal, isMoney)}</b>.</span></li>
+              <li><span>Best 5% reached <b className="pos">{fmtValue(summary.p95Final, isMoney)}</b>; worst 5% ended at <b className="neg">{fmtValue(summary.p5Final, isMoney)}</b>.</span></li>
+              <li><span>In the worst 5% of runs you would have suffered a drawdown of at least <b className="neg">{fmtValue(summary.maxDD_p5, isMoney)}</b>{initialCapital > 0 && <> (<b className="neg">{summary.maxDDPct_p5.toFixed(1)}%</b> of starting capital)</>}.</span></li>
+              {ruinPct > 0 && (
+                <li><span><b className="neg">{ruinPct.toFixed(1)}%</b> of runs breached the ruin threshold of <b>{fmtValue(result.ruinThreshold, isMoney)}</b>.</span></li>
+              )}
+              <li><span>Longest loss streak to expect (95th pct): <b className="amber">{fmtTrades(summary.lossStreak_p95)} trades</b> in a row.</span></li>
+            </>
+          ) : (
+            <>
+              <li><span>Across all reshuffles, the total is always <b>{fmtValue(summary.medianFinal, isMoney)}</b> — only the path changes.</span></li>
+              <li><span>Worst 5% of reshuffles saw a drawdown of at least <b className="neg">{fmtValue(summary.maxDD_p5, isMoney)}</b>{initialCapital > 0 && <> (<b className="neg">{summary.maxDDPct_p5.toFixed(1)}%</b> of capital)</>}.</span></li>
+              <li><span>Median drawdown across all reshuffles: <b className="amber">{fmtValue(summary.maxDD_p50, isMoney)}</b>.</span></li>
+              {ruinPct > 0 && (
+                <li><span><b className="neg">{ruinPct.toFixed(1)}%</b> of reshuffles breached <b>{fmtValue(result.ruinThreshold, isMoney)}</b> before recovering.</span></li>
+              )}
+              <li><span>Longest loss streak to expect (95th pct): <b className="amber">{fmtTrades(summary.lossStreak_p95)} trades</b> in a row.</span></li>
+            </>
+          )}
         </ul>
       </Panel>
 
       {/* Percentile Table */}
       <Panel title="Percentile Table" note="Distribution across all runs">
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12.5px', fontFamily: "'Inter', sans-serif" }}>
+        <div className="sim-table-scroll">
+          <table className="sim-table">
             <thead>
-              <tr style={{ background: 'rgba(255,255,255,0.02)' }}>
-                {['Metric', '5th %ile', '25th %ile', 'Median', '75th %ile', '95th %ile'].map((h, i) => (
-                  <th key={h} style={{ padding: '10px 12px', textAlign: i === 0 ? 'left' : 'right', fontSize: '10.5px', fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', color: COLORS.text, borderBottom: `1px solid ${COLORS.border}` }}>{h}</th>
+              <tr>
+                {['Metric', '5th %ile', '25th %ile', 'Median', '75th %ile', '95th %ile'].map((h) => (
+                  <th key={h}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {rows.map(r => (
-                <tr key={r.metric} style={{ borderBottom: `1px solid ${COLORS.rowBorder}` }}>
-                  <td style={{ padding: '10px 12px', fontWeight: 600, color: COLORS.textLight }}>{r.metric}</td>
-                  {r.values.map((v, i) => (
-                    <td key={i} style={{ padding: '10px 12px', textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: v === '' ? COLORS.textMuted : COLORS.textLight }}>
-                      {v === '' ? '—' : r.fmt(v)}
-                    </td>
-                  ))}
+              <tr>
+                <td>Final Equity</td>
+                <td>{fmtValue(summary.p5Final, isMoney)}</td>
+                <td>{fmtValue(summary.p25Final, isMoney)}</td>
+                <td>{fmtValue(summary.medianFinal, isMoney)}</td>
+                <td>{fmtValue(summary.p75Final, isMoney)}</td>
+                <td>{fmtValue(summary.p95Final, isMoney)}</td>
+              </tr>
+              <tr>
+                <td>Max Drawdown</td>
+                <td>{fmtValue(summary.maxDD_p5, isMoney)}</td>
+                <td>{fmtValue(summary.maxDD_p25, isMoney)}</td>
+                <td>{fmtValue(summary.maxDD_p50, isMoney)}</td>
+                <td>{fmtValue(summary.maxDD_p75, isMoney)}</td>
+                <td>{fmtValue(summary.maxDD_p95, isMoney)}</td>
+              </tr>
+              {initialCapital > 0 && (
+                <tr>
+                  <td>Max DD % of Capital</td>
+                  <td>{fmtPct(summary.maxDDPct_p5)}</td>
+                  <td className="faint">—</td>
+                  <td>{fmtPct(summary.maxDDPct_p50)}</td>
+                  <td className="faint">—</td>
+                  <td>{fmtPct(summary.maxDDPct_p95)}</td>
                 </tr>
-              ))}
+              )}
+              <tr>
+                <td>Sharpe Ratio</td>
+                <td>{fmtRatio(summary.sharpe_p5)}</td>
+                <td className="faint">—</td>
+                <td>{fmtRatio(summary.sharpe_p50)}</td>
+                <td className="faint">—</td>
+                <td>{fmtRatio(summary.sharpe_p95)}</td>
+              </tr>
+              <tr>
+                <td>Sortino (median)</td>
+                <td className="faint">—</td>
+                <td className="faint">—</td>
+                <td>{fmtRatio(summary.sortino_p50)}</td>
+                <td className="faint">—</td>
+                <td className="faint">—</td>
+              </tr>
+              <tr>
+                <td>Profit Factor (median)</td>
+                <td className="faint">—</td>
+                <td className="faint">—</td>
+                <td>{fmtRatio(summary.pf_p50)}</td>
+                <td className="faint">—</td>
+                <td className="faint">—</td>
+              </tr>
+              <tr>
+                <td>Expectancy (median)</td>
+                <td className="faint">—</td>
+                <td className="faint">—</td>
+                <td>{fmtValue(summary.exp_p50, isMoney)}</td>
+                <td className="faint">—</td>
+                <td className="faint">—</td>
+              </tr>
+              <tr>
+                <td>Win Rate (median)</td>
+                <td className="faint">—</td>
+                <td className="faint">—</td>
+                <td>{fmtPct(summary.win_p50)}</td>
+                <td className="faint">—</td>
+                <td className="faint">—</td>
+              </tr>
             </tbody>
           </table>
         </div>
@@ -156,158 +824,228 @@ function OverviewPanel({ result, summary, isMoney }) {
   );
 }
 
+/* ------------------------------------------------------------------ */
+/*  Bands                                                              */
+/* ------------------------------------------------------------------ */
 function BandsPanel({ result, actualCurve, isMoney }) {
   return (
     <Panel title="Cumulative Equity Bands" note={`${result.runs.toLocaleString()} simulated paths`}>
-      <div style={{ height: '520px' }}>
+      <div className="sim-chart-wrap">
         <FanChart result={result} actualCurve={actualCurve} isMoney={isMoney} showActual />
       </div>
-      <div style={{ display: 'flex', justifyContent: 'center', gap: '24px', marginTop: '16px', fontSize: '11px', color: COLORS.text, fontFamily: "'IBM Plex Mono', monospace", flexWrap: 'wrap' }}>
-        <span><span style={{ display: 'inline-block', width: '14px', height: '2px', background: COLORS.amber, verticalAlign: 'middle', marginRight: '6px' }} />Median path</span>
-        <span><span style={{ display: 'inline-block', width: '14px', height: '8px', background: 'rgba(255,176,32,0.18)', verticalAlign: 'middle', marginRight: '6px' }} />25–75% band</span>
-        <span><span style={{ display: 'inline-block', width: '14px', height: '8px', background: 'rgba(255,176,32,0.08)', verticalAlign: 'middle', marginRight: '6px' }} />5–95% band</span>
-        <span><span style={{ display: 'inline-block', width: '14px', height: '2px', background: COLORS.blue, verticalAlign: 'middle', marginRight: '6px' }} />Your actual path</span>
+      <div className="sim-legend">
+        <span className="sim-legend-item">
+          <span className="sim-legend-line" style={{ background: '#F59E0B' }} />
+          Median path
+        </span>
+        <span className="sim-legend-item">
+          <span className="sim-legend-band" style={{ background: 'rgba(245,158,11,.18)' }} />
+          25–75% band
+        </span>
+        <span className="sim-legend-item">
+          <span className="sim-legend-band" style={{ background: 'rgba(245,158,11,.08)' }} />
+          5–95% band
+        </span>
+        <span className="sim-legend-item">
+          <span className="sim-legend-line" style={{ background: '#4C8BF5' }} />
+          Your actual path
+        </span>
       </div>
+      <p className="sim-foot">
+        {result.method === 'permutation'
+          ? 'Every reshuffle lands on the same final total — only the path bends. The bands show how different sequences distribute over time.'
+          : result.method === 'block'
+            ? `Sampled in blocks of ${result.blockSize} consecutive trades to preserve local streak clustering.`
+            : 'Sampled independently with replacement. The bands show the range of outcomes a fresh sample of the same size would produce.'}
+      </p>
     </Panel>
   );
 }
 
-function DrawdownPanel({ result, summary, isMoney }) {
+/* ------------------------------------------------------------------ */
+/*  Drawdown                                                           */
+/* ------------------------------------------------------------------ */
+function DrawdownPanel({ result, summary, isMoney, initialCapital }) {
   const neverRecovered = result.recoveryTrades.filter(v => v < 0).length;
   const neverPct = ((neverRecovered / result.runs) * 100).toFixed(1);
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '16px' }}>
-      <Panel title="Max Drawdown Distribution" note="Worst DD per run">
-        <DistributionChart values={result.maxDDs} color={COLORS.loss} height={320} />
-        <p style={{ margin: '12px 0 0', fontSize: '11.5px', color: COLORS.text, fontFamily: "'IBM Plex Mono', monospace" }}>
-          Worst expected DD (95th pct): <b style={{ color: COLORS.loss }}>{formatValue(summary.maxDD_p5, isMoney)}</b>
+    <div className="sim-grid-2">
+      <Panel title="Max Drawdown Distribution" note={`Worst DD per run · ${result.runs} runs`}>
+        <div className="sim-chart-sm">
+          <DistributionChart values={result.maxDDs} color="#ef4444" height={320} />
+        </div>
+        <p className="sim-foot">
+          Worst expected (5th pct): <b style={{ color: '#f87171' }}>{fmtValue(summary.maxDD_p5, isMoney)}</b>
+          {initialCapital > 0 && <> · <b style={{ color: '#f87171' }}>{summary.maxDDPct_p5.toFixed(1)}%</b> of capital</>}
+          <br />
+          Median: <b>{fmtValue(summary.maxDD_p50, isMoney)}</b>
+          {initialCapital > 0 && <> · <b>{summary.maxDDPct_p50.toFixed(1)}%</b></>}
         </p>
       </Panel>
 
       <Panel title="Recovery Time" note="Trades to fully recover">
-        <DistributionChart values={result.recoveryTrades.filter(v => v >= 0)} color={COLORS.amber} height={320} tooltipSuffix="to recover" />
-        <p style={{ margin: '12px 0 0', fontSize: '11.5px', color: COLORS.text, fontFamily: "'IBM Plex Mono', monospace" }}>
-          {neverPct}% of runs never fully recovered from their worst DD
+        <div className="sim-chart-sm">
+          <DistributionChart
+            values={result.recoveryTrades.filter(v => v >= 0)}
+            color="#F59E0B"
+            height={320}
+            tooltipSuffix="to recover"
+          />
+        </div>
+        <p className="sim-foot">
+          <b style={{ color: '#f87171' }}>{neverPct}%</b> of runs never fully recovered from their worst drawdown.
         </p>
       </Panel>
     </div>
   );
 }
 
+/* ------------------------------------------------------------------ */
+/*  Ratios                                                             */
+/* ------------------------------------------------------------------ */
 function RatiosPanel({ result }) {
   if (result.method === 'permutation') {
     return (
       <Panel>
-        <div style={{ padding: '60px 20px', textAlign: 'center', color: COLORS.textMuted, fontFamily: "'IBM Plex Mono', monospace", fontSize: '12.5px', lineHeight: 1.8 }}>
-          Ratio distributions are only meaningful in <b style={{ color: COLORS.amber }}>Bootstrap</b> mode.<br />
-          <span style={{ fontSize: '11px', opacity: 0.85 }}>Permutation reshuffles the same trades, so Sharpe / Sortino / PF are identical across runs.</span>
+        <div className="sim-na">
+          <div className="sim-na-icon"><FaBalanceScale /></div>
+          <div>Ratio distributions require <b>Bootstrap</b> or <b>Block Bootstrap</b> mode.</div>
+          <span>Permutation reshuffles the same trades, so Sharpe / Sortino / Profit Factor are identical across runs — there's no distribution to plot.</span>
         </div>
       </Panel>
     );
   }
 
   const items = [
-    { title: 'Sharpe Ratio', values: result.sharpes, color: COLORS.amber },
-    { title: 'Sortino Ratio', values: result.sortinos, color: COLORS.amber },
-    { title: 'Profit Factor', values: result.profitFactors.filter(v => v < 9000), color: COLORS.win },
-    { title: 'Expectancy', values: result.expectancies, color: COLORS.win },
-    { title: 'Win Rate (%)', values: result.winRates.map(v => v * 100), color: COLORS.amber },
+    { title: 'Sharpe Ratio', values: result.sharpes, color: '#F59E0B' },
+    { title: 'Sortino Ratio', values: result.sortinos, color: '#F59E0B' },
+    { title: 'Profit Factor', values: result.profitFactors.filter(v => v < 9000), color: '#22c55e' },
+    { title: 'Expectancy', values: result.expectancies, color: '#22c55e' },
+    { title: 'Win Rate (%)', values: result.winRates.map(v => v * 100), color: '#F59E0B' },
   ];
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px' }}>
+    <div className="sim-grid-auto">
       {items.map(c => (
         <Panel key={c.title} title={c.title}>
-          <DistributionChart values={c.values} color={c.color} height={240} />
+          <div className="sim-chart-xs">
+            <DistributionChart values={c.values} color={c.color} height={240} />
+          </div>
         </Panel>
       ))}
     </div>
   );
 }
 
+/* ------------------------------------------------------------------ */
+/*  Streaks                                                            */
+/* ------------------------------------------------------------------ */
 function StreaksPanel({ result, summary }) {
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '16px' }}>
-      <Panel title="Longest Win Streak">
-        <DistributionChart values={result.longestWins} color={COLORS.win} height={320} />
-        <p style={{ margin: '12px 0 0', fontSize: '11.5px', color: COLORS.text, fontFamily: "'IBM Plex Mono', monospace" }}>
-          95th pct: <b style={{ color: COLORS.win }}>{summary.winStreak_p95} consecutive wins</b>
+    <div className="sim-grid-2">
+      <Panel title="Longest Win Streak" note={`across ${result.runs} runs`}>
+        <div className="sim-chart-sm">
+          <DistributionChart values={result.longestWins} color="#22c55e" height={320} />
+        </div>
+        <p className="sim-foot">
+          Median: <b style={{ color: '#4ade80' }}>{fmtTrades(summary.winStreak_p50)}</b> · 95th pct: <b style={{ color: '#4ade80' }}>{fmtTrades(summary.winStreak_p95)} consecutive wins</b>
         </p>
       </Panel>
 
-      <Panel title="Longest Loss Streak">
-        <DistributionChart values={result.longestLosses} color={COLORS.loss} height={320} />
-        <p style={{ margin: '12px 0 0', fontSize: '11.5px', color: COLORS.text, fontFamily: "'IBM Plex Mono', monospace" }}>
-          95th pct: <b style={{ color: COLORS.loss }}>{summary.lossStreak_p95} consecutive losses</b>
+      <Panel title="Longest Loss Streak" note={`across ${result.runs} runs`}>
+        <div className="sim-chart-sm">
+          <DistributionChart values={result.longestLosses} color="#ef4444" height={320} />
+        </div>
+        <p className="sim-foot">
+          Median: <b style={{ color: '#f87171' }}>{fmtTrades(summary.lossStreak_p50)}</b> · 95th pct: <b style={{ color: '#f87171' }}>{fmtTrades(summary.lossStreak_p95)} consecutive losses</b>
         </p>
       </Panel>
     </div>
   );
 }
 
+/* ------------------------------------------------------------------ */
+/*  Targets                                                            */
+/* ------------------------------------------------------------------ */
 function TargetsPanel({ result, isMoney }) {
+  if (!result.timeToTarget || result.timeToTarget.length === 0) {
+    return (
+      <Panel title="Time to Reach Target">
+        <div className="sim-na">No targets configured.</div>
+      </Panel>
+    );
+  }
   return (
-    <Panel title={`Time to Reach Target`} note={isMoney ? 'in dollars' : 'in R-multiples'}>
-      <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12.5px', fontFamily: "'Inter', sans-serif" }}>
+    <Panel title="Time to Reach Target" note={isMoney ? 'in dollars' : 'in R-multiples'}>
+      <div className="sim-table-scroll">
+        <table className="sim-table">
           <thead>
-            <tr style={{ background: 'rgba(255,255,255,0.02)' }}>
-              {['Target', 'Success %', '25th %ile Trades', 'Median Trades', '75th %ile Trades'].map((h, i) => (
-                <th key={h} style={{ padding: '10px 14px', textAlign: i === 0 ? 'left' : 'right', fontSize: '10.5px', fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', color: COLORS.text, borderBottom: `1px solid ${COLORS.border}` }}>{h}</th>
+            <tr>
+              {['Target', 'Success %', '25th %ile Trades', 'Median Trades', '75th %ile Trades'].map((h) => (
+                <th key={h}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {result.timeToTarget.map(t => (
-              <tr key={t.target} style={{ borderBottom: `1px solid ${COLORS.rowBorder}` }}>
-                <td style={{ padding: '12px 14px', fontWeight: 700, color: COLORS.textLight, fontFamily: "'IBM Plex Mono', monospace" }}>{formatValue(t.target, isMoney)}</td>
-                <td style={{ padding: '12px 14px', textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: t.successPct >= 50 ? COLORS.win : COLORS.loss, fontWeight: 600 }}>{t.successPct.toFixed(1)}%</td>
-                <td style={{ padding: '12px 14px', textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: COLORS.textLight }}>{t.p25Trades ?? '—'}</td>
-                <td style={{ padding: '12px 14px', textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: COLORS.amber, fontWeight: 700 }}>{t.medianTrades ?? '—'}</td>
-                <td style={{ padding: '12px 14px', textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: COLORS.textLight }}>{t.p75Trades ?? '—'}</td>
+              <tr key={t.target}>
+                <td>{fmtValue(t.target, isMoney)}</td>
+                <td className={t.successPct >= 50 ? 'pos' : 'neg'}>{t.successPct.toFixed(1)}%</td>
+                <td>{t.p25Trades != null ? fmtTrades(t.p25Trades) : '—'}</td>
+                <td className="amber">{t.medianTrades != null ? fmtTrades(t.medianTrades) : '—'}</td>
+                <td>{t.p75Trades != null ? fmtTrades(t.p75Trades) : '—'}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-      <p style={{ margin: '14px 0 0', fontSize: '11px', color: COLORS.textMuted, fontFamily: "'IBM Plex Mono', monospace" }}>
-        Median trades = midpoint of all runs that reached the target. Success % shows how many runs hit it at all.
+      <p className="sim-foot">
+        Success % = fraction of runs that reached the target at any point.
+        Median trades = 50th percentile of trade-counts <b>among runs that hit it</b>.
       </p>
     </Panel>
   );
 }
 
-// ---------- Main ----------
-
-export default function SimulatorPanels({ result, summary, isMoney, actualCurve, tab, setTab }) {
+/* ------------------------------------------------------------------ */
+/*  Main                                                               */
+/* ------------------------------------------------------------------ */
+export default function SimulatorPanels({
+  result, summary, isMoney, initialCapital, actualCurve, tab, setTab,
+}) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-      {/* Tab bar */}
-      <div style={{ display: 'flex', gap: '2px', borderBottom: `1px solid ${COLORS.border}`, overflowX: 'auto' }}>
-        {TABS.map(t => (
-          <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
-            style={{
-              padding: '10px 16px', fontSize: '12.5px', fontWeight: 600,
-              color: tab === t.id ? COLORS.amber : COLORS.text,
-              background: 'transparent', border: 'none',
-              borderBottom: `2px solid ${tab === t.id ? COLORS.amber : 'transparent'}`,
-              cursor: 'pointer', whiteSpace: 'nowrap',
-              transition: 'color 0.15s ease',
-            }}
-          >{t.label}</button>
-        ))}
-      </div>
+    <>
+      <style>{PAN_CSS}</style>
+      <div className="sim-panels">
+        <div className="sim-tabs" role="tablist">
+          {TABS.map(t => (
+            <button
+              key={t.id}
+              type="button"
+              role="tab"
+              aria-selected={tab === t.id}
+              className={`sim-tab ${tab === t.id ? 'is-active' : ''}`}
+              onClick={() => setTab(t.id)}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
 
-      {/* Active panel */}
-      {tab === 'overview' && <OverviewPanel result={result} summary={summary} isMoney={isMoney} />}
-      {tab === 'bands'    && <BandsPanel result={result} actualCurve={actualCurve} isMoney={isMoney} />}
-      {tab === 'drawdown' && <DrawdownPanel result={result} summary={summary} isMoney={isMoney} />}
-      {tab === 'ratios'   && <RatiosPanel result={result} />}
-      {tab === 'streaks'  && <StreaksPanel result={result} summary={summary} />}
-      {tab === 'targets'  && <TargetsPanel result={result} isMoney={isMoney} />}
-    </div>
+        {tab === 'overview' && (
+          <OverviewPanel result={result} summary={summary} isMoney={isMoney} initialCapital={initialCapital} />
+        )}
+        {tab === 'bands' && (
+          <BandsPanel result={result} actualCurve={actualCurve} isMoney={isMoney} />
+        )}
+        {tab === 'drawdown' && (
+          <DrawdownPanel result={result} summary={summary} isMoney={isMoney} initialCapital={initialCapital} />
+        )}
+        {tab === 'ratios' && <RatiosPanel result={result} />}
+        {tab === 'streaks' && <StreaksPanel result={result} summary={summary} />}
+        {tab === 'targets' && <TargetsPanel result={result} isMoney={isMoney} />}
+      </div>
+    </>
   );
 }

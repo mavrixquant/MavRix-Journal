@@ -1,3 +1,4 @@
+// src/components/auth/Signup.jsx
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { auth } from '../firebase/config';
@@ -6,23 +7,30 @@ import {
   updateProfile,
   GoogleAuthProvider,
   signInWithPopup,
-  sendEmailVerification
+  sendEmailVerification,
 } from 'firebase/auth';
 import navLogo from '../assets/navLOGO.png';
+import AuthBackground from '../components/common/AuthBackground';
+import CustomCursor from '../components/common/CustomCursor';
 
 const authStyles = `
-  @keyframes pulseGlow {
-    0%, 100% { opacity: 0.4; transform: scale(1); }
-    50% { opacity: 0.7; transform: scale(1.05); }
-  }
-  @keyframes fadeInUp {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
   .auth-wrapper {
+    --accent: #F59E0B;
+    --accent-2: #FDE68A;
+    --accent-soft: rgba(245,158,11,.10);
+    --accent-soft2: rgba(245,158,11,.28);
+    --line: rgba(255,255,255,.085);
+    --line-soft: rgba(255,255,255,.05);
+    --ink-1: #E7E9EE;
+    --ink-2: #8892A3;
+    --ink-3: #545E6E;
+
     min-height: 100vh;
-    background: var(--bg, #0A0D13);
-    color: var(--text, #F3F4F6);
+    background:
+      radial-gradient(900px 520px at 15% -5%, var(--accent-soft), transparent 60%),
+      radial-gradient(800px 500px at 88% 8%, rgba(34,211,238,.06), transparent 60%),
+      linear-gradient(180deg, #07090D 0%, #0A0D14 45%, #07090D 100%);
+    color: var(--ink-1);
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -30,132 +38,387 @@ const authStyles = `
     padding: 32px 16px;
     position: relative;
     overflow: hidden;
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    cursor: none;
   }
-  .ambient-glow {
+  .auth-wrapper::before {
+    content: '';
+    position: absolute; inset: 0; pointer-events: none;
+    background-image:
+      linear-gradient(rgba(255,255,255,.028) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,.028) 1px, transparent 1px);
+    background-size: 72px 72px;
+    -webkit-mask-image: radial-gradient(ellipse 80% 55% at 50% 0%, black 30%, transparent 78%);
+    mask-image: radial-gradient(ellipse 80% 55% at 50% 0%, black 30%, transparent 78%);
+  }
+  .auth-particles {
     position: absolute;
-    width: 550px;
-    height: 550px;
-    background: radial-gradient(circle, rgba(245, 158, 11, 0.12) 0%, rgba(10, 13, 19, 0) 70%);
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
+    inset: 0;
+    z-index: 1;
     pointer-events: none;
-    animation: pulseGlow 8s ease-in-out infinite;
+    opacity: .7;
   }
-  .auth-card-modern {
+  .auth-orb {
+    position: absolute;
+    width: 560px; height: 560px;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    background: radial-gradient(circle, rgba(245,158,11,.10), transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+    animation: authFloat 9s ease-in-out infinite;
+  }
+  .auth-back {
+    position: absolute;
+    top: 24px; left: 24px;
+    z-index: 20;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    border-radius: 10px;
+    border: 1px solid var(--line);
+    background: rgba(15,18,25,.7);
+    backdrop-filter: blur(10px);
+    color: var(--ink-2);
+    text-decoration: none;
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: .02em;
+    transition: all .22s cubic-bezier(.2,.8,.25,1);
+    cursor: none;
+  }
+  .auth-back:hover {
+    color: var(--accent);
+    border-color: var(--accent-soft2);
+    background: rgba(245,158,11,.06);
+    transform: translateY(-1px);
+  }
+  .auth-back svg { display: block; }
+
+  .auth-card {
+    position: relative;
     width: 100%;
     max-width: 480px;
-    background: rgba(18, 21, 28, 0.75);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border: 1px solid var(--border-soft, rgba(255, 255, 255, 0.08));
+    background: linear-gradient(180deg, rgba(18,21,28,.82), rgba(12,16,23,.72));
+    backdrop-filter: blur(20px) saturate(140%);
+    -webkit-backdrop-filter: blur(20px) saturate(140%);
+    border: 1px solid var(--line);
     border-radius: 20px;
-    padding: 40px 32px;
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5), 0 0 1px rgba(255, 255, 255, 0.1);
-    position: relative;
+    padding: 40px 32px 32px;
+    box-shadow:
+      0 40px 100px -40px rgba(0,0,0,.9),
+      0 0 0 1px var(--accent-soft),
+      inset 0 1px 0 rgba(255,255,255,.03);
     z-index: 10;
-    animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    animation: authIn .55s cubic-bezier(.2,.8,.25,1);
+    overflow: hidden;
   }
+  .auth-card::before {
+    content: '';
+    position: absolute;
+    left: 0; right: 0; top: 0; height: 2px;
+    background: linear-gradient(90deg, transparent, var(--accent), var(--accent-2), var(--accent), transparent);
+    background-size: 200% 100%;
+    animation: authGrad 4s linear infinite;
+  }
+
+  .auth-head {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    margin-bottom: 26px;
+  }
+  .auth-head > a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 20px;
+    line-height: 0;
+  }
+  .auth-logo {
+    height: 42px;
+    width: auto;
+    display: block;
+  }
+  .auth-eyebrow {
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 8px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .auth-eyebrow::before,
+  .auth-eyebrow::after {
+    content: '';
+    width: 12px; height: 1px;
+    background: var(--accent-soft2);
+  }
+  .auth-title {
+    font-size: 1.75rem;
+    font-weight: 700;
+    margin: 0 0 8px;
+    letter-spacing: -.02em;
+    color: var(--ink-1);
+    line-height: 1.15;
+  }
+  .auth-sub {
+    color: var(--ink-2);
+    font-size: 13px;
+    margin: 0;
+    line-height: 1.6;
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    letter-spacing: .01em;
+  }
+
+  .input-row {
+    display: flex;
+    gap: 12px;
+  }
+  .input-row .input-group { flex: 1; }
+
   .input-group {
     position: relative;
-    margin-bottom: 18px;
+    margin-bottom: 14px;
   }
   .input-icon {
-    position: absolute;
-    left: 14px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: #6B7280;
+    position: absolute !important;
+    left: 14px !important;
+    top: 39% !important;
+    transform: translateY(-50%) !important;
+    width: 18px !important;
+    height: 18px !important;
+    color: var(--ink-3);
     pointer-events: none;
-    transition: color 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 0;
+    transition: color .2s ease;
+  }
+  .input-icon svg {
+    display: block !important;
+    width: 16px !important;
+    height: 16px !important;
+    flex-shrink: 0;
   }
   .auth-input {
     width: 100%;
-    background: rgba(10, 13, 19, 0.6);
-    border: 1px solid var(--border-soft, #2A2D35);
+    background: rgba(10,13,19,.6);
+    border: 1px solid rgba(255,255,255,.1);
     border-radius: 10px;
-    padding: 13px 42px 13px 42px;
-    color: #fff;
-    font-size: 15px;
+    padding: 13px 44px 13px 44px !important;
+    color: var(--ink-1);
+    font-size: 14px;
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    line-height: 20px;
     outline: none;
     box-sizing: border-box;
-    transition: all 0.2s ease;
+    transition: all .2s ease;
+    cursor: none;
   }
+  .auth-input::placeholder { color: var(--ink-3); }
+  .auth-input:hover { border-color: rgba(255,255,255,.2); }
   .auth-input:focus {
-    border-color: var(--amber, #F59E0B);
-    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15);
-    background: rgba(10, 13, 19, 0.9);
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(245,158,11,.15);
+    background: rgba(10,13,19,.9);
   }
-  .auth-input:focus + .input-icon,
-  .input-group:focus-within .input-icon {
-    color: var(--amber, #F59E0B);
-  }
+  .input-group:focus-within .input-icon { color: var(--accent); }
+
   .toggle-password {
     position: absolute;
-    right: 14px;
-    top: 50%;
+    right: 8px;
+    top: 39%;
     transform: translateY(-50%);
+    width: 30px;
+    height: 30px;
     background: none;
     border: none;
-    color: #6B7280;
-    cursor: pointer;
+    color: var(--ink-3);
+    cursor: none;
     padding: 0;
-    display: flex;
+    display: inline-flex;
     align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    transition: all .2s;
+    line-height: 0;
   }
-  .toggle-password:hover {
-    color: #F3F4F6;
+  .toggle-password svg { display: block; }
+  .toggle-password:hover { color: var(--accent); background: rgba(245,158,11,.08); }
+
+  .password-hint {
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 10.5px;
+    color: var(--ink-3);
+    margin-top: -6px;
+    margin-bottom: 14px;
+    padding-left: 4px;
+    letter-spacing: .01em;
   }
+
   .btn-submit {
+    position: relative;
     width: 100%;
-    background: var(--amber, #F59E0B);
-    color: #0A0D13;
-    font-size: 16px;
-    font-weight: 600;
-    font-family: var(--mono, monospace);
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    color: #0D1117;
+    font-size: 13.5px;
+    font-weight: 700;
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    letter-spacing: .02em;
     padding: 14px;
     border: none;
-    border-radius: 10px;
-    cursor: pointer;
-    transition: all 0.2s ease;
+    border-radius: 11px;
+    cursor: none;
+    overflow: hidden;
+    transition: transform .25s cubic-bezier(.175,.885,.32,1.275), box-shadow .3s;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 8px;
     margin-top: 10px;
+    box-shadow:
+      0 10px 30px -8px rgba(245,158,11,.55),
+      inset 0 1px 0 rgba(255,255,255,.4);
+  }
+  .btn-submit::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(105deg, transparent 32%, rgba(255,255,255,.3) 50%, transparent 68%);
+    animation: authShine 4.2s ease-in-out infinite;
   }
   .btn-submit:hover:not(:disabled) {
-    background: #fbbf24;
+    transform: translateY(-2px);
+    box-shadow: 0 16px 42px -10px rgba(245,158,11,.7), inset 0 1px 0 rgba(255,255,255,.5);
+  }
+  .btn-submit:active:not(:disabled) { transform: translateY(0) scale(.98); }
+  .btn-submit:disabled { opacity: .65; cursor: not-allowed; }
+
+  .btn-google {
+    width: 100%;
+    background: rgba(255,255,255,.035);
+    border: 1px solid rgba(255,255,255,.12);
+    color: var(--ink-1);
+    font-size: 12.5px;
+    font-weight: 600;
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    letter-spacing: .02em;
+    padding: 13px;
+    border-radius: 11px;
+    cursor: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    transition: all .22s cubic-bezier(.2,.8,.25,1);
+    backdrop-filter: blur(8px);
+  }
+  .btn-google svg { display: block; flex-shrink: 0; }
+  .btn-google:hover:not(:disabled) {
+    background: rgba(255,255,255,.07);
+    border-color: rgba(255,255,255,.24);
     transform: translateY(-1px);
-    box-shadow: 0 4px 20px rgba(245, 158, 11, 0.35);
   }
-  .btn-submit:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
+  .btn-google:disabled { opacity: .6; cursor: not-allowed; }
+
+  .divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 22px 0;
   }
+  .divider span {
+    color: var(--ink-3);
+    font-size: 10px;
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    letter-spacing: .18em;
+    font-weight: 700;
+  }
+  .divider::before, .divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--line-soft);
+  }
+
   .error-banner {
-    background: rgba(239, 68, 68, 0.1);
-    border: 1px solid rgba(239, 68, 68, 0.3);
-    color: #FCA5A5;
-    padding: 12px;
-    border-radius: 8px;
-    font-size: 13px;
-    margin-bottom: 20px;
+    background: rgba(239,68,68,.08);
+    border: 1px solid rgba(239,68,68,.28);
+    color: #fca5a5;
+    padding: 11px 13px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    line-height: 1.55;
+    margin-bottom: 18px;
     display: flex;
     align-items: center;
     gap: 8px;
   }
+  .error-banner svg { flex-shrink: 0; display: block; }
+
+  .auth-footer {
+    text-align: center;
+    margin-top: 22px;
+    font-size: 13px;
+    color: var(--ink-2);
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  }
+  .auth-footer a {
+    color: var(--accent);
+    text-decoration: none;
+    font-weight: 700;
+    margin-left: 4px;
+    transition: color .2s;
+    cursor: none;
+  }
+  .auth-footer a:hover { color: var(--accent-2); }
+
   .spinner {
-    width: 18px;
-    height: 18px;
-    border: 2px solid rgba(10, 13, 19, 0.2);
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(10,13,19,.25);
     border-top-color: #0A0D13;
     border-radius: 50%;
-    animation: spin 0.8s linear infinite;
+    animation: spin .8s linear infinite;
   }
-  @keyframes spin {
-    to { transform: rotate(360deg); }
+
+  @keyframes authFloat {
+    0%,100% { transform: translate(-50%, -50%) scale(1); opacity: .9; }
+    50%     { transform: translate(-50%, -50%) scale(1.06); opacity: 1; }
+  }
+  @keyframes authIn {
+    from { opacity: 0; transform: translateY(20px) scale(.98); }
+    to   { opacity: 1; transform: none; }
+  }
+  @keyframes authGrad {
+    0%   { background-position: 0% 50%; }
+    100% { background-position: 200% 50%; }
+  }
+  @keyframes authShine {
+    0%,100% { transform: translateX(-130%) skewX(-18deg); }
+    55%     { transform: translateX(230%) skewX(-18deg); }
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  @media (max-width: 480px) {
+    .input-row { flex-direction: column; gap: 0; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .auth-orb, .auth-card::before, .btn-submit::after, .spinner { animation: none !important; }
+    .auth-back, .btn-submit, .btn-google, .toggle-password { transition: none !important; }
   }
 `;
 
@@ -204,14 +467,10 @@ export default function Signup() {
       const userCredential = await createUserWithEmailAndPassword(auth, emailLower, password);
       const fullName = `${firstName.trim()} ${lastName.trim()}`.trim();
       await updateProfile(userCredential.user, { displayName: fullName });
-
-      // Send verification email
       await sendEmailVerification(userCredential.user);
-      // Redirect to email verification page
       navigate('/verify-email');
     } catch (err) {
-      const msg = err.message.replace('Firebase: ', '');
-      setError(msg);
+      setError(err.message.replace('Firebase: ', ''));
     } finally {
       setLoading(false);
     }
@@ -220,68 +479,72 @@ export default function Signup() {
   return (
     <div className="auth-wrapper">
       <style>{authStyles}</style>
-      <div className="ambient-glow" />
+      <CustomCursor />
+      <AuthBackground accent="#F59E0B" />
+      <div className="auth-orb" />
 
-      {/* Back button */}
-      <div style={{ position: 'absolute', top: '24px', left: '24px', zIndex: 20 }}>
-        <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#9CA3AF', textDecoration: 'none', fontSize: '14px' }}>
-          <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
-          Back to Home
-        </Link>
-      </div>
+      <Link to="/" className="auth-back">
+        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+        </svg>
+        Back to home
+      </Link>
 
-      <div className="auth-card-modern">
-        <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+      <div className="auth-card">
+        <div className="auth-head">
           <Link to="/">
-            <img src={navLogo} alt="Logo" style={{ height: '42px', marginBottom: '20px' }} />
+            <img src={navLogo} alt="Logo" className="auth-logo" />
           </Link>
-          <h1 style={{ fontSize: '1.75rem', fontWeight: '700', margin: '0 0 8px 0', letterSpacing: '-0.02em' }}>
-            Create Your Account
-          </h1>
-          <p style={{ color: 'var(--text-dim, #9CA3AF)', fontSize: '0.95rem', margin: 0 }}>
-            Start backtesting and discovering your edge today
-          </p>
+          <div className="auth-eyebrow">Get started</div>
+          <h1 className="auth-title">Create your account</h1>
+          <p className="auth-sub">Start backtesting and discovering your edge</p>
         </div>
 
         {error && (
           <div className="error-banner">
-            <svg width="16" height="16" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd"/></svg>
+            <svg width="14" height="14" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+            </svg>
             <span>{error}</span>
           </div>
         )}
 
         <form onSubmit={handleSubmit}>
-          {/* First & Last Name row */}
-          <div style={{ display: 'flex', gap: '12px' }}>
-            <div className="input-group" style={{ flex: 1 }}>
+          <div className="input-row">
+            <div className="input-group">
               <input
                 type="text"
                 className="auth-input"
-                placeholder="First Name"
+                placeholder="First name"
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
                 required
+                autoComplete="given-name"
               />
-              <svg className="input-icon" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
-              </svg>
+              <span className="input-icon">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+              </span>
             </div>
-            <div className="input-group" style={{ flex: 1 }}>
+            <div className="input-group">
               <input
                 type="text"
                 className="auth-input"
-                placeholder="Last Name"
+                placeholder="Last name"
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
                 required
+                autoComplete="family-name"
               />
-              <svg className="input-icon" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
-              </svg>
+              <span className="input-icon">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+              </span>
             </div>
           </div>
 
-          {/* Email Input */}
           <div className="input-group">
             <input
               type="email"
@@ -290,13 +553,15 @@ export default function Signup() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              autoComplete="email"
             />
-            <svg className="input-icon" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
-            </svg>
+            <span className="input-icon">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
+            </span>
           </div>
 
-          {/* Password Input */}
           <div className="input-group">
             <input
               type={showPassword ? 'text' : 'password'}
@@ -305,79 +570,79 @@ export default function Signup() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              autoComplete="new-password"
             />
-            <svg className="input-icon" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
-            </svg>
+            <span className="input-icon">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+            </span>
             <button
               type="button"
               className="toggle-password"
               onClick={() => setShowPassword(!showPassword)}
               tabIndex="-1"
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
             >
               {showPassword ? (
-                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24M1 1l22 22"/></svg>
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24M1 1l22 22" />
+                </svg>
               ) : (
-                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                </svg>
               )}
             </button>
           </div>
 
-          {/* Confirm Password Input */}
           <div className="input-group">
             <input
               type={showPassword ? 'text' : 'password'}
               className="auth-input"
-              placeholder="Confirm Password"
+              placeholder="Confirm password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               required
+              autoComplete="new-password"
             />
-            <svg className="input-icon" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-            </svg>
+            <span className="input-icon">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </span>
           </div>
+
+          <p className="password-hint">Minimum 6 characters</p>
 
           <button type="submit" className="btn-submit" disabled={loading}>
             {loading ? <div className="spinner" /> : 'Get Started Free'}
           </button>
         </form>
 
-        {/* Divider */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', margin: '24px 0' }}>
-          <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.1)' }} />
-          <span style={{ color: '#6B7280', fontSize: '13px' }}>OR</span>
-          <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.1)' }} />
-        </div>
+        <div className="divider"><span>OR</span></div>
 
-        {/* Google Sign-In Button */}
-        <button
-          type="button"
-          className="btn-google"
-          onClick={handleGoogleSignIn}
-          disabled={loading}
-        >
+        <button type="button" className="btn-google" onClick={handleGoogleSignIn} disabled={loading}>
           {loading ? (
             <div className="spinner" />
           ) : (
             <>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
+                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
+                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
               </svg>
               Continue with Google
             </>
           )}
         </button>
 
-        <p style={{ textAlign: 'center', marginTop: '24px', fontSize: '14px', color: '#9CA3AF' }}>
-          Already have an account?{' '}
-          <Link to="/login" style={{ color: 'var(--amber, #F59E0B)', textDecoration: 'none', fontWeight: '600' }}>
-            Sign In
-          </Link>
-        </p>
+        <div className="auth-footer">
+          Already have an account?
+          <Link to="/login">Sign in</Link>
+        </div>
       </div>
     </div>
   );

@@ -1,4 +1,4 @@
-// src/components/dashboard/DashboardMain.jsx
+// src/features/dashboard/DashboardMain.jsx
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Responsive, WidthProvider } from 'react-grid-layout/legacy';
 import DashboardHeader from './DashboardHeader';
@@ -35,33 +35,133 @@ import { useStats } from '../../hooks/useStats';
 import {
   subscribeToUserLayouts,
   saveUserLayouts,
-} from '../../firebase/accountsService';
+} from '../../../src/firebase/accountsService';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
 const MAX_NAME_LEN = 24;
 const DEFAULT_NAME_PATTERN = /^Layout \d+$/;
 
+/* ------------------------------------------------------------------ */
+/*  Dashboard CSS — matches landing page language                      */
+/* ------------------------------------------------------------------ */
 const CSS = `
+  /* ---------- Root / ambient background ---------- */
+  .dash-root {
+    --accent: #F59E0B;
+    --accent-2: #FDE68A;
+    --accent-soft: rgba(245,158,11,.10);
+    --accent-soft2: rgba(245,158,11,.28);
+    --ink-1: #F3F4F6;
+    --ink-2: rgba(255,255,255,.62);
+    --ink-3: rgba(255,255,255,.42);
+    --line: rgba(255,255,255,.085);
+    --line-soft: rgba(255,255,255,.05);
+    --glass-1: rgba(255,255,255,.045);
+    --glass-2: rgba(255,255,255,.012);
+    --bg-0: #07090D;
+    --bg-1: #0A0D14;
+
+    position: relative;
+    width: 100%;
+    box-sizing: border-box;
+    overflow-x: hidden;
+    min-height: 100vh;
+    padding: 0 0 40px;
+    color: var(--ink-1);
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    background:
+      radial-gradient(900px 520px at 12% -8%, var(--accent-soft), transparent 60%),
+      radial-gradient(800px 500px at 90% 4%, rgba(34,211,238,.06), transparent 60%),
+      linear-gradient(180deg, var(--bg-0) 0%, var(--bg-1) 45%, var(--bg-0) 100%);
+  }
+  .dash-root::before {
+    content: '';
+    position: absolute; inset: 0; pointer-events: none;
+    background-image:
+      linear-gradient(rgba(255,255,255,.028) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,.028) 1px, transparent 1px);
+    background-size: 72px 72px;
+    -webkit-mask-image: radial-gradient(ellipse 85% 60% at 50% 0%, black 30%, transparent 78%);
+    mask-image: radial-gradient(ellipse 85% 60% at 50% 0%, black 30%, transparent 78%);
+  }
+  .dash-root::after {
+    content: '';
+    position: absolute;
+    top: -180px; left: -10%;
+    width: 480px; height: 480px;
+    border-radius: 50%;
+    background: radial-gradient(circle, var(--accent-soft), transparent 68%);
+    animation: dashFloat 9s ease-in-out infinite;
+    pointer-events: none;
+  }
+  .dash-root > * { position: relative; z-index: 1; }
+
+  /* ---------- Scroll progress ---------- */
+  .dash-progress {
+    position: fixed; top: 0; left: 0; height: 2px; z-index: 200;
+    background: linear-gradient(90deg, var(--accent), var(--accent-2), var(--accent));
+    background-size: 200% 100%;
+    animation: dashGrad 3s linear infinite;
+    box-shadow: 0 0 14px var(--accent);
+    transition: width .08s linear;
+  }
+
+  /* ---------- Grid ---------- */
   .dash-grid .react-grid-item {
-    transition: all 180ms ease;
+    transition: all 200ms cubic-bezier(.2,.8,.25,1);
     transition-property: left, top;
   }
 
+  /* ---------- Panel (glassy card) ---------- */
   .dash-panel {
     width: 100%;
     height: 100%;
-    border-radius: 12px;
-    background: #12161f;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    border-radius: 18px;
+    background: linear-gradient(180deg, var(--glass-1), var(--glass-2));
+    border: 1px solid var(--line);
+    box-shadow:
+      0 20px 50px -30px rgba(0,0,0,.9),
+      inset 0 1px 0 rgba(255,255,255,.03);
     overflow: hidden;
     display: flex;
     flex-direction: column;
     position: relative;
+    backdrop-filter: blur(10px) saturate(140%);
+    transition: border-color .35s ease, box-shadow .35s ease, background .35s ease, transform .35s ease;
   }
-
+  .dash-panel:hover {
+    border-color: var(--accent-soft2);
+    box-shadow:
+      0 24px 60px -30px rgba(0,0,0,.95),
+      0 0 40px -18px var(--accent-soft2),
+      inset 0 1px 0 rgba(255,255,255,.04);
+  }
   .dash-panel .panel-head { flex-shrink: 0; }
+
+  /* ---------- Mouse-tracked glow (outer panels only) ---------- */
+  .dash-panel-outer {
+    --mx: 50%;
+    --my: 0%;
+  }
+  .dash-panel-outer::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    border-radius: inherit;
+    background: radial-gradient(
+      480px 340px at var(--mx, 50%) var(--my, 0%),
+      var(--accent-soft),
+      transparent 62%
+    );
+    opacity: 0;
+    transition: opacity .35s ease;
+    z-index: 0;
+  }
+  .dash-panel-outer:hover::before { opacity: 0.6; }
+  .dash-panel-outer > * { position: relative; z-index: 1; }
 
   .dash-panel-body {
     flex: 1;
@@ -70,27 +170,30 @@ const CSS = `
     overflow: hidden;
   }
 
+  /* ---------- Editing state ---------- */
   .dash-panel.dash-editing {
-    border-color: rgba(255, 176, 32, 0.4);
-    box-shadow: 0 0 0 1px rgba(255, 176, 32, 0.15), 0 4px 20px rgba(0, 0, 0, 0.3);
+    border-color: var(--accent-soft2);
+    box-shadow:
+      0 24px 60px -30px rgba(0,0,0,.95),
+      0 0 0 1px rgba(245,158,11,.15),
+      0 0 50px -20px rgba(245,158,11,.35);
   }
-
-  .dash-panel.dash-editing::before {
+  .dash-panel.dash-editing::after {
     content: '';
     position: absolute;
     inset: 0;
     background-image:
-      linear-gradient(rgba(255, 176, 32, 0.06) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(255, 176, 32, 0.06) 1px, transparent 1px);
+      linear-gradient(rgba(245,158,11,.055) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(245,158,11,.055) 1px, transparent 1px);
     background-size: 40px 40px;
     pointer-events: none;
     z-index: 0;
   }
 
+  /* ---------- Editor overlay ---------- */
   .dash-editor-overlay {
     position: absolute;
-    top: 8px;
-    right: 8px;
+    top: 10px; right: 10px;
     z-index: 10;
     display: flex;
     align-items: center;
@@ -103,199 +206,465 @@ const CSS = `
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    padding: 4px 10px;
-    border-radius: 6px;
-    background: rgba(10, 13, 19, 0.9);
-    border: 1px solid #212836;
-    color: #8892A3;
+    padding: 5px 11px;
+    border-radius: 8px;
+    background: rgba(15,18,25,.9);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--accent-soft2);
+    color: var(--accent);
     font-size: 10.5px;
-    font-family: 'IBM Plex Mono', monospace;
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
     font-weight: 600;
+    letter-spacing: .04em;
     user-select: none;
     cursor: grab;
+    box-shadow: 0 8px 24px -12px rgba(0,0,0,.8);
+    transition: transform .2s ease, border-color .2s ease;
   }
-  .dash-editor-badge:active { cursor: grabbing; }
+  .dash-editor-badge:hover { transform: translateY(-1px); border-color: rgba(245,158,11,.55); }
+  .dash-editor-badge:active { cursor: grabbing; transform: translateY(0) scale(.98); }
 
   .dash-editor-toggle {
     pointer-events: auto;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 26px;
-    height: 26px;
-    border-radius: 6px;
-    background: rgba(10, 13, 19, 0.9);
-    border: 1px solid #212836;
+    width: 28px; height: 28px;
+    border-radius: 8px;
+    background: rgba(15,18,25,.9);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,.1);
     color: #8892A3;
     cursor: pointer;
-    transition: all 0.15s ease;
+    box-shadow: 0 8px 24px -12px rgba(0,0,0,.8);
+    transition: all .22s cubic-bezier(.2,.8,.25,1);
   }
-  .dash-editor-toggle:hover { border-color: #FFB020; color: #FFB020; }
-  .dash-editor-toggle.on { color: #35C4A1; border-color: rgba(53, 196, 161, 0.4); }
+  .dash-editor-toggle:hover {
+    border-color: rgba(245,158,11,.5);
+    color: var(--accent);
+    transform: translateY(-1px);
+  }
+  .dash-editor-toggle.on {
+    color: #10B981;
+    border-color: rgba(16,185,129,.45);
+    background: rgba(16,185,129,.08);
+    box-shadow: 0 0 0 1px rgba(16,185,129,.12), 0 8px 24px -12px rgba(16,185,129,.35);
+  }
   .dash-editor-toggle.off { color: #545E6E; }
 
   .dash-panel.dash-hidden {
-    opacity: 0.35;
-    filter: grayscale(0.7);
+    opacity: .32;
+    filter: grayscale(.7);
   }
 
+  /* ---------- Resize handle ---------- */
   .dash-grid .react-grid-item > .react-resizable-handle {
-    width: 22px;
-    height: 22px;
+    width: 22px; height: 22px;
     background-image: none !important;
     padding: 0;
     z-index: 5;
-    bottom: 0;
-    right: 0;
+    bottom: 0; right: 0;
   }
   .dash-grid .react-grid-item > .react-resizable-handle::after {
     content: '';
     position: absolute;
-    right: 6px;
-    bottom: 6px;
-    width: 12px;
-    height: 12px;
-    border-right: 2px solid rgba(255, 255, 255, 0.28);
-    border-bottom: 2px solid rgba(255, 255, 255, 0.28);
-    border-radius: 0 0 2px 0;
-    transition: all 0.15s ease;
+    right: 6px; bottom: 6px;
+    width: 12px; height: 12px;
+    border-right: 2px solid rgba(245,158,11,.4);
+    border-bottom: 2px solid rgba(245,158,11,.4);
+    border-radius: 0 0 3px 0;
+    transition: all .2s ease;
   }
   .dash-grid .react-grid-item > .react-resizable-handle:hover::after {
-    border-color: #FFB020;
-    width: 14px;
-    height: 14px;
+    border-color: var(--accent);
+    width: 15px; height: 15px;
+    filter: drop-shadow(0 0 6px rgba(245,158,11,.7));
   }
   .dash-grid:not(.dash-editing) .react-grid-item > .react-resizable-handle {
     display: none !important;
   }
 
+  /* ---------- Drag placeholder ---------- */
   .dash-grid .react-grid-item.react-grid-placeholder {
-    background: rgba(255, 176, 32, 0.15) !important;
-    border: 1px dashed #FFB020;
-    border-radius: 12px;
+    background: linear-gradient(180deg, rgba(245,158,11,.18), rgba(245,158,11,.06)) !important;
+    border: 1px dashed rgba(245,158,11,.55);
+    border-radius: 18px;
     opacity: 1;
+    box-shadow: 0 0 40px -10px rgba(245,158,11,.4);
   }
   .dash-grid .react-grid-item.resizing,
   .dash-grid .react-grid-item.react-draggable-dragging {
     z-index: 20;
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 24px 60px -20px rgba(0,0,0,.9), 0 0 40px -10px rgba(245,158,11,.35);
   }
 
+  /* ---------- Edit toolbar ---------- */
   .dash-edit-toolbar {
     position: sticky;
-    top: 0;
+    top: 12px;
     z-index: 30;
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 12px 16px;
-    background: rgba(20, 22, 30, 0.95);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 176, 32, 0.3);
-    border-radius: 12px;
-    margin-bottom: 16px;
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+    padding: 14px 18px;
+    background: rgba(15,18,25,.82);
+    backdrop-filter: blur(18px) saturate(140%);
+    border: 1px solid var(--accent-soft2);
+    border-radius: 18px;
+    margin-bottom: 20px;
+    box-shadow:
+      0 24px 60px -30px rgba(0,0,0,.95),
+      0 0 40px -18px var(--accent-soft2);
     flex-wrap: wrap;
   }
+  .dash-edit-toolbar::before {
+    content: '';
+    position: absolute;
+    left: 0; right: 0; top: 0; height: 2px;
+    border-radius: 18px 18px 0 0;
+    background: linear-gradient(90deg, transparent, var(--accent), var(--accent-2), var(--accent), transparent);
+    background-size: 200% 100%;
+    animation: dashGrad 4s linear infinite;
+  }
 
+  /* ---------- Layout tabs ---------- */
   .dash-layout-tabs {
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 3px;
-    background: rgba(0, 0, 0, 0.25);
-    border-radius: 8px;
-    border: 1px solid rgba(255, 255, 255, 0.06);
+    padding: 4px;
+    background: rgba(0,0,0,.32);
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,.06);
+    backdrop-filter: blur(8px);
   }
 
   .dash-layout-tab {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    padding: 6px 12px;
+    padding: 7px 13px;
     font-size: 11.5px;
     font-weight: 600;
-    font-family: 'IBM Plex Mono', monospace;
-    border-radius: 6px;
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    letter-spacing: .02em;
+    border-radius: 8px;
     background: transparent;
     border: none;
     color: #8892A3;
     cursor: pointer;
-    transition: background-color 0.15s ease, color 0.15s ease;
+    transition: all .22s cubic-bezier(.2,.8,.25,1);
     white-space: nowrap;
   }
-  .dash-layout-tab:hover { color: #E7E9EE; background: rgba(255, 255, 255, 0.04); }
+  .dash-layout-tab:hover {
+    color: #E7E9EE;
+    background: rgba(255,255,255,.04);
+  }
   .dash-layout-tab.active {
-    background: #FFB020;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
     color: #0D1117;
+    box-shadow: 0 8px 20px -10px rgba(245,158,11,.6), inset 0 1px 0 rgba(255,255,255,.4);
   }
 
   .dash-layout-tab-del {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 14px;
-    height: 14px;
-    border-radius: 3px;
-    background: rgba(0, 0, 0, 0.15);
+    width: 15px; height: 15px;
+    border-radius: 4px;
+    background: rgba(0,0,0,.2);
     color: inherit;
     font-size: 9px;
     font-weight: 700;
     margin-left: 2px;
     cursor: pointer;
-    transition: background-color 0.15s ease;
+    transition: background-color .15s ease;
   }
-  .dash-layout-tab-del:hover { background: rgba(0, 0, 0, 0.35); }
+  .dash-layout-tab-del:hover { background: rgba(0,0,0,.4); }
 
   .dash-layout-tab-input {
-    padding: 6px 10px;
+    padding: 7px 11px;
     font-size: 11.5px;
     font-weight: 600;
-    font-family: 'IBM Plex Mono', monospace;
-    border-radius: 6px;
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    border-radius: 8px;
     background: #0D1117;
-    border: 1px solid #FFB020;
+    border: 1px solid var(--accent);
     color: #E7E9EE;
     outline: none;
-    width: 120px;
-    box-shadow: 0 0 0 3px rgba(255, 176, 32, 0.15);
+    width: 130px;
+    box-shadow: 0 0 0 3px rgba(245,158,11,.15), 0 0 20px -6px rgba(245,158,11,.5);
   }
 
   .dash-layout-add {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 26px;
-    height: 26px;
-    border-radius: 6px;
+    width: 28px; height: 28px;
+    border-radius: 8px;
     background: transparent;
-    border: 1px dashed rgba(255, 255, 255, 0.15);
+    border: 1px dashed rgba(255,255,255,.15);
     color: #8892A3;
     cursor: pointer;
-    transition: all 0.15s ease;
+    transition: all .22s cubic-bezier(.2,.8,.25,1);
   }
   .dash-layout-add:hover {
-    border-color: #FFB020;
-    color: #FFB020;
-    background: rgba(255, 176, 32, 0.06);
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(245,158,11,.08);
+    transform: translateY(-1px) scale(1.04);
+    box-shadow: 0 0 20px -6px rgba(245,158,11,.5);
   }
   .dash-layout-add:disabled {
-    opacity: 0.35;
+    opacity: .35;
     cursor: not-allowed;
-    border-color: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255,255,255,.08);
     color: #545E6E;
+    transform: none;
+    box-shadow: none;
   }
 
   .dash-layout-counter {
     font-size: 10.5px;
-    font-family: 'IBM Plex Mono', monospace;
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
     color: #545E6E;
     font-weight: 600;
-    padding: 0 4px;
+    padding: 0 6px;
+    letter-spacing: .05em;
+  }
+
+  /* ---------- Toolbar buttons ---------- */
+  .dash-tb-btn {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 9px 15px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    border: 1px solid rgba(255,255,255,.14);
+    background: rgba(255,255,255,.035);
+    color: #8892A3;
+    backdrop-filter: blur(8px);
+    transition: all .22s cubic-bezier(.2,.8,.25,1);
+  }
+  .dash-tb-btn:hover {
+    color: #E7E9EE;
+    background: rgba(255,255,255,.07);
+    border-color: rgba(255,255,255,.24);
+    transform: translateY(-1px);
+  }
+  .dash-tb-btn:active { transform: translateY(0) scale(.98); }
+
+  .dash-tb-primary {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 10px 20px;
+    border-radius: 10px;
+    font-size: 12.5px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    border: none;
+    overflow: hidden;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    color: #0D1117;
+    box-shadow:
+      0 10px 30px -8px rgba(245,158,11,.55),
+      inset 0 1px 0 rgba(255,255,255,.4);
+    transition: transform .25s cubic-bezier(.175,.885,.32,1.275), box-shadow .3s;
+  }
+  .dash-tb-primary::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(105deg, transparent 32%, rgba(255,255,255,.3) 50%, transparent 68%);
+    animation: dashShine 4.2s ease-in-out infinite;
+  }
+  .dash-tb-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 16px 42px -10px rgba(245,158,11,.7), inset 0 1px 0 rgba(255,255,255,.5);
+  }
+  .dash-tb-primary:active { transform: translateY(0) scale(.98); }
+
+  /* ---------- Section title ---------- */
+  .dash-section-title {
+    margin-top: 36px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 15px;
+    font-weight: 600;
+    color: #E7E9EE;
+    letter-spacing: -.01em;
+  }
+  .dash-section-title .bar {
+    width: 4px; height: 18px;
+    border-radius: 3px;
+    background: linear-gradient(180deg, var(--accent), var(--accent-2));
+    box-shadow: 0 0 14px rgba(245,158,11,.6);
+    flex-shrink: 0;
+  }
+  .dash-section-title .line {
+    flex: 1; height: 1px;
+    background: linear-gradient(90deg, rgba(245,158,11,.35), rgba(255,255,255,.06) 40%, transparent);
+  }
+
+  /* ---------- Trade log panel ---------- */
+  .dash-tradelog {
+    position: relative;
+    background: linear-gradient(180deg, var(--glass-1), var(--glass-2));
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    padding: 16px;
+    box-shadow: 0 24px 60px -30px rgba(0,0,0,.9), inset 0 1px 0 rgba(255,255,255,.03);
+    margin-bottom: 24px;
+    overflow-x: auto;
+    backdrop-filter: blur(10px);
+    transition: border-color .35s ease, box-shadow .35s ease;
+  }
+  .dash-tradelog:hover {
+    border-color: var(--accent-soft2);
+    box-shadow: 0 24px 60px -30px rgba(0,0,0,.95), 0 0 40px -18px var(--accent-soft2);
+  }
+
+  /* ---------- Empty state ---------- */
+  .dash-empty-wrap {
+    min-height: calc(100vh - 120px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 16px;
+  }
+  .dash-empty {
+    position: relative;
+    max-width: 520px;
+    width: 100%;
+    padding: 56px 40px 48px;
+    border-radius: 26px;
+    background:
+      radial-gradient(400px 220px at 50% 0%, rgba(245,158,11,.12), transparent 70%),
+      linear-gradient(180deg, var(--glass-1), var(--glass-2));
+    border: 1px solid rgba(255,255,255,.1);
+    box-shadow:
+      0 40px 90px -50px rgba(245,158,11,.5),
+      inset 0 1px 0 rgba(255,255,255,.04);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    overflow: hidden;
+  }
+  .dash-empty::before {
+    content: '';
+    position: absolute;
+    left: -40%; top: -40%;
+    width: 180%; height: 180%;
+    background: radial-gradient(circle at 50% 50%, rgba(245,158,11,.08), transparent 45%);
+    animation: dashFloat 8s ease-in-out infinite;
+    pointer-events: none;
+  }
+  .dash-empty > * { position: relative; z-index: 1; }
+
+  .dash-empty-icon {
+    width: 64px; height: 64px;
+    border-radius: 18px;
+    background: linear-gradient(135deg, rgba(245,158,11,.18), rgba(245,158,11,.05));
+    border: 1px solid var(--accent-soft2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 22px;
+    box-shadow: 0 0 40px -8px rgba(245,158,11,.5);
+  }
+
+  .dash-empty h3 {
+    margin: 0 0 10px;
+    font-size: 20px;
+    font-weight: 700;
+    color: #E7E9EE;
+    letter-spacing: -.02em;
+  }
+  .dash-empty p {
+    margin: 0 0 26px;
+    font-size: 13.5px;
+    color: rgba(255,255,255,.58);
+    line-height: 1.65;
+    max-width: 380px;
+  }
+
+  /* ---------- "All hidden" state ---------- */
+  .dash-allhidden {
+    padding: 70px 20px;
+    text-align: center;
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 12.5px;
+    color: #545E6E;
+    border: 1px dashed rgba(255,255,255,.08);
+    border-radius: 18px;
+    background: linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,.005));
+  }
+  .dash-allhidden b { color: var(--accent); }
+
+  /* ---------- Keyframes ---------- */
+  @keyframes dashGrad {
+    0% { background-position: 0% 50%; }
+    100% { background-position: 200% 50%; }
+  }
+  @keyframes dashShine {
+    0%,100% { transform: translateX(-130%) skewX(-18deg); }
+    55% { transform: translateX(230%) skewX(-18deg); }
+  }
+  @keyframes dashFloat {
+    0%,100% { transform: translateY(0); }
+    50% { transform: translateY(-12px); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dash-edit-toolbar::before,
+    .dash-tb-primary::after,
+    .dash-empty::before,
+    .dash-root::after,
+    .dash-progress { animation: none !important; }
+    .dash-panel, .dash-tb-btn, .dash-tb-primary, .dash-layout-tab { transition: none !important; }
   }
 `;
 
-export default function DashboardMain({ sessionData, dowData, dirData, setupData, factorData, maxAbs, onNavigate }) {
+/* ------------------------------------------------------------------ */
+/*  Scroll Progress (small, matches landing)                           */
+/* ------------------------------------------------------------------ */
+function ScrollProgress() {
+  const [p, setP] = useState(0);
+  useEffect(() => {
+    const onScroll = () => {
+      const h = document.documentElement;
+      const max = h.scrollHeight - h.clientHeight;
+      setP(max > 0 ? (h.scrollTop / max) * 100 : 0);
+    };
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll);
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onScroll);
+    };
+  }, []);
+  return <div className="dash-progress" style={{ width: `${p}%` }} aria-hidden />;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Main                                                               */
+/* ------------------------------------------------------------------ */
+export default function DashboardMain({
+  sessionData, dowData, dirData, setupData, factorData, maxAbs, onNavigate,
+}) {
   const { state } = useAppContext();
   const { user } = useAuth();
   const { stats, metric } = useStats();
@@ -315,12 +684,46 @@ export default function DashboardMain({ sessionData, dowData, dirData, setupData
 
   const hydratedRef = useRef(false);
 
-  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < 900);
+  const [isMobile, setIsMobile] = useState(
+    () => typeof window !== 'undefined' && window.innerWidth < 900
+  );
   useEffect(() => {
     const h = () => setIsMobile(window.innerWidth < 900);
     window.addEventListener('resize', h);
     return () => window.removeEventListener('resize', h);
   }, []);
+
+  // ---- Mouse-tracked panel glow ----
+  useEffect(() => {
+    if (isMobile) return;
+    if (typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches) return;
+
+    let raf = 0;
+    let pending = null;
+
+    const apply = () => {
+      raf = 0;
+      if (!pending) return;
+      const { el, x, y } = pending;
+      pending = null;
+      el.style.setProperty('--mx', `${x}px`);
+      el.style.setProperty('--my', `${y}px`);
+    };
+
+    const onMove = (e) => {
+      const el = e.target?.closest?.('.dash-panel-outer');
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      pending = { el, x: e.clientX - r.left, y: e.clientY - r.top };
+      if (!raf) raf = requestAnimationFrame(apply);
+    };
+
+    window.addEventListener('mousemove', onMove, { passive: true });
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, [isMobile]);
 
   // ---- Cloud sync ----
   useEffect(() => {
@@ -443,15 +846,9 @@ export default function DashboardMain({ sessionData, dowData, dirData, setupData
   const deleteDraftLayout = (id) => {
     if (!draftLayouts || draftLayouts.length <= 1) return;
     const remaining = draftLayouts.filter((l) => l.id !== id);
-
-    // Renumber only layouts that still have their default auto-generated names.
-    // Custom user names are preserved.
     const renumbered = remaining.map((l, idx) =>
-      DEFAULT_NAME_PATTERN.test(l.name)
-        ? { ...l, name: makeLayoutName(idx) }
-        : l
+      DEFAULT_NAME_PATTERN.test(l.name) ? { ...l, name: makeLayoutName(idx) } : l
     );
-
     setDraftLayouts(renumbered);
     if (draftActiveId === id) {
       setDraftActiveId(renumbered[0].id);
@@ -526,42 +923,48 @@ export default function DashboardMain({ sessionData, dowData, dirData, setupData
   };
 
   return (
-    <div style={{ width: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
+    <div className="dash-root">
       <style>{CSS}</style>
+      <ScrollProgress />
 
       {!editMode && <DashboardHeader onCustomize={enterEdit} />}
 
       {!hasData ? (
-        <div style={{ minHeight: 'calc(100vh - 120px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 16px' }}>
-          <div style={{ backgroundColor: '#11151F', border: '1px solid #212836', borderRadius: '16px', padding: '48px 32px', maxWidth: '480px', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', fontFamily: "'Inter', sans-serif", boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)' }}>
-            <div style={{ width: '56px', height: '56px', borderRadius: '14px', backgroundColor: '#161B26', border: '1px solid #212836', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '20px' }}>
-              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#FFB020" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <div className="dash-empty-wrap">
+          <div className="dash-empty">
+            <div className="dash-empty-icon">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
                 <line x1="3" y1="9" x2="21" y2="9" />
                 <line x1="9" y1="21" x2="9" y2="9" />
               </svg>
             </div>
-            <h3 style={{ margin: '0 0 8px 0', fontSize: '18px', fontWeight: '600', color: '#E7E9EE' }}>No Trading Data Available</h3>
-            <p style={{ margin: '0 0 24px 0', fontSize: '13px', color: '#8892A3', lineHeight: '1.6' }}>
-              Log trades in your journal or adjust your active account filters to populate performance statistics and analytics.
+            <h3>No Trading Data Available</h3>
+            <p>
+              Log trades in your journal or adjust your active account filters to populate
+              performance statistics and analytics.
             </p>
-            <button type="button" style={{ backgroundColor: '#FFB020', color: '#0D1117', border: 'none', borderRadius: '8px', padding: '10px 20px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>Add Your First Trade</button>
+            <button type="button" className="dash-tb-primary">
+              Add Your First Trade →
+            </button>
           </div>
         </div>
       ) : (
         <>
           {editMode && draftLayouts && (
             <div className="dash-edit-toolbar">
-              <FaGripVertical style={{ color: '#FFB020', flexShrink: 0 }} size={16} />
+              <FaGripVertical style={{ color: '#F59E0B', flexShrink: 0, filter: 'drop-shadow(0 0 8px rgba(245,158,11,.6))' }} size={16} />
 
               <div style={{ flex: '0 0 auto', minWidth: '200px' }}>
-                <div style={{ fontSize: '13px', fontWeight: 600, color: '#E7E9EE' }}>Edit Dashboard</div>
-                <div style={{ fontSize: '11px', color: '#8892A3', marginTop: '2px' }}>
-                  Drag · resize · toggle · <b style={{ color: '#8892A3' }}>double-click a tab to rename</b>
+                <div style={{ fontSize: '13px', fontWeight: 700, color: '#E7E9EE', letterSpacing: '-.01em' }}>
+                  Edit Dashboard
+                </div>
+                <div style={{ fontSize: '11px', color: '#8892A3', marginTop: '3px' }}>
+                  Drag · resize · toggle ·{' '}
+                  <b style={{ color: '#F59E0B' }}>double-click a tab to rename</b>
                 </div>
               </div>
 
-              {/* Layout tabs + add + counter */}
               <div className="dash-layout-tabs">
                 {draftLayouts.map((l) => {
                   const isActive = l.id === draftActiveId;
@@ -619,7 +1022,11 @@ export default function DashboardMain({ sessionData, dowData, dirData, setupData
                   className="dash-layout-add"
                   onClick={addDraftLayout}
                   disabled={draftLayouts.length >= MAX_LAYOUTS}
-                  title={draftLayouts.length >= MAX_LAYOUTS ? `Maximum ${MAX_LAYOUTS} layouts` : 'Add new layout'}
+                  title={
+                    draftLayouts.length >= MAX_LAYOUTS
+                      ? `Maximum ${MAX_LAYOUTS} layouts`
+                      : 'Add new layout'
+                  }
                 >
                   <FaPlus size={10} />
                 </button>
@@ -631,21 +1038,21 @@ export default function DashboardMain({ sessionData, dowData, dirData, setupData
 
               <div style={{ flex: 1 }} />
 
-              <button onClick={handleReset} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 14px', background: 'transparent', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '8px', color: '#8892A3', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>
+              <button onClick={handleReset} className="dash-tb-btn">
                 <FaUndo size={11} /> Reset
               </button>
-              <button onClick={cancelEdit} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 14px', background: 'transparent', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '8px', color: '#8892A3', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>
+              <button onClick={cancelEdit} className="dash-tb-btn">
                 <FaTimes size={11} /> Cancel
               </button>
-              <button onClick={saveEdit} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '9px 18px', background: '#FFB020', border: 'none', borderRadius: '8px', color: '#0D1117', fontSize: '12.5px', fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 14px rgba(255,176,32,0.25)' }}>
+              <button onClick={saveEdit} className="dash-tb-primary">
                 <FaCheck size={11} /> Save Layout
               </button>
             </div>
           )}
 
           {!editMode && displayItems.length === 0 ? (
-            <div style={{ padding: '60px 20px', textAlign: 'center', fontFamily: 'var(--mono, monospace)', fontSize: '12px', color: 'var(--text-faint, #545E6E)' }}>
-              All panels are hidden. Click <b style={{ color: '#FFB020' }}>Customize</b> above to show some.
+            <div className="dash-allhidden">
+              All panels are hidden. Click <b>Customize</b> above to show some.
             </div>
           ) : (
             <div className={`dash-grid ${editMode ? 'dash-editing' : ''}`}>
@@ -668,7 +1075,7 @@ export default function DashboardMain({ sessionData, dowData, dirData, setupData
                   const hidden = editMode && item.visible === false;
                   return (
                     <div key={item.i}>
-                      <div className={`dash-panel ${editMode ? 'dash-editing' : ''} ${hidden ? 'dash-hidden' : ''}`}>
+                      <div className={`dash-panel dash-panel-outer ${editMode ? 'dash-editing' : ''} ${hidden ? 'dash-hidden' : ''}`}>
                         {editMode && (
                           <div className="dash-editor-overlay">
                             <div className="dash-editor-badge dash-editor-drag-area">
@@ -679,7 +1086,7 @@ export default function DashboardMain({ sessionData, dowData, dirData, setupData
                               onClick={(e) => { e.stopPropagation(); toggleVisible(item.i); }}
                               title={item.visible !== false ? 'Hide this panel' : 'Show this panel'}
                             >
-                              {item.visible !== false ? <FaEye size={11} /> : <FaEyeSlash size={11} />}
+                              {item.visible !== false ? <FaEye size={12} /> : <FaEyeSlash size={12} />}
                             </button>
                           </div>
                         )}
@@ -700,13 +1107,13 @@ export default function DashboardMain({ sessionData, dowData, dirData, setupData
             </div>
           )}
 
-          <div className="section-title" style={{ marginTop: '32px', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '10px', fontSize: '15px', fontWeight: '600', color: 'var(--text, #f0f2f5)' }}>
-            <span className="idx" style={{ width: '4px', height: '16px', background: 'var(--amber, #ffb020)', borderRadius: '2px', display: 'inline-block' }}></span>
+          <div className="dash-section-title">
+            <span className="bar" />
             Trade Log
-            <div className="line" style={{ flex: 1, height: '1px', background: 'var(--border-soft, rgba(255, 255, 255, 0.08))' }}></div>
+            <div className="line" />
           </div>
 
-          <div className="panel" style={{ background: 'var(--panel-bg, #12161f)', border: '1px solid var(--border-soft, rgba(255, 255, 255, 0.08))', borderRadius: '12px', padding: '14px', boxShadow: '0 8px 24px rgba(0, 0, 0, 0.2)', marginBottom: '24px', overflowX: 'auto' }}>
+          <div className="dash-tradelog">
             <TradeTable />
           </div>
 
@@ -717,17 +1124,64 @@ export default function DashboardMain({ sessionData, dowData, dirData, setupData
   );
 }
 
-// ---------- Panel shell (unchanged) ----------
+// ---------- Panel shell ----------
 function PanelContent({ id, isMoney, unitLabel, sessionData, dowData, dirData, onNavigate }) {
   const Panel = ({ title, note, children, padding }) => (
-    <div className="dash-panel" style={{ border: 'none', boxShadow: 'none', background: 'transparent', borderRadius: 0, height: '100%' }}>
+    <div
+      className="dash-panel-inner"
+      style={{
+        border: 'none',
+        boxShadow: 'none',
+        background: 'transparent',
+        borderRadius: 0,
+        height: '100%',
+        backdropFilter: 'none',
+        display: 'flex',
+        flexDirection: 'column',
+      }}
+    >
       {title && (
-        <div className="panel-head" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px 8px', borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
-          <span className="panel-title" style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text, #f0f2f5)' }}>{title}</span>
-          {note && <span className="panel-note" style={{ fontSize: '10px', fontFamily: 'var(--mono, monospace)', color: 'var(--text-dim, #8f9bba)' }}>{note}</span>}
+        <div
+          className="panel-head"
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            padding: '14px 18px 10px',
+            borderBottom: '1px solid rgba(255,255,255,.05)',
+            flexShrink: 0,
+          }}
+        >
+          <span
+            className="panel-title"
+            style={{
+              fontSize: '13.5px',
+              fontWeight: 700,
+              color: '#E7E9EE',
+              letterSpacing: '-.01em',
+            }}
+          >
+            {title}
+          </span>
+          {note && (
+            <span
+              className="panel-note"
+              style={{
+                fontSize: '10px',
+                fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
+                letterSpacing: '.06em',
+                color: '#F59E0B',
+                opacity: .8,
+              }}
+            >
+              {note}
+            </span>
+          )}
         </div>
       )}
-      <div className="dash-panel-body" style={padding ? { padding } : undefined}>{children}</div>
+      <div className="dash-panel-body" style={padding ? { padding } : undefined}>
+        {children}
+      </div>
     </div>
   );
 
@@ -735,26 +1189,72 @@ function PanelContent({ id, isMoney, unitLabel, sessionData, dowData, dirData, o
     case 'calendar':
       return (
         <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-          <div className="panel-head" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 16px 8px', borderBottom: '1px solid rgba(255, 255, 255, 0.05)', flexShrink: 0 }}>
-            <span className="panel-title" style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text, #f0f2f5)' }}>Monthly Calendar</span>
-            <span className="panel-note" style={{ fontSize: '10px', fontFamily: 'var(--mono, monospace)', color: 'var(--text-dim, #8f9bba)' }}>{isMoney ? 'Net P&L & Weekly' : 'Target R & Weekly'}</span>
+          <div
+            className="panel-head"
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '14px 18px 10px',
+              borderBottom: '1px solid rgba(255,255,255,.05)',
+              flexShrink: 0,
+            }}
+          >
+            <span
+              className="panel-title"
+              style={{
+                fontSize: '14px',
+                fontWeight: 700,
+                color: '#E7E9EE',
+                letterSpacing: '-.01em',
+              }}
+            >
+              Monthly Calendar
+            </span>
+            <span
+              className="panel-note"
+              style={{
+                fontSize: '10px',
+                fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
+                letterSpacing: '.06em',
+                color: '#F59E0B',
+                opacity: .8,
+              }}
+            >
+              {isMoney ? 'Net P&L & Weekly' : 'Target R & Weekly'}
+            </span>
           </div>
-          <div style={{ flex: 1, minHeight: 0, padding: '14px 16px', overflow: 'auto' }}>
+          <div style={{ flex: 1, minHeight: 0, padding: '14px 18px', overflow: 'auto' }}>
             <Calendar />
-            <div style={{ height: '20px' }}></div>
+            <div style={{ height: '20px' }} />
             <WeeklyChart />
           </div>
         </div>
       );
 
     case 'hero':
-      return <Panel padding={0}><Hero onNavigate={onNavigate} /></Panel>;
+      return (
+        <Panel padding={0}>
+          <Hero onNavigate={onNavigate} />
+        </Panel>
+      );
 
     case 'monthly':
-      return <Panel title={isMoney ? 'Monthly Net P&L' : 'Monthly R'} note={isMoney ? '$ per month' : 'R per month'}><MonthlyChart /></Panel>;
+      return (
+        <Panel
+          title={isMoney ? 'Monthly Net P&L' : 'Monthly R'}
+          note={isMoney ? '$ per month' : 'R per month'}
+        >
+          <MonthlyChart />
+        </Panel>
+      );
 
     case 'underwater':
-      return <Panel title="Underwater Curve" note="Drawdown from peak"><UnderwaterChart /></Panel>;
+      return (
+        <Panel title="Underwater Curve" note="Drawdown from peak">
+          <UnderwaterChart />
+        </Panel>
+      );
 
     case 'kpiGrid':
       return <Panel><KPIGrid /></Panel>;
@@ -766,7 +1266,14 @@ function PanelContent({ id, isMoney, unitLabel, sessionData, dowData, dirData, o
       return <Panel><DurationWidget /></Panel>;
 
     case 'rollingExpectancy':
-      return <Panel title="Rolling 20-Trade Expectancy" note={isMoney ? '$ per trade' : 'R per trade'}><RollingExpectancyChart /></Panel>;
+      return (
+        <Panel
+          title="Rolling 20-Trade Expectancy"
+          note={isMoney ? '$ per trade' : 'R per trade'}
+        >
+          <RollingExpectancyChart />
+        </Panel>
+      );
 
     case 'rrCompare':
       return (
@@ -781,16 +1288,43 @@ function PanelContent({ id, isMoney, unitLabel, sessionData, dowData, dirData, o
     case 'categoryCharts':
       return (
         <Panel>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '12px', height: '100%' }}>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+              gap: '12px',
+              height: '100%',
+            }}
+          >
             {[
               { title: 'Session', note: unitLabel, data: sessionData, horizontal: true },
               { title: 'Day of Week', note: unitLabel, data: dowData, horizontal: false },
               { title: 'Direction', note: 'Long/Short', data: dirData, horizontal: false },
             ].map((p) => (
               <div key={p.title} style={{ display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', paddingBottom: '6px', borderBottom: '1px solid rgba(255, 255, 255, 0.05)', flexShrink: 0 }}>
-                  <span style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text, #f0f2f5)' }}>{p.title}</span>
-                  <span style={{ fontSize: '10px', fontFamily: 'var(--mono, monospace)', color: 'var(--text-dim, #8f9bba)' }}>{p.note}</span>
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: '8px',
+                    paddingBottom: '6px',
+                    borderBottom: '1px solid rgba(255,255,255,.05)',
+                    flexShrink: 0,
+                  }}
+                >
+                  <span style={{ fontSize: '12px', fontWeight: 700, color: '#E7E9EE' }}>{p.title}</span>
+                  <span
+                    style={{
+                      fontSize: '10px',
+                      fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
+                      letterSpacing: '.06em',
+                      color: '#F59E0B',
+                      opacity: .8,
+                    }}
+                  >
+                    {p.note}
+                  </span>
                 </div>
                 <div style={{ flex: 1, minHeight: 0 }}>
                   <CategoryBarChart data={p.data} horizontal={p.horizontal} />

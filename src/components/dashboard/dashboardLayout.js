@@ -9,18 +9,20 @@ export const GRID_ROW_HEIGHT = ROW_HEIGHT;
 export const MAX_LAYOUTS = 3;
 
 export const DEFAULT_LAYOUT = [
+  // ---- Left column (x: 0) ----
   { i: 'calendar',           x: 0,  y: 0,  w: 14, h: 12, minW: 1, minH: 1, visible: true },
   { i: 'hero',               x: 0,  y: 12, w: 14, h: 7,  minW: 1, minH: 1, visible: true },
   { i: 'monthly',            x: 0,  y: 19, w: 6,  h: 5,  minW: 1, minH: 1, visible: true },
   { i: 'rollingExpectancy',  x: 6,  y: 19, w: 8,  h: 5,  minW: 1, minH: 1, visible: true },
-  { i: 'rrCompare',          x: 0,  y: 24, w: 24, h: 5,  minW: 1, minH: 1, visible: true },
+  { i: 'rrCompare',          x: 0,  y: 24, w: 14, h: 7,  minW: 1, minH: 1, visible: true },
 
-  { i: 'kpiGrid',            x: 14, y: 0,  w: 5,  h: 9,  minW: 1, minH: 1, visible: true },
-  { i: 'advancedKpiGrid',    x: 19, y: 0,  w: 5,  h: 6,  minW: 1, minH: 1, visible: true },
-  { i: 'durationWidget',     x: 19, y: 6,  w: 5,  h: 3,  minW: 1, minH: 1, visible: true },
-  { i: 'timeChart',          x: 14, y: 9,  w: 10, h: 6,  minW: 1, minH: 1, visible: true },
-  { i: 'underwater',         x: 14, y: 15, w: 10, h: 5,  minW: 1, minH: 1, visible: true },
-  { i: 'categoryCharts',     x: 14, y: 20, w: 10, h: 4,  minW: 1, minH: 1, visible: true },
+  // ---- Right column (x: 14) ----
+  { i: 'kpiGrid',            x: 14, y: 0,  w: 10, h: 5,  minW: 1, minH: 1, visible: true },
+  { i: 'advancedKpiGrid',    x: 14, y: 5,  w: 5,  h: 3,  minW: 1, minH: 1, visible: true },
+  { i: 'durationWidget',     x: 19, y: 5,  w: 5,  h: 3,  minW: 1, minH: 1, visible: true },
+  { i: 'timeChart',          x: 14, y: 8,  w: 10, h: 6,  minW: 1, minH: 1, visible: true },
+  { i: 'underwater',         x: 14, y: 14, w: 10, h: 5,  minW: 1, minH: 1, visible: true },
+  { i: 'categoryCharts',     x: 14, y: 19, w: 10, h: 4,  minW: 1, minH: 1, visible: true },
 ];
 
 export const PANEL_META = {

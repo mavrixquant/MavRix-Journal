@@ -12,11 +12,333 @@ import {
 import navLogo from '../../assets/navLOGO.png';
 
 const navItems = [
-  { id: 'dashboard', label: 'Dashboard', icon: <FaChartPie size={18} /> },
-  { id: 'journal', label: 'Journal', icon: <FaBook size={18} /> },
-  { id: 'accounts', label: 'Accounts', icon: <FaUsers size={18} /> },
-  { id: 'simulator', label: 'Simulator', icon: <FaProjectDiagram size={18} />, beta: true },
+  { id: 'dashboard', label: 'Dashboard', icon: <FaChartPie size={16} /> },
+  { id: 'journal',   label: 'Journal',   icon: <FaBook size={16} /> },
+  { id: 'accounts',  label: 'Accounts',  icon: <FaUsers size={16} /> },
+  { id: 'simulator', label: 'Simulator', icon: <FaProjectDiagram size={16} />, beta: true },
 ];
+
+/* ------------------------------------------------------------------ */
+/*  Scoped CSS — matches JournalMain / AccountsMain / modals           */
+/* ------------------------------------------------------------------ */
+const SB_CSS = `
+  .sb-root {
+    --accent: #F59E0B;
+    --accent-2: #FDE68A;
+    --accent-soft: rgba(245,158,11,.10);
+    --accent-soft2: rgba(245,158,11,.28);
+    --line: rgba(255,255,255,.085);
+    --line-soft: rgba(255,255,255,.05);
+    --ink-1: #E7E9EE;
+    --ink-2: #8892A3;
+    --ink-3: #545E6E;
+    --win: #22c55e;
+    --loss: #ef4444;
+
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    width: 240px;
+    background: linear-gradient(180deg, #0F121A 0%, #0A0D13 100%);
+    border-right: 1px solid var(--line);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    transition: width .4s cubic-bezier(.16,1,.3,1);
+    z-index: 1000;
+    user-select: none;
+    overflow: hidden;
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
+    color: var(--ink-1);
+    -webkit-font-smoothing: antialiased;
+  }
+  .sb-root.is-collapsed { width: 68px; }
+  .sb-root.is-open { box-shadow: 12px 0 40px -20px rgba(0,0,0,.75); }
+
+  /* Animated amber strip at the very top */
+  .sb-root::before {
+    content: '';
+    position: absolute;
+    left: 0; right: 0; top: 0; height: 2px;
+    background: linear-gradient(90deg, transparent, var(--accent), var(--accent-2), var(--accent), transparent);
+    background-size: 200% 100%;
+    animation: sbGrad 4s linear infinite;
+    pointer-events: none;
+    z-index: 2;
+    opacity: 0;
+    transition: opacity .3s ease;
+  }
+  .sb-root.is-open::before { opacity: 1; }
+
+  /* ---------- Header ---------- */
+  .sb-head {
+    height: 64px;
+    display: flex;
+    align-items: center;
+    padding: 0 18px;
+    border-bottom: 1px solid var(--line-soft);
+    justify-content: space-between;
+    flex-shrink: 0;
+    position: relative;
+  }
+  .sb-root.is-collapsed .sb-head {
+    justify-content: center;
+    padding: 0;
+  }
+
+  .sb-logo {
+    height: 44px;
+    width: auto;
+    object-fit: contain;
+    display: block;
+  }
+
+  .sb-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    color: var(--ink-2);
+    cursor: pointer;
+    padding: 0;
+    flex-shrink: 0;
+    transition: all .22s cubic-bezier(.2,.8,.25,1);
+  }
+  .sb-toggle:hover {
+    color: var(--accent);
+    background: rgba(245,158,11,.08);
+    border-color: var(--accent-soft2);
+    box-shadow: 0 0 18px -6px rgba(245,158,11,.5);
+  }
+  .sb-toggle:active { transform: scale(.94); }
+  .sb-toggle.is-expand {
+    width: 40px;
+    height: 40px;
+  }
+
+  /* ---------- Nav ---------- */
+  .sb-nav {
+    padding: 14px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .sb-root.is-collapsed .sb-nav { padding: 14px 8px; }
+
+  .sb-item {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    min-height: 42px;
+    padding: 0 14px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    color: var(--ink-2);
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 12.5px;
+    font-weight: 600;
+    letter-spacing: .02em;
+    cursor: pointer;
+    transition: all .22s cubic-bezier(.2,.8,.25,1);
+    outline: none;
+    text-align: left;
+    white-space: nowrap;
+  }
+  .sb-root.is-collapsed .sb-item {
+    justify-content: center;
+    padding: 0;
+  }
+
+  .sb-item:hover {
+    color: var(--ink-1);
+    background: rgba(255,255,255,.045);
+    border-color: rgba(255,255,255,.08);
+  }
+  .sb-item:active { transform: scale(.98); }
+
+  .sb-item.is-active {
+    color: var(--accent);
+    background: linear-gradient(90deg, rgba(245,158,11,.14), rgba(245,158,11,.04) 70%, transparent);
+    border-color: var(--accent-soft2);
+    box-shadow:
+      0 8px 24px -12px rgba(245,158,11,.55),
+      inset 0 1px 0 rgba(255,255,255,.04);
+  }
+  /* Amber bar on the left edge when active */
+  .sb-item.is-active::before {
+    content: '';
+    position: absolute;
+    left: -1px;
+    top: 8px;
+    bottom: 8px;
+    width: 3px;
+    border-radius: 0 3px 3px 0;
+    background: linear-gradient(180deg, var(--accent), var(--accent-2));
+    box-shadow: 0 0 12px rgba(245,158,11,.7);
+  }
+  .sb-root.is-collapsed .sb-item.is-active::before { display: none; }
+
+  .sb-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    color: inherit;
+    transition: transform .22s cubic-bezier(.2,.8,.25,1);
+  }
+  .sb-item:hover .sb-icon { transform: scale(1.06); }
+  .sb-item.is-active .sb-icon { filter: drop-shadow(0 0 8px rgba(245,158,11,.55)); }
+
+  .sb-label {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .sb-beta {
+    margin-left: auto;
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 8.5px;
+    font-weight: 700;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--blue);
+    background: rgba(11, 179, 245, 0.12);
+    border: 1px solid var(--blue-soft2);
+    border-radius: 4px;
+    padding: 1px 5px;
+    line-height: 1.4;
+    flex-shrink: 0;
+  }
+
+  /* ---------- Footer ---------- */
+  .sb-foot {
+    padding: 12px 10px 14px;
+    border-top: 1px solid var(--line-soft);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex-shrink: 0;
+    position: relative;
+  }
+  .sb-root.is-collapsed .sb-foot { padding: 12px 8px 14px; }
+
+  .sb-user {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 44px;
+    padding: 8px 12px;
+    border-radius: 10px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: all .22s cubic-bezier(.2,.8,.25,1);
+  }
+  .sb-user:hover {
+    background: rgba(255,255,255,.045);
+    border-color: rgba(255,255,255,.08);
+  }
+  .sb-root.is-collapsed .sb-user {
+    justify-content: center;
+    padding: 8px 0;
+  }
+
+  .sb-avatar {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, rgba(245,158,11,.18), rgba(245,158,11,.05));
+    border: 1px solid var(--accent-soft2);
+    color: var(--accent);
+    box-shadow: 0 0 20px -8px rgba(245,158,11,.5);
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-weight: 700;
+    font-size: 11px;
+  }
+
+  .sb-user-text {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+    overflow: hidden;
+  }
+  .sb-user-name {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--ink-1);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    letter-spacing: -.01em;
+  }
+  .sb-user-hint {
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 9.5px;
+    color: var(--ink-3);
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    font-weight: 700;
+  }
+
+  .sb-logout {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    min-height: 38px;
+    padding: 0 14px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    color: var(--ink-3);
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: .02em;
+    cursor: pointer;
+    transition: all .22s cubic-bezier(.2,.8,.25,1);
+    outline: none;
+    text-align: left;
+    white-space: nowrap;
+  }
+  .sb-root.is-collapsed .sb-logout {
+    justify-content: center;
+    padding: 0;
+  }
+  .sb-logout:hover {
+    color: #f87171;
+    background: rgba(239,68,68,.08);
+    border-color: rgba(239,68,68,.35);
+    box-shadow: 0 0 20px -8px rgba(239,68,68,.5);
+  }
+  .sb-logout:active { transform: scale(.98); }
+
+  /* ---------- Animations ---------- */
+  @keyframes sbGrad {
+    0%   { background-position: 0% 50%; }
+    100% { background-position: 200% 50%; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .sb-root, .sb-item, .sb-toggle, .sb-user, .sb-logout { transition: none !important; }
+    .sb-root::before { animation: none !important; }
+    .sb-icon { transition: none !important; }
+  }
+`;
 
 export default function Sidebar({
   isOpen,
@@ -28,66 +350,26 @@ export default function Sidebar({
   onAccountClick,
 }) {
   const displayName = user?.displayName || user?.email || 'User';
+  const initials = (displayName.match(/\b[A-Za-z]/g) || []).slice(0, 2).join('').toUpperCase() || 'U';
 
   return (
-    <aside
-      style={{
-        position: 'fixed', top: 0, left: 0, height: '100vh',
-        width: isOpen ? '240px' : '68px',
-        backgroundColor: '#11151F',
-        borderRight: '1px solid #212836',
-        display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
-        transition: 'width 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
-        boxShadow: isOpen ? '12px 0 32px rgba(0, 0, 0, 0.45)' : 'none',
-        zIndex: 1000, userSelect: 'none', overflow: 'hidden',
-        fontFamily: "'Inter', sans-serif",
-      }}
-    >
+    <aside className={`sb-root ${isOpen ? 'is-open' : 'is-collapsed'}`}>
+      <style>{SB_CSS}</style>
+
       <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
-        {/* Logo / Menu bar */}
-        <div
-          style={{
-            height: '64px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: isOpen ? 'space-between' : 'center',
-            padding: isOpen ? '0 18px' : '0',
-            borderBottom: '1px solid #1A2029',
-          }}
-        >
+        {/* Logo / toggle */}
+        <div className="sb-head">
           {isOpen ? (
             <>
-              <img
-                src={navLogo}
-                alt="Logo"
-                style={{ height: '46px', width: 'auto', objectFit: 'contain', display: 'block' }}
-              />
+              <img src={navLogo} alt="Logo" className="sb-logo" />
               <button
                 type="button"
                 onClick={onToggle}
                 title="Collapse sidebar"
                 aria-label="Collapse sidebar"
-                style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  width: '30px', height: '30px',
-                  background: 'transparent',
-                  border: 'none',
-                  borderRadius: '6px',
-                  color: '#8892A3',
-                  cursor: 'pointer',
-                  padding: 0,
-                  transition: 'color 0.15s ease, background-color 0.15s ease',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.color = '#FFB020';
-                  e.currentTarget.style.backgroundColor = 'rgba(255, 176, 32, 0.08)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.color = '#8892A3';
-                  e.currentTarget.style.backgroundColor = 'transparent';
-                }}
+                className="sb-toggle"
               >
-                <FaTimes size={16} />
+                <FaTimes size={15} />
               </button>
             </>
           ) : (
@@ -96,33 +378,15 @@ export default function Sidebar({
               onClick={onToggle}
               title="Expand sidebar"
               aria-label="Expand sidebar"
-              style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                width: '38px', height: '38px',
-                background: 'transparent',
-                border: 'none',
-                borderRadius: '8px',
-                color: '#8892A3',
-                cursor: 'pointer',
-                padding: 0,
-                transition: 'color 0.15s ease, background-color 0.15s ease',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.color = '#FFB020';
-                e.currentTarget.style.backgroundColor = 'rgba(255, 176, 32, 0.08)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.color = '#8892A3';
-                e.currentTarget.style.backgroundColor = 'transparent';
-              }}
+              className="sb-toggle is-expand"
             >
-              <FaBars size={18} />
+              <FaBars size={17} />
             </button>
           )}
         </div>
 
-        {/* Navigation items */}
-        <nav style={{ padding: '16px 8px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+        {/* Nav items */}
+        <nav className="sb-nav">
           {navItems.map((item) => {
             const isActive = item.id === activeTab;
             return (
@@ -131,55 +395,14 @@ export default function Sidebar({
                 type="button"
                 onClick={() => onTabChange(item.id)}
                 title={!isOpen ? item.label : undefined}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: '12px',
-                  width: '100%', height: '42px',
-                  padding: '0 14px',
-                  justifyContent: 'flex-start',
-                  backgroundColor: isActive ? 'rgba(255, 176, 32, 0.08)' : 'transparent',
-                  color: isActive ? '#FFB020' : '#8892A3',
-                  border: 'none',
-                  borderLeft: isActive ? '3px solid #FFB020' : '3px solid transparent',
-                  borderRadius: isOpen ? '0 8px 8px 0' : '8px',
-                  fontSize: '13px', fontWeight: isActive ? '600' : '500',
-                  cursor: 'pointer',
-                  transition: 'background-color 0.15s ease, color 0.15s ease, border-radius 0.15s ease',
-                  outline: 'none',
-                }}
-                onMouseEnter={(e) => { if (!isActive) { e.currentTarget.style.backgroundColor = '#161B26'; e.currentTarget.style.color = '#E7E9EE'; } }}
-                onMouseLeave={(e) => { if (!isActive) { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#8892A3'; } }}
+                className={`sb-item ${isActive ? 'is-active' : ''}`}
               >
-                <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: isActive ? '#FFB020' : '#8892A3', flexShrink: 0 }}>
-                  {item.icon}
-                </span>
+                <span className="sb-icon">{item.icon}</span>
 
                 {isOpen && (
                   <>
-                    <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {item.label}
-                    </span>
-
-                    {item.beta && (
-                      <span
-                        style={{
-                          marginLeft: 'auto',
-                          fontSize: '8.5px',
-                          fontWeight: 700,
-                          letterSpacing: '0.08em',
-                          textTransform: 'uppercase',
-                          color: '#FFB020',
-                          background: 'rgba(255, 176, 32, 0.12)',
-                          border: '1px solid rgba(255, 176, 32, 0.35)',
-                          borderRadius: '4px',
-                          padding: '1px 5px',
-                          lineHeight: 1.4,
-                          flexShrink: 0,
-                          fontFamily: "'IBM Plex Mono', monospace",
-                        }}
-                      >
-                        Beta
-                      </span>
-                    )}
+                    <span className="sb-label">{item.label}</span>
+                    {item.beta && <span className="sb-beta">Beta</span>}
                   </>
                 )}
               </button>
@@ -188,54 +411,29 @@ export default function Sidebar({
         </nav>
       </div>
 
-      {/* Footer — account + logout */}
-      <div style={{ padding: '12px 8px', borderTop: '1px solid #1A2029', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+      {/* Footer — user + logout */}
+      <div className="sb-foot">
         <div
+          className="sb-user"
           onClick={onAccountClick}
           title={!isOpen ? displayName : undefined}
-          style={{
-            display: 'flex', alignItems: 'center', gap: '10px',
-            padding: '8px 14px',
-            justifyContent: 'flex-start',
-            borderRadius: '8px',
-            cursor: 'pointer',
-            transition: 'background-color 0.15s ease',
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#161B26')}
-          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
         >
-          <FaUserCircle size={20} style={{ color: '#8892A3', flexShrink: 0 }} />
+          <span className="sb-avatar">{initials}</span>
           {isOpen && (
-            <div style={{ overflow: 'hidden', flex: 1 }}>
-              <div style={{ fontSize: '12px', fontWeight: '600', color: '#E7E9EE', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {displayName}
-              </div>
+            <div className="sb-user-text">
+              <span className="sb-user-name">{displayName}</span>
+              <span className="sb-user-hint">Account</span>
             </div>
           )}
         </div>
 
         <button
           type="button"
+          className="sb-logout"
           onClick={onLogout}
           title="Logout"
-          style={{
-            display: 'flex', alignItems: 'center', gap: '10px',
-            width: '100%', height: '36px',
-            padding: '0 14px',
-            justifyContent: 'flex-start',
-            backgroundColor: 'transparent',
-            color: '#545E6E',
-            border: 'none',
-            borderRadius: '8px',
-            fontSize: '12px', fontWeight: '500',
-            cursor: 'pointer',
-            transition: 'background-color 0.15s ease, color 0.15s ease',
-            outline: 'none',
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255, 92, 92, 0.12)'; e.currentTarget.style.color = '#FF5C5C'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#545E6E'; }}
         >
-          <FaSignOutAlt size={16} style={{ flexShrink: 0 }} />
+          <FaSignOutAlt size={15} style={{ flexShrink: 0 }} />
           {isOpen && <span>Logout</span>}
         </button>
       </div>

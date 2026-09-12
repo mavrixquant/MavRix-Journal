@@ -9,27 +9,333 @@ import { runMonteCarlo, summarizeMC } from '../../utils/monteCarlo';
 import SimulatorControls from './SimulatorControls';
 import SimulatorPanels from './SimulatorPanels';
 
-const COLORS = {
-  amber: '#FFB020',
-  win: '#35C4A1',
-  loss: '#FF5C5C',
-  text: '#94A3B8',
-  textMuted: '#64748B',
-  textLight: '#F8FAFC',
-  panel: '#0F172A',
-  panelBorder: '#1E293B',
-  accent: '#6366F1',
-};
+const randomSeed = () => Math.floor(Math.random() * 1e9);
+
+/* CSS unchanged from previous version — kept identical so the page shell doesn't change */
+const SIM_CSS = `
+  .sim-page {
+    --accent: #F59E0B;
+    --accent-2: #FDE68A;
+    --accent-soft: rgba(245,158,11,.10);
+    --accent-soft2: rgba(245,158,11,.28);
+    --line: rgba(255,255,255,.085);
+    --line-soft: rgba(255,255,255,.05);
+    --ink-1: #E7E9EE;
+    --ink-2: #8892A3;
+    --ink-3: #545E6E;
+    --win: #22c55e;
+    --loss: #ef4444;
+
+    padding: 24px;
+    width: 100%;
+    max-width: 1560px;
+    margin: 0 auto;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+    color: var(--ink-1);
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .sim-card {
+    position: relative;
+    border-radius: 18px;
+    background: linear-gradient(180deg, rgba(15,18,25,.72), rgba(15,18,25,.55));
+    backdrop-filter: blur(18px) saturate(140%);
+    -webkit-backdrop-filter: blur(18px) saturate(140%);
+    border: 1px solid var(--line);
+    box-shadow:
+      0 20px 50px -30px rgba(0,0,0,.9),
+      inset 0 1px 0 rgba(255,255,255,.03);
+    overflow: hidden;
+  }
+
+  .sim-head {
+    padding: 18px 22px 16px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+  }
+  .sim-head::before {
+    content: '';
+    position: absolute;
+    left: 0; right: 0; top: 0; height: 2px;
+    border-radius: 18px 18px 0 0;
+    background: linear-gradient(90deg, transparent, var(--accent), var(--accent-2), var(--accent), transparent);
+    background-size: 200% 100%;
+    animation: simGrad 4s linear infinite;
+    pointer-events: none;
+  }
+  .sim-head-left {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+  }
+  .sim-eyebrow {
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+  .sim-title-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .sim-title {
+    margin: 0;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -.02em;
+    color: var(--ink-1);
+    line-height: 1.1;
+  }
+  .sim-badge {
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    padding: 3px 10px;
+    border-radius: 99px;
+    border: 1px solid;
+    white-space: nowrap;
+  }
+  .sim-badge.is-live {
+    color: #4ade80;
+    background: rgba(74,222,128,.10);
+    border-color: rgba(74,222,128,.35);
+  }
+  .sim-badge.is-demo {
+    color: var(--accent);
+    background: rgba(245,158,11,.10);
+    border-color: var(--accent-soft2);
+  }
+  .sim-badge.is-backtest {
+    color: #60a5fa;
+    background: rgba(96,165,250,.10);
+    border-color: rgba(96,165,250,.32);
+  }
+  .sim-sub {
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 12px;
+    color: var(--ink-2);
+    letter-spacing: .01em;
+  }
+  .sim-sub b { color: var(--ink-1); font-weight: 700; }
+
+  .sim-ctx {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 6px 6px 14px;
+    background: rgba(0,0,0,.22);
+    border: 1px solid var(--line-soft);
+    border-radius: 12px;
+    backdrop-filter: blur(8px);
+  }
+  .sim-ctx-label {
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    white-space: nowrap;
+  }
+  .sim-ctx-select {
+    padding: 8px 30px 8px 12px;
+    background: rgba(10,13,19,.6);
+    border: 1px solid rgba(255,255,255,.1);
+    border-radius: 9px;
+    color: var(--ink-1);
+    font-size: 12.5px;
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-weight: 600;
+    cursor: pointer;
+    outline: none;
+    min-width: 210px;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 20 20' fill='%23545E6E'><path d='M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    transition: all .2s;
+  }
+  .sim-ctx-select:hover { border-color: rgba(255,255,255,.2); }
+  .sim-ctx-select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(245,158,11,.15);
+  }
+
+  .sim-empty-wrap {
+    min-height: calc(100vh - 160px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 16px;
+  }
+  .sim-empty {
+    position: relative;
+    max-width: 520px;
+    width: 100%;
+    padding: 56px 40px 48px;
+    border-radius: 26px;
+    background:
+      radial-gradient(400px 220px at 50% 0%, rgba(245,158,11,.12), transparent 70%),
+      linear-gradient(180deg, rgba(15,18,25,.72), rgba(15,18,25,.55));
+    border: 1px solid rgba(255,255,255,.1);
+    box-shadow:
+      0 40px 90px -50px rgba(245,158,11,.5),
+      inset 0 1px 0 rgba(255,255,255,.04);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    overflow: hidden;
+  }
+  .sim-empty::before {
+    content: '';
+    position: absolute;
+    left: -40%; top: -40%;
+    width: 180%; height: 180%;
+    background: radial-gradient(circle at 50% 50%, rgba(245,158,11,.08), transparent 45%);
+    animation: simFloat 8s ease-in-out infinite;
+    pointer-events: none;
+  }
+  .sim-empty > * { position: relative; z-index: 1; }
+  .sim-empty-icon {
+    width: 64px;
+    height: 64px;
+    border-radius: 18px;
+    background: linear-gradient(135deg, rgba(245,158,11,.18), rgba(245,158,11,.05));
+    border: 1px solid var(--accent-soft2);
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 22px;
+    box-shadow: 0 0 40px -8px rgba(245,158,11,.5);
+    font-size: 24px;
+  }
+  .sim-empty h3 {
+    margin: 0 0 10px;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--ink-1);
+    letter-spacing: -.02em;
+  }
+  .sim-empty p {
+    margin: 0;
+    font-size: 13.5px;
+    color: rgba(255,255,255,.62);
+    line-height: 1.65;
+    max-width: 400px;
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    letter-spacing: .01em;
+  }
+  .sim-empty p b { color: var(--accent); font-weight: 700; }
+
+  .sim-loading {
+    padding: 60px 20px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    color: var(--ink-2);
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 12.5px;
+    letter-spacing: .02em;
+  }
+  .sim-spinner {
+    width: 28px;
+    height: 28px;
+    border: 2.5px solid var(--line);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: simSpin .8s linear infinite;
+  }
+
+  .sim-info {
+    padding: 48px 24px;
+    text-align: center;
+    border: 1px dashed rgba(255,255,255,.1);
+    border-radius: 18px;
+    background: linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,.005));
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+  .sim-info-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+    background: rgba(245,158,11,.10);
+    border: 1px solid var(--accent-soft2);
+    color: var(--accent);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    margin-bottom: 4px;
+  }
+  .sim-info-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--ink-1);
+    letter-spacing: -.01em;
+  }
+  .sim-info-title b { color: var(--accent); }
+  .sim-info-desc {
+    font-size: 12.5px;
+    color: var(--ink-2);
+    max-width: 420px;
+    line-height: 1.65;
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    letter-spacing: .01em;
+  }
+  .sim-info-desc b { color: var(--ink-1); }
+
+  @keyframes simGrad {
+    0%   { background-position: 0% 50%; }
+    100% { background-position: 200% 50%; }
+  }
+  @keyframes simFloat {
+    0%,100% { transform: translateY(0); }
+    50%     { transform: translateY(-12px); }
+  }
+  @keyframes simSpin {
+    to { transform: rotate(360deg); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .sim-head::before, .sim-empty::before, .sim-spinner { animation: none !important; }
+  }
+
+  @media (max-width: 640px) {
+    .sim-page { padding: 16px; }
+    .sim-head { padding: 16px 18px; }
+    .sim-ctx-select { min-width: 0; width: 100%; }
+    .sim-ctx { width: 100%; }
+  }
+`;
 
 export default function SimulatorPage() {
   const { state } = useAppContext();
 
-  // ---- Independent account selection (does NOT follow the Dashboard) ----
   const [simAccountId, setSimAccountId] = useState('');
   const [initialized, setInitialized] = useState(false);
 
-  // One-time initialization from the Dashboard's current account,
-  // then the Simulator manages its own selection independently.
   useEffect(() => {
     if (!initialized && state.accounts.length > 0) {
       const preferred = state.selectedAccountId || state.accounts[0].id;
@@ -38,7 +344,6 @@ export default function SimulatorPage() {
     }
   }, [state.accounts, state.selectedAccountId, initialized]);
 
-  // ---- Local trade stream for the selected account ----
   const [simTrades, setSimTrades] = useState([]);
   const [loadingTrades, setLoadingTrades] = useState(false);
 
@@ -61,25 +366,42 @@ export default function SimulatorPage() {
   const metric = useMemo(() => getMetricMode(simAccount), [simAccount]);
   const isMoney = metric === '$';
 
-  // Local stats derived from the Simulator's own account
   const stats = useMemo(
     () => computeStats(simTrades, state.currentR, simAccount),
     [simTrades, state.currentR, simAccount]
   );
 
-  // ---- Simulation state ----
+  // ---- State --------------------------------------------------------------
   const [method, setMethod] = useState('permutation');
   const [runs, setRuns] = useState(1000);
-  const [ruinThreshold, setRuinThreshold] = useState(isMoney ? -1000 : -10);
+  const [blockSize, setBlockSize] = useState(5);
+  const [seed, setSeed] = useState(randomSeed);
+
+  // Starting capital — used for % drawdown and ruin defaults
+  const initialCapital = useMemo(() => {
+    const bal = Number(simAccount?.balance);
+    return Number.isFinite(bal) && bal > 0 ? bal : 0;
+  }, [simAccount]);
+
+  // Ruin threshold: 20% of starting capital in $ mode; -10R in R mode
+  const defaultRuin = useMemo(
+    () => isMoney
+      ? (initialCapital > 0 ? -initialCapital * 0.20 : -1000)
+      : -10,
+    [isMoney, initialCapital]
+  );
+
+  const [ruinThreshold, setRuinThreshold] = useState(defaultRuin);
+
   const [result, setResult] = useState(null);
   const [isRunning, setIsRunning] = useState(false);
   const [tab, setTab] = useState('overview');
 
-  // Reset when account changes
+  // Reset when account or unit mode changes
   useEffect(() => {
     setResult(null);
-    setRuinThreshold(isMoney ? -1000 : -10);
-  }, [simAccountId, isMoney]);
+    setRuinThreshold(defaultRuin);
+  }, [simAccountId, isMoney, defaultRuin]);
 
   const scores = useMemo(
     () => (stats?.outcomes || []).map(o => o.score ?? 0),
@@ -92,16 +414,33 @@ export default function SimulatorPage() {
   }, [stats]);
 
   const targets = useMemo(
-    () => isMoney ? [500, 1000, 2500, 5000] : [5, 10, 20, 50],
-    [isMoney]
+    () => isMoney
+      ? [
+          initialCapital > 0 ? initialCapital * 0.05 : 500,
+          initialCapital > 0 ? initialCapital * 0.10 : 1000,
+          initialCapital > 0 ? initialCapital * 0.25 : 2500,
+          initialCapital > 0 ? initialCapital * 0.50 : 5000,
+        ]
+      : [5, 10, 20, 50],
+    [isMoney, initialCapital]
   );
 
+  // ---- Run ---------------------------------------------------------------
   const run = useCallback(() => {
     if (scores.length < 5) return;
     setIsRunning(true);
     setTimeout(() => {
       try {
-        const res = runMonteCarlo(scores, { method, runs, seed: 42, ruinThreshold, targets });
+        const res = runMonteCarlo(scores, {
+          method,
+          runs,
+          seed,
+          ruinThreshold: Number.isFinite(ruinThreshold) ? ruinThreshold : null,
+          targets,
+          initialCapital,
+          blockSize,
+        });
+        if (res) res.unitMode = isMoney ? '$' : 'R';
         setResult(res);
       } catch (err) {
         console.error('[Simulator] error:', err);
@@ -110,45 +449,57 @@ export default function SimulatorPage() {
         setIsRunning(false);
       }
     }, 20);
-  }, [scores, method, runs, ruinThreshold, targets]);
+  }, [scores, method, runs, seed, ruinThreshold, targets, initialCapital, blockSize, isMoney]);
 
-  // Auto-run once trades load and we have enough data
+  // Auto-run on data load
   useEffect(() => {
-    if (scores.length >= 5 && !result && !isRunning && !loadingTrades) run();
+    if (scores.length >= 5 && !loadingTrades) {
+      run();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scores.length, loadingTrades]);
+  }, [scores.length, loadingTrades, simAccountId]);
 
-  // Re-run when method or runs change (only if we already have a result)
+  // Re-run when any knob changes and we already have a result
   useEffect(() => {
-    if (result && (result.method !== method || result.runs !== runs)) run();
+    if (result) run();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [method, runs]);
+  }, [method, runs, seed, ruinThreshold, blockSize]);
 
   const summary = useMemo(() => summarizeMC(result), [result]);
 
+  // ---- Export ------------------------------------------------------------
   const handleExport = () => {
     if (!result || !summary) return;
+    const fmt = (v) => v == null || Number.isNaN(v) ? '' : v.toFixed(4);
     const rows = [
       ['Monte Carlo Export'],
+      ['Generated', new Date().toISOString()],
       ['Account', simAccount?.name || ''],
       ['Account Type', simAccount?.type || ''],
+      ['Unit Mode', result.unitMode || ''],
       ['Method', result.method],
       ['Runs', result.runs],
-      ['Trades', result.n],
+      ['Trades per Run', result.n],
+      ['Seed', result.seed],
+      ['Block Size', result.method === 'block' ? result.blockSize : ''],
+      ['Starting Capital', result.initialCapital || ''],
       ['Ruin Threshold', result.ruinThreshold ?? 'none'],
       [],
       ['Metric', '5th %ile', '25th %ile', 'Median', '75th %ile', '95th %ile'],
-      ['Final Equity', summary.p5Final, summary.p25Final, summary.medianFinal, summary.p75Final, summary.p95Final],
-      ['Max Drawdown', summary.maxDD_p5, summary.maxDD_p25, summary.maxDD_p50, summary.maxDD_p75, summary.maxDD_p95],
-      ['Sharpe', summary.sharpe_p5, '', summary.sharpe_p50, '', summary.sharpe_p95],
-      ['Sortino (median)', '', '', summary.sortino_p50, '', ''],
-      ['Profit Factor (median)', '', '', summary.pf_p50, '', ''],
-      ['Expectancy (median)', '', '', summary.exp_p50, '', ''],
-      ['Win Rate % (median)', '', '', summary.win_p50, '', ''],
+      ['Final Equity',  fmt(summary.p5Final),  fmt(summary.p25Final), fmt(summary.medianFinal), fmt(summary.p75Final), fmt(summary.p95Final)],
+      ['Max Drawdown',  fmt(summary.maxDD_p5), fmt(summary.maxDD_p25), fmt(summary.maxDD_p50), fmt(summary.maxDD_p75), fmt(summary.maxDD_p95)],
+      ['Max DD % of Capital', fmt(summary.maxDDPct_p5), '', fmt(summary.maxDDPct_p50), '', fmt(summary.maxDDPct_p95)],
+      ['Sharpe',        fmt(summary.sharpe_p5), '', fmt(summary.sharpe_p50), '', fmt(summary.sharpe_p95)],
+      ['Sortino (median)', '', '', fmt(summary.sortino_p50), '', ''],
+      ['Profit Factor (median)', '', '', fmt(summary.pf_p50), '', ''],
+      ['Expectancy (median)', '', '', fmt(summary.exp_p50), '', ''],
+      ['Win Rate % (median)', '', '', fmt(summary.win_p50), '', ''],
       [],
-      ['P(Profit)', summary.profitPct.toFixed(2) + '%'],
-      ['Risk of Ruin', summary.ruinPct.toFixed(2) + '%'],
+      ['P(Profit)', summary.profitPct.toFixed(2) + '%', `${summary.profitCount}/${result.runs}`],
+      ['Risk of Ruin', summary.ruinPct.toFixed(2) + '%', `${summary.ruinCount}/${result.runs}`],
+      ['Longest Win Streak (median)', summary.winStreak_p50],
       ['Longest Win Streak (95th)', summary.winStreak_p95],
+      ['Longest Loss Streak (median)', summary.lossStreak_p50],
       ['Longest Loss Streak (95th)', summary.lossStreak_p95],
     ];
     const csv = rows.map(r => r.map(v => {
@@ -159,7 +510,7 @@ export default function SimulatorPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `monte-carlo-${result.method}-${result.runs}.csv`;
+    a.download = `monte-carlo-${result.method}-${result.runs}-seed${result.seed}.csv`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -168,259 +519,169 @@ export default function SimulatorPage() {
 
   const canRun = scores.length >= 5;
 
-  // ---- No accounts at all ----
-  if (state.accounts.length === 0) {
-    return (
-      <div style={{
-        minHeight: 'calc(100vh - 120px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '40px 16px',
-        background: 'radial-gradient(circle at top, rgba(99, 102, 241, 0.05) 0%, transparent 70%)'
-      }}>
-        <div style={{
-          maxWidth: '440px',
-          width: '100%',
-          padding: '40px 32px',
-          background: 'rgba(15, 23, 42, 0.75)',
-          backdropFilter: 'blur(12px)',
-          border: `1px solid ${COLORS.panelBorder}`,
-          borderRadius: '20px',
-          textAlign: 'center',
-          boxShadow: '0 20px 40px rgba(0, 0, 0, 0.3)'
-        }}>
-          <div style={{
-            width: '48px',
-            height: '48px',
-            borderRadius: '12px',
-            background: 'rgba(99, 102, 241, 0.1)',
-            border: '1px solid rgba(99, 102, 241, 0.2)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            margin: '0 auto 20px',
-            color: COLORS.accent
-          }}>
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 12V7H5a2 2 0 0 1 0-4h14v4" />
-              <path d="M3 5v14a2 2 0 0 0 2 2h16v-5" />
-              <path d="M18 12a2 2 0 0 0 0 4h4v-4z" />
-            </svg>
-          </div>
-          <h3 style={{ margin: '0 0 8px', fontSize: '18px', fontWeight: 600, color: COLORS.textLight, tracking: '-0.01em' }}>
-            No accounts configured
-          </h3>
-          <p style={{ margin: 0, fontSize: '14px', color: COLORS.text, lineHeight: 1.6 }}>
-            Create or sync a trading account in the Accounts tab to generate Monte Carlo probabilistic scenarios.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  // ---- Loading trades ----
-  if (loadingTrades && !canRun) {
-    return (
-      <div style={{
-        minHeight: 'calc(100vh - 120px)',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: '16px',
-        color: COLORS.text,
-        fontFamily: "'JetBrains Mono', 'IBM Plex Mono', monospace",
-        fontSize: '13px'
-      }}>
-        <div style={{
-          width: '32px',
-          height: '32px',
-          border: `2px solid ${COLORS.panelBorder}`,
-          borderTopColor: COLORS.accent,
-          borderRadius: '50%',
-          animation: 'spin 0.8s linear infinite'
-        }} />
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-        <span>Fetching market execution history…</span>
-      </div>
-    );
-  }
-
-  // ---- Not enough trades ----
-  if (!canRun) {
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
-          <div>
-            <h1 style={{ margin: 0, fontSize: '26px', fontWeight: 700, color: COLORS.textLight, letterSpacing: '-0.02em' }}>
-              Monte Carlo Simulator
-            </h1>
-            <p style={{ margin: '6px 0 0', fontSize: '13px', color: COLORS.text }}>
-              Simulate sequence variations without mutating active session states.
-            </p>
-          </div>
-          <AccountSelector accounts={state.accounts} value={simAccountId} onChange={setSimAccountId} />
-        </div>
-
-        <div style={{
-          padding: '48px 24px',
-          textAlign: 'center',
-          background: 'rgba(15, 23, 42, 0.6)',
-          backdropFilter: 'blur(8px)',
-          border: `1px dashed ${COLORS.panelBorder}`,
-          borderRadius: '16px',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: '12px'
-        }}>
-          <span style={{ fontSize: '24px' }}>📊</span>
-          <div style={{ fontSize: '14px', fontWeight: 600, color: COLORS.textLight }}>
-            Insufficient Data for <span style={{ color: COLORS.amber }}>{simAccount?.name || 'Account'}</span>
-          </div>
-          <div style={{ fontSize: '13px', color: COLORS.text, maxWidth: '400px', lineHeight: 1.5 }}>
-            A minimum of 5 trades is required to build a statistical distribution curve. Currently recorded: <b>{scores.length}</b>.
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ---- Full simulator ----
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-      {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '6px' }}>
-            <h1 style={{ margin: 0, fontSize: '26px', fontWeight: 700, color: COLORS.textLight, letterSpacing: '-0.02em' }}>
-              Monte Carlo Simulator
-            </h1>
-            {simAccount && (
-              <span style={{
-                padding: '3px 10px',
-                borderRadius: '9999px',
-                fontSize: '11px',
-                fontWeight: 600,
-                letterSpacing: '0.05em',
-                background: simAccount.type === 'Backtest' ? 'rgba(148, 163, 184, 0.1)' : 'rgba(53, 196, 161, 0.12)',
-                color: simAccount.type === 'Backtest' ? COLORS.text : COLORS.win,
-                border: `1px solid ${simAccount.type === 'Backtest' ? 'rgba(148, 163, 184, 0.2)' : 'rgba(53, 196, 161, 0.3)'}`,
-                boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-              }}>
-                {simAccount.type}
-              </span>
-            )}
-          </div>
-          <p style={{ margin: 0, fontSize: '13px', color: COLORS.text }}>
-            <span style={{ color: COLORS.textLight, fontWeight: 600 }}>{stats.n}</span> executions loaded · Model Mode: <span style={{ color: COLORS.textLight, fontWeight: 600 }}>{isMoney ? 'Net Cash P&L' : 'R-Multiple Shift'}</span>
-          </p>
-        </div>
-        <AccountSelector accounts={state.accounts} value={simAccountId} onChange={setSimAccountId} />
-      </div>
-
-      {/* Controls */}
-      <SimulatorControls
-        method={method} setMethod={setMethod}
-        runs={runs} setRuns={setRuns}
-        ruinThreshold={ruinThreshold} setRuinThreshold={setRuinThreshold}
-        isRunning={isRunning}
-        onRun={run}
-        onExport={handleExport}
-        hasResult={!!result}
-      />
-
-      {/* Loading state */}
-      {isRunning && !result && (
-        <div style={{
-          padding: '60px 20px',
-          textAlign: 'center',
-          color: COLORS.text,
-          fontFamily: "'JetBrains Mono', 'IBM Plex Mono', monospace",
-          fontSize: '13px',
-          background: 'rgba(15, 23, 42, 0.6)',
-          backdropFilter: 'blur(8px)',
-          border: `1px solid ${COLORS.panelBorder}`,
-          borderRadius: '16px',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: '12px'
-        }}>
-          <div style={{
-            width: '28px',
-            height: '28px',
-            border: `2px solid ${COLORS.panelBorder}`,
-            borderTopColor: COLORS.accent,
-            borderRadius: '50%',
-            animation: 'spin 0.8s linear infinite'
-          }} />
-          <span>Simulating {runs.toLocaleString()} reshuffled equity paths…</span>
-        </div>
-      )}
-
-      {/* Panels */}
-      {result && summary && (
-        <SimulatorPanels
-          result={result}
-          summary={summary}
-          isMoney={isMoney}
-          actualCurve={actualCurve}
-          tab={tab}
-          setTab={setTab}
-        />
-      )}
-    </div>
-  );
-}
-
-// ---------- Shared account selector ----------
-
-function AccountSelector({ accounts, value, onChange }) {
-  return (
-    <div style={{
-      display: 'flex',
-      alignItems: 'center',
-      gap: '10px',
-      background: 'rgba(15, 23, 42, 0.6)',
-      padding: '6px 6px 6px 14px',
-      borderRadius: '12px',
-      border: `1px solid ${COLORS.panelBorder}`,
-      backdropFilter: 'blur(8px)'
-    }}>
-      <span style={{
-        fontSize: '11px',
-        fontWeight: 700,
-        color: COLORS.textMuted,
-        textTransform: 'uppercase',
-        letterSpacing: '0.06em'
-      }}>
-        Context
-      </span>
+  const renderAccountSelector = () => (
+    <div className="sim-ctx">
+      <span className="sim-ctx-label">Context</span>
       <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        style={{
-          padding: '8px 12px',
-          background: '#090D16',
-          border: `1px solid ${COLORS.panelBorder}`,
-          borderRadius: '8px',
-          color: COLORS.textLight,
-          fontSize: '13px',
-          fontWeight: 600,
-          cursor: 'pointer',
-          outline: 'none',
-          minWidth: '200px',
-          transition: 'all 0.15s ease'
-        }}
+        className="sim-ctx-select"
+        value={simAccountId}
+        onChange={(e) => setSimAccountId(e.target.value)}
       >
-        {accounts.map(acc => (
+        {state.accounts.map(acc => (
           <option key={acc.id} value={acc.id}>
             {acc.name} ({acc.type})
           </option>
         ))}
       </select>
     </div>
+  );
+
+  // ---- No accounts -------------------------------------------------------
+  if (state.accounts.length === 0) {
+    return (
+      <>
+        <style>{SIM_CSS}</style>
+        <div className="sim-page">
+          <div className="sim-empty-wrap">
+            <div className="sim-empty">
+              <div className="sim-empty-icon">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 12V7H5a2 2 0 0 1 0-4h14v4" />
+                  <path d="M3 5v14a2 2 0 0 0 2 2h16v-5" />
+                  <path d="M18 12a2 2 0 0 0 0 4h4v-4z" />
+                </svg>
+              </div>
+              <h3>No accounts configured</h3>
+              <p>
+                Create or sync a trading account in the <b>Accounts</b> tab to generate
+                Monte Carlo probabilistic scenarios.
+              </p>
+            </div>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  // ---- Loading -----------------------------------------------------------
+  if (loadingTrades && !canRun) {
+    return (
+      <>
+        <style>{SIM_CSS}</style>
+        <div className="sim-page">
+          <div className="sim-loading" style={{ minHeight: 'calc(100vh - 120px)', justifyContent: 'center' }}>
+            <div className="sim-spinner" />
+            <span>Fetching market execution history…</span>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  // ---- Insufficient data -------------------------------------------------
+  if (!canRun) {
+    return (
+      <>
+        <style>{SIM_CSS}</style>
+        <div className="sim-page">
+          <div className="sim-card sim-head">
+            <div className="sim-head-left">
+              <span className="sim-eyebrow">Analysis</span>
+              <div className="sim-title-row">
+                <h1 className="sim-title">Monte Carlo Simulator</h1>
+              </div>
+              <span className="sim-sub">
+                Simulate sequence variations without mutating active session states.
+              </span>
+            </div>
+            {renderAccountSelector()}
+          </div>
+
+          <div className="sim-info">
+            <div className="sim-info-icon">📊</div>
+            <div className="sim-info-title">
+              Insufficient Data for <b>{simAccount?.name || 'Account'}</b>
+            </div>
+            <div className="sim-info-desc">
+              A minimum of 5 trades is required to build a statistical distribution curve.
+              Currently recorded: <b>{scores.length}</b>.
+            </div>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  // ---- Full simulator ----------------------------------------------------
+  const badgeClass = simAccount?.type === 'Live'
+    ? 'is-live'
+    : simAccount?.type === 'Demo'
+      ? 'is-demo'
+      : 'is-backtest';
+
+  return (
+    <>
+      <style>{SIM_CSS}</style>
+      <div className="sim-page">
+        {/* Header */}
+        <div className="sim-card sim-head">
+          <div className="sim-head-left">
+            <span className="sim-eyebrow">Analysis</span>
+            <div className="sim-title-row">
+              <h1 className="sim-title">Monte Carlo Simulator</h1>
+              {simAccount && (
+                <span className={`sim-badge ${badgeClass}`}>
+                  {simAccount.type}
+                </span>
+              )}
+            </div>
+            <span className="sim-sub">
+              <b>{stats.n}</b> executions loaded · Model Mode:{' '}
+              <b>{isMoney ? 'Net Cash P&L' : 'R-Multiple Shift'}</b>
+              {initialCapital > 0 && !isMoney && (
+                <> · Capital: <b>${initialCapital.toLocaleString()}</b></>
+              )}
+            </span>
+          </div>
+          {renderAccountSelector()}
+        </div>
+
+        {/* Controls */}
+        <SimulatorControls
+          method={method} setMethod={setMethod}
+          runs={runs} setRuns={setRuns}
+          seed={seed} setSeed={setSeed} randomizeSeed={() => setSeed(randomSeed())}
+          blockSize={blockSize} setBlockSize={setBlockSize}
+          ruinThreshold={ruinThreshold} setRuinThreshold={setRuinThreshold}
+          isMoney={isMoney}
+          initialCapital={initialCapital}
+          isRunning={isRunning}
+          onRun={run}
+          onExport={handleExport}
+          hasResult={!!result}
+        />
+
+        {/* Loading */}
+        {isRunning && !result && (
+          <div className="sim-card sim-loading">
+            <div className="sim-spinner" />
+            <span>Simulating {runs.toLocaleString()} {method} paths…</span>
+          </div>
+        )}
+
+        {/* Panels */}
+        {result && summary && (
+          <SimulatorPanels
+            result={result}
+            summary={summary}
+            isMoney={isMoney}
+            initialCapital={initialCapital}
+            actualCurve={actualCurve}
+            tab={tab}
+            setTab={setTab}
+          />
+        )}
+      </div>
+    </>
   );
 }

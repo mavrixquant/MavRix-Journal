@@ -25,14 +25,13 @@ function resolveSLPoints(rawSl, account) {
   return { points: null };
 }
 
-// Used ONLY for validation during upload — NOT stored on trades.
 function validateCommission(account, contracts) {
   const mode = account?.commissionMode || 'none';
   if (mode === 'none' || mode === 'flat') return 0;
   if (mode === 'per_contract') {
     const c = Number(contracts);
     if (!c || c <= 0) return null;
-    return 1; // any positive number just means "valid"
+    return 1;
   }
   return 0;
 }
@@ -170,8 +169,6 @@ function parseFile(workbook, account, existingTrades) {
     }
     trade.contracts = contractsNum;
 
-    // NOTE: commission and netPnl are NO LONGER stored — they're computed at read time.
-
     customHeaderNames.forEach((col) => {
       const raw = rawCustomValues[col];
       trade[col] = raw !== undefined && raw !== null ? String(raw) : '';
@@ -245,6 +242,480 @@ function parseFile(workbook, account, existingTrades) {
   return { trades: tradesData, customColumns, errors, hasSLColumn, hasContractsColumn, tradesCount: tradesData.length };
 }
 
+/* ------------------------------------------------------------------ */
+/*  Scoped CSS — matches JournalMain / DashboardHeader                 */
+/* ------------------------------------------------------------------ */
+const UPL_CSS = `
+  .upl-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(4,6,9,.72);
+    backdrop-filter: blur(10px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 16px;
+    animation: uplFade .18s ease;
+  }
+
+  .upl-modal {
+    --accent: #F59E0B;
+    --accent-2: #FDE68A;
+    --accent-soft: rgba(245,158,11,.10);
+    --accent-soft2: rgba(245,158,11,.28);
+    --line: rgba(255,255,255,.085);
+    --line-soft: rgba(255,255,255,.05);
+    --ink-1: #E7E9EE;
+    --ink-2: #8892A3;
+    --ink-3: #545E6E;
+    --win: #22c55e;
+    --loss: #ef4444;
+
+    width: 100%;
+    max-width: 620px;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    background: linear-gradient(180deg, #12161F, #0C1017);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    box-shadow: 0 40px 100px -30px rgba(0,0,0,.95), 0 0 0 1px var(--accent-soft);
+    color: var(--ink-1);
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
+    overflow: hidden;
+    animation: uplModalIn .28s cubic-bezier(.2,.8,.25,1);
+  }
+
+  /* ---------- Header ---------- */
+  .upl-head {
+    padding: 18px 22px 14px;
+    border-bottom: 1px solid var(--line-soft);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: relative;
+  }
+  .upl-head::before {
+    content: '';
+    position: absolute;
+    left: 0; right: 0; top: 0; height: 2px;
+    background: linear-gradient(90deg, transparent, var(--accent), var(--accent-2), var(--accent), transparent);
+    background-size: 200% 100%;
+    animation: uplGrad 4s linear infinite;
+  }
+  .upl-title {
+    font-size: 16px;
+    font-weight: 700;
+    margin: 0;
+    letter-spacing: -.01em;
+  }
+  .upl-sub {
+    margin: 4px 0 0;
+    font-size: 11.5px;
+    color: var(--ink-2);
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  }
+  .upl-close {
+    background: none;
+    border: none;
+    color: var(--ink-2);
+    font-size: 15px;
+    cursor: pointer;
+    padding: 6px;
+    border-radius: 8px;
+    transition: all .2s;
+  }
+  .upl-close:hover { color: var(--accent); background: rgba(245,158,11,.08); }
+  .upl-close:disabled { opacity: .4; cursor: not-allowed; }
+
+  /* ---------- Body ---------- */
+  .upl-body {
+    padding: 20px 22px;
+    overflow-y: auto;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .upl-body::-webkit-scrollbar { width: 8px; }
+  .upl-body::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,.08);
+    border-radius: 99px;
+  }
+
+  /* ---------- Dropzone ---------- */
+  .upl-drop {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 44px 20px;
+    border: 1.5px dashed rgba(255,255,255,.14);
+    border-radius: 14px;
+    background: rgba(255,255,255,.018);
+    cursor: pointer;
+    transition: all .25s cubic-bezier(.2,.8,.25,1);
+    position: relative;
+    overflow: hidden;
+  }
+  .upl-drop:hover {
+    border-color: var(--accent-soft2);
+    background: rgba(245,158,11,.04);
+    box-shadow: 0 0 30px -12px rgba(245,158,11,.5);
+  }
+  .upl-drop-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, rgba(245,158,11,.18), rgba(245,158,11,.05));
+    border: 1px solid var(--accent-soft2);
+    color: var(--accent);
+    box-shadow: 0 0 30px -10px rgba(245,158,11,.6);
+    font-size: 22px;
+    transition: transform .3s cubic-bezier(.2,.8,.25,1);
+  }
+  .upl-drop:hover .upl-drop-icon { transform: translateY(-2px) scale(1.05); }
+  .upl-drop-title {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--ink-1);
+    letter-spacing: -.01em;
+    text-align: center;
+  }
+  .upl-drop-hint {
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 11px;
+    color: var(--ink-2);
+    text-align: center;
+    line-height: 1.7;
+    letter-spacing: .01em;
+  }
+  .upl-drop-hint b { color: var(--accent); font-weight: 700; }
+  .upl-drop-hint .req-list {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 6px;
+    background: rgba(255,255,255,.04);
+    border: 1px solid var(--line-soft);
+    color: var(--ink-1);
+    margin: 1px 2px;
+  }
+
+  /* ---------- Parsing ---------- */
+  .upl-parsing {
+    padding: 48px 20px;
+    text-align: center;
+    color: var(--ink-2);
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 12.5px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+  }
+  .upl-spinner {
+    width: 28px;
+    height: 28px;
+    border: 2.5px solid var(--line);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: uplSpin .8s linear infinite;
+  }
+
+  /* ---------- File summary card ---------- */
+  .upl-summary {
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: rgba(255,255,255,.025);
+    border: 1px solid var(--line-soft);
+  }
+  .upl-filename {
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 11px;
+    color: var(--ink-3);
+    margin-bottom: 8px;
+    word-break: break-all;
+    letter-spacing: .02em;
+  }
+  .upl-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .upl-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    border-radius: 99px;
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .02em;
+    border: 1px solid;
+  }
+  .upl-chip.ok {
+    color: #4ade80;
+    background: rgba(34,197,94,.08);
+    border-color: rgba(34,197,94,.28);
+  }
+  .upl-chip.warn {
+    color: #f87171;
+    background: rgba(239,68,68,.08);
+    border-color: rgba(239,68,68,.28);
+  }
+  .upl-chip svg { font-size: 10px; }
+
+  /* ---------- Error block ---------- */
+  .upl-error {
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: rgba(239,68,68,.06);
+    border: 1px solid rgba(239,68,68,.25);
+  }
+  .upl-error-title {
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 10px;
+    font-weight: 700;
+    color: #f87171;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .upl-error ul {
+    margin: 0;
+    padding-left: 18px;
+    color: #fca5a5;
+    font-size: 12px;
+    line-height: 1.65;
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  }
+
+  /* ---------- Section header ---------- */
+  .upl-section-title {
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .upl-section-count {
+    color: var(--ink-3);
+    font-weight: 600;
+  }
+
+  /* ---------- Custom column rows ---------- */
+  .upl-col-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .upl-col-row {
+    padding: 12px 14px;
+    border: 1px solid var(--line-soft);
+    border-radius: 12px;
+    background: rgba(255,255,255,.02);
+    transition: border-color .2s;
+  }
+  .upl-col-row:hover { border-color: rgba(255,255,255,.12); }
+  .upl-col-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .upl-col-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink-1);
+  }
+  .upl-col-reason {
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 10.5px;
+    color: var(--ink-2);
+  }
+  .upl-col-sample {
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 10.5px;
+    color: var(--ink-3);
+    margin-top: 5px;
+    line-height: 1.5;
+    word-break: break-word;
+  }
+  .upl-col-types {
+    display: flex;
+    gap: 16px;
+    margin-top: 10px;
+    align-items: center;
+    font-size: 12px;
+    color: #cbd5e1;
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  }
+  .upl-col-types label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    transition: color .15s;
+  }
+  .upl-col-types label:hover { color: var(--accent); }
+  .upl-col-types input[type="radio"] { accent-color: #F59E0B; }
+  .upl-locked-pill {
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    background: rgba(255,255,255,.05);
+    border: 1px solid var(--line);
+    color: var(--ink-2);
+  }
+
+  /* ---------- Ready block ---------- */
+  .upl-ready {
+    padding: 14px;
+    border-radius: 12px;
+    background: rgba(34,197,94,.06);
+    border: 1px solid rgba(34,197,94,.22);
+    color: #86efac;
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 12px;
+    text-align: center;
+    letter-spacing: .02em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  /* ---------- Footer ---------- */
+  .upl-foot {
+    padding: 14px 22px;
+    border-top: 1px solid var(--line-soft);
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    background: rgba(0,0,0,.15);
+  }
+
+  .upl-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 9px 16px;
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,.1);
+    background: rgba(255,255,255,.03);
+    color: var(--ink-2);
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: .02em;
+    cursor: pointer;
+    transition: all .22s cubic-bezier(.2,.8,.25,1);
+    white-space: nowrap;
+  }
+  .upl-btn:hover {
+    color: var(--ink-1);
+    background: rgba(255,255,255,.06);
+    border-color: rgba(255,255,255,.2);
+    transform: translateY(-1px);
+  }
+  .upl-btn:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+
+  .upl-btn-cancel {
+    border-color: rgba(239,68,68,.28);
+    background: rgba(239,68,68,.05);
+    color: #f87171;
+  }
+  .upl-btn-cancel:hover {
+    background: rgba(239,68,68,.12);
+    border-color: rgba(239,68,68,.55);
+    color: #fca5a5;
+  }
+
+  .upl-btn-primary {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 9px 18px;
+    border-radius: 10px;
+    border: none;
+    overflow: hidden;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    color: #0D1117;
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 11.5px;
+    font-weight: 700;
+    letter-spacing: .02em;
+    cursor: pointer;
+    box-shadow:
+      0 10px 30px -8px rgba(245,158,11,.55),
+      inset 0 1px 0 rgba(255,255,255,.4);
+    transition: transform .25s cubic-bezier(.175,.885,.32,1.275), box-shadow .3s;
+  }
+  .upl-btn-primary::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(105deg, transparent 32%, rgba(255,255,255,.3) 50%, transparent 68%);
+    animation: uplShine 4.2s ease-in-out infinite;
+  }
+  .upl-btn-primary:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 16px 42px -10px rgba(245,158,11,.7), inset 0 1px 0 rgba(255,255,255,.5);
+  }
+  .upl-btn-primary:active:not(:disabled) { transform: translateY(0) scale(.98); }
+  .upl-btn-primary:disabled {
+    background: linear-gradient(135deg, rgba(245,158,11,.32), rgba(253,230,138,.28));
+    color: rgba(10,13,19,.55);
+    box-shadow: none;
+    cursor: not-allowed;
+  }
+  .upl-btn-primary:disabled::after { display: none; }
+
+  @keyframes uplGrad {
+    0%   { background-position: 0% 50%; }
+    100% { background-position: 200% 50%; }
+  }
+  @keyframes uplShine {
+    0%,100% { transform: translateX(-130%) skewX(-18deg); }
+    55%     { transform: translateX(230%) skewX(-18deg); }
+  }
+  @keyframes uplSpin {
+    to { transform: rotate(360deg); }
+  }
+  @keyframes uplFade {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  @keyframes uplModalIn {
+    from { opacity: 0; transform: translateY(-12px) scale(.97); }
+    to   { opacity: 1; transform: none; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .upl-head::before,
+    .upl-btn-primary::after,
+    .upl-spinner { animation: none !important; }
+    .upl-btn, .upl-btn-primary, .upl-drop, .upl-drop-icon { transition: none !important; }
+  }
+`;
+
 export default function UploadModal({ isOpen, onClose, account, existingTrades, onSuccess }) {
   const [parseResult, setParseResult] = useState(null);
   const [columnTypes, setColumnTypes] = useState({});
@@ -316,56 +787,59 @@ export default function UploadModal({ isOpen, onClose, account, existingTrades, 
 
   return (
     <Portal>
-      <div
-        onClick={(e) => { if (e.target === e.currentTarget) handleClose(); }}
-        style={{
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          backgroundColor: 'rgba(5, 7, 10, 0.8)', backdropFilter: 'blur(6px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          zIndex: 1000, padding: '16px',
-        }}
-      >
-        <div style={{
-          width: '100%', maxWidth: '620px', maxHeight: '90vh',
-          display: 'flex', flexDirection: 'column',
-          background: '#12161f', border: '1px solid rgba(255, 255, 255, 0.1)',
-          borderRadius: '16px', boxShadow: '0 24px 48px rgba(0, 0, 0, 0.6)',
-          color: '#f8fafc', overflow: 'hidden',
-        }}>
-          <div style={{ padding: '20px 24px', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <style>{UPL_CSS}</style>
+      <div className="upl-overlay" onClick={(e) => { if (e.target === e.currentTarget) handleClose(); }}>
+        <div className="upl-modal">
+
+          {/* Header */}
+          <div className="upl-head">
             <div>
-              <h2 style={{ fontSize: '18px', fontWeight: '700', margin: 0 }}>Upload Trades</h2>
-              <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#94a3b8' }}>Import trades from your Excel file</p>
+              <h2 className="upl-title">Upload Trades</h2>
+              <p className="upl-sub">Import trades from your Excel file</p>
             </div>
-            <button type="button" onClick={handleClose} disabled={isSaving} style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '18px', cursor: isSaving ? 'not-allowed' : 'pointer', padding: '4px' }}>
+            <button className="upl-close" onClick={handleClose} disabled={isSaving} aria-label="Close">
               <FaTimes />
             </button>
           </div>
 
-          <div style={{ padding: '20px 24px', overflowY: 'auto', flex: 1 }}>
+          {/* Body */}
+          <div className="upl-body">
+
+            {/* Dropzone */}
             {!parseResult && !isParsing && (
-              <label
-                htmlFor="upload-modal-file"
-                style={{
-                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px',
-                  padding: '40px 20px', border: '1px dashed rgba(255,255,255,0.15)',
-                  borderRadius: '12px', background: 'rgba(255,255,255,0.02)',
-                  cursor: 'pointer', transition: 'all 0.2s',
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#ffb020'; e.currentTarget.style.background = 'rgba(255,176,32,0.04)'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)'; e.currentTarget.style.background = 'rgba(255,255,255,0.02)'; }}
-              >
-                <FaFileUpload style={{ fontSize: '28px', color: '#ffb020' }} />
-                <div style={{ fontSize: '14px', fontWeight: 600, color: '#f8fafc' }}>
-                  Drop an .xlsx file here, or click to browse
+              <label htmlFor="upload-modal-file" className="upl-drop">
+                <div className="upl-drop-icon">
+                  <FaFileUpload />
                 </div>
-                <div style={{ fontSize: '12px', color: '#94a3b8', textAlign: 'center', lineHeight: 1.5 }}>
-                  Required: Date, Entry Time, Exit Time, Direction, MAE, MFE<br />
-                  {account?.type === 'Backtest' && <>Stop Loss (SL) column {account?.slValue ? 'or account default' : 'required'}<br /></>}
-                  {account?.commissionMode === 'per_contract' && <>Contracts column required<br /></>}
+                <div className="upl-drop-title">
+                  Drop an <b style={{ color: 'var(--accent)' }}>.xlsx</b> file here, or click to browse
+                </div>
+                <div className="upl-drop-hint">
+                  Required:
+                  <span className="req-list">Date</span>
+                  <span className="req-list">Entry Time</span>
+                  <span className="req-list">Exit Time</span>
+                  <span className="req-list">Direction</span>
+                  <span className="req-list">MAE</span>
+                  <span className="req-list">MFE</span>
+                  <br />
+                  {account?.type === 'Backtest' && (
+                    <>
+                      <span className="req-list">SL</span>
+                      {account?.slValue ? 'or use account default' : 'column required'}
+                      <br />
+                    </>
+                  )}
+                  {account?.commissionMode === 'per_contract' && (
+                    <>
+                      <span className="req-list">Contracts</span> column required
+                    </>
+                  )}
                 </div>
                 <input
-                  id="upload-modal-file" type="file" ref={fileInputRef}
+                  id="upload-modal-file"
+                  type="file"
+                  ref={fileInputRef}
                   accept=".xlsx,.xls"
                   onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }}
                   style={{ display: 'none' }}
@@ -373,60 +847,95 @@ export default function UploadModal({ isOpen, onClose, account, existingTrades, 
               </label>
             )}
 
+            {/* Parsing */}
             {isParsing && (
-              <div style={{ padding: '40px 20px', textAlign: 'center', color: '#94a3b8', fontSize: '13px' }}>Parsing file…</div>
+              <div className="upl-parsing">
+                <div className="upl-spinner" />
+                <div>Parsing file…</div>
+              </div>
             )}
 
+            {/* Result */}
             {parseResult && !isParsing && (
               <>
-                <div style={{ padding: '12px 14px', borderRadius: '10px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', marginBottom: '16px' }}>
-                  <div style={{ fontSize: '11px', color: '#94a3b8', fontFamily: 'var(--mono, monospace)', marginBottom: '6px' }}>{fileName}</div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', fontSize: '12px' }}>
-                    <span style={{ color: hasErrors ? '#ef4444' : '#10b981', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                {/* File summary */}
+                <div className="upl-summary">
+                  <div className="upl-filename">{fileName}</div>
+                  <div className="upl-chips">
+                    <span className={`upl-chip ${hasErrors ? 'warn' : 'ok'}`}>
                       {hasErrors ? <FaExclamationTriangle /> : <FaCheckCircle />}
                       {parseResult.tradesCount ?? 0} trades detected
                     </span>
-                    {parseResult.hasSLColumn && (<span style={{ color: '#10b981', display: 'inline-flex', alignItems: 'center', gap: '6px' }}><FaCheckCircle /> SL column found</span>)}
-                    {parseResult.hasContractsColumn && (<span style={{ color: '#10b981', display: 'inline-flex', alignItems: 'center', gap: '6px' }}><FaCheckCircle /> Contracts column found</span>)}
+                    {parseResult.hasSLColumn && (
+                      <span className="upl-chip ok">
+                        <FaCheckCircle /> SL column found
+                      </span>
+                    )}
+                    {parseResult.hasContractsColumn && (
+                      <span className="upl-chip ok">
+                        <FaCheckCircle /> Contracts column found
+                      </span>
+                    )}
                   </div>
                 </div>
 
+                {/* Errors */}
                 {hasErrors && (
-                  <div style={{ padding: '12px 14px', borderRadius: '10px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', marginBottom: '16px' }}>
-                    <div style={{ fontSize: '11px', fontWeight: 700, color: '#ef4444', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>Upload Blocked</div>
-                    <ul style={{ margin: 0, paddingLeft: '18px', color: '#fca5a5', fontSize: '12px', lineHeight: 1.6 }}>
+                  <div className="upl-error">
+                    <div className="upl-error-title">
+                      <FaExclamationTriangle /> Upload Blocked
+                    </div>
+                    <ul>
                       {errors.map((e, i) => <li key={i}>{e}</li>)}
                     </ul>
                   </div>
                 )}
 
+                {/* Custom columns */}
                 {!hasErrors && parseResult.customColumns?.length > 0 && (
-                  <div style={{ marginBottom: '8px' }}>
-                    <div style={{ fontSize: '11px', fontWeight: 700, color: '#ffb020', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px' }}>
-                      Custom Columns ({parseResult.customColumns.length})
+                  <div>
+                    <div className="upl-section-title">
+                      Custom Columns
+                      <span className="upl-section-count">
+                        ({parseResult.customColumns.length})
+                      </span>
                     </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <div className="upl-col-list">
                       {parseResult.customColumns.map((col) => (
-                        <div key={col.name} style={{ padding: '12px 14px', borderRadius: '10px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '8px', flexWrap: 'wrap' }}>
-                            <span style={{ fontSize: '13px', fontWeight: 600, color: '#f8fafc' }}>{col.name}</span>
-                            <span style={{ fontSize: '11px', color: '#94a3b8', fontFamily: 'var(--mono, monospace)' }}>{col.reason}</span>
+                        <div key={col.name} className="upl-col-row">
+                          <div className="upl-col-head">
+                            <span className="upl-col-name">{col.name}</span>
+                            <span className="upl-col-reason">{col.reason}</span>
                           </div>
                           {col.sampleValues?.length > 0 && (
-                            <div style={{ fontSize: '11px', color: '#64748b', marginTop: '4px' }}>Sample: {col.sampleValues.join(', ')}</div>
+                            <div className="upl-col-sample">
+                              Sample: {col.sampleValues.join(', ')}
+                            </div>
                           )}
-                          <div style={{ display: 'flex', gap: '16px', marginTop: '10px', alignItems: 'center' }}>
+                          <div className="upl-col-types">
                             {col.locked ? (
-                              <span style={{ fontSize: '12px', color: '#cbd5e1', padding: '4px 10px', borderRadius: '6px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                              <span className="upl-locked-pill">
                                 {col.type === 'number' ? 'Number' : col.type === 'dropdown' ? 'Dropdown' : 'Text'} (locked)
                               </span>
                             ) : (
                               <>
-                                <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#cbd5e1', cursor: 'pointer' }}>
-                                  <input type="radio" name={`col-type-${col.name}`} checked={columnTypes[col.name] === 'text'} onChange={() => handleTypeChange(col.name, 'text')} /> Text
+                                <label>
+                                  <input
+                                    type="radio"
+                                    name={`col-type-${col.name}`}
+                                    checked={columnTypes[col.name] === 'text'}
+                                    onChange={() => handleTypeChange(col.name, 'text')}
+                                  />
+                                  Text
                                 </label>
-                                <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#cbd5e1', cursor: 'pointer' }}>
-                                  <input type="radio" name={`col-type-${col.name}`} checked={columnTypes[col.name] === 'dropdown'} onChange={() => handleTypeChange(col.name, 'dropdown')} /> Dropdown
+                                <label>
+                                  <input
+                                    type="radio"
+                                    name={`col-type-${col.name}`}
+                                    checked={columnTypes[col.name] === 'dropdown'}
+                                    onChange={() => handleTypeChange(col.name, 'dropdown')}
+                                  />
+                                  Dropdown
                                 </label>
                               </>
                             )}
@@ -437,8 +946,10 @@ export default function UploadModal({ isOpen, onClose, account, existingTrades, 
                   </div>
                 )}
 
+                {/* No custom columns */}
                 {!hasErrors && (!parseResult.customColumns || parseResult.customColumns.length === 0) && (
-                  <div style={{ padding: '14px', borderRadius: '10px', background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.2)', fontSize: '12px', color: '#a7f3d0', textAlign: 'center' }}>
+                  <div className="upl-ready">
+                    <FaCheckCircle />
                     No custom columns to configure — ready to upload.
                   </div>
                 )}
@@ -446,14 +957,30 @@ export default function UploadModal({ isOpen, onClose, account, existingTrades, 
             )}
           </div>
 
-          <div style={{ padding: '16px 24px', borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', gap: '10px', alignItems: 'center', background: 'rgba(0,0,0,0.15)' }}>
-            {!parseResult && (<><div style={{ flex: 1 }} /><button onClick={handleClose} style={cancelBtnStyle}>Cancel</button></>)}
+          {/* Footer */}
+          <div className="upl-foot">
+            {!parseResult && (
+              <>
+                <div style={{ flex: 1 }} />
+                <button className="upl-btn upl-btn-cancel" onClick={handleClose}>
+                  Cancel
+                </button>
+              </>
+            )}
             {parseResult && (
               <>
-                <button onClick={reset} disabled={isSaving} style={secondaryBtnStyle}>Choose different file</button>
+                <button className="upl-btn" onClick={reset} disabled={isSaving}>
+                  Choose different file
+                </button>
                 <div style={{ flex: 1 }} />
-                <button onClick={handleClose} disabled={isSaving} style={cancelBtnStyle}>Cancel</button>
-                <button onClick={handleUpload} disabled={!canUpload} style={canUpload ? primaryBtnStyle : primaryBtnDisabledStyle}>
+                <button className="upl-btn upl-btn-cancel" onClick={handleClose} disabled={isSaving}>
+                  Cancel
+                </button>
+                <button
+                  className="upl-btn-primary"
+                  onClick={handleUpload}
+                  disabled={!canUpload}
+                >
                   {isSaving ? 'Uploading…' : `Upload ${parseResult.tradesCount || 0} Trades`}
                 </button>
               </>
@@ -464,8 +991,3 @@ export default function UploadModal({ isOpen, onClose, account, existingTrades, 
     </Portal>
   );
 }
-
-const cancelBtnStyle = { padding: '8px 16px', background: 'transparent', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '8px', color: '#94a3b8', fontSize: '13px', fontWeight: 600, cursor: 'pointer' };
-const secondaryBtnStyle = { padding: '8px 16px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#e2e8f0', fontSize: '13px', fontWeight: 500, cursor: 'pointer' };
-const primaryBtnStyle = { padding: '8px 20px', background: '#ffb020', border: 'none', borderRadius: '8px', color: '#0a0d13', fontSize: '13px', fontWeight: 700, cursor: 'pointer' };
-const primaryBtnDisabledStyle = { ...primaryBtnStyle, background: 'rgba(255,176,32,0.3)', color: 'rgba(10,13,19,0.5)', cursor: 'not-allowed' };
