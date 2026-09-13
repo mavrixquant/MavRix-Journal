@@ -46,7 +46,7 @@ const HDR_CSS = `
     color: var(--ink-1);
     display: flex;
     flex-direction: column;
-    overflow: hidden;
+    overflow: visible;
   }
   .hdr-root::before {
     content: '';
@@ -237,9 +237,12 @@ const HDR_CSS = `
     pointer-events: none;
   }
   .hdr-toolbar-inner {
-    overflow: hidden;
     min-height: 0;
   }
+  
+  .hdr-toolbar-wrap.is-closed .hdr-toolbar-inner {
+  overflow: hidden;
+}
 
   /* ---------- Toolbar row ---------- */
   .hdr-toolbar {
@@ -248,7 +251,7 @@ const HDR_CSS = `
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    padding-top: 12px;
+    padding-top: 14px;
     border-top: 1px solid var(--line-soft);
   }
   .hdr-toolbar-section {
@@ -271,6 +274,7 @@ const HDR_CSS = `
     flex-wrap: wrap;
     align-items: center;
     gap: 8px;
+    margin-left: auto;
   }
 
   /* ---------- Toolbar buttons ---------- */

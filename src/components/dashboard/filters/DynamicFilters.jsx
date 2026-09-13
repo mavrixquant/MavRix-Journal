@@ -268,7 +268,6 @@ export default function DynamicFilters() {
                       return (
                         <label
                           key={val}
-                          onClick={() => handleCheckboxChange(key, val, !isChecked)}
                           style={{
                             display: 'flex',
                             alignItems: 'center',
@@ -298,7 +297,7 @@ export default function DynamicFilters() {
                           <input
                             type="checkbox"
                             checked={isChecked}
-                            onChange={() => {}} // Handled by label click
+                            onChange={(e) => handleCheckboxChange(key, val, e.target.checked)}
                             style={{
                               accentColor: '#FFB020',
                               cursor: 'pointer',
