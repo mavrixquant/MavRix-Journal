@@ -798,7 +798,6 @@ function HeroDashboard({ accent }) {
         borderRadius: 22,
         border: '1px solid rgba(255,255,255,.09)',
         boxShadow: `0 50px 100px -40px rgba(0,0,0,.95), 0 0 0 1px rgba(255,255,255,.03) inset, 0 0 60px -20px ${hexToRgba(accent, .28)}`,
-        overflow: 'hidden',
         animation: 'ldFloat 7s ease-in-out infinite',
       }}
     >
