@@ -3,8 +3,8 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import * as XLSX from 'xlsx';
 import { FaFileUpload, FaTimes, FaCheckCircle, FaExclamationTriangle } from 'react-icons/fa';
 import Portal from '@/shared/components/Portal';
-import { createTrades, generateTradeId } from '@/firebase/tradesService';
-import { updateAccountColumnConfigs } from '@/firebase/accountsService';
+import { createTrades, generateTradeId } from '@/services/trades.service';
+import { updateAccountColumnConfigs } from '@/services/accounts.service';
 
 const TICKS_PER_POINT = 4;
 const MAX_DROPDOWN_UNIQUES = 10;

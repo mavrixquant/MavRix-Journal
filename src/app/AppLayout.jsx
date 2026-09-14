@@ -2,7 +2,7 @@
 import { useState, useRef } from 'react';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { signOut } from 'firebase/auth';
-import { auth } from '@/firebase/config';
+import { auth } from '@/services/firebase/config';
 import Sidebar from '@/app/shell/Sidebar';
 import AccountModal from '@/features/auth/components/AccountModal';
 import DashboardMain from '@/features/dashboard/components/DashboardMain';

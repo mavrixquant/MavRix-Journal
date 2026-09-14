@@ -1,6 +1,6 @@
 // src/app/providers/AuthProvider.jsx
 import { createContext, useContext, useState, useEffect } from 'react';
-import { auth } from '@/firebase/config';
+import { auth } from '@/services/firebase/config';
 import { onIdTokenChanged } from 'firebase/auth';
 
 const AuthContext = createContext();

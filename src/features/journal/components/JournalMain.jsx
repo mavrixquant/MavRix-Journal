@@ -8,11 +8,11 @@ import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 
 import { useAuth } from '@/app/providers/AuthProvider';
-import { subscribeToAccounts, updateAccountColumnConfigs } from '@/firebase/accountsService';
+import { subscribeToAccounts, updateAccountColumnConfigs } from '@/services/accounts.service';
 import {
   subscribeToTrades, createTrade, updateTrade, deleteTrade,
   generateTradeId, deleteCustomColumn, addCustomColumn
-} from '@/firebase/tradesService';
+} from '@/services/trades.service';
 import Portal from '@/shared/components/Portal';
 import Alert from '@/shared/components/Alert';
 import LoadingOverlay from '@/shared/components/LoadingOverlay';

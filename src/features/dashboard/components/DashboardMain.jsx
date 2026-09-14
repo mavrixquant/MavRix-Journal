@@ -21,7 +21,7 @@ import AdvancedKPIGrid from '@/features/dashboard/components/panels/AdvancedKPIG
 import DurationWidget from '@/features/dashboard/components/panels/DurationWidget';
 import SymbolBreakdownTable from '@/features/dashboard/components/panels/SymbolBreakdownTable';
 import Calendar from '@/features/dashboard/components/panels/Calendar';
-import WeeklyChart from '@/features/dashboard/components/panels/WeeklyCards';
+import WeeklyChart from '@/features/dashboard/components/panels/WeeklyChart';
 import TradeTable from '@/features/dashboard/components/panels/TradeTable';
 import RRCompareChart from '@/features/dashboard/components/charts/RRCompareChart';
 import UnderwaterChart from '@/features/dashboard/components/charts/UnderwaterChart';
@@ -35,7 +35,7 @@ import { useStats } from '@/features/dashboard/hooks/useStats';
 import {
   subscribeToUserLayouts,
   saveUserLayouts,
-} from '@/firebase/accountsService';
+} from '@/services/user.service';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 

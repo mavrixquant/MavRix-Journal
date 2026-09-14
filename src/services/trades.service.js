@@ -1,5 +1,5 @@
 // src/firebase/tradesService.js
-import { db } from './config';
+import { db } from './firebase/config';
 import {
   collection,
   doc,

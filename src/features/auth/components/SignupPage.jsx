@@ -8,7 +8,7 @@ import {
   signInWithPopup,
   sendEmailVerification,
 } from 'firebase/auth';
-import { auth } from '@/firebase/config';
+import { auth } from '@/services/firebase/config';
 import navLogo from '@/assets/navLOGO.png';
 import AuthBackground from '@/shared/components/AuthBackground';
 import CustomCursor from '@/app/shell/CustomCursor';
