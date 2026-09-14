@@ -1,11 +1,11 @@
 // src/app/App.jsx
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from '@/app/providers/AuthProvider';
-import Login from '@/pages/Login';
-import Signup from '@/pages/Signup';
+import Login from '@/features/auth/components/LoginPage';
+import Signup from '@/features/auth/components/SignupPage';
 import AppLayout from '@/app/AppLayout';
-import Landing from '@/pages/Landing';
-import EmailVerification from '@/pages/EmailVerification';
+import Landing from '@/features/landing/LandingPage';
+import EmailVerification from '@/features/auth/components/EmailVerificationPage';
 
 function App() {
   const { user, loading } = useAuth();

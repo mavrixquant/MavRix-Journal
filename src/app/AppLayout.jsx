@@ -4,7 +4,7 @@ import { useAuth } from '@/app/providers/AuthProvider';
 import { signOut } from 'firebase/auth';
 import { auth } from '@/firebase/config';
 import Sidebar from '@/app/shell/Sidebar';
-import AccountModal from '@/components/common/AccountModal';
+import AccountModal from '@/features/auth/components/AccountModal';
 import DashboardMain from '@/components/dashboard/DashboardMain';
 import JournalMain from '@/components/journal/JournalMain';
 import AccountsMain from '@/components/accounts/AccountsMain';

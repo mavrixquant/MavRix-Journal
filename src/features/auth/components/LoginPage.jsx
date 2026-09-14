@@ -1,9 +1,9 @@
 // src/components/auth/Login.jsx
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { auth } from '../firebase/config';
+import { auth } from '@/firebase/config';
+import navLogo from '@/assets/navLOGO.png';
 import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
-import navLogo from '../assets/navLOGO.png';
 import AuthBackground from '@/shared/components/AuthBackground';
 import CustomCursor from '@/app/shell/CustomCursor';
 

@@ -2,7 +2,7 @@ import React, {
   useState, useEffect, useRef, useMemo, useCallback,
 } from 'react';
 import { Link } from 'react-router-dom';
-import navLogo from '../assets/navLOGO.png';
+import navLogo from '@/assets/navLOGO.png';
 
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                            */
