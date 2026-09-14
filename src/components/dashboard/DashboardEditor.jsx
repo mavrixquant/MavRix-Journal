@@ -1,7 +1,7 @@
 // src/components/dashboard/DashboardEditor.jsx
 import { useState, useEffect, useMemo } from 'react';
 import { Responsive, WidthProvider } from 'react-grid-layout/legacy';
-import Portal from '../common/Portal';
+import Portal from '@/shared/components/Portal';
 import {
   GRID_COLS, GRID_ROW_HEIGHT,
   DEFAULT_LAYOUT, PANEL_META,

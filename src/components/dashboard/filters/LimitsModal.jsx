@@ -2,7 +2,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useFilters } from '../../../hooks/useFilters';
 import { useStats } from '../../../hooks/useStats';
-import Portal from '../../common/Portal';
+import Portal from '@/shared/components/Portal';
 
 export default function LimitsModal({ isOpen, onClose }) {
   const { activeFilterType, filterParams, setActiveFilterType, setFilterParams } = useFilters();

@@ -1,7 +1,7 @@
 // src/components/account/AccountModal.jsx (or wherever it lives)
 import React, { useState } from 'react';
-import Portal from './Portal';
-import Alert from './Alert';
+import Portal from '@/shared/components/Portal';
+import Alert from '@/shared/components/Alert';
 import { useAuth } from '../../context/AuthContext';
 import {
   GoogleAuthProvider,

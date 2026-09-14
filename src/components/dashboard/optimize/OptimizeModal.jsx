@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import Portal from '../../common/Portal';
+import Portal from '@/shared/components/Portal';
 import { useOptimization } from '../../../hooks/useOptimization';
 import { useAppContext } from '../../../context/AppContext';
 

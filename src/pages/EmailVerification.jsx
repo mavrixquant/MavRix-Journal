@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { auth } from '../firebase/config';
 import { sendEmailVerification, signOut } from 'firebase/auth';
 import { useAuth } from '../context/AuthContext';
-import AuthBackground from '../components/common/AuthBackground';
+import AuthBackground from '@/shared/components/AuthBackground';
 import CustomCursor from '../components/common/CustomCursor';
 
 const styles = `

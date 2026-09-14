@@ -14,9 +14,9 @@ import {
   FaCoins,
   FaTimes,
 } from 'react-icons/fa';
-import Portal from '../common/Portal';
-import Alert from '../common/Alert';
-import LoadingOverlay from '../common/LoadingOverlay';
+import Portal from '@/shared/components/Portal';
+import Alert from '@/shared/components/Alert';
+import LoadingOverlay from '@/shared/components/LoadingOverlay';
 import { useAuth } from '../../context/AuthContext';
 import {
   createAccount,

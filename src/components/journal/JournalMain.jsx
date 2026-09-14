@@ -13,9 +13,9 @@ import {
   subscribeToTrades, createTrade, updateTrade, deleteTrade,
   generateTradeId, deleteCustomColumn, addCustomColumn
 } from '../../firebase/tradesService';
-import Portal from '../common/Portal';
-import Alert from '../common/Alert';
-import LoadingOverlay from '../common/LoadingOverlay';
+import Portal from '@/shared/components/Portal';
+import Alert from '@/shared/components/Alert';
+import LoadingOverlay from '@/shared/components/LoadingOverlay';
 import UploadModal from './UploadModal';
 import * as XLSX from 'xlsx';
 

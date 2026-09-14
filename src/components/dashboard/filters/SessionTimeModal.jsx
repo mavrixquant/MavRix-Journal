@@ -2,7 +2,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useFilters } from '../../../hooks/useFilters';
 import { generateTimeBlocks } from '../../../utils/timeHelpers';
-import Portal from '../../common/Portal';
+import Portal from '@/shared/components/Portal';
 
 const SESSIONS = [
   { id: 'Asia', name: 'Asia', detail: '00:00 - 08:00 UTC' },
