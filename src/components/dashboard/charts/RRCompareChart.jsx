@@ -2,7 +2,7 @@
 import { useMemo, useState, useEffect } from 'react';
 import { Bar } from 'react-chartjs-2';
 import { useStats } from '../../../hooks/useStats';
-import { computeStats } from '../../../utils/statsEngine';
+import { computeStats } from '@/features/dashboard/utils/statsEngine';
 
 const RR_LEVELS = [1, 2, 3, 4, 5, 6, 7, 8];
 

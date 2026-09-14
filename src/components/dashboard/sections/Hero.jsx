@@ -1,7 +1,7 @@
 // src/components/dashboard/sections/Hero.jsx
 import { useMemo } from 'react';
 import { useStats } from '../../../hooks/useStats';
-import { computeStats } from '../../../utils/statsEngine';
+import { computeStats } from '@/features/dashboard/utils/statsEngine';
 import EquityChart from '../charts/EquityChart';
 import { FaProjectDiagram } from 'react-icons/fa';
 

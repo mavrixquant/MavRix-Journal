@@ -2,14 +2,14 @@
 import { useMemo } from 'react';
 import { useAppContext } from '@/app/providers/AppProvider';
 import { useFilters } from './useFilters';
-import { computeStats, groupAgg } from '../utils/statsEngine';
+import { computeStats, groupAgg } from '@/features/dashboard/utils/statsEngine';
 import { getMetricMode, resolveSL } from '@/shared/utils/slResolver';
 import {
   buildMonthlySeries,
   buildRollingExpectancy,
   buildUnderwaterCurve,
   buildSymbolBreakdown,
-} from '../utils/analyticsEngine';
+} from '@/features/dashboard/utils/analyticsEngine';
 
 export function useStats() {
   const { state } = useAppContext();

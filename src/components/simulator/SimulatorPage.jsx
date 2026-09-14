@@ -3,7 +3,7 @@ import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useAppContext } from '@/app/providers/AppProvider';
 import { subscribeToTrades } from '../../firebase/tradesService';
 import { enrichTradesFromDB } from '@/shared/utils/enrichTrades';
-import { computeStats } from '../../utils/statsEngine';
+import { computeStats } from '@/features/dashboard/utils/statsEngine';
 import { getMetricMode } from '@/shared/utils/slResolver';
 import { runMonteCarlo, summarizeMC } from '../../utils/monteCarlo';
 import SimulatorControls from './SimulatorControls';
