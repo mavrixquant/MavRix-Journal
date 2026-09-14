@@ -2,7 +2,7 @@
 import { useMemo } from 'react';
 import { useStats } from '@/features/dashboard/hooks/useStats';
 import { computeStats } from '@/features/dashboard/utils/statsEngine';
-import EquityChart from '../charts/EquityChart';
+import EquityChart from '@/features/dashboard/components/charts/EquityChart';
 import { FaProjectDiagram } from 'react-icons/fa';
 
 const RR_LEVELS = [1, 2, 3, 4, 5, 6, 7, 8];
