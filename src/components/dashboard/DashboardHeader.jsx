@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useAppContext } from '@/app/providers/AppProvider';
 import { useAuth } from '@/app/providers/AuthProvider';
-import { useFilters } from '../../hooks/useFilters';
+import { useFilters } from '@/features/dashboard/hooks/useFilters';
 import { subscribeToAccounts } from '../../firebase/accountsService';
 import { subscribeToTrades } from '../../firebase/tradesService';
 import { enrichTradesFromDB } from '@/shared/utils/enrichTrades';

@@ -1,6 +1,6 @@
 // src/components/dashboard/sections/Calendar.jsx
 import { useState, useMemo, useEffect, Fragment } from 'react';
-import { useStats } from '../../../hooks/useStats';
+import { useStats } from '@/features/dashboard/hooks/useStats';
 
 /* ------------------------------------------------------------------ */
 /*  Formatters                                                         */

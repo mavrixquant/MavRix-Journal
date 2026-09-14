@@ -1,7 +1,7 @@
 // src/components/dashboard/filters/LimitsModal.jsx
 import { useState, useEffect, useMemo } from 'react';
-import { useFilters } from '../../../hooks/useFilters';
-import { useStats } from '../../../hooks/useStats';
+import { useFilters } from '@/features/dashboard/hooks/useFilters';
+import { useStats } from '@/features/dashboard/hooks/useStats';
 import Portal from '@/shared/components/Portal';
 
 export default function LimitsModal({ isOpen, onClose }) {

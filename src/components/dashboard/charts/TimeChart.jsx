@@ -1,7 +1,7 @@
 // src/components/dashboard/charts/TimeChart.jsx
 import { useMemo, useState, useEffect } from 'react';
 import { Bar } from 'react-chartjs-2';
-import { useStats } from '../../../hooks/useStats';
+import { useStats } from '@/features/dashboard/hooks/useStats';
 
 const COLORS = {
   blue: '#4C8BF5',

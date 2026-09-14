@@ -1,7 +1,7 @@
 // src/components/dashboard/charts/CategoryBarChart.jsx
 import { Bar } from 'react-chartjs-2';
 import { useMemo } from 'react';
-import { useStats } from '../../../hooks/useStats';
+import { useStats } from '@/features/dashboard/hooks/useStats';
 
 const COLORS = {
   win: '#35C4A1',

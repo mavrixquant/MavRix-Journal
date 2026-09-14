@@ -1,5 +1,5 @@
 // src/components/dashboard/sections/DurationWidget.jsx
-import { useStats } from '../../../hooks/useStats';
+import { useStats } from '@/features/dashboard/hooks/useStats';
 
 const formatDuration = (mins) => {
   if (mins == null || Number.isNaN(mins) || mins <= 0) return '—';

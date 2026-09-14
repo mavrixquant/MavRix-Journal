@@ -1,6 +1,6 @@
 // src/components/filters/SessionTimeModal.jsx
 import { useState, useEffect, useMemo } from 'react';
-import { useFilters } from '../../../hooks/useFilters';
+import { useFilters } from '@/features/dashboard/hooks/useFilters';
 import { generateTimeBlocks } from '@/shared/utils/timeHelpers';
 import Portal from '@/shared/components/Portal';
 

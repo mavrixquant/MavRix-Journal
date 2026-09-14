@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import Portal from '@/shared/components/Portal';
-import { useOptimization } from '../../../hooks/useOptimization';
+import { useOptimization } from '@/features/dashboard/hooks/useOptimization';
 import { useAppContext } from '@/app/providers/AppProvider';
 
 const RR_LEVELS = [1, 2, 3, 4, 5, 6, 7, 8];

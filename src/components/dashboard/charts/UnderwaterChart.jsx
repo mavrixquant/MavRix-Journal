@@ -1,7 +1,7 @@
 // src/components/dashboard/charts/UnderwaterChart.jsx
 import { useMemo } from 'react';
 import { Line } from 'react-chartjs-2';
-import { useStats } from '../../../hooks/useStats';
+import { useStats } from '@/features/dashboard/hooks/useStats';
 
 const COLORS = {
   loss: '#FF5C5C',

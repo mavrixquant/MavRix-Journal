@@ -1,6 +1,6 @@
 // src/components/dashboard/sections/SymbolBreakdownTable.jsx
 import { useState, useMemo } from 'react';
-import { useStats } from '../../../hooks/useStats';
+import { useStats } from '@/features/dashboard/hooks/useStats';
 import { FaSortAmountUp, FaSortAmountDown } from 'react-icons/fa';
 
 const COLORS = {

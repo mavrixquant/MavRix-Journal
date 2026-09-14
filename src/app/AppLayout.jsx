@@ -9,7 +9,7 @@ import DashboardMain from '@/components/dashboard/DashboardMain';
 import JournalMain from '@/features/journal/components/JournalMain';
 import AccountsMain from '@/features/accounts/components/AccountsMain';
 import SimulatorPage from '@/components/simulator/SimulatorPage';
-import { useStats } from '@/hooks/useStats';
+import { useStats } from '@/features/dashboard/hooks/useStats';
 
 export default function AppLayout() {
   const { user } = useAuth();

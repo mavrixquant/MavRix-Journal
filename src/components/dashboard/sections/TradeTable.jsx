@@ -1,7 +1,7 @@
 // src/components/dashboard/sections/TradeTable.jsx
 import { useState, useMemo } from 'react';
 import { useAppContext } from '@/app/providers/AppProvider';
-import { useStats } from '../../../hooks/useStats';
+import { useStats } from '@/features/dashboard/hooks/useStats';
 
 function formatTimeWithAMPM(timeStr) {
   if (!timeStr) return '—';

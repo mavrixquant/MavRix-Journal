@@ -31,7 +31,7 @@ import RollingExpectancyChart from './charts/RollingExpectancyChart';
 import CategoryBarChart from './charts/CategoryBarChart';
 import { useAppContext } from '@/app/providers/AppProvider';
 import { useAuth } from '@/app/providers/AuthProvider';
-import { useStats } from '../../hooks/useStats';
+import { useStats } from '@/features/dashboard/hooks/useStats';
 import {
   subscribeToUserLayouts,
   saveUserLayouts,
