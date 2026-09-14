@@ -23,11 +23,11 @@ import {
   updateAccount,
   deleteAccount,
   subscribeToAccounts,
-} from '../../firebase/accountsService';
+} from '@/firebase/accountsService';
 import {
   getTrades,
   deleteTradesByAccountId,
-} from '../../firebase/tradesService';
+} from '@/firebase/tradesService';
 
 const CURRENCIES = ['USD', 'EUR', 'INR', 'GBP'];
 const ACCOUNT_TYPES = ['Backtest', 'Live', 'Demo'];

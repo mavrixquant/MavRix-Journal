@@ -7,7 +7,7 @@ import Sidebar from '@/app/shell/Sidebar';
 import AccountModal from '@/features/auth/components/AccountModal';
 import DashboardMain from '@/components/dashboard/DashboardMain';
 import JournalMain from '@/components/journal/JournalMain';
-import AccountsMain from '@/components/accounts/AccountsMain';
+import AccountsMain from '@/features/accounts/components/AccountsMain';
 import SimulatorPage from '@/components/simulator/SimulatorPage';
 import { useStats } from '@/hooks/useStats';
 
