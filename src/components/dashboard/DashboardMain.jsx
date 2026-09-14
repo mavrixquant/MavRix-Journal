@@ -7,7 +7,7 @@ import {
   GRID_COLS, GRID_ROW_HEIGHT,
   MAX_LAYOUTS, DEFAULT_LAYOUT, PANEL_META,
   buildFreshLayout, buildDefaultLayouts, makeLayoutId, makeLayoutName,
-} from './dashboardLayout';
+} from '@/features/dashboard/layout/dashboardLayout';
 import {
   FaEye, FaEyeSlash, FaUndo, FaTimes, FaCheck, FaGripVertical, FaPlus,
 } from 'react-icons/fa';
