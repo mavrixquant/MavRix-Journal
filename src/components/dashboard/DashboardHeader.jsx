@@ -8,11 +8,11 @@ import { subscribeToTrades } from '../../firebase/tradesService';
 import { enrichTradesFromDB } from '@/shared/utils/enrichTrades';
 import { FaSlidersH } from 'react-icons/fa';
 
-import RRTabs from './filters/RRTabs';
-import DynamicFilters from './filters/DynamicFilters';
-import SessionTimeModal from './filters/SessionTimeModal';
-import LimitsModal from './filters/LimitsModal';
-import OptimizeModal from './optimize/OptimizeModal';
+import RRTabs from '@/features/dashboard/components/filters/RRTabs';
+import DynamicFilters from '@/features/dashboard/components/filters/DynamicFilters';
+import SessionTimeModal from '@/features/dashboard/components/filters/SessionTimeModal';
+import LimitsModal from '@/features/dashboard/components/filters/LimitsModal';
+import OptimizeModal from '@/features/dashboard/components/optimize/OptimizeModal';
 
 /* ------------------------------------------------------------------ */
 /*  Scoped CSS — matches the dashboard's panel language                */
