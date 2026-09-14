@@ -1,5 +1,5 @@
 // src/hooks/useTrades.js
-import { useAppContext, actions } from '../context/AppContext';
+import { useAppContext, actions } from '@/app/providers/AppProvider';
 import { parseWorkbook } from '../utils/excelParser';
 
 export function useTrades() {

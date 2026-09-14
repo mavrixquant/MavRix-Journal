@@ -1,15 +1,15 @@
-// src/components/AppLayout.jsx
+// src/app/AppLayout.jsx
 import { useState, useRef } from 'react';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '@/app/providers/AuthProvider';
 import { signOut } from 'firebase/auth';
-import { auth } from '../firebase/config';
-import Sidebar from './common/Sidebar';
-import AccountModal from './common/AccountModal';
-import DashboardMain from './dashboard/DashboardMain';
-import JournalMain from './journal/JournalMain';
-import AccountsMain from './accounts/AccountsMain';
-import SimulatorPage from './simulator/SimulatorPage';
-import { useStats } from '../hooks/useStats';
+import { auth } from '@/firebase/config';
+import Sidebar from '@/app/shell/Sidebar';
+import AccountModal from '@/components/common/AccountModal';
+import DashboardMain from '@/components/dashboard/DashboardMain';
+import JournalMain from '@/components/journal/JournalMain';
+import AccountsMain from '@/components/accounts/AccountsMain';
+import SimulatorPage from '@/components/simulator/SimulatorPage';
+import { useStats } from '@/hooks/useStats';
 
 export default function AppLayout() {
   const { user } = useAuth();

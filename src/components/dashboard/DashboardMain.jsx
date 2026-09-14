@@ -29,8 +29,8 @@ import TimeChart from './charts/TimeChart';
 import MonthlyChart from './charts/MonthlyChart';
 import RollingExpectancyChart from './charts/RollingExpectancyChart';
 import CategoryBarChart from './charts/CategoryBarChart';
-import { useAppContext } from '../../context/AppContext';
-import { useAuth } from '../../context/AuthContext';
+import { useAppContext } from '@/app/providers/AppProvider';
+import { useAuth } from '@/app/providers/AuthProvider';
 import { useStats } from '../../hooks/useStats';
 import {
   subscribeToUserLayouts,

@@ -1,7 +1,7 @@
 // src/components/dashboard/DashboardHeader.jsx
 import { useState, useEffect } from 'react';
-import { useAppContext } from '../../context/AppContext';
-import { useAuth } from '../../context/AuthContext';
+import { useAppContext } from '@/app/providers/AppProvider';
+import { useAuth } from '@/app/providers/AuthProvider';
 import { useFilters } from '../../hooks/useFilters';
 import { subscribeToAccounts } from '../../firebase/accountsService';
 import { subscribeToTrades } from '../../firebase/tradesService';

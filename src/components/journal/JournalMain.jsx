@@ -7,7 +7,7 @@ import {
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '@/app/providers/AuthProvider';
 import { subscribeToAccounts, updateAccountColumnConfigs } from '../../firebase/accountsService';
 import {
   subscribeToTrades, createTrade, updateTrade, deleteTrade,

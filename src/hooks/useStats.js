@@ -1,6 +1,6 @@
 // src/hooks/useStats.js
 import { useMemo } from 'react';
-import { useAppContext } from '../context/AppContext';
+import { useAppContext } from '@/app/providers/AppProvider';
 import { useFilters } from './useFilters';
 import { computeStats, groupAgg } from '../utils/statsEngine';
 import { getMetricMode, resolveSL } from '../utils/slResolver';

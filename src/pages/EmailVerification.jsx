@@ -3,9 +3,9 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { auth } from '../firebase/config';
 import { sendEmailVerification, signOut } from 'firebase/auth';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '@/app/providers/AuthProvider';
 import AuthBackground from '@/shared/components/AuthBackground';
-import CustomCursor from '../components/common/CustomCursor';
+import CustomCursor from '@/app/shell/CustomCursor';
 
 const styles = `
   .auth-wrapper {

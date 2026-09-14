@@ -11,7 +11,7 @@ import {
 } from 'firebase/auth';
 import navLogo from '../assets/navLOGO.png';
 import AuthBackground from '@/shared/components/AuthBackground';
-import CustomCursor from '../components/common/CustomCursor';
+import CustomCursor from '@/app/shell/CustomCursor';
 
 const authStyles = `
   .auth-wrapper {

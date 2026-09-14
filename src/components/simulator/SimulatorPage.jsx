@@ -1,6 +1,6 @@
 // src/components/simulator/SimulatorPage.jsx
 import { useState, useMemo, useEffect, useCallback } from 'react';
-import { useAppContext } from '../../context/AppContext';
+import { useAppContext } from '@/app/providers/AppProvider';
 import { subscribeToTrades } from '../../firebase/tradesService';
 import { enrichTradesFromDB } from '../../utils/enrichTrades';
 import { computeStats } from '../../utils/statsEngine';

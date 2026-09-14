@@ -1,6 +1,6 @@
 // src/hooks/useOptimization.js
 import { useState, useCallback } from 'react';
-import { useAppContext, actions } from '../context/AppContext';
+import { useAppContext, actions } from '@/app/providers/AppProvider';
 import { runOptimization } from '../utils/optimizationEngine';
 
 export function useOptimization() {

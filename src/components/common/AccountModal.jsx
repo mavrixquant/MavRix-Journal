@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import Portal from '@/shared/components/Portal';
 import Alert from '@/shared/components/Alert';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '@/app/providers/AuthProvider';
 import {
   GoogleAuthProvider,
   linkWithPopup,

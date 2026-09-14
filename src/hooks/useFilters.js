@@ -1,6 +1,6 @@
 // src/hooks/useFilters.js
 import { useMemo } from 'react';
-import { useAppContext, actions } from '../context/AppContext';
+import { useAppContext, actions } from '@/app/providers/AppProvider';
 import { applyFilters } from '../utils/filterHelpers';
 import { resolveSL } from '../utils/slResolver';
 

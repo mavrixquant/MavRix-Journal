@@ -1,6 +1,6 @@
 // src/components/dashboard/sections/TradeTable.jsx
 import { useState, useMemo } from 'react';
-import { useAppContext } from '../../../context/AppContext';
+import { useAppContext } from '@/app/providers/AppProvider';
 import { useStats } from '../../../hooks/useStats';
 
 function formatTimeWithAMPM(timeStr) {

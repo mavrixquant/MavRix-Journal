@@ -1,5 +1,5 @@
 // src/components/dashboard/DashboardFooter.jsx
-import { useAppContext } from '../../context/AppContext';
+import { useAppContext } from '@/app/providers/AppProvider';
 
 const SESSIONS_TEXT =
   'Sessions (ET): Asia 18:00–02:00 · London 02:00–05:00 · NY Pre-Market 05:00–08:30 · NY AM 08:30–11:00 · NY Lunch 11:00–13:30 · NY PM 13:30–16:00 · After Hours 16:00–18:00.';

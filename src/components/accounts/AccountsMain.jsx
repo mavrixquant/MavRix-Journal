@@ -17,7 +17,7 @@ import {
 import Portal from '@/shared/components/Portal';
 import Alert from '@/shared/components/Alert';
 import LoadingOverlay from '@/shared/components/LoadingOverlay';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '@/app/providers/AuthProvider';
 import {
   createAccount,
   updateAccount,

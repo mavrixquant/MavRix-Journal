@@ -9,7 +9,7 @@ import {
   FaBars,
   FaTimes,
 } from 'react-icons/fa';
-import navLogo from '../../assets/navLOGO.png';
+import navLogo from '@/assets/navLOGO.png';
 
 const navItems = [
   { id: 'dashboard', label: 'Dashboard', icon: <FaChartPie size={16} /> },
