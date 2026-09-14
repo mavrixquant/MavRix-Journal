@@ -1,11 +1,11 @@
 // src/components/simulator/SimulatorPage.jsx
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useAppContext } from '@/app/providers/AppProvider';
-import { subscribeToTrades } from '../../firebase/tradesService';
+import { subscribeToTrades } from '@/firebase/tradesService';
 import { enrichTradesFromDB } from '@/shared/utils/enrichTrades';
 import { computeStats } from '@/features/dashboard/utils/statsEngine';
 import { getMetricMode } from '@/shared/utils/slResolver';
-import { runMonteCarlo, summarizeMC } from '../../utils/monteCarlo';
+import { runMonteCarlo, summarizeMC } from '@/features/simulator/utils/monteCarlo';
 import SimulatorControls from './SimulatorControls';
 import SimulatorPanels from './SimulatorPanels';
 

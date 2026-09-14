@@ -15,14 +15,14 @@ import {
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 
-import Hero from './sections/Hero';
-import KPIGrid from './sections/KPIGrid';
-import AdvancedKPIGrid from './sections/AdvancedKPIGrid';
-import DurationWidget from './sections/DurationWidget';
-import SymbolBreakdownTable from './sections/SymbolBreakdownTable';
-import Calendar from './sections/Calendar';
-import WeeklyChart from './sections/WeeklyCards';
-import TradeTable from './sections/TradeTable';
+import Hero from '@/features/dashboard/components/panels/Hero';
+import KPIGrid from '@/features/dashboard/components/panels/KPIGrid';
+import AdvancedKPIGrid from '@/features/dashboard/components/panels/AdvancedKPIGrid';
+import DurationWidget from '@/features/dashboard/components/panels/DurationWidget';
+import SymbolBreakdownTable from '@/features/dashboard/components/panels/SymbolBreakdownTable';
+import Calendar from '@/features/dashboard/components/panels/Calendar';
+import WeeklyChart from '@/features/dashboard/components/panels/WeeklyCards';
+import TradeTable from '@/features/dashboard/components/panels/TradeTable';
 import RRCompareChart from '@/features/dashboard/components/charts/RRCompareChart';
 import UnderwaterChart from '@/features/dashboard/components/charts/UnderwaterChart';
 import TimeChart from '@/features/dashboard/components/charts/TimeChart';
@@ -35,7 +35,7 @@ import { useStats } from '@/features/dashboard/hooks/useStats';
 import {
   subscribeToUserLayouts,
   saveUserLayouts,
-} from '../../../src/firebase/accountsService';
+} from '@/firebase/accountsService';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 

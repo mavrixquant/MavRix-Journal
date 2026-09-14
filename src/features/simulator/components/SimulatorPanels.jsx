@@ -12,8 +12,8 @@ import {
   FaLayerGroup,
   FaRandom,
 } from 'react-icons/fa';
-import FanChart from '../dashboard/monteCarlo/charts/FanChart';
-import DistributionChart from '../dashboard/monteCarlo/charts/DistributionChart';
+import FanChart from './charts/FanChart';
+import DistributionChart from './charts/DistributionChart';
 
 const TABS = [
   { id: 'overview',  label: 'Overview' },

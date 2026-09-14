@@ -5,10 +5,10 @@ import { signOut } from 'firebase/auth';
 import { auth } from '@/firebase/config';
 import Sidebar from '@/app/shell/Sidebar';
 import AccountModal from '@/features/auth/components/AccountModal';
-import DashboardMain from '@/components/dashboard/DashboardMain';
+import DashboardMain from '@/features/dashboard/components/DashboardMain';
 import JournalMain from '@/features/journal/components/JournalMain';
 import AccountsMain from '@/features/accounts/components/AccountsMain';
-import SimulatorPage from '@/components/simulator/SimulatorPage';
+import SimulatorPage from '@/features/simulator/components/SimulatorPage';
 import { useStats } from '@/features/dashboard/hooks/useStats';
 
 export default function AppLayout() {

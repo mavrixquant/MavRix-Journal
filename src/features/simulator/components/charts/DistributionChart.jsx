@@ -1,7 +1,7 @@
 // src/components/dashboard/monteCarlo/charts/DistributionChart.jsx
 import { useMemo } from 'react';
 import { Bar } from 'react-chartjs-2';
-import { buildHistogram } from '../../../../utils/monteCarlo';
+import { buildHistogram } from '@/features/simulator/utils/monteCarlo';
 
 const COLORS = {
   amber: '#FFB020',
