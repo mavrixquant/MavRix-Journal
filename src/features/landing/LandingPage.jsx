@@ -1,4 +1,4 @@
-import React, {
+import {
   useState, useEffect, useRef, useMemo, useCallback,
 } from 'react';
 import { Link } from 'react-router-dom';
@@ -1109,7 +1109,7 @@ function MonteCarlo({ accent }) {
     next();
   };
 
-  useEffect(() => { runSim(); /* eslint-disable-next-line */ }, []);
+  useEffect(() => { runSim();   }, []);
 
   const { paths, p5, p95, W, H } = useMemo(() => {
     const W = 900, H = 260, N = 300;

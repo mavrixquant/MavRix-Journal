@@ -51,11 +51,10 @@ const EmptyState = ({ text }) => (
 );
 
 export default function RRCompareChart() {
-  const { filteredTrades, stats, account, metric } = useStats();
+  const { filteredTrades, stats, account } = useStats();
   const barConfig = useResponsiveBarConfig();
 
   const isBacktest = account?.type === 'Backtest';
-  const isMoney = metric === '$';
   const hasTrades = filteredTrades && filteredTrades.length > 0;
 
   // ----- Backtest: RR sweep -----

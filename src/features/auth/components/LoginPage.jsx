@@ -1,5 +1,5 @@
 // src/components/auth/Login.jsx
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { auth } from '@/services/firebase/config';
 import navLogo from '@/assets/navLOGO.png';

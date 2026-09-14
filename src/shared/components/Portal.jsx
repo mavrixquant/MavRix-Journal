@@ -1,17 +1,16 @@
-// src/components/common/Portal.jsx
+// src/shared/components/Portal.jsx
 import { createPortal } from 'react-dom';
-import { useEffect, useRef } from 'react';
+import { useEffect, useState } from 'react';
 
 export default function Portal({ children }) {
-  const portalRef = useRef(document.createElement('div'));
+  const [container] = useState(() => document.createElement('div'));
 
   useEffect(() => {
-    const portal = portalRef.current;
-    document.body.appendChild(portal);
+    document.body.appendChild(container);
     return () => {
-      document.body.removeChild(portal);
+      document.body.removeChild(container);
     };
-  }, []);
+  }, [container]);
 
-  return createPortal(children, portalRef.current);
+  return createPortal(children, container);
 }

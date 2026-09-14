@@ -86,7 +86,7 @@ function isStrictNumeric(v) {
   return false;
 }
 
-function computeColumnMeta(colName, trades, accountConfigs) {
+function computeColumnMeta(colName, trades) {
   const values = trades
     .map(t => t[colName])
     .filter(v => v !== undefined && v !== null && String(v).trim() !== '')
@@ -908,7 +908,7 @@ export default function JournalMain() {
   const columnMeta = useMemo(() => {
     const meta = {};
     dynamicColumns.forEach(col => {
-      meta[col] = computeColumnMeta(col, trades, selectedAccount?.columnConfigs);
+      meta[col] = computeColumnMeta(col, trades);
     });
     return meta;
   }, [dynamicColumns, trades, selectedAccount]);

@@ -29,7 +29,6 @@ import TimeChart from '@/features/dashboard/components/charts/TimeChart';
 import MonthlyChart from '@/features/dashboard/components/charts/MonthlyChart';
 import RollingExpectancyChart from '@/features/dashboard/components/charts/RollingExpectancyChart';
 import CategoryBarChart from '@/features/dashboard/components/charts/CategoryBarChart';
-import { useAppContext } from '@/app/providers/AppProvider';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { useStats } from '@/features/dashboard/hooks/useStats';
 import {
@@ -663,9 +662,8 @@ function ScrollProgress() {
 /*  Main                                                               */
 /* ------------------------------------------------------------------ */
 export default function DashboardMain({
-  sessionData, dowData, dirData, setupData, factorData, maxAbs, onNavigate,
+  sessionData, dowData, dirData, onNavigate,
 }) {
-  const { state } = useAppContext();
   const { user } = useAuth();
   const { stats, metric } = useStats();
 

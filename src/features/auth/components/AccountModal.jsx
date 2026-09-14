@@ -1,5 +1,5 @@
 // src/components/account/AccountModal.jsx (or wherever it lives)
-import React, { useState } from 'react';
+import { useState } from 'react';
 import Portal from '@/shared/components/Portal';
 import Alert from '@/shared/components/Alert';
 import { useAuth } from '@/app/providers/AuthProvider';

@@ -95,11 +95,11 @@ function analyzeRatios(seq) {
   const n = seq.length;
   if (n === 0) return { sharpe: 0, sortino: 0, pf: 0, expectancy: 0, winRate: 0 };
 
-  let sum = 0, winSum = 0, lossSum = 0, winCount = 0, lossCount = 0;
+  let sum = 0, winSum = 0, lossSum = 0, winCount = 0;
   for (const s of seq) {
     sum += s;
     if (s > 0) { winSum += s; winCount++; }
-    else if (s < 0) { lossSum += s; lossCount++; }
+    else if (s < 0) { lossSum += s; }
   }
   const mean = sum / n;
 
@@ -369,7 +369,6 @@ export function pct(arr, p) {
 export function summarizeMC(result) {
   if (!result) return null;
   const s = result._sorted;
-  const last = result.n;
 
   return {
     runs: result.runs,

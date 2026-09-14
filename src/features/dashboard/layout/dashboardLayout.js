@@ -59,11 +59,19 @@ export function loadLayout() {
 }
 
 export function saveLayout(layout) {
-  try { localStorage.setItem(LAYOUT_KEY, JSON.stringify(layout)); } catch {}
+  try {
+    localStorage.setItem(LAYOUT_KEY, JSON.stringify(layout));
+  } catch {
+    // localStorage quota exceeded or disabled — silently ignore
+  }
 }
 
 export function resetLayout() {
-  try { localStorage.removeItem(LAYOUT_KEY); } catch {}
+  try {
+    localStorage.removeItem(LAYOUT_KEY);
+  } catch {
+    // localStorage disabled — silently ignore
+  }
 }
 
 export function layoutForEditor(layout) {

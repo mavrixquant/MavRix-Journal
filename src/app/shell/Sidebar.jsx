@@ -3,7 +3,6 @@ import {
   FaChartPie,
   FaBook,
   FaUsers,
-  FaUserCircle,
   FaSignOutAlt,
   FaProjectDiagram,
   FaBars,

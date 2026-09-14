@@ -1,6 +1,5 @@
 // src/components/dashboard/sections/WeeklyCards.jsx
 import { useMemo } from 'react';
-import { Bar } from 'react-chartjs-2';
 import { useStats } from '@/features/dashboard/hooks/useStats';
 import { getWeekStart } from '@/shared/utils/timeHelpers';
 
@@ -38,7 +37,7 @@ export default function WeeklyChart() {
     return <div style={{ color: 'var(--text-faint)', textAlign: 'center', padding: '20px' }}></div>;
   }
 
-  const { weeks, data, labels, map } = weeklyData;
+  const { weeks, map } = weeklyData;
   const totalWeeks = weeks.length;
   const posWeeks = weeks.filter(w => map.get(w).v > 0).length;
   let bestWeek = null, worstWeek = null;
@@ -49,37 +48,6 @@ export default function WeeklyChart() {
   });
 
   const totalValue = isMoney ? stats.total : stats.totalR;
-
-  const chartData = {
-    labels,
-    datasets: [{
-      data,
-      backgroundColor: data.map(v => v >= 0 ? COLORS.win : COLORS.loss),
-      borderRadius: 5,
-      barPercentage: 0.7,
-    }],
-  };
-
-  const options = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: { display: false },
-      tooltip: {
-        callbacks: {
-          label: (item) => {
-            const wk = weeks[item.dataIndex];
-            const e = map.get(wk);
-            return [`${isMoney ? 'Net P&L' : 'Total R'}: ${fmt(e.v)}`, `${e.n} trades · ${(e.wins / e.n * 100).toFixed(1)}% win`];
-          },
-        },
-      },
-    },
-    scales: {
-      x: { grid: { display: false }, ticks: { color: COLORS.text, maxRotation: 45, minRotation: 45, font: { size: 9 } } },
-      y: { grid: { color: COLORS.grid }, ticks: { color: COLORS.text, callback: v => isMoney ? '$' + v : v + 'R' } },
-    },
-  };
 
   return (
     <div>

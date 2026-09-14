@@ -1,5 +1,5 @@
 // src/components/auth/EmailVerification.jsx
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { auth } from '@/services/firebase/config';
 import { sendEmailVerification, signOut } from 'firebase/auth';

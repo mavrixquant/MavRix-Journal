@@ -25,16 +25,6 @@ function resolveSLPoints(rawSl, account) {
   return { points: null };
 }
 
-function validateCommission(account, contracts) {
-  const mode = account?.commissionMode || 'none';
-  if (mode === 'none' || mode === 'flat') return 0;
-  if (mode === 'per_contract') {
-    const c = Number(contracts);
-    if (!c || c <= 0) return null;
-    return 1;
-  }
-  return 0;
-}
 
 function formatExcelDate(value) {
   if (!value) return '';

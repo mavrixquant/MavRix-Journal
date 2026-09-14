@@ -1,4 +1,4 @@
-// src/components/dashboard/charts/CategoryBarChart.jsx
+// src/features/dashboard/components/charts/CategoryBarChart.jsx
 import { Bar } from 'react-chartjs-2';
 import { useMemo } from 'react';
 import { useStats } from '@/features/dashboard/hooks/useStats';
@@ -16,25 +16,40 @@ const COLORS = {
   tooltipBorder: '#212836',
 };
 
+// Support both legacy `totalR` and new `total` field names.
+const valueOf = (d) => d.total ?? d.totalR ?? 0;
+
+function EmptyState() {
+  return (
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      height: '100%',
+      minHeight: '180px',
+      color: COLORS.textMuted,
+      fontFamily: "'IBM Plex Mono', monospace",
+      fontSize: '12px',
+      border: `1px dashed ${COLORS.grid}`,
+      borderRadius: '10px',
+      background: 'rgba(17, 21, 31, 0.4)',
+    }}>
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ marginBottom: '8px', opacity: 0.6 }}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" />
+      </svg>
+      <span>No category data available</span>
+    </div>
+  );
+}
+
 export default function CategoryBarChart({ data, label, horizontal = false }) {
   const { metric } = useStats();
   const isMoney = metric === '$';
-
-  if (!data || data.length === 0) {
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: '180px', color: COLORS.textMuted, fontFamily: "'IBM Plex Mono', monospace", fontSize: '12px', border: `1px dashed ${COLORS.grid}`, borderRadius: '10px', background: 'rgba(17, 21, 31, 0.4)' }}>
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ marginBottom: '8px', opacity: 0.6 }}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" />
-        </svg>
-        <span>No category data available</span>
-      </div>
-    );
-  }
-
-  // Support both legacy `totalR` and new `total` field names.
-  const valueOf = (d) => d.total ?? d.totalR ?? 0;
+  const isEmpty = !data || data.length === 0;
 
   const chartData = useMemo(() => {
+    if (isEmpty) return null;
     return {
       labels: data.map(d => d.label),
       datasets: [
@@ -55,7 +70,7 @@ export default function CategoryBarChart({ data, label, horizontal = false }) {
         },
       ],
     };
-  }, [data, label, horizontal, isMoney]);
+  }, [data, label, horizontal, isMoney, isEmpty]);
 
   const options = useMemo(() => {
     const valueAxisConfig = {
@@ -106,7 +121,7 @@ export default function CategoryBarChart({ data, label, horizontal = false }) {
               return `Total R : ${(val >= 0 ? '+' : '') + val.toFixed(2)}R`;
             },
             afterLabel: (item) => {
-              const d = data[item.dataIndex];
+              const d = data?.[item.dataIndex];
               if (!d) return '';
               return `Volume  : ${d.n} trades (${d.winRate.toFixed(1)}% win)`;
             },
@@ -119,6 +134,9 @@ export default function CategoryBarChart({ data, label, horizontal = false }) {
       },
     };
   }, [data, horizontal, isMoney]);
+
+  // Render empty state AFTER hooks have run
+  if (isEmpty) return <EmptyState />;
 
   return <Bar data={chartData} options={options} />;
 }
