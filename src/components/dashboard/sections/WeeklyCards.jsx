@@ -2,7 +2,7 @@
 import { useMemo } from 'react';
 import { Bar } from 'react-chartjs-2';
 import { useStats } from '../../../hooks/useStats';
-import { getWeekStart } from '../../../utils/timeHelpers';
+import { getWeekStart } from '@/shared/utils/timeHelpers';
 
 const COLORS = { win: '#35C4A1', loss: '#FF5C5C', text: '#8892A3', grid: '#1A2029' };
 

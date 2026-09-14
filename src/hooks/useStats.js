@@ -3,7 +3,7 @@ import { useMemo } from 'react';
 import { useAppContext } from '@/app/providers/AppProvider';
 import { useFilters } from './useFilters';
 import { computeStats, groupAgg } from '../utils/statsEngine';
-import { getMetricMode, resolveSL } from '../utils/slResolver';
+import { getMetricMode, resolveSL } from '@/shared/utils/slResolver';
 import {
   buildMonthlySeries,
   buildRollingExpectancy,

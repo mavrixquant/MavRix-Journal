@@ -1,6 +1,6 @@
 // src/utils/statsEngine.js
 import { outcomeFor } from './filterHelpers';
-import { getMetricMode } from './slResolver';
+import { getMetricMode } from '@/shared/utils/slResolver';
 
 export function computeStats(trades, R, accountOrSL) {
   const metric = getMetricMode(accountOrSL);

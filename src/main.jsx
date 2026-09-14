@@ -8,7 +8,7 @@ import '@/styles/global.css';
 import '@fontsource/space-grotesk';
 import '@fontsource/inter';
 import '@fontsource/ibm-plex-mono';
-import '@/utils/chartConfig';
+import '@/shared/utils/chartConfig';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

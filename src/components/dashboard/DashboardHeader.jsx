@@ -5,7 +5,7 @@ import { useAuth } from '@/app/providers/AuthProvider';
 import { useFilters } from '../../hooks/useFilters';
 import { subscribeToAccounts } from '../../firebase/accountsService';
 import { subscribeToTrades } from '../../firebase/tradesService';
-import { enrichTradesFromDB } from '../../utils/enrichTrades';
+import { enrichTradesFromDB } from '@/shared/utils/enrichTrades';
 import { FaSlidersH } from 'react-icons/fa';
 
 import RRTabs from './filters/RRTabs';

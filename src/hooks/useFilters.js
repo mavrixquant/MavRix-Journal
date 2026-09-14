@@ -2,7 +2,7 @@
 import { useMemo } from 'react';
 import { useAppContext, actions } from '@/app/providers/AppProvider';
 import { applyFilters } from '../utils/filterHelpers';
-import { resolveSL } from '../utils/slResolver';
+import { resolveSL } from '@/shared/utils/slResolver';
 
 export function useFilters() {
   const { state, dispatch } = useAppContext();
