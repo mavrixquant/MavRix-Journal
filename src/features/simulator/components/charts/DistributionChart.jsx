@@ -44,7 +44,7 @@ export default function DistributionChart({
   const options = useMemo(() => ({
     responsive: true,
     maintainAspectRatio: false,
-    animation: { duration: 200 },
+    animation: { duration: 800, easing: 'easeOutQuart' },
     plugins: {
       legend: { display: false },
       tooltip: {
@@ -88,7 +88,7 @@ export default function DistributionChart({
     return (
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        height: `${height}px`,                          // ← fixed
+        height: `${height}px`,
         color: COLORS.text,
         fontFamily: "'IBM Plex Mono', monospace", fontSize: '11px',
         border: `1px dashed ${COLORS.grid}`, borderRadius: '8px',
@@ -100,10 +100,8 @@ export default function DistributionChart({
 
   return (
     <div style={{
-      position: 'relative',
-      width: '100%',
-      height: `${height}px`,                            // ← fixed, not '100%'
-      overflow: 'hidden',                                // ← belt-and-suspenders
+      position: 'relative', width: '100%',
+      height: `${height}px`, overflow: 'hidden',
     }}>
       <Bar data={chartData} options={options} />
     </div>

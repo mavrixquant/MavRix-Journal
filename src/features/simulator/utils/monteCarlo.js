@@ -1,26 +1,24 @@
-// src/utils/monteCarlo.js
+// src/features/simulator/utils/monteCarlo.js
 // ---------------------------------------------------------------------------
 // Monte Carlo engine for trade sequences.
 //
 // Three methods, each mathematically distinct:
+//   permutation — reshuffle the same N trades. Total invariant.
+//   bootstrap   — sample N trades with replacement.
+//   block       — sliding-window block bootstrap.
 //
-//   permutation — reshuffle the same N trades. Total is invariant; only the
-//                 order changes. Answers: "how much does sequence hurt me?"
-//                 P(Profit) is degenerate here (always 0% or 100%).
+// All units in `scores` are either:
+//   - R multiples, when using R-mode, or
+//   - account currency, when using money-mode.
 //
-//   bootstrap   — sample N trades with replacement. Total varies because the
-//                 win/loss mix varies per draw. Answers: "if I re-ran this
-//                 strategy on a fresh sample from the same edge, what range
-//                 of outcomes would I see?"
+// IMPORTANT:
+// This engine's cumulative curve is currently additive:
+//   curve[i] = curve[i - 1] + tradeResult
 //
-//   block       — sliding-window block bootstrap. Preserves local streak
-//                 structure. Answers: "what if my wins/losses cluster?"
-//
-// All units are whatever's in `scores` — R multiples for Backtest accounts,
-// account-currency units for Live/Demo. The engine never mixes them.
+// Therefore R-mode is a fixed-R cumulative model.
+// It is NOT a compounded percentage-of-equity account model.
 // ---------------------------------------------------------------------------
 
-// --- Seeded PRNG (mulberry32) ---
 function mulberry32(seed) {
   let s = seed >>> 0;
   return function () {
@@ -32,50 +30,17 @@ function mulberry32(seed) {
   };
 }
 
-// --- Per-run analyzers -----------------------------------------------------
 
-// Scans a cumulative curve for max drawdown and (optional) ruin breach.
-// Returns { final, maxDD, ruinIndex } where ruinIndex = -1 means "never".
-function analyzeCurve(curve, ruinThreshold) {
-  const n = curve.length - 1;
-  let peak = 0;
-  let maxDD = 0;
-  let ruinIndex = -1;
-
-  for (let i = 1; i <= n; i++) {
-    const v = curve[i];
-    if (v > peak) peak = v;
-    const dd = v - peak;
-    if (dd < maxDD) maxDD = dd;
-    if (ruinIndex === -1 && ruinThreshold != null && v <= ruinThreshold) {
-      ruinIndex = i;
-    }
-  }
-  return { final: curve[n], maxDD, ruinIndex };
-}
-
-// Longest win / loss streak in a sequence.
-function analyzeStreaks(seq) {
-  let curW = 0, curL = 0, maxW = 0, maxL = 0;
-  for (const s of seq) {
-    if (s > 0) { curW++; curL = 0; if (curW > maxW) maxW = curW; }
-    else if (s < 0) { curL++; curW = 0; if (curL > maxL) maxL = curL; }
-  }
-  return { maxW, maxL };
-}
-
-// Trades it took to fully recover from the worst drawdown.
-// Returns -1 if the curve is still underwater at the end.
+// Two-pass: find worst DD (peak->trough), then find first recovery of that peak.
+// Returns drawdown DURATION (peak index -> recovery index). -1 if never recovered.
 function analyzeRecovery(curve) {
   const n = curve.length - 1;
   let peak = 0, peakIdx = 0;
-  let worstDD = 0, ddPeakIdx = 0;
-  let endIdx = -1;
+  let worstDD = 0, ddPeakIdx = 0, ddTroughIdx = 0;
 
-  for (let i = 0; i <= n; i++) {
+  for (let i = 1; i <= n; i++) {
     const v = curve[i];
-    if (v >= peak) {
-      if (worstDD < 0 && endIdx === -1 && i > ddPeakIdx) endIdx = i;
+    if (v > peak) {
       peak = v;
       peakIdx = i;
     } else {
@@ -83,48 +48,26 @@ function analyzeRecovery(curve) {
       if (dd < worstDD) {
         worstDD = dd;
         ddPeakIdx = peakIdx;
+        ddTroughIdx = i;
       }
     }
   }
-  if (endIdx === -1 && curve[n] < peak) return -1;
-  return Math.max(0, endIdx - ddPeakIdx);
-}
 
-// Per-run ratios: sharpe, sortino, profit factor, expectancy, win rate.
-function analyzeRatios(seq) {
-  const n = seq.length;
-  if (n === 0) return { sharpe: 0, sortino: 0, pf: 0, expectancy: 0, winRate: 0 };
+  if (worstDD >= 0) return 0;
 
-  let sum = 0, winSum = 0, lossSum = 0, winCount = 0;
-  for (const s of seq) {
-    sum += s;
-    if (s > 0) { winSum += s; winCount++; }
-    else if (s < 0) { lossSum += s; }
+  const peakValue = curve[ddPeakIdx];
+  let recoveryIdx = -1;
+  for (let i = ddTroughIdx + 1; i <= n; i++) {
+    if (curve[i] >= peakValue) { recoveryIdx = i; break; }
   }
-  const mean = sum / n;
-
-  let varSum = 0, downSum = 0;
-  for (const s of seq) {
-    const d = s - mean;
-    varSum += d * d;
-    const dn = Math.min(0, s);
-    downSum += dn * dn;
-  }
-  const std = Math.sqrt(varSum / n);
-  const downStd = Math.sqrt(downSum / n);
-  const sharpe = std > 0 ? mean / std : 0;
-  const sortino = downStd > 0 ? mean / downStd : 0;
-  const pf = lossSum !== 0 ? winSum / Math.abs(lossSum) : (winSum > 0 ? Infinity : 0);
-  const winRate = n > 0 ? winCount / n : 0;
-
-  return { sharpe, sortino, pf, expectancy: mean, winRate };
+  if (recoveryIdx === -1) return -1;
+  return recoveryIdx - ddPeakIdx;
 }
 
 // --- Sequence generators ---------------------------------------------------
 
 function generatePermutation(base, n, randInt, out) {
   for (let i = 0; i < n; i++) out[i] = base[i];
-  // Fisher–Yates
   for (let i = n - 1; i > 0; i--) {
     const j = randInt(i + 1);
     const tmp = out[i]; out[i] = out[j]; out[j] = tmp;
@@ -136,19 +79,22 @@ function generateBootstrap(base, n, randInt, out) {
 }
 
 function generateBlockBootstrap(base, n, blockSize, randInt, out) {
-  const L = Math.max(2, Math.min(blockSize, n));
+  const L = Math.max(1, Math.min(blockSize, n));
+
   let cursor = 0;
+
   while (cursor < n) {
     const start = randInt(n - L + 1);
     const take = Math.min(L, n - cursor);
+
     for (let k = 0; k < take; k++) {
       out[cursor + k] = base[start + k];
     }
+
     cursor += take;
   }
 }
 
-// --- Percentile helper (with linear interpolation) ------------------------
 function percentile(sortedAsc, p) {
   const len = sortedAsc.length;
   if (len === 0) return 0;
@@ -170,24 +116,94 @@ export function runMonteCarlo(scores, options = {}) {
     targets = [],
     initialCapital = 0,
     blockSize = 5,
+    dollarsPerR = 0,      // conversion factor, only relevant in R-mode
   } = options;
 
-  if (!scores || scores.length < 2) return null;
+  // Validate input trades.
+  if (!Array.isArray(scores) && !ArrayBuffer.isView(scores)) return null;
+  if (scores.length < 2) return null;
 
-  const n = scores.length;
+  const cleanScores = Array.from(scores, Number);
+
+  if (cleanScores.some(v => !Number.isFinite(v))) {
+    throw new Error('Monte Carlo scores must contain only finite numbers.');
+  }
+
+  const n = cleanScores.length;
+
+  // Validate simulation parameters.
+  if (!Number.isInteger(runs) || runs < 1) {
+    throw new Error('Monte Carlo runs must be an integer >= 1.');
+  }
+
+  if (runs > 1_000_000) {
+    throw new Error(
+      'Monte Carlo runs cannot exceed 1,000,000 in the browser.'
+    );
+  }
+
+  if (!Number.isInteger(seed) || seed < 0) {
+    throw new Error('Monte Carlo seed must be a non-negative integer.');
+  }
+
+  if (!Number.isInteger(blockSize) || blockSize < 1) {
+    throw new Error('Monte Carlo blockSize must be an integer >= 1.');
+  }
+
+  if (initialCapital < 0 || !Number.isFinite(initialCapital)) {
+    throw new Error('initialCapital must be a finite number >= 0.');
+  }
+
+  if (dollarsPerR < 0 || !Number.isFinite(dollarsPerR)) {
+    throw new Error('dollarsPerR must be a finite number >= 0.');
+  }
+
+  const numericThreshold =
+    ruinThreshold == null ? null : Number(ruinThreshold);
+
+  if (
+    numericThreshold != null &&
+    !Number.isFinite(numericThreshold)
+  ) {
+    throw new Error('ddThreshold must be null or a finite number.');
+  }
+
+  if (numericThreshold != null && numericThreshold >= 0) {
+    throw new Error(
+      'ddThreshold must be negative or null. Example: -10 for a 10-unit drawdown threshold.'
+    );
+  }
+
+  if (!Array.isArray(targets)) {
+    throw new Error('targets must be an array.');
+  }
+
+  const cleanTargets = targets.map(Number);
+
+  if (cleanTargets.some(target => !Number.isFinite(target))) {
+    throw new Error('targets must contain only finite numbers.');
+  }
+
+  if (cleanTargets.some(target => target <= 0)) {
+    throw new Error('targets must contain only positive numbers.');
+  }
+
+  const uniqueTargets = [...new Set(cleanTargets)].sort((a, b) => a - b);
+
+  const base = cleanScores;
   const rand = mulberry32(seed);
   const randInt = (max) => Math.floor(rand() * max);
-  const base = scores.slice();
   const buf = new Float64Array(n);
 
-  // Pre-allocate per-run metric arrays
   const curves = new Array(runs);
+
   const finalValues = new Float64Array(runs);
   const maxDDs = new Float64Array(runs);
   const maxDDPct = new Float64Array(runs);
   const sharpes = new Float64Array(runs);
   const sortinos = new Float64Array(runs);
   const pfs = new Float64Array(runs);
+  const pfInfinite = new Uint8Array(runs);
   const expectancies = new Float64Array(runs);
   const winRates = new Float64Array(runs);
   const longestWins = new Int32Array(runs);
@@ -197,132 +213,454 @@ export function runMonteCarlo(scores, options = {}) {
 
   let ruinCount = 0;
   let profitCount = 0;
+  let infinitePfCount = 0;
+  let finalValueSum = 0;
+
+  // Convert-mode: how to translate maxDD into a % of capital.
+  // - $ mode: maxDD is already in currency; divide by capital.
+  // - R mode with dollarsPerR > 0: convert R -> $ first.
+  // - R mode without conversion: no % is meaningful; store 0.
+  const ddToCapitalPct = (maxDD) => {
+    if (initialCapital <= 0) return 0;
+
+    // Money mode:
+    // maxDD is already expressed in account currency.
+    if (dollarsPerR === 0) {
+      return (maxDD / initialCapital) * 100;
+    }
+
+    // R mode:
+    // Convert R -> account currency before calculating percentage.
+    return (maxDD * dollarsPerR / initialCapital) * 100;
+  };
 
   for (let r = 0; r < runs; r++) {
-    // 1. Generate sequence
-    if (method === 'bootstrap') {
+    if (method === 'permutation') {
+      generatePermutation(base, n, randInt, buf);
+    } else if (method === 'bootstrap') {
       generateBootstrap(base, n, randInt, buf);
     } else if (method === 'block') {
       generateBlockBootstrap(base, n, blockSize, randInt, buf);
     } else {
-      generatePermutation(base, n, randInt, buf);
+      throw new Error(
+        `Unknown Monte Carlo method: "${method}". Expected "permutation", "bootstrap", or "block".`
+      );
     }
 
-    // 2. Cumulative curve
     const curve = new Float64Array(n + 1);
     curve[0] = 0;
+
     let cum = 0;
+    let peak = 0;
+    let maxDD = 0;
+    let ruinIndex = -1;
+
+    let curW = 0;
+    let curL = 0;
+    let maxW = 0;
+    let maxL = 0;
+
+    let sum = 0;
+    let winSum = 0;
+    let lossSum = 0;
+    let winCount = 0;
+    let varSum = 0;
+    let downSum = 0;
+
     for (let i = 0; i < n; i++) {
-      cum += buf[i];
+      const s = buf[i];
+
+      cum += s;
       curve[i + 1] = cum;
-    }
-    curves[r] = curve;
 
-    // 3. Analyze
-    const a = analyzeCurve(curve, ruinThreshold);
-    finalValues[r] = a.final;
-    maxDDs[r] = a.maxDD;
-    maxDDPct[r] = initialCapital > 0 ? (a.maxDD / initialCapital) * 100 : 0;
-    ruinTrades[r] = a.ruinIndex;
+      if (cum > peak) peak = cum;
 
-    if (a.ruinIndex >= 0) ruinCount++;
-    if (a.final > 0) profitCount++;
+      const dd = cum - peak;
 
-    const st = analyzeStreaks(buf);
-    longestWins[r] = st.maxW;
-    longestLosses[r] = st.maxL;
+      if (dd < maxDD) {
+        maxDD = dd;
+      }
 
-    const ra = analyzeRatios(buf);
-    sharpes[r] = ra.sharpe;
-    sortinos[r] = ra.sortino;
-    pfs[r] = isFinite(ra.pf) ? ra.pf : 9999;
-    expectancies[r] = ra.expectancy;
-    winRates[r] = ra.winRate;
+      if (
+        ruinIndex === -1 &&
+        numericThreshold != null &&
+        dd <= numericThreshold
+      ) {
+        ruinIndex = i + 1;
+      }
 
-    recoveryTrades[r] = analyzeRecovery(curve);
-  }
+      if (s > 0) {
+        curW++;
+        curL = 0;
+        if (curW > maxW) maxW = curW;
+      } else if (s < 0) {
+        curL++;
+        curW = 0;
+        if (curL > maxL) maxL = curL;
+      } else {
+        curW = 0;
+        curL = 0;
+      }
 
-  // 4. Percentile bands (with interpolation)
-  const buildBand = (p) => {
-    const out = new Float64Array(n + 1);
-    const scratch = new Float64Array(runs);
-    for (let i = 0; i <= n; i++) {
-      for (let r = 0; r < runs; r++) scratch[r] = curves[r][i];
-      scratch.sort();
-      out[i] = percentile(scratch, p);
-    }
-    return Array.from(out);
-  };
+      sum += s;
 
-  const p5 = buildBand(0.05);
-  const p25 = buildBand(0.25);
-  const p50 = buildBand(0.50);
-  const p75 = buildBand(0.75);
-  const p95 = buildBand(0.95);
-
-  // 5. Time to target
-  const timeToTarget = (targets || []).map(target => {
-    let hits = 0;
-    const times = [];
-    for (let r = 0; r < runs; r++) {
-      const c = curves[r];
-      for (let i = 1; i <= n; i++) {
-        if (c[i] >= target) { hits++; times.push(i); break; }
+      if (s > 0) {
+        winSum += s;
+        winCount++;
+      } else if (s < 0) {
+        lossSum += s;
       }
     }
-    times.sort((a, b) => a - b);
-    return {
-      target,
-      successPct: (hits / runs) * 100,
-      medianTrades: times.length ? percentile(times, 0.50) : null,
-      p25Trades:    times.length ? percentile(times, 0.25) : null,
-      p75Trades:    times.length ? percentile(times, 0.75) : null,
-    };
-  });
 
-  // 6. Sorted copies for one-shot percentile reads (used by summarize)
+    const mean = sum / n;
+
+    for (let i = 0; i < n; i++) {
+      const s = buf[i];
+      const d = s - mean;
+
+      varSum += d * d;
+
+      const dn = Math.min(0, s);
+      downSum += dn * dn;
+    }
+
+    finalValues[r] = cum;
+    finalValueSum += cum;
+    maxDDs[r] = maxDD;
+    maxDDPct[r] = ddToCapitalPct(maxDD);
+    ruinTrades[r] = ruinIndex;
+
+    if (ruinIndex >= 0) ruinCount++;
+    if (cum > 0) profitCount++;
+
+    longestWins[r] = maxW;
+    longestLosses[r] = maxL;
+
+    const std = n > 1
+      ? Math.sqrt(varSum / (n - 1))
+      : 0;
+
+    const downStd = n > 1
+      ? Math.sqrt(downSum / (n - 1))
+      : 0;
+
+    sharpes[r] = std > 0
+      ? mean / std
+      : 0;
+
+    sortinos[r] = downStd > 0
+      ? mean / downStd
+      : 0;
+
+    const pf =
+      lossSum !== 0
+        ? winSum / Math.abs(lossSum)
+        : winSum > 0
+          ? Infinity
+          : null;
+
+    if (pf === null || !isFinite(pf)) {
+      pfs[r] = 0;
+      pfInfinite[r] = 1;
+      infinitePfCount++;
+    } else {
+      pfs[r] = pf;
+      pfInfinite[r] = 0;
+    }
+
+    expectancies[r] = mean;
+    winRates[r] = winCount / n;
+
+    recoveryTrades[r] = analyzeRecovery(curve);
+
+    curves[r] = curve;
+  }
+
+  // Percentile bands.
+  // Sort once per trade position, then derive all five percentiles.
+  const buildBands = () => {
+    const out = {
+      p5:  new Float64Array(n + 1),
+      p25: new Float64Array(n + 1),
+      p50: new Float64Array(n + 1),
+      p75: new Float64Array(n + 1),
+      p95: new Float64Array(n + 1),
+    };
+
+    const scratch = new Float64Array(runs);
+
+    for (let i = 0; i <= n; i++) {
+      for (let r = 0; r < runs; r++) {
+        scratch[r] = curves[r][i];
+      }
+
+      scratch.sort();
+
+      out.p5[i]  = percentile(scratch, 0.05);
+      out.p25[i] = percentile(scratch, 0.25);
+      out.p50[i] = percentile(scratch, 0.50);
+      out.p75[i] = percentile(scratch, 0.75);
+      out.p95[i] = percentile(scratch, 0.95);
+    }
+
+    return {
+      p5: Array.from(out.p5),
+      p25: Array.from(out.p25),
+      p50: Array.from(out.p50),
+      p75: Array.from(out.p75),
+      p95: Array.from(out.p95),
+    };
+  };
+
+  const {
+    p5,
+    p25,
+    p50,
+    p75,
+    p95,
+  } = buildBands();
+
+
+  // Drawdown percentile bands.
+  // Reconstruct each run's drawdown and sort once per trade position.
+  const buildDrawdownBands = () => {
+    const out = {
+      p5:  new Float64Array(n + 1),
+      p25: new Float64Array(n + 1),
+      p50: new Float64Array(n + 1),
+      p75: new Float64Array(n + 1),
+      p95: new Float64Array(n + 1),
+    };
+
+    const scratch = new Float64Array(runs);
+    const peaks = new Float64Array(runs);
+
+    for (let i = 0; i <= n; i++) {
+      for (let r = 0; r < runs; r++) {
+        const equity = curves[r][i];
+
+        if (equity > peaks[r]) {
+          peaks[r] = equity;
+        }
+
+        scratch[r] = equity - peaks[r];
+      }
+
+      scratch.sort();
+
+      out.p5[i]  = percentile(scratch, 0.05);
+      out.p25[i] = percentile(scratch, 0.25);
+      out.p50[i] = percentile(scratch, 0.50);
+      out.p75[i] = percentile(scratch, 0.75);
+      out.p95[i] = percentile(scratch, 0.95);
+    }
+
+    return {
+      p5: Array.from(out.p5),
+      p25: Array.from(out.p25),
+      p50: Array.from(out.p50),
+      p75: Array.from(out.p75),
+      p95: Array.from(out.p95),
+    };
+  };
+  const {
+    p5: ddP5,
+    p25: ddP25,
+    p50: ddP50,
+    p75: ddP75,
+    p95: ddP95,
+  } = buildDrawdownBands();
+
+  // Evenly-spaced sampling for FanChart (fixes the "first 300 only" bug).
+  const SAMPLE_COUNT = 300;
+  const count = Math.min(runs, SAMPLE_COUNT);
+  const sampledCurves = [];
+  const sampledDrawdownCurves = [];
+
+  if (count === 1) {
+    const sampled = Array.from(curves[0]);
+    sampledCurves.push(sampled);
+
+    const dd = new Array(n + 1);
+    let peak = 0;
+
+    for (let i = 0; i <= n; i++) {
+      if (sampled[i] > peak) peak = sampled[i];
+      dd[i] = sampled[i] - peak;
+    }
+
+    sampledDrawdownCurves.push(dd);
+  } else if (count > 1) {
+    for (let i = 0; i < count; i++) {
+      const r = Math.round((i * (runs - 1)) / (count - 1));
+      const sampled = Array.from(curves[r]);
+
+      sampledCurves.push(sampled);
+
+      const dd = new Array(n + 1);
+      let peak = 0;
+
+      for (let j = 0; j <= n; j++) {
+        if (sampled[j] > peak) peak = sampled[j];
+        dd[j] = sampled[j] - peak;
+      }
+
+      sampledDrawdownCurves.push(dd);
+    }
+  }
+
+  // Time-to-target.
+  let timeToTarget = [];
+
+  if (uniqueTargets.length > 0) {
+    const targetCount = uniqueTargets.length;
+
+    const targetEverCounts = new Int32Array(targetCount);
+    const targetFinalCounts = new Int32Array(targetCount);
+    const targetTimes = Array.from({ length: targetCount }, () => []);
+
+    for (let r = 0; r < runs; r++) {
+      const c = curves[r];
+      const finalValue = c[n];
+
+      // Targets are sorted ascending.
+      // Walk each run once and advance through targets as they are hit.
+      let nextTarget = 0;
+
+      for (let i = 1; i <= n && nextTarget < targetCount; i++) {
+        const equity = c[i];
+
+        while (
+          nextTarget < targetCount &&
+          equity >= uniqueTargets[nextTarget]
+        ) {
+          targetEverCounts[nextTarget]++;
+          targetTimes[nextTarget].push(i);
+          nextTarget++;
+        }
+      }
+
+      // Find how many configured targets are <= final value.
+      // Binary search avoids scanning all targets for every run.
+      let lo = 0;
+      let hi = targetCount;
+
+      while (lo < hi) {
+        const mid = (lo + hi) >> 1;
+
+        if (uniqueTargets[mid] <= finalValue) {
+          lo = mid + 1;
+        } else {
+          hi = mid;
+        }
+      }
+
+      for (let t = 0; t < lo; t++) {
+        targetFinalCounts[t]++;
+      }
+    }
+
+    timeToTarget = uniqueTargets.map((target, index) => {
+      const times = targetTimes[index];
+
+      times.sort((a, b) => a - b);
+
+      return {
+        target,
+        successPct: (targetEverCounts[index] / runs) * 100,
+        finalPct: (targetFinalCounts[index] / runs) * 100,
+        medianTrades: times.length ? percentile(times, 0.50) : null,
+        p25Trades: times.length ? percentile(times, 0.25) : null,
+        p75Trades: times.length ? percentile(times, 0.75) : null,
+      };
+    });
+  }
+
+  // Sorted copies (excluding infinite PF for finite stats)
+  const finitePfs = [];
+  for (let r = 0; r < runs; r++) if (!pfInfinite[r]) finitePfs.push(pfs[r]);
+  finitePfs.sort((a, b) => a - b);
+
   const sorted = {
     final:      Array.from(finalValues).sort((a, b) => a - b),
     maxDD:      Array.from(maxDDs).sort((a, b) => a - b),
     maxDDPct:   Array.from(maxDDPct).sort((a, b) => a - b),
     sharpe:     Array.from(sharpes).sort((a, b) => a - b),
     sortino:    Array.from(sortinos).sort((a, b) => a - b),
-    pf:         Array.from(pfs).sort((a, b) => a - b),
     expectancy: Array.from(expectancies).sort((a, b) => a - b),
-    winRate:    Array.from(winRates).sort((a, b) => a - b),
+    winRate:    Array.from(winRates).sort((a, b) => a - b), // fraction 0..1
     winStreak:  Array.from(longestWins).sort((a, b) => a - b),
     lossStreak: Array.from(longestLosses).sort((a, b) => a - b),
   };
 
   return {
-    method, runs, n, seed, ruinThreshold, initialCapital, blockSize,
-    unitMode: null,  // set by caller — 'R' or '$'
+    method,
+    runs,
+    n,
+    seed,
 
-    // Arrays for distribution charts
+    // Drawdown threshold terminology.
+    ddThreshold: numericThreshold,
+
+    // Backward-compatible alias for the current UI.
+    ruinThreshold: numericThreshold,
+
+    initialCapital,
+    blockSize,
+    dollarsPerR,
+
+    unitMode: null,
+
+    sampledCurves,
+    sampledDrawdownCurves,
+    sampledShown: sampledCurves.length,
+
     finalValues:    Array.from(finalValues),
     maxDDs:         Array.from(maxDDs),
     maxDDPct:       Array.from(maxDDPct),
     sharpes:        Array.from(sharpes),
     sortinos:       Array.from(sortinos),
-    profitFactors:  Array.from(pfs),
+    profitFactors:  finitePfs,
+
+    // Per-run metrics for raw run-level export.
+    runProfitFactors: Array.from(pfs),
+    runProfitFactorInfinite: Array.from(pfInfinite),
+
+    infinitePfCount,
     expectancies:   Array.from(expectancies),
     winRates:       Array.from(winRates),
     longestWins:    Array.from(longestWins),
     longestLosses:  Array.from(longestLosses),
     recoveryTrades: Array.from(recoveryTrades),
-    ruinTrades:     Array.from(ruinTrades),
+    ddBreachTrades: Array.from(ruinTrades),
 
-    // Fan chart bands
+    // Backward-compatible alias.
+    ruinTrades: Array.from(ruinTrades),
+
     percentiles: { p5, p25, p50, p75, p95 },
 
-    // Aggregate
-    profitCount, profitPct: (profitCount / runs) * 100,
-    ruinCount,   ruinPct:   (ruinCount / runs) * 100,
-    medianFinal: percentile(sorted.final, 0.50),
-    avgFinal:    finalValues.reduce((a, b) => a + b, 0) / runs,
+    drawdownPercentiles: {
+      p5: ddP5,
+      p25: ddP25,
+      p50: ddP50,
+      p75: ddP75,
+      p95: ddP95,
+    },
 
-    // Percentile lookup for summarize()
+    profitCount, profitPct: (profitCount / runs) * 100,
+    // Drawdown-threshold breach statistics.
+    ddBreachCount: ruinCount,
+    ddBreachPct:   (ruinCount / runs) * 100,
+
+    // Backward-compatible aliases for the current UI.
+    ruinCount,
+    ruinPct: (ruinCount / runs) * 100,
+    medianFinal: percentile(sorted.final, 0.50),
+    avgFinal:    finalValueSum / runs,
+
     _sorted: sorted,
+    _finitePfs: finitePfs,
+    _infinitePfCount: infinitePfCount,
 
     timeToTarget,
   };
@@ -358,7 +696,6 @@ export function buildHistogram(values, bucketCount = 12) {
   return { labels, counts, min, max, bucketSize };
 }
 
-// --- Percentile from any array --------------------------------------------
 export function pct(arr, p) {
   if (!arr || arr.length === 0) return 0;
   const s = [...arr].sort((a, b) => a - b);
@@ -369,6 +706,7 @@ export function pct(arr, p) {
 export function summarizeMC(result) {
   if (!result) return null;
   const s = result._sorted;
+  const finitePfs = result._finitePfs || [];
 
   return {
     runs: result.runs,
@@ -376,44 +714,50 @@ export function summarizeMC(result) {
     method: result.method,
     unitMode: result.unitMode,
 
-    // Final equity distribution
     medianFinal: percentile(s.final, 0.50),
     p5Final:     percentile(s.final, 0.05),
     p25Final:    percentile(s.final, 0.25),
     p75Final:    percentile(s.final, 0.75),
     p95Final:    percentile(s.final, 0.95),
 
-    // Max drawdown distribution (absolute units)
-    maxDD_p5:    percentile(s.maxDD, 0.05),   // worst tail
+    maxDD_p5:    percentile(s.maxDD, 0.05),
     maxDD_p25:   percentile(s.maxDD, 0.25),
     maxDD_p50:   percentile(s.maxDD, 0.50),
     maxDD_p75:   percentile(s.maxDD, 0.75),
     maxDD_p95:   percentile(s.maxDD, 0.95),
 
-    // Max drawdown as % of starting capital
+    // maxDDPct is signed, matching maxDD.
+    // Therefore p5 = deeper/worse drawdown,
+    // p50 = median drawdown,
+    // p95 = shallower drawdown.
     maxDDPct_p5:  percentile(s.maxDDPct, 0.05),
     maxDDPct_p50: percentile(s.maxDDPct, 0.50),
     maxDDPct_p95: percentile(s.maxDDPct, 0.95),
 
-    // Ratios
+    // Trade Sharpe (unannualized) — renamed in UI
     sharpe_p5:   percentile(s.sharpe, 0.05),
     sharpe_p50:  percentile(s.sharpe, 0.50),
     sharpe_p95:  percentile(s.sharpe, 0.95),
     sortino_p50: percentile(s.sortino, 0.50),
-    pf_p50:      percentile(s.pf, 0.50),
-    exp_p50:     percentile(s.expectancy, 0.50),
-    win_p50:     percentile(s.winRate, 0.50),
 
-    // Streaks
+    pf_p50: finitePfs.length ? percentile(finitePfs, 0.50) : Infinity,
+    infinitePfCount: result._infinitePfCount || 0,
+
+    exp_p50: percentile(s.expectancy, 0.50),
+
+    // Convert fraction to percent (0..1 -> 0..100)
+    win_p50: percentile(s.winRate, 0.50) * 100,
+
     winStreak_p50:  percentile(s.winStreak, 0.50),
     winStreak_p95:  percentile(s.winStreak, 0.95),
     lossStreak_p50: percentile(s.lossStreak, 0.50),
     lossStreak_p95: percentile(s.lossStreak, 0.95),
 
-    // Ruin + profit aggregates
     profitPct: result.profitPct,
     profitCount: result.profitCount,
-    ruinPct: result.ruinPct,
-    ruinCount: result.ruinCount,
+
+    // Drawdown-threshold breach statistics.
+    ddBreachPct: result.ddBreachPct,
+    ddBreachCount: result.ddBreachCount,
   };
 }
