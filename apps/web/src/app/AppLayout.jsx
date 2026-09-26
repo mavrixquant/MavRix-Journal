@@ -1,8 +1,6 @@
 // src/app/AppLayout.jsx
 import { useState, useRef } from 'react';
 import { useAuth } from '@/app/providers/AuthProvider';
-import { signOut } from 'firebase/auth';
-import { auth } from '@/services/firebase/config';
 import Sidebar from '@/app/shell/Sidebar';
 import AccountModal from '@/features/auth/components/AccountModal';
 import DashboardMain from '@/features/dashboard/components/DashboardMain';
@@ -12,13 +10,13 @@ import SimulatorPage from '@/features/simulator/components/SimulatorPage';
 import { useStats } from '@/features/dashboard/hooks/useStats';
 
 export default function AppLayout() {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const [isHovering, setIsHovering] = useState(false);
   const closeTimeoutRef = useRef(null);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
 
-  const handleLogout = async () => { await signOut(auth); };
+  const handleLogout = async () => { await logout(); };
   const isSidebarOpen = isHovering;
 
   const handleSidebarMouseEnter = () => {

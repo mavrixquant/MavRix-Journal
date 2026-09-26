@@ -1,81 +1,60 @@
-// src/services/accounts.service.js
-import { db } from './firebase/config';
-import {
-  collection,
-  doc,
-  addDoc,
-  getDocs,
-  updateDoc,
-  deleteDoc,
-  query,
-  where,
-  onSnapshot,
-} from 'firebase/firestore';
+// apps/web/src/services/accounts.service.js
+import { apiJson } from './api';
 
-const ACCOUNTS_COLLECTION = 'accounts';
+const POLL_INTERVAL_MS = 5000;
 
-export async function createAccount(userId, accountData) {
-  const account = {
-    userId,
-    name: accountData.name,
-    balance: accountData.balance,
-    currency: accountData.currency,
-    type: accountData.type || 'Backtest',
-    riskType: accountData.riskType || 'fixed',
-    riskValue: accountData.riskValue !== undefined ? accountData.riskValue : null,
-    riskUnit: accountData.riskUnit || 'percent',
-    slValue: accountData.slValue !== undefined ? accountData.slValue : null,
-    slUnit: accountData.slUnit || 'ticks',
-    commissionMode: accountData.commissionMode || 'none',
-    commissionValue: accountData.commissionValue !== undefined ? accountData.commissionValue : null,
-    columnConfigs: accountData.columnConfigs || {},
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
-  const docRef = await addDoc(collection(db, ACCOUNTS_COLLECTION), account);
-  return { id: docRef.id, ...account };
-}
-
-export async function getAccounts(userId) {
-  const q = query(
-    collection(db, ACCOUNTS_COLLECTION),
-    where('userId', '==', userId)
-  );
-  const snapshot = await getDocs(q);
-  const accounts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-  accounts.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-  return accounts;
-}
-
-export function subscribeToAccounts(userId, callback) {
-  const q = query(
-    collection(db, ACCOUNTS_COLLECTION),
-    where('userId', '==', userId)
-  );
-  return onSnapshot(q, (snapshot) => {
-    let accounts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    accounts.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-    callback(accounts);
+export async function createAccount(_userId, accountData) {
+  const data = await apiJson('/api/accounts', {
+    method: 'POST',
+    body: JSON.stringify(accountData),
   });
+  return data.account;
+}
+
+export async function getAccounts(_userId) {
+  const data = await apiJson('/api/accounts');
+  return data.accounts;
 }
 
 export async function updateAccount(accountId, accountData) {
-  const docRef = doc(db, ACCOUNTS_COLLECTION, accountId);
-  await updateDoc(docRef, {
-    ...accountData,
-    updatedAt: new Date().toISOString(),
+  const data = await apiJson(`/api/accounts/${accountId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(accountData),
   });
+  return data.account;
 }
 
 export async function deleteAccount(accountId) {
-  const docRef = doc(db, ACCOUNTS_COLLECTION, accountId);
-  await deleteDoc(docRef);
+  return apiJson(`/api/accounts/${accountId}`, { method: 'DELETE' });
 }
 
 export async function updateAccountColumnConfigs(accountId, columnConfigs) {
-  const docRef = doc(db, ACCOUNTS_COLLECTION, accountId);
-  await updateDoc(docRef, {
-    columnConfigs: columnConfigs || {},
-    updatedAt: new Date().toISOString(),
+  const data = await apiJson(`/api/accounts/${accountId}/column-configs`, {
+    method: 'PATCH',
+    body: JSON.stringify({ columnConfigs }),
   });
+  return data.account;
+}
+
+// Polling-based replacement for Firebase onSnapshot.
+export function subscribeToAccounts(_userId, callback) {
+  let cancelled = false;
+  let timer = null;
+
+  const tick = async () => {
+    if (cancelled) return;
+    try {
+      const accounts = await getAccounts();
+      if (!cancelled) callback(accounts);
+    } catch (err) {
+      console.error('[accounts] poll error:', err);
+    }
+    if (!cancelled) timer = setTimeout(tick, POLL_INTERVAL_MS);
+  };
+
+  tick();
+  return () => {
+    cancelled = true;
+    if (timer) clearTimeout(timer);
+  };
 }

@@ -21,6 +21,15 @@ app.use(express.json({ limit: '5mb' }));
 app.use(cookieParser());
 app.use(morgan(env.isProd ? 'combined' : 'dev'));
 
+// Disable HTTP caching for all API responses.
+// Prevents stale or cross-user data being served from the browser cache.
+app.use('/api', (_req, res, next) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
+  next();
+});
+
 app.use('/api', apiRouter);
 
 app.use(notFound);

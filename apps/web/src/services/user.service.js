@@ -1,76 +1,88 @@
-// src/services/user.service.js
-import { db } from './firebase/config';
-import {
-  doc,
-  setDoc,
-  onSnapshot,
-} from 'firebase/firestore';
+// apps/web/src/services/user.service.js
+import { apiJson } from './api';
 
-const USERS_COLLECTION = 'users';
-
-// ============================================================
-// User Preferences — Dashboard Layouts (max 3)
-// Stored at users/{uid}:
-//   dashboardLayouts: [{ id, name, layout: [...] }, ...]
-//   activeDashboardLayoutId: 'layout-xyz'
-// Legacy single-array format (dashboardLayout) is auto-migrated on read.
-// ============================================================
-
-export function subscribeToUserLayouts(userId, callback) {
-  if (!userId) {
-    callback(null);
-    return () => {};
-  }
-  const ref = doc(db, USERS_COLLECTION, userId);
-  return onSnapshot(
-    ref,
-    (snap) => {
-      if (!snap.exists()) { callback(null); return; }
-      const data = snap.data();
-
-      // New multi-layout format
-      if (Array.isArray(data.dashboardLayouts) && data.dashboardLayouts.length > 0) {
-        callback({
-          layouts: data.dashboardLayouts,
-          activeId: data.activeDashboardLayoutId || data.dashboardLayouts[0].id,
-        });
-        return;
-      }
-
-      // Legacy single-array format → migrate
-      if (Array.isArray(data.dashboardLayout) && data.dashboardLayout.length > 0) {
-        const migrated = [{
-          id: 'layout-legacy',
-          name: 'Layout 1',
-          layout: data.dashboardLayout,
-        }];
-        callback({
-          layouts: migrated,
-          activeId: 'layout-legacy',
-          migratedFromLegacy: true,
-        });
-        return;
-      }
-
-      callback(null);
-    },
-    (err) => {
-      console.error('[userLayouts] subscription error:', err);
-      callback(null);
-    }
-  );
+export async function getLayouts() {
+  return apiJson('/api/users/layouts');
 }
 
-export async function saveUserLayouts(userId, layouts, activeId) {
-  if (!userId) return;
-  const ref = doc(db, USERS_COLLECTION, userId);
-  await setDoc(
-    ref,
-    {
-      dashboardLayouts: Array.isArray(layouts) ? layouts : [],
-      activeDashboardLayoutId: activeId || null,
-      updatedAt: new Date().toISOString(),
-    },
-    { merge: true }
-  );
+export async function createLayout(layout) {
+  const data = await apiJson('/api/users/layouts', {
+    method: 'POST',
+    body: JSON.stringify(layout),
+  });
+  return data.layout;
+}
+
+export async function updateLayout(layoutId, patch) {
+  const data = await apiJson(`/api/users/layouts/${layoutId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(patch),
+  });
+  return data.layout;
+}
+
+export async function activateLayout(layoutId) {
+  return apiJson(`/api/users/layouts/${layoutId}/activate`, {
+    method: 'POST',
+  });
+}
+
+export async function deleteLayout(layoutId) {
+  return apiJson(`/api/users/layouts/${layoutId}`, { method: 'DELETE' });
+}
+
+// Firebase-compatible subscribe — fetches once. There is no server push.
+export function subscribeToUserLayouts(_userId, callback) {
+  let cancelled = false;
+
+  (async () => {
+    try {
+      const data = await getLayouts();
+      if (!cancelled) callback(data);
+    } catch (err) {
+      console.error('[layouts] fetch error:', err);
+      if (!cancelled) callback(null);
+    }
+  })();
+
+  return () => { cancelled = true; };
+}
+
+// Matches the old Firebase signature: saveUserLayouts(userId, layouts, activeId).
+// Diffs against current server state and issues the minimal set of calls.
+export async function saveUserLayouts(_userId, desiredLayouts, desiredActiveId) {
+  const current = await getLayouts();
+  const currentById = new Map(current.layouts.map((l) => [l.id, l]));
+  const desiredById = new Map(desiredLayouts.map((l) => [l.id, l]));
+
+  for (const id of currentById.keys()) {
+    if (!desiredById.has(id)) {
+      await deleteLayout(id);
+    }
+  }
+
+  for (const layout of desiredLayouts) {
+    const existing = currentById.get(layout.id);
+    if (!existing) {
+      await createLayout({
+        id: layout.id,
+        name: layout.name,
+        layout: layout.layout,
+      });
+    } else {
+      const layoutChanged =
+        JSON.stringify(existing.layout) !== JSON.stringify(layout.layout);
+      const nameChanged = existing.name !== layout.name;
+      if (layoutChanged || nameChanged) {
+        await updateLayout(layout.id, {
+          name: layout.name,
+          layout: layout.layout,
+        });
+      }
+    }
+  }
+
+  if (desiredActiveId && current.activeId !== desiredActiveId) {
+    await activateLayout(desiredActiveId);
+  }
 }

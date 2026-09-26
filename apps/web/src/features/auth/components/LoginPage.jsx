@@ -1,9 +1,8 @@
 // src/components/auth/Login.jsx
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { auth } from '@/services/firebase/config';
+import { useAuth } from '@/app/providers/AuthProvider';
 import navLogo from '@/assets/navLOGO.png';
-import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import AuthBackground from '@/shared/components/AuthBackground';
 import CustomCursor from '@/app/shell/CustomCursor';
 
@@ -403,19 +402,10 @@ export default function Login() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { login } = useAuth();
 
   const handleGoogleSignIn = async () => {
-    setError('');
-    setLoading(true);
-    const provider = new GoogleAuthProvider();
-    try {
-      await signInWithPopup(auth, provider);
-      navigate('/dashboard');
-    } catch (err) {
-      setError(err.message.replace('Firebase: ', ''));
-    } finally {
-      setLoading(false);
-    }
+    setError('Google sign-in will be available in a future update.');
   };
 
   const handleSubmit = async (e) => {
@@ -424,17 +414,14 @@ export default function Login() {
     setLoading(true);
     try {
       const emailLower = email.trim().toLowerCase();
-      const userCredential = await signInWithEmailAndPassword(auth, emailLower, password);
-      if (userCredential.user.emailVerified) {
+      const user = await login({ email: emailLower, password });
+      if (user.emailVerified) {
         navigate('/dashboard');
       } else {
         navigate('/verify-email');
       }
     } catch (err) {
-      const msg = err.message.includes('auth/invalid-credential')
-        ? 'Invalid email or password.'
-        : err.message.replace('Firebase: ', '');
-      setError(msg);
+      setError(err.message || 'Sign in failed. Please try again.');
     } finally {
       setLoading(false);
     }

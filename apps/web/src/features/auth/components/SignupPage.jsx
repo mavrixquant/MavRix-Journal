@@ -1,14 +1,7 @@
 // src/components/auth/Signup.jsx
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import {
-  createUserWithEmailAndPassword,
-  updateProfile,
-  GoogleAuthProvider,
-  signInWithPopup,
-  sendEmailVerification,
-} from 'firebase/auth';
-import { auth } from '@/services/firebase/config';
+import { useAuth } from '@/app/providers/AuthProvider';
 import navLogo from '@/assets/navLOGO.png';
 import AuthBackground from '@/shared/components/AuthBackground';
 import CustomCursor from '@/app/shell/CustomCursor';
@@ -432,19 +425,10 @@ export default function Signup() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { signup } = useAuth();
 
   const handleGoogleSignIn = async () => {
-    setError('');
-    setLoading(true);
-    const provider = new GoogleAuthProvider();
-    try {
-      await signInWithPopup(auth, provider);
-      navigate('/dashboard');
-    } catch (err) {
-      setError(err.message.replace('Firebase: ', ''));
-    } finally {
-      setLoading(false);
-    }
+    setError('Google sign-up will be available in a future update.');
   };
 
   const handleSubmit = async (e) => {
@@ -464,13 +448,15 @@ export default function Signup() {
     setLoading(true);
     try {
       const emailLower = email.trim().toLowerCase();
-      const userCredential = await createUserWithEmailAndPassword(auth, emailLower, password);
-      const fullName = `${firstName.trim()} ${lastName.trim()}`.trim();
-      await updateProfile(userCredential.user, { displayName: fullName });
-      await sendEmailVerification(userCredential.user);
+      await signup({
+        email: emailLower,
+        password,
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+      });
       navigate('/verify-email');
     } catch (err) {
-      setError(err.message.replace('Firebase: ', ''));
+      setError(err.message || 'Sign up failed. Please try again.');
     } finally {
       setLoading(false);
     }

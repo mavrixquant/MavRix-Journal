@@ -3,11 +3,7 @@ import { useState } from 'react';
 import Portal from '@/shared/components/Portal';
 import Alert from '@/shared/components/Alert';
 import { useAuth } from '@/app/providers/AuthProvider';
-import {
-  GoogleAuthProvider,
-  linkWithPopup,
-  unlink,
-} from 'firebase/auth';
+
 
 /* ------------------------------------------------------------------ */
 /*  Scoped CSS — matches the rest of the app                           */
@@ -536,29 +532,12 @@ export default function AccountModal({ isOpen, onClose }) {
   const initials = (firstName[0] || '') + (lastName[0] || '');
 
   const handleLinkGoogle = async () => {
-    setError('');
-    setLinking(true);
-    try {
-      const provider = new GoogleAuthProvider();
-      await linkWithPopup(user, provider);
-    } catch (err) {
-      setError(err.message.replace('Firebase: ', ''));
-    } finally {
-      setLinking(false);
-    }
+    setError('Google account linking will be available in a future update.');
   };
 
   const handleUnlinkGoogle = async () => {
     setShowUnlinkAlert(false);
-    setError('');
-    setUnlinking(true);
-    try {
-      await unlink(user, 'google.com');
-    } catch (err) {
-      setError(err.message.replace('Firebase: ', ''));
-    } finally {
-      setUnlinking(false);
-    }
+    setError('Google account linking will be available in a future update.');
   };
 
   return (

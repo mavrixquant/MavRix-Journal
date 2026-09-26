@@ -1,9 +1,8 @@
 // src/components/auth/EmailVerification.jsx
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { auth } from '@/services/firebase/config';
-import { sendEmailVerification, signOut } from 'firebase/auth';
 import { useAuth } from '@/app/providers/AuthProvider';
+import * as authService from '@/services/auth.service';
 import AuthBackground from '@/shared/components/AuthBackground';
 import CustomCursor from '@/app/shell/CustomCursor';
 
@@ -317,30 +316,53 @@ const styles = `
 `;
 
 export default function EmailVerification() {
-  const { user } = useAuth();
+  const { user, logout, refreshUser } = useAuth();
   const navigate = useNavigate();
   const [error, setError] = useState('');
+  const [status, setStatus] = useState('');
   const [resending, setResending] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+  const [token, setToken] = useState('');
+
+  const handleVerify = async () => {
+    const trimmed = token.trim();
+    if (!trimmed) {
+      setError('Paste the verification token from the API console.');
+      return;
+    }
+    setVerifying(true);
+    setError('');
+    setStatus('');
+    try {
+      await authService.verifyEmail(trimmed);
+      const updated = await refreshUser();
+      if (updated?.emailVerified) {
+        navigate('/dashboard', { replace: true });
+      }
+    } catch (err) {
+      setError(err.message || 'Verification failed');
+    } finally {
+      setVerifying(false);
+    }
+  };
 
   const handleResend = async () => {
     setResending(true);
     setError('');
+    setStatus('');
     try {
-      if (user) await sendEmailVerification(user);
+      await authService.resendVerification();
+      setStatus('A new verification link has been printed to the API console.');
     } catch (err) {
-      setError(err.message.replace('Firebase: ', ''));
+      setError(err.message || 'Could not resend verification');
     } finally {
       setResending(false);
     }
   };
 
   const handleLogout = async () => {
-    await signOut(auth);
-    navigate('/login');
-  };
-
-  const handleVerifiedClick = () => {
-    window.location.reload();
+    await logout();
+    navigate('/login', { replace: true });
   };
 
   return (
@@ -362,7 +384,7 @@ export default function EmailVerification() {
 
         <div className="auth-eyebrow">One step left</div>
         <h1 className="auth-title">Verify your email</h1>
-        <p className="auth-sub">We sent a verification link to</p>
+        <p className="auth-sub">Paste the token we printed to the API console.</p>
 
         {user?.email && (
           <div className="email-pill">{user.email}</div>
@@ -377,8 +399,46 @@ export default function EmailVerification() {
           </div>
         )}
 
-        <button className="btn-primary" onClick={handleVerifiedClick}>
-          I've verified — continue
+        {status && (
+          <div
+            className="error-banner"
+            style={{
+              background: 'rgba(34,197,94,.08)',
+              borderColor: 'rgba(34,197,94,.28)',
+              color: '#86efac',
+            }}
+          >
+            <span>{status}</span>
+          </div>
+        )}
+
+        <input
+          type="text"
+          placeholder="Paste verification token"
+          value={token}
+          onChange={(e) => setToken(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') handleVerify(); }}
+          style={{
+            width: '100%',
+            background: 'rgba(10,13,19,.6)',
+            border: '1px solid rgba(255,255,255,.1)',
+            borderRadius: '10px',
+            padding: '13px 16px',
+            color: '#E7E9EE',
+            fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
+            fontSize: '13px',
+            outline: 'none',
+            boxSizing: 'border-box',
+            marginBottom: '10px',
+          }}
+        />
+
+        <button
+          className="btn-primary"
+          onClick={handleVerify}
+          disabled={verifying || !token.trim()}
+        >
+          {verifying ? 'Verifying…' : 'Verify Email'}
         </button>
 
         <button className="btn-secondary" onClick={handleResend} disabled={resending}>
@@ -393,8 +453,8 @@ export default function EmailVerification() {
         </button>
 
         <p className="verify-hint">
-          Didn't receive the email? Check your <b>spam folder</b>, or make sure{' '}
-          <b>{(user?.email || '').split('@')[0]}</b> is spelled correctly.
+          Open the terminal running <b>npm run dev:api</b> and look for the block
+          starting with <b>[mailer]</b>. Copy everything after <b>token=</b>.
         </p>
       </div>
     </div>
