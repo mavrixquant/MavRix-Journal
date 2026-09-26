@@ -1,0 +1,607 @@
+{
+  "info": {
+    "name": "Mavrix API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "{{baseUrl}}" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Health",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/health" }
+        },
+        {
+          "name": "Signup",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "const json = pm.response.json();",
+                "if (json.accessToken) pm.environment.set('accessToken', json.accessToken);",
+                "pm.test('201', () => pm.response.to.have.status(201));"
+              ]
+            }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{testEmail}}\",\n  \"password\": \"{{testPassword}}\",\n  \"firstName\": \"Test\",\n  \"lastName\": \"User\"\n}" },
+            "url": "{{baseUrl}}/api/auth/signup"
+          }
+        },
+        {
+          "name": "Login",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "const json = pm.response.json();",
+                "if (json.accessToken) pm.environment.set('accessToken', json.accessToken);",
+                "pm.test('200', () => pm.response.to.have.status(200));"
+              ]
+            }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{testEmail}}\",\n  \"password\": \"{{testPassword}}\"\n}" },
+            "url": "{{baseUrl}}/api/auth/login"
+          }
+        },
+        {
+          "name": "Me",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": "{{baseUrl}}/api/auth/me"
+          }
+        },
+        {
+          "name": "Refresh",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "const json = pm.response.json();",
+                "if (json.accessToken) pm.environment.set('accessToken', json.accessToken);"
+              ]
+            }
+          }],
+          "request": { "method": "POST", "url": "{{baseUrl}}/api/auth/refresh" }
+        },
+        {
+          "name": "Verify Email",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"token\": \"{{verifyToken}}\"\n}" },
+            "url": "{{baseUrl}}/api/auth/verify-email"
+          }
+        },
+        {
+          "name": "Logout",
+          "request": { "method": "POST", "url": "{{baseUrl}}/api/auth/logout" }
+        }
+      ]
+    },
+    {
+      "name": "Accounts",
+      "item": [
+        {
+          "name": "List Accounts",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "pm.test('200', () => pm.response.to.have.status(200));",
+                "const json = pm.response.json();",
+                "pm.test('Has accounts array', () => pm.expect(json.accounts).to.be.an('array'));"
+              ]
+            }
+          }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": "{{baseUrl}}/api/accounts"
+          }
+        },
+        {
+          "name": "Create Account",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "const json = pm.response.json();",
+                "if (json.account?.id) pm.environment.set('accountId', json.account.id);",
+                "pm.test('201', () => pm.response.to.have.status(201));",
+                "pm.test('Account has id', () => pm.expect(json.account.id).to.be.a('string'));",
+                "pm.test('Name matches', () => pm.expect(json.account.name).to.eql('Main Backtest'));"
+              ]
+            }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Main Backtest\",\n  \"balance\": 10000,\n  \"currency\": \"USD\",\n  \"type\": \"Backtest\",\n  \"riskType\": \"fixed\",\n  \"riskValue\": 1,\n  \"riskUnit\": \"percent\",\n  \"slValue\": 12.5,\n  \"slUnit\": \"ticks\",\n  \"commissionMode\": \"flat\",\n  \"commissionValue\": 2.5\n}"
+            },
+            "url": "{{baseUrl}}/api/accounts"
+          }
+        },
+        {
+          "name": "Get Account",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": ["pm.test('200', () => pm.response.to.have.status(200));"]
+            }
+          }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": "{{baseUrl}}/api/accounts/{{accountId}}"
+          }
+        },
+        {
+          "name": "Update Account",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "const json = pm.response.json();",
+                "pm.test('200', () => pm.response.to.have.status(200));",
+                "pm.test('Name updated', () => pm.expect(json.account.name).to.eql('Renamed Backtest'));"
+              ]
+            }
+          }],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Renamed Backtest\",\n  \"balance\": 12500\n}" },
+            "url": "{{baseUrl}}/api/accounts/{{accountId}}"
+          }
+        },
+        {
+          "name": "Update Column Configs",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": ["pm.test('200', () => pm.response.to.have.status(200));"]
+            }
+          }],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"columnConfigs\": {\n    \"setup\": \"dropdown\",\n    \"factors\": \"text\",\n    \"pcz\": \"dropdown\"\n  }\n}"
+            },
+            "url": "{{baseUrl}}/api/accounts/{{accountId}}/column-configs"
+          }
+        },
+        {
+          "name": "Delete Account",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": ["pm.test('200', () => pm.response.to.have.status(200));"]
+            }
+          }],
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": "{{baseUrl}}/api/accounts/{{accountId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Trades",
+      "item": [
+        {
+          "name": "List Trades",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "pm.test('200', () => pm.response.to.have.status(200));",
+                "const json = pm.response.json();",
+                "pm.test('Has trades array', () => pm.expect(json.trades).to.be.an('array'));"
+              ]
+            }
+          }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/trades?accountId={{accountId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "trades"],
+              "query": [{ "key": "accountId", "value": "{{accountId}}" }]
+            }
+          }
+        },
+        {
+          "name": "Create Trade",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "const json = pm.response.json();",
+                "if (json.trade?.id) pm.environment.set('tradeId', json.trade.id);",
+                "pm.test('201', () => pm.response.to.have.status(201));",
+                "pm.test('Dynamic setup echoed', () => pm.expect(json.trade.setup).to.eql('Breakout'));",
+                "pm.test('Dynamic factors echoed', () => pm.expect(json.trade.factors).to.eql('VWAP + ORH'));",
+                "pm.test('tradeId present', () => pm.expect(json.trade.tradeId).to.be.a('string'));"
+              ]
+            }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accountId\": \"{{accountId}}\",\n  \"date\": \"2025-01-15\",\n  \"entryTime\": \"09:35\",\n  \"exitTime\": \"10:15\",\n  \"direction\": \"Long\",\n  \"symbol\": \"NQ\",\n  \"mae\": 8.2,\n  \"mfe\": 15.4,\n  \"pnl\": 12.34,\n  \"slPoints\": 12.5,\n  \"contracts\": 3,\n  \"notes\": \"Breakout above VWAP\",\n  \"setup\": \"Breakout\",\n  \"factors\": \"VWAP + ORH\"\n}"
+            },
+            "url": "{{baseUrl}}/api/trades"
+          }
+        },
+        {
+          "name": "Get Trade",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "pm.test('200', () => pm.response.to.have.status(200));",
+                "pm.test('Setup persisted', () => pm.expect(pm.response.json().trade.setup).to.eql('Breakout'));"
+              ]
+            }
+          }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": "{{baseUrl}}/api/trades/{{tradeId}}"
+          }
+        },
+        {
+          "name": "Update Trade",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "pm.test('200', () => pm.response.to.have.status(200));",
+                "const json = pm.response.json();",
+                "pm.test('Notes updated', () => pm.expect(json.trade.notes).to.eql('Updated note'));",
+                "pm.test('Setup updated', () => pm.expect(json.trade.setup).to.eql('Failed Breakout'));"
+              ]
+            }
+          }],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"notes\": \"Updated note\",\n  \"setup\": \"Failed Breakout\"\n}"
+            },
+            "url": "{{baseUrl}}/api/trades/{{tradeId}}"
+          }
+        },
+        {
+          "name": "Bulk Create",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "pm.test('201', () => pm.response.to.have.status(201));",
+                "pm.test('Created 2', () => pm.expect(pm.response.json().created).to.eql(2));"
+              ]
+            }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accountId\": \"{{accountId}}\",\n  \"trades\": [\n    {\n      \"date\": \"2025-01-16\",\n      \"entryTime\": \"09:35\",\n      \"exitTime\": \"10:00\",\n      \"direction\": \"Long\",\n      \"symbol\": \"ES\",\n      \"mae\": 4,\n      \"mfe\": 8,\n      \"pnl\": 50,\n      \"setup\": \"ORB\"\n    },\n    {\n      \"date\": \"2025-01-16\",\n      \"entryTime\": \"11:00\",\n      \"exitTime\": \"11:30\",\n      \"direction\": \"Short\",\n      \"symbol\": \"ES\",\n      \"mae\": 3,\n      \"mfe\": 5,\n      \"pnl\": -25,\n      \"setup\": \"Failed ORB\"\n    }\n  ]\n}"
+            },
+            "url": "{{baseUrl}}/api/trades/bulk"
+          }
+        },
+        {
+          "name": "Add Custom Column",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "pm.test('200', () => pm.response.to.have.status(200));",
+                "pm.test('Updated count is number', () => pm.expect(pm.response.json().updated).to.be.a('number'));"
+              ]
+            }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"confidence\"\n}" },
+            "url": "{{baseUrl}}/api/trades/by-account/{{accountId}}/columns"
+          }
+        },
+        {
+          "name": "Delete Custom Column",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": ["pm.test('200', () => pm.response.to.have.status(200));"]
+            }
+          }],
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": "{{baseUrl}}/api/trades/by-account/{{accountId}}/columns/confidence"
+          }
+        },
+        {
+          "name": "Delete Trade",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "pm.test('200', () => pm.response.to.have.status(200));",
+                "pm.test('ok true', () => pm.expect(pm.response.json().ok).to.eql(true));"
+              ]
+            }
+          }],
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": "{{baseUrl}}/api/trades/{{tradeId}}"
+          }
+        },
+        {
+          "name": "Delete All Trades",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "pm.test('200', () => pm.response.to.have.status(200));",
+                "pm.test('Deleted 2', () => pm.expect(pm.response.json().deleted).to.eql(2));"
+              ]
+            }
+          }],
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": "{{baseUrl}}/api/trades/by-account/{{accountId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "List Layouts",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "pm.test('200', () => pm.response.to.have.status(200));",
+                "const json = pm.response.json();",
+                "pm.test('Has layouts array', () => pm.expect(json.layouts).to.be.an('array'));"
+              ]
+            }
+          }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": "{{baseUrl}}/api/users/layouts"
+          }
+        },
+        {
+          "name": "Create Layout 1",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "pm.test('201', () => pm.response.to.have.status(201));",
+                "const json = pm.response.json();",
+                "pm.test('Is first → active', () => pm.expect(json.layout.isActive).to.eql(true));",
+                "pm.test('Name matches', () => pm.expect(json.layout.name).to.eql('Layout 1'));"
+              ]
+            }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"layout-test-1\",\n  \"name\": \"Layout 1\",\n  \"layout\": [\n    { \"i\": \"calendar\", \"x\": 0, \"y\": 0, \"w\": 14, \"h\": 12, \"minW\": 1, \"minH\": 1, \"visible\": true },\n    { \"i\": \"hero\", \"x\": 0, \"y\": 12, \"w\": 14, \"h\": 7, \"minW\": 1, \"minH\": 1, \"visible\": true }\n  ]\n}"
+            },
+            "url": "{{baseUrl}}/api/users/layouts"
+          }
+        },
+        {
+          "name": "Create Layout 2",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "pm.test('201', () => pm.response.to.have.status(201));",
+                "pm.test('Is not active', () => pm.expect(pm.response.json().layout.isActive).to.eql(false));"
+              ]
+            }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"layout-test-2\",\n  \"name\": \"Layout 2\",\n  \"layout\": [\n    { \"i\": \"hero\", \"x\": 0, \"y\": 0, \"w\": 24, \"h\": 8, \"minW\": 1, \"minH\": 1, \"visible\": true }\n  ]\n}"
+            },
+            "url": "{{baseUrl}}/api/users/layouts"
+          }
+        },
+        {
+          "name": "Create Layout 3",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "pm.test('201', () => pm.response.to.have.status(201));",
+                "pm.test('Is not active', () => pm.expect(pm.response.json().layout.isActive).to.eql(false));"
+              ]
+            }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"layout-test-3\",\n  \"name\": \"Layout 3\",\n  \"layout\": [\n    { \"i\": \"kpiGrid\", \"x\": 0, \"y\": 0, \"w\": 24, \"h\": 6, \"minW\": 1, \"minH\": 1, \"visible\": true }\n  ]\n}"
+            },
+            "url": "{{baseUrl}}/api/users/layouts"
+          }
+        },
+        {
+          "name": "Create Layout 4 (expect 409)",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "pm.test('409 Conflict', () => pm.response.to.have.status(409));",
+                "pm.test('Error mentions Maximum', () => pm.expect(pm.response.json().error).to.include('Maximum'));"
+              ]
+            }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"layout-test-4\",\n  \"name\": \"Layout 4\",\n  \"layout\": [\n    { \"i\": \"hero\", \"x\": 0, \"y\": 0, \"w\": 24, \"h\": 8, \"minW\": 1, \"minH\": 1, \"visible\": true }\n  ]\n}"
+            },
+            "url": "{{baseUrl}}/api/users/layouts"
+          }
+        },
+        {
+          "name": "Activate Layout 2",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "pm.test('200', () => pm.response.to.have.status(200));",
+                "pm.test('ok true', () => pm.expect(pm.response.json().ok).to.eql(true));"
+              ]
+            }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": "{{baseUrl}}/api/users/layouts/layout-test-2/activate"
+          }
+        },
+        {
+          "name": "Update Layout 1",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "pm.test('200', () => pm.response.to.have.status(200));",
+                "pm.test('Name updated', () => pm.expect(pm.response.json().layout.name).to.eql('Renamed Layout'));"
+              ]
+            }
+          }],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Renamed Layout\"\n}" },
+            "url": "{{baseUrl}}/api/users/layouts/layout-test-1"
+          }
+        },
+        {
+          "name": "Delete Layout 1",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "pm.test('200', () => pm.response.to.have.status(200));",
+                "pm.test('ok true', () => pm.expect(pm.response.json().ok).to.eql(true));"
+              ]
+            }
+          }],
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": "{{baseUrl}}/api/users/layouts/layout-test-1"
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,95 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                String    @id @default(cuid())
+  email             String    @unique
+  passwordHash      String?
+  firstName         String?
+  lastName          String?
+  emailVerified     Boolean   @default(false)
+  verifyToken       String?   @unique
+  verifyTokenExpiry DateTime?
+  googleId          String?   @unique
+  photoUrl          String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  accounts Account[]
+  layouts  UserLayout[]
+
+  @@map("users")
+}
+
+model Account {
+  id              String   @id @default(cuid())
+  userId          String
+  name            String
+  balance         Float
+  currency        String   @default("USD")
+  type            String   @default("Backtest")
+  riskType        String   @default("fixed")
+  riskValue       Float?
+  riskUnit        String?
+  slValue         Float?
+  slUnit          String?
+  commissionMode  String   @default("none")
+  commissionValue Float?
+  columnConfigs   Json     @default("{}")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trades Trade[]
+
+  @@index([userId])
+  @@map("accounts")
+}
+
+model Trade {
+  id         String   @id @default(cuid())
+  accountId  String
+  tradeId    String
+  date       String
+  entryTime  String
+  exitTime   String
+  direction  String
+  symbol     String   @default("")
+  mae        Float    @default(0)
+  mfe        Float    @default(0)
+  pnl        Float    @default(0)
+  slPoints   Float?
+  contracts  Int?
+  notes      String   @default("")
+  dynamic    Json     @default("{}")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@unique([accountId, tradeId])
+  @@index([accountId])
+  @@index([accountId, date])
+  @@map("trades")
+}
+
+model UserLayout {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  layout    Json
+  isActive  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("user_layouts")
+}

@@ -1,31 +1,15 @@
-# Dependencies
 node_modules/
-
-# Build output
 dist/
-dist-ssr/
 build/
-
-# Vite cache
-.vite/
-
-# Environment / secrets
 .env
-.env.local
-.env.*.local
-
-# Editor / OS
+.env.*
+!.env.example
+*.log
 .DS_Store
-Thumbs.db
 .vscode/
 .idea/
-
-# Logs
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-*.log
-
-# ESLint cache
-.eslintcache
+coverage/
+apps/api/prisma/migrations/dev.db*
+ai-context
+*.ps1
+notes.*
