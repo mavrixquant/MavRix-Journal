@@ -102,3 +102,21 @@ export async function unlinkGoogle() {
   const data = await apiJson('/api/auth/google/unlink', { method: 'POST' });
   return normalizeUser(data.user);
 }
+
+// ---------------------------------------------------------------------------
+// Password reset
+// ---------------------------------------------------------------------------
+
+export async function requestPasswordReset(email) {
+  return apiJson('/api/auth/request-password-reset', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  });
+}
+
+export async function resetPassword(token, password) {
+  return apiJson('/api/auth/reset-password', {
+    method: 'POST',
+    body: JSON.stringify({ token, password }),
+  });
+}

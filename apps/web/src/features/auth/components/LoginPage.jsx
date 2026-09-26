@@ -528,6 +528,22 @@ export default function Login() {
             </button>
           </div>
 
+          <div style={{ textAlign: 'right', marginTop: '-4px', marginBottom: '14px' }}>
+            <Link
+              to="/forgot-password"
+              style={{
+                fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
+                fontSize: '11.5px',
+                color: '#8892A3',
+                textDecoration: 'none',
+                cursor: 'none',
+                transition: 'color .2s',
+              }}
+            >
+              Forgot password?
+            </Link>
+          </div>
+
           <button type="submit" className="btn-submit" disabled={loading}>
             {loading ? <div className="spinner" /> : 'Sign In'}
           </button>

@@ -6,6 +6,8 @@ import Signup from '@/features/auth/components/SignupPage';
 import AppLayout from '@/app/AppLayout';
 import Landing from '@/features/landing/LandingPage';
 import EmailVerification from '@/features/auth/components/EmailVerificationPage';
+import ForgotPassword from '@/features/auth/components/ForgotPasswordPage';
+import ResetPassword from '@/features/auth/components/ResetPasswordPage';
 
 function App() {
   const { user, loading } = useAuth();
@@ -49,6 +51,26 @@ function App() {
               <Navigate to="/dashboard" />
             ) : (
               <EmailVerification />
+            )
+          }
+        />
+        <Route
+          path="/forgot-password"
+          element={
+            user ? (
+              isVerified ? <Navigate to="/dashboard" /> : <Navigate to="/verify-email" />
+            ) : (
+              <ForgotPassword />
+            )
+          }
+        />
+        <Route
+          path="/reset-password"
+          element={
+            user ? (
+              isVerified ? <Navigate to="/dashboard" /> : <Navigate to="/verify-email" />
+            ) : (
+              <ResetPassword />
             )
           }
         />

@@ -6,9 +6,10 @@ import {
   verifyRefreshToken,
 } from '../lib/jwt.js';
 import { HttpError } from '../middleware/error.js';
-import { generateSecureToken, VERIFY_TTL_MS } from '../lib/tokens.js';
-import { sendVerificationEmail } from '../lib/mailer.js';
+import { generateSecureToken, VERIFY_TTL_MS, RESET_TTL_MS } from '../lib/tokens.js';
+import { sendVerificationEmail, sendPasswordResetEmail } from '../lib/mailer.js';
 import { verifyGoogleAccessToken } from '../lib/google.js';
+
 
 const publicUser = (u) => ({
   id: u.id,
@@ -200,4 +201,58 @@ export async function unlinkGoogleAccount(userId) {
     data: { googleId: null },
   });
   return publicUser(updated);
+}
+
+// ---------------------------------------------------------------------------
+// Password reset
+// ---------------------------------------------------------------------------
+
+export async function requestPasswordReset(email) {
+  const user = await prisma.user.findUnique({ where: { email } });
+
+  // Always return success, even if the email doesn't exist,
+  // to prevent account enumeration.
+  if (!user) {
+    return { ok: true };
+  }
+
+  const resetToken = generateSecureToken();
+  const resetTokenExpiry = new Date(Date.now() + RESET_TTL_MS);
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { resetToken, resetTokenExpiry },
+  });
+
+  await sendPasswordResetEmail({ to: user.email, token: resetToken });
+
+  return { ok: true };
+}
+
+export async function resetPassword(token, newPassword) {
+  if (!token || !newPassword) {
+    throw new HttpError(400, 'Token and new password are required');
+  }
+  if (newPassword.length < 6) {
+    throw new HttpError(400, 'Password must be at least 6 characters');
+  }
+
+  const user = await prisma.user.findUnique({ where: { resetToken: token } });
+  if (!user) throw new HttpError(400, 'Invalid reset token');
+  if (user.resetTokenExpiry && user.resetTokenExpiry < new Date()) {
+    throw new HttpError(400, 'Reset token expired');
+  }
+
+  const passwordHash = await hashPassword(newPassword);
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      passwordHash,
+      resetToken: null,
+      resetTokenExpiry: null,
+    },
+  });
+
+  return { ok: true };
 }

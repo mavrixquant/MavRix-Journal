@@ -99,3 +99,24 @@ export async function googleUnlink(req, res, next) {
     res.json({ user });
   } catch (e) { next(e); }
 }
+
+// ---------------------------------------------------------------------------
+// Password reset
+// ---------------------------------------------------------------------------
+
+export async function requestPasswordReset(req, res, next) {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: 'Email required' });
+    const result = await authService.requestPasswordReset(String(email).toLowerCase().trim());
+    res.json(result);
+  } catch (e) { next(e); }
+}
+
+export async function resetPassword(req, res, next) {
+  try {
+    const { token, password } = req.body;
+    const result = await authService.resetPassword(token, password);
+    res.json(result);
+  } catch (e) { next(e); }
+}

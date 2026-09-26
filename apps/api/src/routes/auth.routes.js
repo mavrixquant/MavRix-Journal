@@ -24,3 +24,5 @@ authRoutes.post('/resend-verification', requireAuth, authController.resendVerifi
 authRoutes.post('/google', authController.googleLogin);
 authRoutes.post('/google/link', requireAuth, authController.googleLink);
 authRoutes.post('/google/unlink', requireAuth, authController.googleUnlink);
+authRoutes.post('/request-password-reset', authController.requestPasswordReset);
+authRoutes.post('/reset-password', authController.resetPassword);
