@@ -3,6 +3,8 @@ import { useState } from 'react';
 import Portal from '@/shared/components/Portal';
 import Alert from '@/shared/components/Alert';
 import { useAuth } from '@/app/providers/AuthProvider';
+import * as authService from '@/services/auth.service';
+import * as google from '@/services/google';
 
 
 /* ------------------------------------------------------------------ */
@@ -532,12 +534,32 @@ export default function AccountModal({ isOpen, onClose }) {
   const initials = (firstName[0] || '') + (lastName[0] || '');
 
   const handleLinkGoogle = async () => {
-    setError('Google account linking will be available in a future update.');
+    setError('');
+    setLinking(true);
+    try {
+      const accessToken = await google.signIn();
+      await authService.linkGoogle(accessToken);
+      // Force a fresh user from the server so providerData updates.
+      window.location.reload();
+    } catch (err) {
+      setError(err.message || 'Could not link Google account');
+    } finally {
+      setLinking(false);
+    }
   };
 
   const handleUnlinkGoogle = async () => {
     setShowUnlinkAlert(false);
-    setError('Google account linking will be available in a future update.');
+    setError('');
+    setUnlinking(true);
+    try {
+      await authService.unlinkGoogle();
+      window.location.reload();
+    } catch (err) {
+      setError(err.message || 'Could not unlink Google account');
+    } finally {
+      setUnlinking(false);
+    }
   };
 
   return (

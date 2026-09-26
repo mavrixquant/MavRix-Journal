@@ -21,3 +21,6 @@ authRoutes.post('/logout', authController.logout);
 authRoutes.get('/me', requireAuth, authController.me);
 authRoutes.post('/verify-email', authController.verifyEmail);
 authRoutes.post('/resend-verification', requireAuth, authController.resendVerification);
+authRoutes.post('/google', authController.googleLogin);
+authRoutes.post('/google/link', requireAuth, authController.googleLink);
+authRoutes.post('/google/unlink', requireAuth, authController.googleUnlink);

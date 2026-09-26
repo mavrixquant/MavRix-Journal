@@ -69,3 +69,33 @@ export async function resendVerification(req, res, next) {
     res.json(result);
   } catch (e) { next(e); }
 }
+
+// ---------------------------------------------------------------------------
+// Google
+// ---------------------------------------------------------------------------
+
+export async function googleLogin(req, res, next) {
+  try {
+    const { accessToken } = req.body;
+    if (!accessToken) return res.status(400).json({ error: 'accessToken required' });
+    const { user, accessToken: jwt, refreshToken } = await authService.loginWithGoogle(accessToken);
+    setRefreshCookie(res, refreshToken);
+    res.json({ user, accessToken: jwt });
+  } catch (e) { next(e); }
+}
+
+export async function googleLink(req, res, next) {
+  try {
+    const { accessToken } = req.body;
+    if (!accessToken) return res.status(400).json({ error: 'accessToken required' });
+    const user = await authService.linkGoogleAccount(req.userId, accessToken);
+    res.json({ user });
+  } catch (e) { next(e); }
+}
+
+export async function googleUnlink(req, res, next) {
+  try {
+    const user = await authService.unlinkGoogleAccount(req.userId);
+    res.json({ user });
+  } catch (e) { next(e); }
+}

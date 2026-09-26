@@ -8,6 +8,7 @@ import {
 import { HttpError } from '../middleware/error.js';
 import { generateSecureToken, VERIFY_TTL_MS } from '../lib/tokens.js';
 import { sendVerificationEmail } from '../lib/mailer.js';
+import { verifyGoogleAccessToken } from '../lib/google.js';
 
 const publicUser = (u) => ({
   id: u.id,
@@ -16,6 +17,7 @@ const publicUser = (u) => ({
   lastName: u.lastName,
   emailVerified: u.emailVerified,
   photoUrl: u.photoUrl,
+  hasGoogle: !!u.googleId,
 });
 
 const issueTokens = (user) => {
@@ -105,4 +107,97 @@ export async function refresh(refreshToken) {
   if (!user) throw new HttpError(401, 'User no longer exists');
 
   return { user: publicUser(user), ...issueTokens(user) };
+}
+
+// ---------------------------------------------------------------------------
+// Google
+// ---------------------------------------------------------------------------
+
+export async function loginWithGoogle(accessToken) {
+  const g = await verifyGoogleAccessToken(accessToken);
+
+  // Case 1: existing user with this googleId
+  const byGoogle = await prisma.user.findUnique({ where: { googleId: g.googleId } });
+  if (byGoogle) {
+    return { user: publicUser(byGoogle), ...issueTokens(byGoogle) };
+  }
+
+  // Case 2: existing user with this email (created via password signup)
+  const byEmail = await prisma.user.findUnique({ where: { email: g.email } });
+  if (byEmail) {
+    // Auto-link only if their email was already verified.
+    if (!byEmail.emailVerified) {
+      throw new HttpError(
+        409,
+        'An account with this email already exists and is not verified. Verify it first or log in with your password.'
+      );
+    }
+    const linked = await prisma.user.update({
+      where: { id: byEmail.id },
+      data: {
+        googleId: g.googleId,
+        photoUrl: byEmail.photoUrl || g.photoUrl,
+      },
+    });
+    return { user: publicUser(linked), ...issueTokens(linked) };
+  }
+
+  // Case 3: brand new user, Google-verified email
+  const created = await prisma.user.create({
+    data: {
+      email: g.email,
+      googleId: g.googleId,
+      firstName: g.firstName,
+      lastName: g.lastName,
+      photoUrl: g.photoUrl,
+      emailVerified: true,
+      passwordHash: null,
+    },
+  });
+  return { user: publicUser(created), ...issueTokens(created) };
+}
+
+export async function linkGoogleAccount(userId, accessToken) {
+  const g = await verifyGoogleAccessToken(accessToken);
+
+  const me = await prisma.user.findUnique({ where: { id: userId } });
+  if (!me) throw new HttpError(404, 'User not found');
+
+  if (me.googleId === g.googleId) {
+    return publicUser(me); // idempotent
+  }
+
+  const clash = await prisma.user.findUnique({ where: { googleId: g.googleId } });
+  if (clash && clash.id !== userId) {
+    throw new HttpError(409, 'This Google account is already linked to another user');
+  }
+
+  const updated = await prisma.user.update({
+    where: { id: userId },
+    data: {
+      googleId: g.googleId,
+      photoUrl: me.photoUrl || g.photoUrl,
+    },
+  });
+  return publicUser(updated);
+}
+
+export async function unlinkGoogleAccount(userId) {
+  const me = await prisma.user.findUnique({ where: { id: userId } });
+  if (!me) throw new HttpError(404, 'User not found');
+
+  if (!me.googleId) return publicUser(me); // idempotent
+
+  if (!me.passwordHash) {
+    throw new HttpError(
+      400,
+      'Set a password before unlinking Google, otherwise you would be locked out'
+    );
+  }
+
+  const updated = await prisma.user.update({
+    where: { id: userId },
+    data: { googleId: null },
+  });
+  return publicUser(updated);
 }

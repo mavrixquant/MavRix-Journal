@@ -10,6 +10,8 @@ function normalizeUser(u) {
     [u.firstName, u.lastName].filter(Boolean).join(' ').trim() ||
     u.email ||
     'User';
+  const providerData = [];
+  if (u.hasGoogle) providerData.push({ providerId: 'google.com' });
   return {
     id: u.id,
     uid: u.id,
@@ -20,7 +22,8 @@ function normalizeUser(u) {
     emailVerified: !!u.emailVerified,
     photoUrl: u.photoUrl ?? null,
     photoURL: u.photoUrl ?? null,
-    providerData: [],
+    providerData,
+    hasGoogle: !!u.hasGoogle,
   };
 }
 
@@ -73,3 +76,29 @@ export async function resendVerification() {
 }
 
 export { normalizeUser };
+
+// ---------------------------------------------------------------------------
+// Google
+// ---------------------------------------------------------------------------
+
+export async function googleLogin(googleAccessToken) {
+  const data = await apiJson('/api/auth/google', {
+    method: 'POST',
+    body: JSON.stringify({ accessToken: googleAccessToken }),
+  });
+  setAccessToken(data.accessToken);
+  return { user: normalizeUser(data.user) };
+}
+
+export async function linkGoogle(googleAccessToken) {
+  const data = await apiJson('/api/auth/google/link', {
+    method: 'POST',
+    body: JSON.stringify({ accessToken: googleAccessToken }),
+  });
+  return normalizeUser(data.user);
+}
+
+export async function unlinkGoogle() {
+  const data = await apiJson('/api/auth/google/unlink', { method: 'POST' });
+  return normalizeUser(data.user);
+}

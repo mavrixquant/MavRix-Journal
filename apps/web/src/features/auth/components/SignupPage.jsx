@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/app/providers/AuthProvider';
+import * as google from '@/services/google';
 import navLogo from '@/assets/navLOGO.png';
 import AuthBackground from '@/shared/components/AuthBackground';
 import CustomCursor from '@/app/shell/CustomCursor';
@@ -425,10 +426,24 @@ export default function Signup() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const { signup } = useAuth();
+  const { signup, googleLogin } = useAuth();
 
   const handleGoogleSignIn = async () => {
-    setError('Google sign-up will be available in a future update.');
+    setError('');
+    setLoading(true);
+    try {
+      const accessToken = await google.signIn();
+      const user = await googleLogin(accessToken);
+      if (user.emailVerified) {
+        navigate('/dashboard');
+      } else {
+        navigate('/verify-email');
+      }
+    } catch (err) {
+      setError(err.message || 'Google sign-up failed');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSubmit = async (e) => {
