@@ -5,8 +5,6 @@ import { useAuth } from '@/app/providers/AuthProvider';
 import * as google from '@/services/google';
 import navLogo from '@/assets/navLOGO.png';
 import AuthBackground from '@/shared/components/AuthBackground';
-import CustomCursor from '@/app/shell/CustomCursor';
-
 const authStyles = `
   .auth-wrapper {
     --accent: #F59E0B;
@@ -34,7 +32,7 @@ const authStyles = `
     overflow: hidden;
     font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
     -webkit-font-smoothing: antialiased;
-    cursor: none;
+    
   }
   .auth-wrapper::before {
     content: '';
@@ -82,7 +80,7 @@ const authStyles = `
     font-weight: 600;
     letter-spacing: .02em;
     transition: all .22s cubic-bezier(.2,.8,.25,1);
-    cursor: none;
+    
   }
   .auth-back:hover {
     color: var(--accent);
@@ -211,7 +209,7 @@ const authStyles = `
     outline: none;
     box-sizing: border-box;
     transition: all .2s ease;
-    cursor: none;
+    
   }
   .auth-input::placeholder { color: var(--ink-3); }
   .auth-input:hover { border-color: rgba(255,255,255,.2); }
@@ -232,7 +230,7 @@ const authStyles = `
     background: none;
     border: none;
     color: var(--ink-3);
-    cursor: none;
+    
     padding: 0;
     display: inline-flex;
     align-items: center;
@@ -256,7 +254,7 @@ const authStyles = `
     padding: 14px;
     border: none;
     border-radius: 11px;
-    cursor: none;
+    
     overflow: hidden;
     transition: transform .25s cubic-bezier(.175,.885,.32,1.275), box-shadow .3s;
     display: flex;
@@ -294,7 +292,7 @@ const authStyles = `
     letter-spacing: .02em;
     padding: 13px;
     border-radius: 11px;
-    cursor: none;
+    
     display: flex;
     align-items: center;
     justify-content: center;
@@ -359,7 +357,7 @@ const authStyles = `
     font-weight: 700;
     margin-left: 4px;
     transition: color .2s;
-    cursor: none;
+    
   }
   .auth-footer a:hover { color: var(--accent-2); }
 
@@ -445,8 +443,7 @@ export default function Login() {
   return (
     <div className="auth-wrapper">
       <style>{authStyles}</style>
-      <CustomCursor />
-      <AuthBackground accent="#F59E0B" />
+            <AuthBackground accent="#F59E0B" />
       <div className="auth-orb" />
 
       <Link to="/" className="auth-back">

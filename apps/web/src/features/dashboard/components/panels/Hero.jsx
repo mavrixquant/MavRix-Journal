@@ -4,6 +4,7 @@ import { useStats } from '@/features/dashboard/hooks/useStats';
 import { computeStats } from '@/features/dashboard/utils/statsEngine';
 import EquityChart from '@/features/dashboard/components/charts/EquityChart';
 import { FaProjectDiagram } from 'react-icons/fa';
+import { useNavigate } from 'react-router-dom';
 
 const RR_LEVELS = [1, 2, 3, 4, 5, 6, 7, 8];
 
@@ -15,7 +16,8 @@ const formatMoney = (v) => {
   return `${sign}$${Math.abs(v).toFixed(2)}`;
 };
 
-export default function Hero({ onNavigate }) {
+export default function Hero() {
+  const navigate = useNavigate();
   const { stats, filteredTrades, account, metric } = useStats();
   const isMoney = metric === '$';
   const fmt = isMoney ? formatMoney : formatR;
@@ -39,7 +41,7 @@ export default function Hero({ onNavigate }) {
   const canSimulate = stats.n >= 5;
 
   const handleSimulate = () => {
-    if (canSimulate && onNavigate) onNavigate('simulator');
+    if (canSimulate) navigate('/dashboard/simulator');
   };
 
   return (

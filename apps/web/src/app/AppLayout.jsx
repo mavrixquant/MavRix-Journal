@@ -1,105 +1,122 @@
-// src/app/AppLayout.jsx
-import { useState, useRef } from 'react';
-import { useAuth } from '@/app/providers/AuthProvider';
-import Sidebar from '@/app/shell/Sidebar';
-import AccountModal from '@/features/auth/components/AccountModal';
-import DashboardMain from '@/features/dashboard/components/DashboardMain';
-import JournalMain from '@/features/journal/components/JournalMain';
-import AccountsMain from '@/features/accounts/components/AccountsMain';
-import SimulatorPage from '@/features/simulator/components/SimulatorPage';
-import { useStats } from '@/features/dashboard/hooks/useStats';
-import { Button } from '@/components/ui/button';
+// apps/web/src/app/AppLayout.jsx
+import { useState, useEffect, Suspense } from 'react';
+import { Outlet } from 'react-router-dom';
+import { Menu as MenuIcon } from 'lucide-react';
 
+import { useAuth } from '@/app/providers/AuthProvider';
+import Sidebar, {
+  SidebarContent,
+  SIDEBAR_WIDTH,
+  SIDEBAR_COLLAPSED_WIDTH,
+} from '@/app/shell/Sidebar';
+import AccountModal from '@/features/auth/components/AccountModal';
+import { PageSkeleton } from '@/components/ui/page-skeleton';
+import { TooltipProvider } from '@/components/ui/tooltip';
+import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
+import { useHotkey } from '@/lib/useHotkey';
+
+const STORAGE_KEY = 'mavrix:sidebar:collapsed';
 
 export default function AppLayout() {
   const { user, logout } = useAuth();
-  const [isHovering, setIsHovering] = useState(false);
-  const closeTimeoutRef = useRef(null);
-  const [activeTab, setActiveTab] = useState('dashboard');
+
+  const [collapsed, setCollapsed] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return localStorage.getItem(STORAGE_KEY) === '1';
+  });
+
+  const [mobileOpen, setMobileOpen] = useState(false);
   const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
 
-  const handleLogout = async () => { await logout(); };
-  const isSidebarOpen = isHovering;
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, collapsed ? '1' : '0');
+  }, [collapsed]);
 
-  const handleSidebarMouseEnter = () => {
-    if (closeTimeoutRef.current) { clearTimeout(closeTimeoutRef.current); closeTimeoutRef.current = null; }
-    setIsHovering(true);
-  };
-  const handleSidebarMouseLeave = () => {
-    if (closeTimeoutRef.current) clearTimeout(closeTimeoutRef.current);
-    closeTimeoutRef.current = setTimeout(() => setIsHovering(false), 300);
-  };
-  const toggleSidebar = () => {
-    if (closeTimeoutRef.current) { clearTimeout(closeTimeoutRef.current); closeTimeoutRef.current = null; }
-    setIsHovering(prev => !prev);
+  useHotkey('mod+b', () => setCollapsed((v) => !v));
+
+  const handleLogout = async () => {
+    await logout();
   };
 
-  const { groupBy } = useStats();
-  const sessionOrder = ["Asia", "London", "NY Pre-Market", "NY AM", "NY Lunch", "NY PM", "After Hours"];
-  const dowOrder = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-  const sessionData = groupBy((o) => o.session, sessionOrder);
-  const dowData = groupBy((o) => o.dowName, dowOrder);
-  const dirData = groupBy((o) => o.dir);
-  const setupData = groupBy((o) => o.setup);
-  const factorData = groupBy((o) => o.factors);
-  const allBreakdownData = [...setupData, ...factorData];
-  const maxAbs = allBreakdownData.length > 0
-    ? Math.max(1, ...allBreakdownData.map((d) => Math.abs(d.totalR)))
-    : 1;
-
-  const renderContent = () => {
-    switch (activeTab) {
-      case 'dashboard':
-        return (
-          <DashboardMain
-            sessionData={sessionData}
-            dowData={dowData}
-            dirData={dirData}
-            setupData={setupData}
-            factorData={factorData}
-            maxAbs={maxAbs}
-            onNavigate={setActiveTab}
-          />
-        );
-      case 'simulator':
-        return <SimulatorPage />;
-      case 'journal':
-        return <JournalMain />;
-      case 'accounts':
-        return <AccountsMain />;
-      default:
-        return <div>Not found</div>;
-    }
-  };
+  const mainMargin = collapsed ? SIDEBAR_COLLAPSED_WIDTH : SIDEBAR_WIDTH;
 
   return (
-    
-    <div style={{ minHeight: '100vh' }}>
+    <TooltipProvider delayDuration={250}>
+      {/* Inline media-query scoped to this component. Guarantees the
+          main column shifts left by exactly the sidebar width, regardless
+          of whether Tailwind generates the arbitrary classes. */}
+      <style>{`
+        @media (min-width: 1024px) {
+          .app-shell-main {
+            margin-left: ${mainMargin}px;
+          }
+        }
+      `}</style>
+
+      {/* Desktop sidebar */}
       <Sidebar
-        isOpen={isSidebarOpen}
-        onToggle={toggleSidebar}
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
+        collapsed={collapsed}
+        onCollapseToggle={() => setCollapsed((v) => !v)}
         user={user}
         onLogout={handleLogout}
-        onMouseEnter={handleSidebarMouseEnter}
-        onMouseLeave={handleSidebarMouseLeave}
         onAccountClick={() => setIsAccountModalOpen(true)}
       />
+
+      {/* Mobile sheet */}
+      <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+        <SheetContent
+          side="left"
+          className="w-[280px] max-w-[85vw] border-r border-white/[.085] bg-transparent p-0 [&>button]:hidden"
+        >
+          <SheetTitle className="sr-only">Navigation</SheetTitle>
+          <SidebarContent
+            collapsed={false}
+            showCollapseButton={false}
+            user={user}
+            onLogout={async () => {
+              setMobileOpen(false);
+              await handleLogout();
+            }}
+            onAccountClick={() => {
+              setMobileOpen(false);
+              setIsAccountModalOpen(true);
+            }}
+            onNavigate={() => setMobileOpen(false)}
+          />
+        </SheetContent>
+      </Sheet>
+
+      {/* Main column */}
       <div
-        className="content-wrapper"
-        style={{
-          marginLeft: isSidebarOpen ? '240px' : '68px',
-          transition: 'margin-left 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
-          minHeight: '100vh',
-          overflowX: 'hidden',
-        }}
+        className="app-shell-main min-h-screen"
+        style={{ transition: 'margin-left .4s cubic-bezier(.16, 1, .3, 1)' }}
       >
-        <main style={{ padding: '26px 28px', width: '100%', boxSizing: 'border-box' }}>
-          {renderContent()}
+        {/* Mobile top bar */}
+        <div className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-white/[.06] bg-[#0A0D13]/85 px-4 backdrop-blur lg:hidden">
+          <button
+            type="button"
+            onClick={() => setMobileOpen(true)}
+            aria-label="Open navigation"
+            className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-white/[.03] text-ink-2 transition-colors hover:border-amber-500/30 hover:text-amber-500"
+          >
+            <MenuIcon size={16} />
+          </button>
+          <span className="font-display text-[15px] font-semibold tracking-tight text-ink-1">
+            Mavrix Journal
+          </span>
+        </div>
+
+        <main className="box-border w-full px-4 py-5 lg:px-7 lg:py-6">
+          <Suspense fallback={<PageSkeleton />}>
+            <Outlet />
+          </Suspense>
         </main>
       </div>
-      <AccountModal isOpen={isAccountModalOpen} onClose={() => setIsAccountModalOpen(false)} />
-    </div>
+
+      <AccountModal
+        isOpen={isAccountModalOpen}
+        onClose={() => setIsAccountModalOpen(false)}
+      />
+    </TooltipProvider>
   );
 }

@@ -4,8 +4,6 @@ import { useNavigate, Link } from 'react-router-dom';
 import navLogo from '@/assets/navLOGO.png';
 import * as authService from '@/services/auth.service';
 import AuthBackground from '@/shared/components/AuthBackground';
-import CustomCursor from '@/app/shell/CustomCursor';
-
 const styles = `
   .auth-wrapper {
     --accent: #F59E0B; --accent-2: #FDE68A;
@@ -21,7 +19,7 @@ const styles = `
     display: flex; flex-direction: column; justify-content: center; align-items: center;
     padding: 32px 16px; position: relative; overflow: hidden;
     font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
-    cursor: none;
+    
   }
   .auth-wrapper::before {
     content: ''; position: absolute; inset: 0; pointer-events: none;
@@ -48,7 +46,7 @@ const styles = `
     backdrop-filter: blur(10px); color: var(--ink-2);
     text-decoration: none; font-family: 'IBM Plex Mono', ui-monospace, monospace;
     font-size: 11.5px; font-weight: 600; letter-spacing: .02em;
-    transition: all .22s; cursor: none;
+    transition: all .22s; 
   }
   .auth-back:hover { color: var(--accent); border-color: var(--accent-soft2); background: rgba(245,158,11,.06); }
   .auth-card {
@@ -82,7 +80,7 @@ const styles = `
     border: 1px solid rgba(255,255,255,.1); border-radius: 10px;
     padding: 13px 16px; color: var(--ink-1); font-size: 14px;
     font-family: 'IBM Plex Mono', monospace; outline: none;
-    box-sizing: border-box; transition: all .2s; cursor: none;
+    box-sizing: border-box; transition: all .2s; 
   }
   .auth-input::placeholder { color: var(--ink-3); }
   .auth-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(245,158,11,.15); }
@@ -91,7 +89,7 @@ const styles = `
     background: linear-gradient(135deg, var(--accent), var(--accent-2));
     color: #0D1117; font-size: 13.5px; font-weight: 700;
     font-family: 'IBM Plex Mono', monospace; letter-spacing: .02em;
-    padding: 14px; border: none; border-radius: 11px; cursor: none;
+    padding: 14px; border: none; border-radius: 11px; 
     overflow: hidden; transition: transform .25s, box-shadow .3s;
     display: flex; align-items: center; justify-content: center; gap: 8px;
     margin-top: 10px;
@@ -111,7 +109,7 @@ const styles = `
     font-family: 'IBM Plex Mono', monospace; line-height: 1.55; margin-bottom: 18px;
   }
   .auth-footer { text-align: center; margin-top: 22px; font-size: 13px; color: var(--ink-2); font-family: 'IBM Plex Mono', monospace; }
-  .auth-footer a { color: var(--accent); text-decoration: none; font-weight: 700; margin-left: 4px; cursor: none; }
+  .auth-footer a { color: var(--accent); text-decoration: none; font-weight: 700; margin-left: 4px;  }
   .auth-footer a:hover { color: var(--accent-2); }
   .spinner { width: 16px; height: 16px; border: 2px solid rgba(10,13,19,.25); border-top-color: #0A0D13; border-radius: 50%; animation: spin .8s linear infinite; }
   @keyframes authGrad { 0% { background-position: 0% 50%; } 100% { background-position: 200% 50%; } }
@@ -143,8 +141,7 @@ export default function ForgotPassword() {
   return (
     <div className="auth-wrapper">
       <style>{styles}</style>
-      <CustomCursor />
-      <AuthBackground accent="#F59E0B" />
+            <AuthBackground accent="#F59E0B" />
 
       <Link to="/login" className="auth-back">
         <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">

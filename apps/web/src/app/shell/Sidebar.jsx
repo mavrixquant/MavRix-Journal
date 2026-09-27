@@ -1,441 +1,507 @@
-// src/components/common/Sidebar.jsx
+// apps/web/src/app/shell/Sidebar.jsx
+import { NavLink } from 'react-router-dom';
 import {
-  FaChartPie,
-  FaBook,
-  FaUsers,
-  FaSignOutAlt,
-  FaProjectDiagram,
-  FaBars,
-  FaTimes,
-} from 'react-icons/fa';
+  LayoutDashboard,
+  BookOpen,
+  Wallet,
+  Activity,
+  LogOut,
+  PanelLeftOpen,
+  PanelLeftClose,
+} from 'lucide-react';
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from '@/components/ui/tooltip';
 import navLogo from '@/assets/navLOGO.png';
 
-const navItems = [
-  { id: 'dashboard', label: 'Dashboard', icon: <FaChartPie size={16} /> },
-  { id: 'journal',   label: 'Journal',   icon: <FaBook size={16} /> },
-  { id: 'accounts',  label: 'Accounts',  icon: <FaUsers size={16} /> },
-  { id: 'simulator', label: 'Simulator', icon: <FaProjectDiagram size={16} />, beta: true },
+export const SIDEBAR_WIDTH = 260;
+export const SIDEBAR_COLLAPSED_WIDTH = 84;
+
+const NAV_ITEMS = [
+  { to: '/dashboard',           label: 'Dashboard', icon: LayoutDashboard, end: true },
+  { to: '/dashboard/journal',   label: 'Journal',   icon: BookOpen },
+  { to: '/dashboard/accounts',  label: 'Accounts',  icon: Wallet },
+  { to: '/dashboard/simulator', label: 'Simulator', icon: Activity, beta: true },
 ];
 
 /* ------------------------------------------------------------------ */
-/*  Scoped CSS — matches JournalMain / AccountsMain / modals           */
+/*  Inner content — reused by desktop aside and mobile Sheet          */
 /* ------------------------------------------------------------------ */
-const SB_CSS = `
-  .sb-root {
-    --accent: #F59E0B;
-    --accent-2: #FDE68A;
-    --accent-soft: rgba(245,158,11,.10);
-    --accent-soft2: rgba(245,158,11,.28);
-    --line: rgba(255,255,255,.085);
-    --line-soft: rgba(255,255,255,.05);
-    --ink-1: #E7E9EE;
-    --ink-2: #8892A3;
-    --ink-3: #545E6E;
-    --win: #22c55e;
-    --loss: #ef4444;
+export function SidebarContent({
+  collapsed = false,
+  onNavigate,
+  user,
+  onLogout,
+  onAccountClick,
+  onCollapseToggle,
+  showCollapseButton = true,
+}) {
+  const displayName = user?.displayName || user?.email || 'User';
+  const initials =
+    (displayName.match(/\b[A-Za-z]/g) || [])
+      .slice(0, 2)
+      .join('')
+      .toUpperCase() || 'U';
 
-    position: fixed;
-    top: 0;
-    left: 0;
-    height: 100vh;
-    width: 240px;
-    background: linear-gradient(180deg, #0F121A 0%, #0A0D13 100%);
-    border-right: 1px solid var(--line);
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    transition: width .4s cubic-bezier(.16,1,.3,1);
-    z-index: 1000;
-    user-select: none;
-    overflow: hidden;
-    font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
-    color: var(--ink-1);
-    -webkit-font-smoothing: antialiased;
-  }
-  .sb-root.is-collapsed { width: 68px; }
-  .sb-root.is-open { box-shadow: 12px 0 40px -20px rgba(0,0,0,.75); }
+  const ICON_SIZE = collapsed ? 20 : 16;
+  const ITEM_SIZE = collapsed ? 52 : 44;
 
-  /* Animated amber strip at the very top */
-  .sb-root::before {
-    content: '';
-    position: absolute;
-    left: 0; right: 0; top: 0; height: 2px;
-    background: linear-gradient(90deg, transparent, var(--accent), var(--accent-2), var(--accent), transparent);
-    background-size: 200% 100%;
-    animation: sbGrad 4s linear infinite;
-    pointer-events: none;
-    z-index: 2;
-    opacity: 0;
-    transition: opacity .3s ease;
-  }
-  .sb-root.is-open::before { opacity: 1; }
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100%',
+        width: '100%',
+        background: 'linear-gradient(180deg, #0F121A 0%, #0A0D13 100%)',
+        borderRight: '1px solid rgba(255,255,255,.085)',
+        color: '#E7E9EE',
+        fontFamily:
+          "Inter, ui-sans-serif, system-ui, -apple-system, sans-serif",
+      }}
+    >
+      {/* ---------- Header ---------- */}
+      <div
+        style={{
+          height: 72,
+          flexShrink: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: collapsed ? 'center' : 'space-between',
+          padding: collapsed ? 0 : '0 18px',
+          borderBottom: '1px solid rgba(255,255,255,.05)',
+        }}
+      >
+        {collapsed ? (
+          <button
+            type="button"
+            onClick={onCollapseToggle}
+            aria-label="Expand sidebar"
+            title="Expand sidebar (Ctrl+B)"
+            style={{
+              width: 44,
+              height: 44,
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderRadius: 12,
+              border: '1px solid rgba(255,255,255,.08)',
+              background: 'rgba(255,255,255,.03)',
+              color: '#8892A3',
+              cursor: 'pointer',
+              transition: 'all .22s',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = '#F59E0B';
+              e.currentTarget.style.background = 'rgba(245,158,11,.10)';
+              e.currentTarget.style.borderColor = 'rgba(245,158,11,.35)';
+              e.currentTarget.style.boxShadow =
+                '0 0 20px -6px rgba(245,158,11,.5)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = '#8892A3';
+              e.currentTarget.style.background = 'rgba(255,255,255,.03)';
+              e.currentTarget.style.borderColor = 'rgba(255,255,255,.08)';
+              e.currentTarget.style.boxShadow = 'none';
+            }}
+          >
+            <PanelLeftOpen size={18} />
+          </button>
+        ) : (
+          <>
+            <img
+              src={navLogo}
+              alt="Mavrix"
+              style={{
+                height: 38,
+                width: 'auto',
+                maxWidth: 150,
+                objectFit: 'contain',
+                display: 'block',
+              }}
+            />
+            {showCollapseButton && (
+              <button
+                type="button"
+                onClick={onCollapseToggle}
+                aria-label="Collapse sidebar"
+                title="Collapse sidebar (Ctrl+B)"
+                style={{
+                  width: 32,
+                  height: 32,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderRadius: 8,
+                  border: '1px solid transparent',
+                  background: 'transparent',
+                  color: '#8892A3',
+                  cursor: 'pointer',
+                  flexShrink: 0,
+                  transition: 'all .22s',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.color = '#F59E0B';
+                  e.currentTarget.style.background = 'rgba(245,158,11,.08)';
+                  e.currentTarget.style.borderColor = 'rgba(245,158,11,.28)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.color = '#8892A3';
+                  e.currentTarget.style.background = 'transparent';
+                  e.currentTarget.style.borderColor = 'transparent';
+                }}
+              >
+                <PanelLeftClose size={15} />
+              </button>
+            )}
+          </>
+        )}
+      </div>
 
-  /* ---------- Header ---------- */
-  .sb-head {
-    height: 64px;
-    display: flex;
-    align-items: center;
-    padding: 0 18px;
-    border-bottom: 1px solid var(--line-soft);
-    justify-content: space-between;
-    flex-shrink: 0;
-    position: relative;
-  }
-  .sb-root.is-collapsed .sb-head {
-    justify-content: center;
-    padding: 0;
-  }
+      {/* ---------- Nav ---------- */}
+      <nav
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: collapsed ? 6 : 4,
+          padding: collapsed ? '16px 0' : '14px 12px',
+          alignItems: collapsed ? 'center' : 'stretch',
+          flexShrink: 0,
+        }}
+      >
+        {NAV_ITEMS.map((item) => {
+          const Icon = item.icon;
 
-  .sb-logo {
-    height: 44px;
-    width: auto;
-    object-fit: contain;
-    display: block;
-  }
+          const link = (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end={item.end}
+              onClick={onNavigate}
+              style={({ isActive }) => ({
+                position: 'relative',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: collapsed ? 'center' : 'flex-start',
+                gap: 12,
+                width: collapsed ? ITEM_SIZE : '100%',
+                height: ITEM_SIZE,
+                padding: collapsed ? 0 : '0 14px',
+                borderRadius: collapsed ? 12 : 10,
+                border: `1px solid ${
+                  isActive ? 'rgba(245,158,11,.32)' : 'transparent'
+                }`,
+                background: isActive
+                  ? collapsed
+                    ? 'rgba(245,158,11,.14)'
+                    : 'linear-gradient(90deg, rgba(245,158,11,.14), rgba(245,158,11,.04) 70%, transparent)'
+                  : collapsed
+                    ? 'rgba(255,255,255,.02)'
+                    : 'transparent',
+                color: isActive ? '#F59E0B' : '#8892A3',
+                fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
+                fontSize: 12.5,
+                fontWeight: 600,
+                letterSpacing: '.02em',
+                textDecoration: 'none',
+                transition: 'all .22s cubic-bezier(.2,.8,.25,1)',
+                whiteSpace: 'nowrap',
+                boxShadow: isActive
+                  ? '0 8px 24px -12px rgba(245,158,11,.55), inset 0 1px 0 rgba(255,255,255,.04)'
+                  : 'none',
+              })}
+            >
+              {({ isActive }) => (
+                <>
+                  {/* Left accent bar — only when NOT collapsed */}
+                  {isActive && !collapsed && (
+                    <span
+                      aria-hidden
+                      style={{
+                        position: 'absolute',
+                        left: -1,
+                        top: 8,
+                        bottom: 8,
+                        width: 3,
+                        borderRadius: '0 3px 3px 0',
+                        background:
+                          'linear-gradient(180deg, #F59E0B, #FDE68A)',
+                        boxShadow: '0 0 12px rgba(245,158,11,.7)',
+                      }}
+                    />
+                  )}
 
-  .sb-toggle {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 32px;
-    height: 32px;
-    background: transparent;
-    border: 1px solid transparent;
-    border-radius: 8px;
-    color: var(--ink-2);
-    cursor: pointer;
-    padding: 0;
-    flex-shrink: 0;
-    transition: all .22s cubic-bezier(.2,.8,.25,1);
-  }
-  .sb-toggle:hover {
-    color: var(--accent);
-    background: rgba(245,158,11,.08);
-    border-color: var(--accent-soft2);
-    box-shadow: 0 0 18px -6px rgba(245,158,11,.5);
-  }
-  .sb-toggle:active { transform: scale(.94); }
-  .sb-toggle.is-expand {
-    width: 40px;
-    height: 40px;
-  }
+                  {/* Active dot — only when collapsed */}
+                  {isActive && collapsed && (
+                    <span
+                      aria-hidden
+                      style={{
+                        position: 'absolute',
+                        top: 6,
+                        right: 6,
+                        width: 6,
+                        height: 6,
+                        borderRadius: '50%',
+                        background: '#FDE68A',
+                        boxShadow: '0 0 8px rgba(245,158,11,.9)',
+                      }}
+                    />
+                  )}
 
-  /* ---------- Nav ---------- */
-  .sb-nav {
-    padding: 14px 10px;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-  .sb-root.is-collapsed .sb-nav { padding: 14px 8px; }
+                  <Icon
+                    size={ICON_SIZE}
+                    strokeWidth={isActive ? 2.25 : 1.75}
+                    style={{
+                      flexShrink: 0,
+                      filter: isActive
+                        ? 'drop-shadow(0 0 8px rgba(245,158,11,.55))'
+                        : 'none',
+                    }}
+                  />
 
-  .sb-item {
-    position: relative;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    width: 100%;
-    min-height: 42px;
-    padding: 0 14px;
-    background: transparent;
-    border: 1px solid transparent;
-    border-radius: 10px;
-    color: var(--ink-2);
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    font-size: 12.5px;
-    font-weight: 600;
-    letter-spacing: .02em;
-    cursor: pointer;
-    transition: all .22s cubic-bezier(.2,.8,.25,1);
-    outline: none;
-    text-align: left;
-    white-space: nowrap;
-  }
-  .sb-root.is-collapsed .sb-item {
-    justify-content: center;
-    padding: 0;
-  }
+                  {!collapsed && (
+                    <>
+                      <span
+                        style={{
+                          flex: '1 1 0',
+                          minWidth: 0,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {item.label}
+                      </span>
 
-  .sb-item:hover {
-    color: var(--ink-1);
-    background: rgba(255,255,255,.045);
-    border-color: rgba(255,255,255,.08);
-  }
-  .sb-item:active { transform: scale(.98); }
+                      {item.beta && (
+                        <span
+                          style={{
+                            flexShrink: 0,
+                            fontFamily:
+                              "'IBM Plex Mono', ui-monospace, monospace",
+                            fontSize: 8.5,
+                            fontWeight: 700,
+                            letterSpacing: '.12em',
+                            textTransform: 'uppercase',
+                            padding: '2px 6px',
+                            borderRadius: 4,
+                            color: '#60A5FA',
+                            background: 'rgba(96,165,250,.12)',
+                            border: '1px solid rgba(96,165,250,.32)',
+                            lineHeight: 1.4,
+                          }}
+                        >
+                          Beta
+                        </span>
+                      )}
+                    </>
+                  )}
+                </>
+              )}
+            </NavLink>
+          );
 
-  .sb-item.is-active {
-    color: var(--accent);
-    background: linear-gradient(90deg, rgba(245,158,11,.14), rgba(245,158,11,.04) 70%, transparent);
-    border-color: var(--accent-soft2);
-    box-shadow:
-      0 8px 24px -12px rgba(245,158,11,.55),
-      inset 0 1px 0 rgba(255,255,255,.04);
-  }
-  /* Amber bar on the left edge when active */
-  .sb-item.is-active::before {
-    content: '';
-    position: absolute;
-    left: -1px;
-    top: 8px;
-    bottom: 8px;
-    width: 3px;
-    border-radius: 0 3px 3px 0;
-    background: linear-gradient(180deg, var(--accent), var(--accent-2));
-    box-shadow: 0 0 12px rgba(245,158,11,.7);
-  }
-  .sb-root.is-collapsed .sb-item.is-active::before { display: none; }
+          if (collapsed) {
+            return (
+              <Tooltip key={item.to} delayDuration={250}>
+                <TooltipTrigger asChild>{link}</TooltipTrigger>
+                <TooltipContent
+                  side="right"
+                  sideOffset={12}
+                  className="border-white/10 bg-[#11151F] font-mono text-[11px] text-[#E7E9EE]"
+                >
+                  {item.label}
+                  {item.beta && (
+                    <span className="ml-2 rounded bg-blue-400/15 px-1.5 py-0.5 text-[8.5px] font-bold uppercase tracking-widest text-blue-400">
+                      Beta
+                    </span>
+                  )}
+                </TooltipContent>
+              </Tooltip>
+            );
+          }
+          return link;
+        })}
+      </nav>
 
-  .sb-icon {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    color: inherit;
-    transition: transform .22s cubic-bezier(.2,.8,.25,1);
-  }
-  .sb-item:hover .sb-icon { transform: scale(1.06); }
-  .sb-item.is-active .sb-icon { filter: drop-shadow(0 0 8px rgba(245,158,11,.55)); }
+      <div style={{ flex: 1, minHeight: 20 }} />
 
-  .sb-label {
-    flex: 1;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
+      {/* ---------- Footer ---------- */}
+      <div
+        style={{
+          flexShrink: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: collapsed ? 'center' : 'stretch',
+          gap: collapsed ? 10 : 4,
+          padding: collapsed ? '14px 0 18px' : '12px 12px 16px',
+          borderTop: '1px solid rgba(255,255,255,.05)',
+        }}
+      >
+        {/* Account button */}
+        <button
+          type="button"
+          onClick={onAccountClick}
+          title={collapsed ? displayName : undefined}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: collapsed ? 'center' : 'flex-start',
+            gap: 10,
+            width: collapsed ? 52 : '100%',
+            height: collapsed ? 52 : 48,
+            padding: collapsed ? 0 : '8px 12px',
+            borderRadius: 12,
+            border: '1px solid transparent',
+            background: 'transparent',
+            color: '#E7E9EE',
+            cursor: 'pointer',
+            textAlign: 'left',
+            transition: 'all .22s',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor = 'rgba(255,255,255,.08)';
+            e.currentTarget.style.background = 'rgba(255,255,255,.045)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = 'transparent';
+            e.currentTarget.style.background = 'transparent';
+          }}
+        >
+          <span
+            style={{
+              width: collapsed ? 40 : 34,
+              height: collapsed ? 40 : 34,
+              flexShrink: 0,
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderRadius: '50%',
+              border: '1px solid rgba(245,158,11,.32)',
+              background:
+                'linear-gradient(135deg, rgba(245,158,11,.20), rgba(245,158,11,.06))',
+              fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
+              fontSize: collapsed ? 13 : 12,
+              fontWeight: 700,
+              color: '#F59E0B',
+              boxShadow: '0 0 22px -8px rgba(245,158,11,.6)',
+            }}
+          >
+            {initials}
+          </span>
+          {!collapsed && (
+            <span
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'flex-start',
+                gap: 2,
+                minWidth: 0,
+                overflow: 'hidden',
+              }}
+            >
+              <span
+                style={{
+                  fontSize: 12.5,
+                  fontWeight: 700,
+                  letterSpacing: '-.01em',
+                  color: '#E7E9EE',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  maxWidth: '100%',
+                }}
+              >
+                {displayName}
+              </span>
+              <span
+                style={{
+                  fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
+                  fontSize: 9.5,
+                  fontWeight: 700,
+                  letterSpacing: '.14em',
+                  textTransform: 'uppercase',
+                  color: '#545E6E',
+                }}
+              >
+                Account
+              </span>
+            </span>
+          )}
+        </button>
 
-  .sb-beta {
-    margin-left: auto;
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    font-size: 8.5px;
-    font-weight: 700;
-    letter-spacing: .1em;
-    text-transform: uppercase;
-    color: var(--blue);
-    background: rgba(11, 179, 245, 0.12);
-    border: 1px solid var(--blue-soft2);
-    border-radius: 4px;
-    padding: 1px 5px;
-    line-height: 1.4;
-    flex-shrink: 0;
-  }
+        {/* Logout button */}
+        <button
+          type="button"
+          onClick={onLogout}
+          title={collapsed ? 'Logout' : undefined}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: collapsed ? 'center' : 'flex-start',
+            gap: 10,
+            width: collapsed ? 44 : '100%',
+            height: collapsed ? 44 : 40,
+            padding: collapsed ? 0 : '0 14px',
+            borderRadius: 10,
+            border: '1px solid transparent',
+            background: 'transparent',
+            color: '#545E6E',
+            fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
+            fontSize: 12,
+            fontWeight: 600,
+            letterSpacing: '.02em',
+            cursor: 'pointer',
+            whiteSpace: 'nowrap',
+            transition: 'all .22s',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.color = '#f87171';
+            e.currentTarget.style.background = 'rgba(239,68,68,.08)';
+            e.currentTarget.style.borderColor = 'rgba(239,68,68,.35)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.color = '#545E6E';
+            e.currentTarget.style.background = 'transparent';
+            e.currentTarget.style.borderColor = 'transparent';
+          }}
+        >
+          <LogOut size={collapsed ? 18 : 15} style={{ flexShrink: 0 }} />
+          {!collapsed && <span>Logout</span>}
+        </button>
+      </div>
+    </div>
+  );
+}
 
-  /* ---------- Footer ---------- */
-  .sb-foot {
-    padding: 12px 10px 14px;
-    border-top: 1px solid var(--line-soft);
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    flex-shrink: 0;
-    position: relative;
-  }
-  .sb-root.is-collapsed .sb-foot { padding: 12px 8px 14px; }
-
-  .sb-user {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    min-height: 44px;
-    padding: 8px 12px;
-    border-radius: 10px;
-    border: 1px solid transparent;
-    cursor: pointer;
-    transition: all .22s cubic-bezier(.2,.8,.25,1);
-  }
-  .sb-user:hover {
-    background: rgba(255,255,255,.045);
-    border-color: rgba(255,255,255,.08);
-  }
-  .sb-root.is-collapsed .sb-user {
-    justify-content: center;
-    padding: 8px 0;
-  }
-
-  .sb-avatar {
-    width: 30px;
-    height: 30px;
-    border-radius: 50%;
-    flex-shrink: 0;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background: linear-gradient(135deg, rgba(245,158,11,.18), rgba(245,158,11,.05));
-    border: 1px solid var(--accent-soft2);
-    color: var(--accent);
-    box-shadow: 0 0 20px -8px rgba(245,158,11,.5);
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    font-weight: 700;
-    font-size: 11px;
-  }
-
-  .sb-user-text {
-    display: flex;
-    flex-direction: column;
-    gap: 1px;
-    min-width: 0;
-    overflow: hidden;
-  }
-  .sb-user-name {
-    font-size: 12px;
-    font-weight: 700;
-    color: var(--ink-1);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    letter-spacing: -.01em;
-  }
-  .sb-user-hint {
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    font-size: 9.5px;
-    color: var(--ink-3);
-    letter-spacing: .12em;
-    text-transform: uppercase;
-    font-weight: 700;
-  }
-
-  .sb-logout {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    width: 100%;
-    min-height: 38px;
-    padding: 0 14px;
-    background: transparent;
-    border: 1px solid transparent;
-    border-radius: 10px;
-    color: var(--ink-3);
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    font-size: 12px;
-    font-weight: 600;
-    letter-spacing: .02em;
-    cursor: pointer;
-    transition: all .22s cubic-bezier(.2,.8,.25,1);
-    outline: none;
-    text-align: left;
-    white-space: nowrap;
-  }
-  .sb-root.is-collapsed .sb-logout {
-    justify-content: center;
-    padding: 0;
-  }
-  .sb-logout:hover {
-    color: #f87171;
-    background: rgba(239,68,68,.08);
-    border-color: rgba(239,68,68,.35);
-    box-shadow: 0 0 20px -8px rgba(239,68,68,.5);
-  }
-  .sb-logout:active { transform: scale(.98); }
-
-  /* ---------- Animations ---------- */
-  @keyframes sbGrad {
-    0%   { background-position: 0% 50%; }
-    100% { background-position: 200% 50%; }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .sb-root, .sb-item, .sb-toggle, .sb-user, .sb-logout { transition: none !important; }
-    .sb-root::before { animation: none !important; }
-    .sb-icon { transition: none !important; }
-  }
-`;
-
+/* ------------------------------------------------------------------ */
+/*  Desktop aside — fixed, width from inline style                    */
+/* ------------------------------------------------------------------ */
 export default function Sidebar({
-  isOpen,
-  onToggle,
-  activeTab,
-  onTabChange,
+  collapsed,
+  onCollapseToggle,
   user,
   onLogout,
   onAccountClick,
 }) {
-  const displayName = user?.displayName || user?.email || 'User';
-  const initials = (displayName.match(/\b[A-Za-z]/g) || []).slice(0, 2).join('').toUpperCase() || 'U';
-
   return (
-    <aside className={`sb-root ${isOpen ? 'is-open' : 'is-collapsed'}`}>
-      <style>{SB_CSS}</style>
-
-      <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
-        {/* Logo / toggle */}
-        <div className="sb-head">
-          {isOpen ? (
-            <>
-              <img src={navLogo} alt="Logo" className="sb-logo" />
-              <button
-                type="button"
-                onClick={onToggle}
-                title="Collapse sidebar"
-                aria-label="Collapse sidebar"
-                className="sb-toggle"
-              >
-                <FaTimes size={15} />
-              </button>
-            </>
-          ) : (
-            <button
-              type="button"
-              onClick={onToggle}
-              title="Expand sidebar"
-              aria-label="Expand sidebar"
-              className="sb-toggle is-expand"
-            >
-              <FaBars size={17} />
-            </button>
-          )}
-        </div>
-
-        {/* Nav items */}
-        <nav className="sb-nav">
-          {navItems.map((item) => {
-            const isActive = item.id === activeTab;
-            return (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => onTabChange(item.id)}
-                title={!isOpen ? item.label : undefined}
-                className={`sb-item ${isActive ? 'is-active' : ''}`}
-              >
-                <span className="sb-icon">{item.icon}</span>
-
-                {isOpen && (
-                  <>
-                    <span className="sb-label">{item.label}</span>
-                    {item.beta && <span className="sb-beta">Beta</span>}
-                  </>
-                )}
-              </button>
-            );
-          })}
-        </nav>
-      </div>
-
-      {/* Footer — user + logout */}
-      <div className="sb-foot">
-        <div
-          className="sb-user"
-          onClick={onAccountClick}
-          title={!isOpen ? displayName : undefined}
-        >
-          <span className="sb-avatar">{initials}</span>
-          {isOpen && (
-            <div className="sb-user-text">
-              <span className="sb-user-name">{displayName}</span>
-              <span className="sb-user-hint">Account</span>
-            </div>
-          )}
-        </div>
-
-        <button
-          type="button"
-          className="sb-logout"
-          onClick={onLogout}
-          title="Logout"
-        >
-          <FaSignOutAlt size={15} style={{ flexShrink: 0 }} />
-          {isOpen && <span>Logout</span>}
-        </button>
-      </div>
+    <aside
+      className="fixed inset-y-0 left-0 z-40 hidden lg:flex flex-col"
+      style={{
+        width: collapsed ? SIDEBAR_COLLAPSED_WIDTH : SIDEBAR_WIDTH,
+        transition: 'width .4s cubic-bezier(.16, 1, .3, 1)',
+        boxShadow: '12px 0 40px -20px rgba(0,0,0,.75)',
+      }}
+    >
+      <SidebarContent
+        collapsed={collapsed}
+        onCollapseToggle={onCollapseToggle}
+        user={user}
+        onLogout={onLogout}
+        onAccountClick={onAccountClick}
+      />
     </aside>
   );
 }

@@ -4,8 +4,6 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/app/providers/AuthProvider';
 import * as authService from '@/services/auth.service';
 import AuthBackground from '@/shared/components/AuthBackground';
-import CustomCursor from '@/app/shell/CustomCursor';
-
 const styles = `
   .auth-wrapper {
     --accent: #F59E0B;
@@ -33,7 +31,7 @@ const styles = `
     overflow: hidden;
     font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
     -webkit-font-smoothing: antialiased;
-    cursor: none;
+    
   }
   .auth-wrapper::before {
     content: '';
@@ -198,7 +196,7 @@ const styles = `
     padding: 14px;
     border: none;
     border-radius: 11px;
-    cursor: none;
+    
     overflow: hidden;
     transition: transform .25s cubic-bezier(.175,.885,.32,1.275), box-shadow .3s;
     display: flex;
@@ -236,7 +234,7 @@ const styles = `
     letter-spacing: .02em;
     padding: 12px;
     border-radius: 11px;
-    cursor: none;
+    
     display: flex;
     align-items: center;
     justify-content: center;
@@ -264,7 +262,7 @@ const styles = `
     letter-spacing: .02em;
     padding: 10px;
     border-radius: 11px;
-    cursor: none;
+    
     display: flex;
     align-items: center;
     justify-content: center;
@@ -368,8 +366,7 @@ export default function EmailVerification() {
   return (
     <div className="auth-wrapper">
       <style>{styles}</style>
-      <CustomCursor />
-      <AuthBackground accent="#F59E0B" />
+            <AuthBackground accent="#F59E0B" />
       <div className="auth-orb" />
 
       <div className="auth-card">
