@@ -8,6 +8,8 @@ import JournalMain from '@/features/journal/components/JournalMain';
 import AccountsMain from '@/features/accounts/components/AccountsMain';
 import SimulatorPage from '@/features/simulator/components/SimulatorPage';
 import { useStats } from '@/features/dashboard/hooks/useStats';
+import { Button } from '@/components/ui/button';
+
 
 export default function AppLayout() {
   const { user, logout } = useAuth();
@@ -71,6 +73,7 @@ export default function AppLayout() {
   };
 
   return (
+    
     <div style={{ minHeight: '100vh' }}>
       <Sidebar
         isOpen={isSidebarOpen}
