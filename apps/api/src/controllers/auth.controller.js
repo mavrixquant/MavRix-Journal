@@ -3,10 +3,12 @@ import * as authService from '../services/auth.service.js';
 const REFRESH_COOKIE = 'refreshToken';
 const REFRESH_MAX_AGE = 30 * 24 * 60 * 60 * 1000; // 30 days
 
+const isProd = process.env.NODE_ENV === 'production';
+
 const cookieOptions = {
   httpOnly: true,
-  secure: process.env.NODE_ENV === 'production',
-  sameSite: 'lax',
+  secure: isProd,
+  sameSite: isProd ? 'none' : 'lax',
   path: '/api/auth',
   maxAge: REFRESH_MAX_AGE,
 };
