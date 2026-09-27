@@ -1,3 +1,32 @@
+@import "tailwindcss";
+@import "./tokens.css";
+
+@layer base {
+  *, *::before, *::after { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+    overflow-x: hidden;
+    background: var(--color-bg-0);
+    color: var(--color-ink-1);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Chrome autofill fix */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus {
+    -webkit-box-shadow: 0 0 0 1000px #0A0D13 inset;
+    -webkit-text-fill-color: #E7E9EE;
+    caret-color: #E7E9EE;
+    transition: background-color 9999s ease-out 0s;
+  }
+}
+
+
 /* ==========================================================================
    1. VARIABLES, RESET & BASE STYLES
    ========================================================================== */
