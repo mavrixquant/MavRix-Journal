@@ -8,8 +8,8 @@ import { computeStats } from '@/shared/trading/stats';
 import { getMetricMode } from '@/shared/trading/sl';
 import { summarizeMC } from '@/shared/trading/monteCarlo';
 import { useMonteCarloWorker } from '@/features/backtester/simulator/hooks/useMonteCarloWorker';
-import SimulatorControls from './SimulatorControls';
-import SimulatorPanels from './SimulatorPanels';
+import SimulatorControls from './components/SimulatorControls';
+import SimulatorPanels from './components/SimulatorPanels';
 
 const randomSeed = () => Math.floor(Math.random() * 1e9);
 

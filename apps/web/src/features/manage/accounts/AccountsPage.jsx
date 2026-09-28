@@ -30,7 +30,7 @@ import {
 import { queryClient } from '@/shared/api/queryClient';
 
 import AccountFormModal from './AccountFormModal';
-import './AccountsMain.css';
+import './AccountsPage.css';
 
 const ACCOUNT_TYPES = ['Backtest', 'Live', 'Demo'];
 

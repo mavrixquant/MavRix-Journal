@@ -46,7 +46,7 @@ const TestLogs = lazy(() =>
   import('@/features/backtester/test-logs/TestLogsPage')
 );
 const SimulatorPage = lazy(() =>
-  import('@/features/backtester/simulator/components/SimulatorPage')
+  import('@/features/backtester/simulator/SimulatorPage')
 );
 const BacktesterChart = lazy(() =>
   import('@/features/backtester/chart/BacktesterChartPage')
@@ -54,18 +54,18 @@ const BacktesterChart = lazy(() =>
 
 /* ---- Manage ---- */
 const AccountsMain = lazy(() =>
-  import('@/features/accounts/components/AccountsMain')
+  import('@/features/manage/accounts/AccountsPage')
 );
 const Strategies = lazy(() =>
-  import('@/features/strategies/components/Strategies')
+  import('@/features/manage/strategies/StrategiesPage')
 );
 
 /* ---- Personal Space ---- */
 const Discussion = lazy(() =>
-  import('@/features/personal/components/Discussion')
+  import('@/features/personal/discussion/DiscussionPage')
 );
 const Chats = lazy(() =>
-  import('@/features/personal/components/Chats')
+  import('@/features/personal/chats/ChatsPage')
 );
 
 function App() {
