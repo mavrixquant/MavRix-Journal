@@ -48,13 +48,12 @@ const HDR_CSS = `
     color: var(--ink-1);
     display: flex;
     flex-direction: column;
-    overflow: visible;
+    overflow: hidden;
   }
   .hdr-root::before {
     content: '';
     position: absolute;
     left: 0; right: 0; top: 0; height: 2px;
-    border-radius: 18px 18px 0 0;
     background: linear-gradient(90deg, transparent, var(--accent), var(--accent-2), var(--accent), transparent);
     background-size: 200% 100%;
     animation: hdrGrad 4s linear infinite;
