@@ -4,6 +4,8 @@ const ROW_HEIGHT = 40;
 
 export const GRID_COLS = 24;
 export const GRID_ROW_HEIGHT = ROW_HEIGHT;
+export const GRID_BREAKPOINTS = { lg: 1280, md: 996, sm: 768, xs: 480, xxs: 0 };
+export const GRID_COLS_BY_BP = { lg: 24, md: 16, sm: 8, xs: 4, xxs: 2 };
 
 // Maximum number of layouts a user can have saved.
 export const MAX_LAYOUTS = 3;
@@ -40,6 +42,50 @@ export const PANEL_META = {
 };
 
 const LAYOUT_KEY = 'dashboard-grid-layout-v2';
+
+export function buildMobileLayout() {
+  // Every panel full-width, 6 rows tall (≈240px at ROW_HEIGHT=40).
+  // Order matches the source order of DEFAULT_LAYOUT.
+  const order = [
+    'hero',
+    'kpiGrid',
+    'advancedKpiGrid',
+    'durationWidget',
+    'timeChart',
+    'underwater',
+    'categoryCharts',
+    'monthly',
+    'rollingExpectancy',
+    'rrCompare',
+    'calendar',
+  ];
+  return order.map((id, i) => ({
+    i: id,
+    x: 0,
+    y: i * 6,
+    w: 4,
+    h: 6,
+    minW: 4,
+    minH: 4,
+    visible: true,
+  }));
+}
+
+export function scaleLayoutToBreakpoint(lgLayout, targetCols) {
+  if (targetCols === GRID_COLS) return lgLayout;
+
+  const scale = targetCols / GRID_COLS;
+
+  return lgLayout.map((item) => ({
+    ...item,
+    x: Math.floor(item.x * scale),
+    y: Math.floor(item.y * scale),
+    w: Math.max(1, Math.min(targetCols, Math.round(item.w * scale))),
+    h: Math.max(1, item.h), // don't shrink heights — content needs the room
+    minW: 1,
+    minH: 1,
+  }));
+}
 
 export function loadLayout() {
   try {
