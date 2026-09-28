@@ -1,3 +1,4 @@
+// apps/web/src/shared/trading/time.js
 // Session definitions (ET times in minutes from midnight)
 const SESSION_RANGES = [
   { name: 'Asia', start: 1080, end: 120 },     // 18:00 - 02:00 next day

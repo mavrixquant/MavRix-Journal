@@ -1,4 +1,4 @@
-// src/features/simulator/utils/monteCarlo.js
+// apps/web/src/shared/trading/monteCarlo.js
 // ---------------------------------------------------------------------------
 // Monte Carlo engine for trade sequences.
 //

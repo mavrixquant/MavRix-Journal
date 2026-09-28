@@ -1,4 +1,4 @@
-// src/utils/analyticsEngine.js
+// apps/web/src/shared/trading/analytics.js
 // Series builders used by dashboard charts.
 // Pure functions — take stats.outcomes (already scored), return plain data.
 

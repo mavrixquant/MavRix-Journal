@@ -1,6 +1,6 @@
-// src/utils/optimizationEngine.js
-import { applyLimitsFilter, applySessionTimeFilter } from './filterHelpers';
-import { computeStats } from './statsEngine';
+// apps/web/src/shared/trading/optimization.js
+import { applyLimitsFilter, applySessionTimeFilter } from './filters.js';
+import { computeStats } from './stats.js';
 
 export function cartesianProduct(arrays) {
   return arrays.reduce((acc, arr) => {

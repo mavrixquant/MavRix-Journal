@@ -1,5 +1,5 @@
-// src/utils/filterHelpers.js
-import { getTradeSL, getTradeNetPnl, getMetricMode } from '@/shared/utils/slResolver';
+// apps/web/src/shared/trading/filters.js
+import { getTradeSL, getTradeNetPnl, getMetricMode } from './sl.js';
 
 // Outcome evaluation for a single trade.
 // Returns { result, score, r, rAchieved }.

@@ -1,5 +1,5 @@
-// src/utils/enrichTrades.js
-import { getSession, get30MinBucket, DOW_NAMES } from './timeHelpers';
+// apps/web/src/shared/trading/enrich.js
+import { getSession, get30MinBucket, DOW_NAMES } from './time.js';
 
 function parseTimeToMinutes(timeStr) {
   if (!timeStr) return 0;
@@ -33,7 +33,7 @@ const STANDARD_KEYS = new Set([
   'contracts',
   'commission',
   'netPnl',
-  'durationMinutes',  // ← new: reserved
+  'durationMinutes',
   'createdAt',
   'updatedAt',
   'id',
@@ -103,7 +103,7 @@ export function enrichTradesFromDB(rawTrades) {
       session: getSession(entryMinutes),
       bucket: get30MinBucket(entryMinutes),
       entryMinutes,
-      durationMinutes,     // ← new
+      durationMinutes,
       mae,
       mfe,
       dynamic,

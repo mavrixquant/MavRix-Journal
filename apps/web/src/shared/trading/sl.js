@@ -1,4 +1,4 @@
-// src/utils/slResolver.js
+// apps/web/src/shared/trading/sl.js
 // Trade-level metric resolver: SL (in points) for Backtest R-mode,
 // net PnL (in account currency) for Live/Demo money-mode.
 
