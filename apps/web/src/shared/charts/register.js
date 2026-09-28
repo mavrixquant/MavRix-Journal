@@ -1,4 +1,8 @@
-// apps/web/src/shared/utils/chartConfig.js
+// apps/web/src/shared/charts/register.js
+//
+// Side-effect import: registers the Chart.js controllers/elements we use.
+// Import this ONCE from main.jsx — nowhere else.
+
 import {
   Chart,
   LineController,

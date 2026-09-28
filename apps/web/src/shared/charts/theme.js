@@ -1,4 +1,4 @@
-// apps/web/src/lib/chartTheme.js
+// apps/web/src/shared/charts/theme.js
 //
 // Single source of truth for every chart's visual language.
 // Change a color here → every chart updates on next render.

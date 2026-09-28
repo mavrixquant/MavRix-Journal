@@ -1,4 +1,4 @@
-// apps/web/src/lib/queryClient.js
+// apps/web/src/shared/api/queryClient.js
 import { QueryClient } from '@tanstack/react-query';
 
 export const queryClient = new QueryClient({

@@ -1,4 +1,4 @@
-// apps/web/src/lib/sse.js
+// apps/web/src/shared/api/sse.js
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { ensureFreshAccessToken } from '@/services/api';

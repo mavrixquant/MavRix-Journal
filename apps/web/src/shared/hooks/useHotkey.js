@@ -1,3 +1,4 @@
+// apps/web/src/shared/hooks/useHotkey.js
 import { useEffect } from 'react';
 
 /**
