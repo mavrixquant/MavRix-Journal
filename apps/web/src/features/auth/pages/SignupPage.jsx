@@ -9,12 +9,12 @@ import { signupSchema } from '@mavrix/shared/validators';
 
 import { useAuth } from '@/app/providers/AuthProvider';
 import * as google from '@/services/google';
-import AuthLayout from './AuthLayout';
-import AuthField from './AuthField';
-import AuthButton from './AuthButton';
-import PasswordStrength from './PasswordStrength';
-import { ErrorBanner } from './ErrorBanner';
-import { Divider } from './Divider';
+import AuthLayout from '../components/AuthLayout';
+import AuthField from '../components/AuthField';
+import AuthButton from '../components/AuthButton';
+import PasswordStrength from '../components/PasswordStrength';
+import { ErrorBanner } from '../components/ErrorBanner';
+import { Divider } from '../components/Divider';
 
 // Extend the shared schema with a client-only confirmPassword field.
 const signupFormSchema = signupSchema

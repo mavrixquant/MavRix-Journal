@@ -8,11 +8,11 @@ import { loginSchema } from '@mavrix/shared/validators';
 
 import { useAuth } from '@/app/providers/AuthProvider';
 import * as google from '@/services/google';
-import AuthLayout from './AuthLayout';
-import AuthField from './AuthField';
-import AuthButton from './AuthButton';
-import { ErrorBanner } from './ErrorBanner';
-import { Divider } from './Divider';
+import AuthLayout from '../components/AuthLayout';
+import AuthField from '../components/AuthField';
+import AuthButton from '../components/AuthButton';
+import { ErrorBanner } from '../components/ErrorBanner';
+import { Divider } from '../components/Divider';
 
 function GoogleIcon() {
   return (

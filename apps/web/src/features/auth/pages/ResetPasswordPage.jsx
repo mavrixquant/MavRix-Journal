@@ -7,12 +7,12 @@ import { Key, Lock } from 'lucide-react';
 import { z } from 'zod';
 
 import * as authService from '@/services/auth.service';
-import AuthLayout from './AuthLayout';
-import AuthField from './AuthField';
-import AuthButton from './AuthButton';
-import PasswordStrength from './PasswordStrength';
-import { ErrorBanner } from './ErrorBanner';
-import { SuccessBanner } from './SuccessBanner';
+import AuthLayout from '../components/AuthLayout';
+import AuthField from '../components/AuthField';
+import AuthButton from '../components/AuthButton';
+import PasswordStrength from '../components/PasswordStrength';
+import { ErrorBanner } from '../components/ErrorBanner';
+import { SuccessBanner } from '../components/SuccessBanner';
 
 const schema = z
   .object({

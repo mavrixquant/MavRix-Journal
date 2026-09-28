@@ -7,11 +7,11 @@ import { Mail } from 'lucide-react';
 import { z } from 'zod';
 
 import * as authService from '@/services/auth.service';
-import AuthLayout from './AuthLayout';
-import AuthField from './AuthField';
-import AuthButton from './AuthButton';
-import { ErrorBanner } from './ErrorBanner';
-import { SuccessBanner } from './SuccessBanner';
+import AuthLayout from '../components/AuthLayout';
+import AuthField from '../components/AuthField';
+import AuthButton from '../components/AuthButton';
+import { ErrorBanner } from '../components/ErrorBanner';
+import { SuccessBanner } from '../components/SuccessBanner';
 
 const schema = z.object({
   email: z.string().trim().toLowerCase().email('Enter a valid email'),

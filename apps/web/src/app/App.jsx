@@ -12,16 +12,16 @@ import AppLayout from '@/app/AppLayout';
 import { PageSkeleton } from '@/shared/ui/page-skeleton';
 
 /* ---- Auth pages ---- */
-const Login = lazy(() => import('@/features/auth/components/LoginPage'));
-const Signup = lazy(() => import('@/features/auth/components/SignupPage'));
+const Login = lazy(() => import('@/features/auth/pages/LoginPage'));
+const Signup = lazy(() => import('@/features/auth/pages/SignupPage'));
 const EmailVerification = lazy(() =>
-  import('@/features/auth/components/EmailVerificationPage')
+  import('@/features/auth/pages/VerifyEmailPage')
 );
 const ForgotPassword = lazy(() =>
-  import('@/features/auth/components/ForgotPasswordPage')
+  import('@/features/auth/pages/ForgotPasswordPage')
 );
 const ResetPassword = lazy(() =>
-  import('@/features/auth/components/ResetPasswordPage')
+  import('@/features/auth/pages/ResetPasswordPage')
 );
 
 /* ---- Journal ---- */
