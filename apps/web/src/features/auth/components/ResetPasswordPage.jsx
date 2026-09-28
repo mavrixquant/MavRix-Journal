@@ -11,7 +11,8 @@ import AuthLayout from './AuthLayout';
 import AuthField from './AuthField';
 import AuthButton from './AuthButton';
 import PasswordStrength from './PasswordStrength';
-import { ErrorBanner, SuccessBanner } from './LoginPage';
+import { ErrorBanner } from './ErrorBanner';
+import { SuccessBanner } from './SuccessBanner';
 
 const schema = z
   .object({

@@ -11,6 +11,8 @@ import * as google from '@/services/google';
 import AuthLayout from './AuthLayout';
 import AuthField from './AuthField';
 import AuthButton from './AuthButton';
+import { ErrorBanner } from './ErrorBanner';
+import { Divider } from './Divider';
 
 function GoogleIcon() {
   return (
@@ -130,82 +132,5 @@ export default function Login() {
         Continue with Google
       </AuthButton>
     </AuthLayout>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/*  Tiny shared bits local to this file                               */
-/* ------------------------------------------------------------------ */
-
-export function ErrorBanner({ message }) {
-  return (
-    <div
-      role="alert"
-      style={{
-        background: 'rgba(239,68,68,.08)',
-        border: '1px solid rgba(239,68,68,.28)',
-        color: '#fca5a5',
-        padding: '11px 13px',
-        borderRadius: 10,
-        fontSize: 12,
-        fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-        lineHeight: 1.55,
-        marginBottom: 18,
-        display: 'flex',
-        alignItems: 'center',
-        gap: 8,
-      }}
-    >
-      <span style={{ flexShrink: 0 }}>⚠</span>
-      <span>{message}</span>
-    </div>
-  );
-}
-
-export function SuccessBanner({ message }) {
-  return (
-    <div
-      role="status"
-      style={{
-        background: 'rgba(34,197,94,.08)',
-        border: '1px solid rgba(34,197,94,.28)',
-        color: '#86efac',
-        padding: '11px 13px',
-        borderRadius: 10,
-        fontSize: 12,
-        fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-        lineHeight: 1.55,
-        marginBottom: 18,
-      }}
-    >
-      {message}
-    </div>
-  );
-}
-
-export function Divider() {
-  return (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 12,
-        margin: '22px 0',
-      }}
-    >
-      <span style={{ flex: 1, height: 1, background: 'rgba(255,255,255,.05)' }} />
-      <span
-        style={{
-          color: '#545E6E',
-          fontSize: 10,
-          fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-          letterSpacing: '.18em',
-          fontWeight: 700,
-        }}
-      >
-        OR
-      </span>
-      <span style={{ flex: 1, height: 1, background: 'rgba(255,255,255,.05)' }} />
-    </div>
   );
 }

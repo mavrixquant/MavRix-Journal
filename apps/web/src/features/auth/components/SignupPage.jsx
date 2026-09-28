@@ -13,7 +13,8 @@ import AuthLayout from './AuthLayout';
 import AuthField from './AuthField';
 import AuthButton from './AuthButton';
 import PasswordStrength from './PasswordStrength';
-import { ErrorBanner, Divider } from './LoginPage';
+import { ErrorBanner } from './ErrorBanner';
+import { Divider } from './Divider';
 
 // Extend the shared schema with a client-only confirmPassword field.
 const signupFormSchema = signupSchema

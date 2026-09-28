@@ -8,7 +8,8 @@ import * as authService from '@/services/auth.service';
 import AuthLayout from './AuthLayout';
 import AuthField from './AuthField';
 import AuthButton from './AuthButton';
-import { ErrorBanner, SuccessBanner } from './LoginPage';
+import { ErrorBanner } from './ErrorBanner';
+import { SuccessBanner } from './SuccessBanner';
 
 export default function EmailVerification() {
   const { user, logout, refreshUser } = useAuth();
