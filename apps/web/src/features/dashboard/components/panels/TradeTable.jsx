@@ -1,8 +1,12 @@
-// src/components/dashboard/sections/TradeTable.jsx
-import { useState, useMemo } from 'react';
+// apps/web/src/features/dashboard/components/panels/TradeTable.jsx
+import { useMemo } from 'react';
 import { useAppContext } from '@/app/providers/AppProvider';
 import { useStats } from '@/features/dashboard/hooks/useStats';
+import DataTable from '@/components/ui/data-table';
 
+/* ------------------------------------------------------------------ */
+/*  Helpers                                                            */
+/* ------------------------------------------------------------------ */
 function formatTimeWithAMPM(timeStr) {
   if (!timeStr) return '—';
   if (/^\d{2}:\d{2}/.test(timeStr)) {
@@ -14,128 +18,197 @@ function formatTimeWithAMPM(timeStr) {
   return timeStr;
 }
 
-const formatMoney = (v) => {
+function formatMoney(v) {
   if (v == null || Number.isNaN(Number(v))) return '—';
   const n = Number(v);
   const sign = n < 0 ? '-' : '+';
   return `${sign}$${Math.abs(n).toFixed(2)}`;
-};
+}
 
+function formatR(v) {
+  if (v == null || Number.isNaN(Number(v))) return '—';
+  const n = Number(v);
+  return `${n >= 0 ? '+' : ''}${n.toFixed(2)}R`;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Cell renderers (pure)                                              */
+/* ------------------------------------------------------------------ */
+function ResultTag({ value }) {
+  if (!value) return '—';
+  const cls =
+    value === 'win' ? 'dt-tag-win' : value === 'loss' ? 'dt-tag-loss' : 'dt-tag-be';
+  return <span className={`dt-tag ${cls}`}>{String(value).toUpperCase()}</span>;
+}
+
+function DirText({ value }) {
+  if (!value) return '—';
+  const color = value === 'Long' ? '#35C4A1' : '#FF5C5C';
+  return <span style={{ color, fontWeight: 600 }}>{value}</span>;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Build columns dynamically (base + dynamic keys)                    */
+/* ------------------------------------------------------------------ */
+function buildColumns(dynamicKeys, isMoney) {
+  const base = [
+    {
+      id: 'date',
+      accessorKey: 'date',
+      header: 'Date',
+      meta: { label: 'Date' },
+      size: 110,
+      cell: (ctx) => ctx.getValue() || '—',
+    },
+    {
+      id: 'entry',
+      accessorKey: 'entry',
+      header: 'Entry',
+      meta: { label: 'Entry' },
+      size: 96,
+      cell: (ctx) => formatTimeWithAMPM(ctx.getValue()),
+    },
+    {
+      id: 'exit',
+      accessorKey: 'exit',
+      header: 'Exit',
+      meta: { label: 'Exit' },
+      size: 96,
+      cell: (ctx) => formatTimeWithAMPM(ctx.getValue()),
+    },
+    {
+      id: 'dir',
+      accessorKey: 'dir',
+      header: 'Dir',
+      meta: { label: 'Direction' },
+      size: 70,
+      cell: (ctx) => <DirText value={ctx.getValue()} />,
+    },
+    {
+      id: 'mae',
+      accessorKey: 'mae',
+      header: 'MAE',
+      meta: { label: 'MAE' },
+      size: 70,
+      cell: (ctx) => {
+        const v = Number(ctx.getValue() ?? 0);
+        return v.toFixed(2);
+      },
+    },
+    {
+      id: 'mfe',
+      accessorKey: 'mfe',
+      header: 'MFE',
+      meta: { label: 'MFE' },
+      size: 70,
+      cell: (ctx) => {
+        const v = Number(ctx.getValue() ?? 0);
+        return v.toFixed(2);
+      },
+    },
+  ];
+
+  if (isMoney) {
+    base.push({
+      id: 'score',
+      accessorKey: 'score',
+      header: 'Net P&L',
+      meta: { label: 'Net P&L' },
+      size: 100,
+      cell: (ctx) => {
+        const v = Number(ctx.getValue() ?? 0);
+        const cls = v >= 0 ? 'dt-cell-pos' : 'dt-cell-neg';
+        return <span className={cls}>{formatMoney(v)}</span>;
+      },
+    });
+  } else {
+    base.push({
+      id: 'rAchieved',
+      accessorKey: 'rAchieved',
+      header: 'R Reach',
+      meta: { label: 'R Reached' },
+      size: 90,
+      cell: (ctx) => {
+        const v = ctx.getValue();
+        if (v == null) return '—';
+        return `${Number(v).toFixed(2)}R`;
+      },
+    });
+  }
+
+  base.push({
+    id: 'result',
+    accessorKey: 'result',
+    header: 'Outcome',
+    meta: { label: 'Outcome' },
+    size: 100,
+    cell: (ctx) => <ResultTag value={ctx.getValue()} />,
+  });
+
+  // Append dynamic (user-defined) columns
+  const dynamicCols = dynamicKeys.map((key) => ({
+    id: key,
+    accessorFn: (row) => row.dynamic?.[key] ?? '—',
+    header: key,
+    meta: { label: key },
+    size: 120,
+    cell: (ctx) => String(ctx.getValue() ?? '—'),
+  }));
+
+  return [...base, ...dynamicCols];
+}
+
+/* ------------------------------------------------------------------ */
+/*  Component                                                          */
+/* ------------------------------------------------------------------ */
 export default function TradeTable() {
   const { state } = useAppContext();
   const { stats, metric } = useStats();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [sortKey, setSortKey] = useState('date');
-  const [sortDir, setSortDir] = useState(1);
 
   const isMoney = metric === '$';
   const outcomes = stats?.outcomes || [];
   const dynamicKeys = state.dynamicFilterKeys || [];
 
-  const baseColumns = isMoney
-    ? ['date', 'entry', 'exit', 'dir', 'mae', 'mfe', 'score', 'result']
-    : ['date', 'entry', 'exit', 'dir', 'mae', 'mfe', 'rAchieved', 'result'];
+  const columns = useMemo(
+    () => buildColumns(dynamicKeys, isMoney),
+    [dynamicKeys, isMoney]
+  );
 
-  const allColumns = [...baseColumns, ...dynamicKeys.filter(key => !baseColumns.includes(key))];
-
-  const filteredRows = useMemo(() => {
-    let rows = [...outcomes];
-    const q = searchQuery.trim().toLowerCase();
-    if (q) {
-      rows = rows.filter(r => {
-        for (const col of baseColumns) {
-          const val = r[col];
-          if (val !== undefined && val !== null && String(val).toLowerCase().includes(q)) return true;
-        }
-        for (const key of dynamicKeys) {
-          const val = r.dynamic?.[key];
-          if (val !== undefined && val !== null && String(val).toLowerCase().includes(q)) return true;
-        }
-        if (r.notes && r.notes.toLowerCase().includes(q)) return true;
-        return false;
-      });
-    }
-    rows.sort((a, b) => {
-      let va, vb;
-      if (dynamicKeys.includes(sortKey)) {
-        va = a.dynamic?.[sortKey] || '';
-        vb = b.dynamic?.[sortKey] || '';
-      } else {
-        va = a[sortKey];
-        vb = b[sortKey];
-      }
-      if (sortKey === 'date') { va = new Date(va); vb = new Date(vb); }
-      else if (typeof va === 'string') { va = va.toLowerCase(); vb = vb.toLowerCase(); }
-      if (va < vb) return -1 * sortDir;
-      if (va > vb) return 1 * sortDir;
-      return 0;
-    });
-    return rows;
-  }, [outcomes, searchQuery, sortKey, sortDir, dynamicKeys, baseColumns]);
-
-  const handleSort = (key) => {
-    if (sortKey === key) setSortDir(prev => -prev);
-    else { setSortKey(key); setSortDir(1); }
-  };
+  // Search should scan all base fields + dynamic fields
+  const searchableIds = useMemo(() => {
+    const base = ['date', 'entry', 'exit', 'dir', 'mae', 'mfe', 'result'];
+    if (isMoney) base.push('score');
+    else base.push('rAchieved');
+    return [...base, ...dynamicKeys];
+  }, [dynamicKeys, isMoney]);
 
   if (outcomes.length === 0) {
-    return <div style={{ color: 'var(--text-faint)', textAlign: 'center', padding: '20px' }}>No data</div>;
+    return (
+      <div
+        style={{
+          color: '#545E6E',
+          textAlign: 'center',
+          padding: 20,
+          fontFamily: "'IBM Plex Mono', monospace",
+          fontSize: 12,
+        }}
+      >
+        No trades to display.
+      </div>
+    );
   }
 
-  const getValue = (row, col) => dynamicKeys.includes(col) ? row.dynamic?.[col] : row[col];
-
-  const renderCell = (row, col) => {
-    const val = getValue(row, col);
-    if (val === undefined || val === null) return '—';
-    switch (col) {
-      case 'date': return val || '—';
-      case 'entry':
-      case 'exit': return formatTimeWithAMPM(val);
-      case 'mae':
-      case 'mfe': return Number(val).toFixed(2);
-      case 'rAchieved': return Number(val).toFixed(2) + 'R';
-      case 'score': return formatMoney(val);
-      case 'result': return <span className={`tag ${val}`}>{String(val).toUpperCase()}</span>;
-      case 'dir': return <span className={val === 'Long' ? 'dir-long' : 'dir-short'}>{val}</span>;
-      default: return String(val);
-    }
-  };
-
-  const colLabel = (col) => {
-    if (col === 'dir') return 'Dir';
-    if (col === 'rAchieved') return 'R Reach';
-    if (col === 'score') return 'Net P&L';
-    if (col === 'result') return 'Outcome';
-    return col;
-  };
-
   return (
-    <div>
-      <div className="table-controls">
-        <input className="search-box" placeholder="Search trades…" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
-        <span className="panel-note mono">{filteredRows.length} trades</span>
-      </div>
-      <div className="table-wrap" style={{ maxHeight: '500px', overflowY: 'auto' }}>
-        <table>
-          <thead>
-            <tr>
-              {allColumns.map(col => (
-                <th key={col} onClick={() => handleSort(col)} style={{ cursor: 'pointer' }}>
-                  {colLabel(col)}
-                  {sortKey === col && (sortDir === 1 ? ' ↑' : ' ↓')}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {filteredRows.map((row, idx) => (
-              <tr key={row.id || idx}>
-                {allColumns.map(col => <td key={col}>{renderCell(row, col)}</td>)}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
+    <DataTable
+      data={outcomes}
+      columns={columns}
+      getRowId={(row, idx) => row.id ?? `${row.date}-${row.entry}-${idx}`}
+      searchPlaceholder="Search trades…"
+      searchableColumnIds={searchableIds}
+      initialSort={[{ id: 'date', desc: true }]}
+      estimateRowHeight={36}
+      maxHeight={560}
+      emptyMessage="No trades match your filters."
+    />
   );
 }
