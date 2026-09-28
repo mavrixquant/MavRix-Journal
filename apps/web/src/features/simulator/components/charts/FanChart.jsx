@@ -1,24 +1,25 @@
-// src/features/simulator/components/charts/FanChart.jsx
-
-import { useMemo } from 'react';
+// apps/web/src/features/simulator/components/charts/FanChart.jsx
+import { useMemo, useRef } from 'react';
 import { Line } from 'react-chartjs-2';
+import { chartColors, chartFonts } from '@/lib/chartTheme';
+import { ChartExportButton } from '@/components/ui/chart-export';
 
 const COLORS = {
-  median:     '#F59E0B',
-  band75:     'rgba(245, 158, 11, 0.22)',
-  band75Line: 'rgba(245, 158, 11, 0.48)',
-  band95:     'rgba(245, 158, 11, 0.09)',
-  band95Line: 'rgba(245, 158, 11, 0.30)',
-  sampled:    'rgba(245, 158, 11, 0.18)',
-  actual:     '#4C8BF5',
-  zero:       'rgba(255, 255, 255, 0.16)',
-  threshold:  'rgba(239, 68, 68, 0.60)',
-  text:       '#8892A3',
-  textLight:  '#E7E9EE',
-  textDim:    '#545E6E',
-  grid:       'rgba(255, 255, 255, 0.045)',
-  tooltipBg:  '#12161F',
-  tooltipBorder: 'rgba(255, 255, 255, 0.1)',
+  median: chartColors.amber,
+  band75: 'rgba(245,158,11,.22)',
+  band75Line: 'rgba(245,158,11,.48)',
+  band95: 'rgba(245,158,11,.09)',
+  band95Line: 'rgba(245,158,11,.30)',
+  sampled: 'rgba(245,158,11,.18)',
+  actual: chartColors.blue,
+  zero: chartColors.zeroLine,
+  threshold: chartColors.threshold,
+  text: chartColors.text,
+  textLight: chartColors.textLight,
+  textDim: chartColors.textDim,
+  grid: 'rgba(255,255,255,.045)',
+  tooltipBg: '#12161F',
+  tooltipBorder: 'rgba(255,255,255,.1)',
 };
 
 const fmt = (v, isMoney) => {
@@ -149,6 +150,7 @@ export default function FanChart({
   showSampled = true,
 }) {
   const isDrawdown = chartType === 'drawdown';
+  const chartRef = useRef(null);
 
   const chartData = useMemo(() => {
     if (!result) return null;
@@ -548,7 +550,8 @@ export default function FanChart({
       height: '100%',
       minHeight: 400,
     }}>
-      <Line data={chartData} options={options} />
+      <ChartExportButton chartRef={chartRef} filename="fan-chart" />
+      <Line ref={chartRef} data={chartData} options={options} />
     </div>
   );
 }

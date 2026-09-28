@@ -1,4 +1,4 @@
-// src/utils/chartConfig.js
+// apps/web/src/shared/utils/chartConfig.js
 import {
   Chart,
   LineController,
@@ -6,6 +6,10 @@ import {
   PointElement,
   BarController,
   BarElement,
+  DoughnutController,
+  ArcElement,
+  RadarController,
+  RadialLinearScale,
   LinearScale,
   CategoryScale,
   Tooltip,
@@ -13,13 +17,16 @@ import {
   Filler,
 } from 'chart.js';
 
-// Register all required components
 Chart.register(
   LineController,
   LineElement,
   PointElement,
   BarController,
   BarElement,
+  DoughnutController,
+  ArcElement,
+  RadarController,
+  RadialLinearScale,
   LinearScale,
   CategoryScale,
   Tooltip,

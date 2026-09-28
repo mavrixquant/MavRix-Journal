@@ -3,7 +3,7 @@ import { useMemo } from 'react';
 import { useStats } from '@/features/dashboard/hooks/useStats';
 import { getWeekStart } from '@/shared/utils/timeHelpers';
 
-const COLORS = { win: '#35C4A1', loss: '#FF5C5C', text: '#8892A3', grid: '#1A2029' };
+import { chartColors as COLORS } from '@/lib/chartTheme';
 
 const formatR = (v) => (v >= 0 ? '+' : '') + v.toFixed(2) + 'R';
 const formatMoney = (v) => {

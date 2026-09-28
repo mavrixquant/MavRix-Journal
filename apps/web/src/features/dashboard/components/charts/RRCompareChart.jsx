@@ -1,110 +1,153 @@
-// src/components/dashboard/charts/RRCompareChart.jsx
-import { useMemo, useState, useEffect } from 'react';
+// apps/web/src/features/dashboard/components/charts/RRCompareChart.jsx
+import { useMemo, useRef, useState, useEffect } from 'react';
 import { Bar } from 'react-chartjs-2';
 import { useStats } from '@/features/dashboard/hooks/useStats';
 import { computeStats } from '@/features/dashboard/utils/statsEngine';
+import {
+  chartColors,
+  baseTooltip,
+  baseAxis,
+  baseCategoryAxis,
+  baseLegend,
+  baseAnimation,
+} from '@/lib/chartTheme';
+import { ChartExportButton } from '@/components/ui/chart-export';
 
 const RR_LEVELS = [1, 2, 3, 4, 5, 6, 7, 8];
 
-const COLORS = {
-  win: '#35C4A1',
-  winHover: '#45D1AD',
-  loss: '#FF5C5C',
-  lossHover: '#FF7070',
-  amber: '#FFB020',
-  amberHover: '#FFC04D',
-  text: '#8892A3',
-  textMuted: '#545E6E',
-  textLight: '#E7E9EE',
-  grid: '#1A2029',
-  tooltipBg: '#11151F',
-  tooltipBorder: '#212836',
-};
-
 function useResponsiveBarConfig() {
-  const [config, setConfig] = useState({ maxBarThickness: 48, barPercentage: 0.7 });
+  const [config, setConfig] = useState({
+    maxBarThickness: 48,
+    barPercentage: 0.7,
+    categoryPercentage: 0.85,
+  });
   useEffect(() => {
-    const updateConfig = () => {
-      const width = window.innerWidth;
-      if (width >= 1200) setConfig({ maxBarThickness: 52, barPercentage: 0.7, categoryPercentage: 0.85 });
-      else if (width >= 768) setConfig({ maxBarThickness: 32, barPercentage: 0.6, categoryPercentage: 0.8 });
-      else setConfig({ maxBarThickness: 18, barPercentage: 0.5, categoryPercentage: 0.75 });
+    const update = () => {
+      const w = window.innerWidth;
+      if (w >= 1200)
+        setConfig({ maxBarThickness: 52, barPercentage: 0.7, categoryPercentage: 0.85 });
+      else if (w >= 768)
+        setConfig({ maxBarThickness: 32, barPercentage: 0.6, categoryPercentage: 0.8 });
+      else
+        setConfig({ maxBarThickness: 18, barPercentage: 0.5, categoryPercentage: 0.75 });
     };
-    updateConfig();
-    window.addEventListener('resize', updateConfig);
-    return () => window.removeEventListener('resize', updateConfig);
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
   }, []);
   return config;
 }
 
-const PanelShell = ({ children }) => (
-  <div style={{ position: 'relative', width: '100%', height: '100%', minHeight: '220px' }}>{children}</div>
-);
-
-const EmptyState = ({ text }) => (
-  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: '220px', color: COLORS.textMuted, fontFamily: "'IBM Plex Mono', monospace", fontSize: '12px', border: `1px dashed ${COLORS.grid}`, borderRadius: '10px', background: 'rgba(17, 21, 31, 0.4)', textAlign: 'center', padding: '20px' }}>
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ marginBottom: '8px', opacity: 0.6 }}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" />
-    </svg>
-    <span>{text}</span>
-  </div>
-);
+function EmptyState({ text }) {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: '100%',
+        minHeight: 220,
+        color: chartColors.textDim,
+        fontFamily: "'IBM Plex Mono', monospace",
+        fontSize: 12,
+        border: `1px dashed ${chartColors.grid}`,
+        borderRadius: 10,
+        background: 'rgba(17,21,31,.4)',
+        padding: 20,
+        textAlign: 'center',
+      }}
+    >
+      <svg
+        width="24"
+        height="24"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        style={{ marginBottom: 8, opacity: 0.6 }}
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z"
+        />
+      </svg>
+      <span>{text}</span>
+    </div>
+  );
+}
 
 export default function RRCompareChart() {
   const { filteredTrades, stats, account } = useStats();
   const barConfig = useResponsiveBarConfig();
+  const chartRef = useRef(null);
 
   const isBacktest = account?.type === 'Backtest';
   const hasTrades = filteredTrades && filteredTrades.length > 0;
 
-  // ----- Backtest: RR sweep -----
   const statsData = useMemo(() => {
     if (!hasTrades || !isBacktest) return [];
-    return RR_LEVELS.map(r => computeStats(filteredTrades, r, account));
+    return RR_LEVELS.map((r) => computeStats(filteredTrades, r, account));
   }, [filteredTrades, hasTrades, isBacktest, account]);
 
   const rrChartData = useMemo(() => {
     if (statsData.length === 0) return null;
-    const totalData = statsData.map(s => s.total);
-    const winRateData = statsData.map(s => +s.winRate.toFixed(1));
+    const totalData = statsData.map((s) => s.total);
+    const winRateData = statsData.map((s) => +s.winRate.toFixed(1));
     return {
-      labels: RR_LEVELS.map(r => `1:${r}`),
+      labels: RR_LEVELS.map((r) => `1:${r}`),
       datasets: [
         {
-          type: 'line', label: 'Win Rate %', data: winRateData,
-          borderColor: COLORS.amber, backgroundColor: COLORS.amber,
-          pointBackgroundColor: COLORS.amber, pointBorderColor: '#0D1117',
-          pointBorderWidth: 2, pointRadius: 4, pointHoverRadius: 6,
-          pointHoverBackgroundColor: COLORS.amberHover, tension: 0.3,
-          yAxisID: 'y1', order: 1,
+          type: 'line',
+          label: 'Win Rate %',
+          data: winRateData,
+          borderColor: chartColors.amber,
+          backgroundColor: chartColors.amber,
+          pointBackgroundColor: chartColors.amber,
+          pointBorderColor: '#0D1117',
+          pointBorderWidth: 2,
+          pointRadius: 4,
+          pointHoverRadius: 6,
+          pointHoverBackgroundColor: chartColors.amberHover,
+          tension: 0.3,
+          yAxisID: 'y1',
+          order: 1,
         },
         {
-          type: 'bar', label: 'Total R', data: totalData,
-          backgroundColor: totalData.map(v => (v >= 0 ? COLORS.win : COLORS.loss)),
-          hoverBackgroundColor: totalData.map(v => (v >= 0 ? COLORS.winHover : COLORS.lossHover)),
-          borderRadius: 6, borderSkipped: false,
+          type: 'bar',
+          label: 'Total R',
+          data: totalData,
+          backgroundColor: totalData.map((v) =>
+            v >= 0 ? chartColors.win : chartColors.loss
+          ),
+          hoverBackgroundColor: totalData.map((v) =>
+            v >= 0 ? chartColors.winHover : chartColors.lossHover
+          ),
+          borderRadius: 6,
+          borderSkipped: false,
           maxBarThickness: barConfig.maxBarThickness,
           barPercentage: barConfig.barPercentage,
           categoryPercentage: barConfig.categoryPercentage,
-          yAxisID: 'y', order: 2,
+          yAxisID: 'y',
+          order: 2,
         },
       ],
     };
   }, [statsData, barConfig]);
 
-  // ----- Live/Demo: Daily Net P&L -----
   const dailyData = useMemo(() => {
     if (isBacktest || !stats || !stats.outcomes) return null;
     const map = new Map();
-    stats.outcomes.forEach(o => {
+    stats.outcomes.forEach((o) => {
       if (!o.date) return;
       map.set(o.date, (map.get(o.date) || 0) + (o.score ?? 0));
     });
     const dates = [...map.keys()].sort();
     if (dates.length === 0) return null;
     return {
-      labels: dates.map(d => d.slice(5)),   // MM-DD
-      values: dates.map(d => +map.get(d).toFixed(2)),
+      labels: dates.map((d) => d.slice(5)),
+      values: dates.map((d) => +map.get(d).toFixed(2)),
       dates,
     };
   }, [stats, isBacktest]);
@@ -117,8 +160,12 @@ export default function RRCompareChart() {
         {
           label: 'Daily Net P&L',
           data: dailyData.values,
-          backgroundColor: dailyData.values.map(v => (v >= 0 ? COLORS.win : COLORS.loss)),
-          hoverBackgroundColor: dailyData.values.map(v => (v >= 0 ? COLORS.winHover : COLORS.lossHover)),
+          backgroundColor: dailyData.values.map((v) =>
+            v >= 0 ? chartColors.win : chartColors.loss
+          ),
+          hoverBackgroundColor: dailyData.values.map((v) =>
+            v >= 0 ? chartColors.winHover : chartColors.lossHover
+          ),
           borderRadius: 4,
           borderSkipped: false,
           maxBarThickness: barConfig.maxBarThickness,
@@ -129,94 +176,150 @@ export default function RRCompareChart() {
     };
   }, [dailyData, barConfig]);
 
-  // ----- Options -----
-  const rrOptions = useMemo(() => ({
-    responsive: true, maintainAspectRatio: false,
-    interaction: { mode: 'index', intersect: false },
-    animation: { duration: 300 },
-    plugins: {
-      legend: {
-        display: true, position: 'top', align: 'end',
-        labels: { color: COLORS.text, boxWidth: 8, boxHeight: 8, usePointStyle: true, pointStyle: 'circle', font: { family: "'Inter', sans-serif", size: 11, weight: '500' }, padding: 16 },
+  const rrOptions = useMemo(
+    () => ({
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      animation: baseAnimation,
+      plugins: {
+        legend: baseLegend(),
+        tooltip: baseTooltip({
+          displayColors: true,
+          boxPadding: 4,
+          callbacks: {
+            title: (items) => `Target R:R ${items[0]?.label || ''}`,
+            label: (item) => {
+              if (item.dataset.label === 'Total R') {
+                const val = item.parsed.y;
+                return `Total R   : ${(val >= 0 ? '+' : '') + val.toFixed(2)}R`;
+              }
+              return `Win Rate  : ${item.parsed.y.toFixed(1)}%`;
+            },
+          },
+        }),
       },
-      tooltip: {
-        enabled: true, backgroundColor: COLORS.tooltipBg, borderColor: COLORS.tooltipBorder,
-        borderWidth: 1, padding: 12, cornerRadius: 8,
-        titleColor: COLORS.textLight,
-        titleFont: { family: "'Space Grotesk', sans-serif", size: 12, weight: '600' },
-        bodyColor: COLORS.text,
-        bodyFont: { family: "'IBM Plex Mono', monospace", size: 11 },
-        bodySpacing: 4,
-        callbacks: {
-          title: (items) => `Target R:R ${items[0]?.label || ''}`,
-          label: (item) => {
-            if (item.dataset.label === 'Total R') {
+      scales: {
+        x: baseCategoryAxis({
+          ticks: {
+            color: chartColors.textLight,
+            font: { family: "'IBM Plex Mono', monospace", size: 11, weight: 500 },
+          },
+        }),
+        y: baseAxis({
+          type: 'linear',
+          position: 'left',
+          title: {
+            display: true,
+            text: 'Total R',
+            color: chartColors.text,
+            font: { family: "'Inter', sans-serif", size: 10, weight: '600' },
+          },
+          ticks: {
+            color: chartColors.text,
+            font: { family: "'IBM Plex Mono', monospace", size: 10 },
+            callback: (v) => `${v > 0 ? '+' : ''}${v}R`,
+          },
+        }),
+        y1: {
+          type: 'linear',
+          position: 'right',
+          grid: { display: false },
+          min: 0,
+          max: 100,
+          title: {
+            display: true,
+            text: 'Win Rate %',
+            color: chartColors.amber,
+            font: { family: "'Inter', sans-serif", size: 10, weight: '600' },
+          },
+          ticks: {
+            color: chartColors.amber,
+            font: { family: "'IBM Plex Mono', monospace", size: 10 },
+            callback: (v) => `${v}%`,
+          },
+        },
+      },
+    }),
+    []
+  );
+
+  const dailyOptions = useMemo(
+    () => ({
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: baseAnimation,
+      plugins: {
+        legend: { display: false },
+        tooltip: baseTooltip({
+          callbacks: {
+            title: (items) => dailyData?.dates?.[items[0]?.dataIndex] || '',
+            label: (item) => {
               const val = item.parsed.y;
-              return `Total R   : ${(val >= 0 ? '+' : '') + val.toFixed(2)}R`;
-            }
-            return `Win Rate  : ${item.parsed.y.toFixed(1)}%`;
+              const sign = val >= 0 ? '+' : '-';
+              return `Net P&L : ${sign}$${Math.abs(val).toFixed(2)}`;
+            },
           },
-        },
+        }),
       },
-    },
-    scales: {
-      x: { grid: { display: false }, ticks: { color: COLORS.textLight, font: { family: "'IBM Plex Mono', monospace", size: 11, weight: '500' } } },
-      y: {
-        type: 'linear', display: true, position: 'left',
-        grid: { color: COLORS.grid, drawBorder: false },
-        title: { display: true, text: 'Total R', color: COLORS.text, font: { family: "'Inter', sans-serif", size: 10, weight: '600' } },
-        ticks: { color: COLORS.text, font: { family: "'IBM Plex Mono', monospace", size: 10 }, callback: (v) => `${v > 0 ? '+' : ''}${v}R` },
-      },
-      y1: {
-        type: 'linear', display: true, position: 'right', grid: { display: false }, min: 0, max: 100,
-        title: { display: true, text: 'Win Rate %', color: COLORS.amber, font: { family: "'Inter', sans-serif", size: 10, weight: '600' } },
-        ticks: { color: COLORS.amber, font: { family: "'IBM Plex Mono', monospace", size: 10 }, callback: (v) => `${v}%` },
-      },
-    },
-  }), []);
-
-  const dailyOptions = useMemo(() => ({
-    responsive: true, maintainAspectRatio: false,
-    animation: { duration: 300 },
-    plugins: {
-      legend: { display: false },
-      tooltip: {
-        enabled: true, backgroundColor: COLORS.tooltipBg, borderColor: COLORS.tooltipBorder,
-        borderWidth: 1, padding: 12, cornerRadius: 8, displayColors: false,
-        titleColor: COLORS.textLight,
-        titleFont: { family: "'Space Grotesk', sans-serif", size: 12, weight: '600' },
-        bodyColor: COLORS.text,
-        bodyFont: { family: "'IBM Plex Mono', monospace", size: 11 },
-        callbacks: {
-          title: (items) => dailyData?.dates?.[items[0]?.dataIndex] || '',
-          label: (item) => {
-            const val = item.parsed.y;
-            const sign = val >= 0 ? '+' : '-';
-            return `Net P&L : ${sign}$${Math.abs(val).toFixed(2)}`;
+      scales: {
+        x: baseCategoryAxis({
+          ticks: {
+            color: chartColors.textLight,
+            font: { family: "'IBM Plex Mono', monospace", size: 9 },
+            maxRotation: 45,
+            minRotation: 45,
           },
-        },
+        }),
+        y: baseAxis({
+          title: {
+            display: true,
+            text: 'Net P&L',
+            color: chartColors.text,
+            font: { family: "'Inter', sans-serif", size: 10, weight: '600' },
+          },
+          ticks: {
+            color: chartColors.text,
+            font: { family: "'IBM Plex Mono', monospace", size: 10 },
+            callback: (v) => `$${v}`,
+          },
+        }),
       },
-    },
-    scales: {
-      x: { grid: { display: false }, ticks: { color: COLORS.textLight, font: { family: "'IBM Plex Mono', monospace", size: 9 }, maxRotation: 45, minRotation: 45 } },
-      y: {
-        grid: { color: COLORS.grid, drawBorder: false },
-        title: { display: true, text: 'Net P&L', color: COLORS.text, font: { family: "'Inter', sans-serif", size: 10, weight: '600' } },
-        ticks: { color: COLORS.text, font: { family: "'IBM Plex Mono', monospace", size: 10 }, callback: (v) => `$${v}` },
-      },
-    },
-  }), [dailyData]);
+    }),
+    [dailyData]
+  );
 
-  // ----- Render -----
   if (!hasTrades) return <EmptyState text="No trade data recorded" />;
 
   if (isBacktest) {
-    return <PanelShell><Bar data={rrChartData} options={rrOptions} /></PanelShell>;
+    return (
+      <div
+        style={{
+          position: 'relative',
+          width: '100%',
+          height: '100%',
+          minHeight: 220,
+        }}
+      >
+        <ChartExportButton chartRef={chartRef} filename="rr-comparison" />
+        <Bar ref={chartRef} data={rrChartData} options={rrOptions} />
+      </div>
+    );
   }
 
-  // Live / Demo
-  if (!dailyChartData) {
-    return <EmptyState text="No daily P&L data available" />;
-  }
-  return <PanelShell><Bar data={dailyChartData} options={dailyOptions} /></PanelShell>;
+  if (!dailyChartData) return <EmptyState text="No daily P&L data available" />;
+
+  return (
+    <div
+      style={{
+        position: 'relative',
+        width: '100%',
+        height: '100%',
+        minHeight: 220,
+      }}
+    >
+      <ChartExportButton chartRef={chartRef} filename="daily-pnl" />
+      <Bar ref={chartRef} data={dailyChartData} options={dailyOptions} />
+    </div>
+  );
 }
