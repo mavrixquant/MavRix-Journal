@@ -1,5 +1,5 @@
 // src/components/simulator/SimulatorControls.jsx
-import { FaPlay, FaRedo, FaDownload, FaDice } from 'react-icons/fa';
+import { FaPlay, FaRedo, FaDownload, FaDice, FaTimes } from 'react-icons/fa';
 
 const PRESETS = {
   quick:    { runs: 1000,  label: 'Quick' },
@@ -199,6 +199,8 @@ export default function SimulatorControls({
   isMoney,
   isRunning,
   onRun,
+  onCancel,
+  workerProgress,
   onExport,
   onExportRaw,
   hasResult,
@@ -398,30 +400,53 @@ export default function SimulatorControls({
           <FaDownload size={11} /> Run Data CSV
         </button>
 
-        <button
-          type="button"
-          className="sim-ctrl-btn-primary"
-          onClick={onRun}
-          disabled={isRunning || !controlsValid}
-        >
-          {isRunning
-            ? <FaPlay size={11} />
-            : isStale
-              ? <FaRedo size={11} />
-              : hasResult
-                ? <FaRedo size={11} />
-                : <FaPlay size={11} />
-          }
+        {isRunning ? (
+          <>
+            <span
+              style={{
+                fontFamily: "'IBM Plex Mono', monospace",
+                fontSize: 10.5,
+                fontWeight: 700,
+                letterSpacing: '.04em',
+                color: '#F59E0B',
+                whiteSpace: 'nowrap',
+              }}
+              title={`${workerProgress.toFixed(0)}% complete`}
+            >
+              Running… {workerProgress.toFixed(0)}%
+            </span>
 
-          {isRunning
-            ? 'Simulating…'
-            : isStale
+            <button
+              type="button"
+              className="sim-ctrl-btn"
+              onClick={onCancel}
+              title="Cancel the current simulation"
+              style={{
+                borderColor: 'rgba(239,68,68,.35)',
+                background: 'rgba(239,68,68,.06)',
+                color: '#f87171',
+              }}
+            >
+              <FaTimes size={11} /> Cancel
+            </button>
+          </>
+        ) : (
+          <button
+            type="button"
+            className="sim-ctrl-btn-primary"
+            onClick={onRun}
+            disabled={!controlsValid}
+          >
+            {isStale ? <FaRedo size={11} /> : hasResult ? <FaRedo size={11} /> : <FaPlay size={11} />}
+
+            {isStale
               ? 'Update Simulation'
               : hasResult
                 ? 'Re-run'
                 : 'Run Simulation'
-          }
-        </button>
+            }
+          </button>
+        )}
       </div>
     </div>
   );

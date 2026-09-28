@@ -116,7 +116,9 @@ export function runMonteCarlo(scores, options = {}) {
     targets = [],
     initialCapital = 0,
     blockSize = 5,
-    dollarsPerR = 0,      // conversion factor, only relevant in R-mode
+    dollarsPerR = 0,
+    onProgress = null,      // (pct, current, total) => void
+    shouldCancel = null,    // () => boolean
   } = options;
 
   // Validate input trades.
@@ -234,7 +236,21 @@ export function runMonteCarlo(scores, options = {}) {
     return (maxDD * dollarsPerR / initialCapital) * 100;
   };
 
+  // Progress reporting + cancellation.
+  // Fire the progress callback roughly 100 times over the whole run,
+  // and check the cancel flag on the same cadence.
+  const progressChunk = Math.max(100, Math.floor(runs / 100));
+
   for (let r = 0; r < runs; r++) {
+    if (r > 0 && r % progressChunk === 0) {
+      if (shouldCancel && shouldCancel()) {
+        return null;   // caller treats null as "cancelled"
+      }
+      if (onProgress) {
+        onProgress((r / runs) * 100, r, runs);
+      }
+    }
+
     if (method === 'permutation') {
       generatePermutation(base, n, randInt, buf);
     } else if (method === 'bootstrap') {
@@ -592,6 +608,8 @@ export function runMonteCarlo(scores, options = {}) {
     winStreak:  Array.from(longestWins).sort((a, b) => a - b),
     lossStreak: Array.from(longestLosses).sort((a, b) => a - b),
   };
+
+  if (onProgress) onProgress(100, runs, runs);
 
   return {
     method,

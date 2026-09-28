@@ -6,7 +6,8 @@ import { useAccounts } from '@/services/accounts.service';
 import { enrichTradesFromDB } from '@/shared/utils/enrichTrades';
 import { computeStats } from '@/features/dashboard/utils/statsEngine';
 import { getMetricMode } from '@/shared/utils/slResolver';
-import { runMonteCarlo, summarizeMC } from '@/features/simulator/utils/monteCarlo';
+import { summarizeMC } from '@/features/simulator/utils/monteCarlo';
+import { useMonteCarloWorker } from '@/features/simulator/hooks/useMonteCarloWorker';
 import SimulatorControls from './SimulatorControls';
 import SimulatorPanels from './SimulatorPanels';
 
@@ -308,20 +309,26 @@ export default function SimulatorPage() {
   const [thresholdCustomized, setThresholdCustomized] = useState(false);
 
   const [result, setResult] = useState(null);
-  const [isRunning, setIsRunning] = useState(false);
-  const simulationRunId = useRef(0);
   const [tab, setTab] = useState('overview');
+
+  // Web Worker — offloads the Monte Carlo loop so the UI stays responsive.
+  const {
+    run: runWorker,
+    cancel: cancelWorker,
+    isRunning,
+    progress: workerProgress,
+  } = useMonteCarloWorker();
 
   useEffect(() => {
     // A different account means a different trade population/account context.
     // Any previous Monte Carlo result must be discarded.
-    simulationRunId.current += 1;
+    cancelWorker();
     setResult(null);
-    setIsRunning(false);
 
     // Account/mode changes restore the default DD threshold.
     setThresholdCustomized(false);
     setRuinThreshold(defaultRuin);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [simAccountId, unitMode, defaultRuin]);
 
   useEffect(() => {
@@ -378,7 +385,7 @@ export default function SimulatorPage() {
     ]
   );
 
-  const run = useCallback(() => {
+  const run = useCallback(async () => {
     if (scores.length < 5) {
       console.warn(
         `[Simulator] Cannot run Monte Carlo: at least 5 trades are required. Current: ${scores.length}.`
@@ -386,40 +393,36 @@ export default function SimulatorPage() {
       return;
     }
 
-    const runId = ++simulationRunId.current;
-    setIsRunning(true);
-    setTimeout(() => {
-      try {
-        const res = runMonteCarlo(scores, {
-          method: simulationConfig.method,
-          runs: simulationConfig.runs,
-          seed: simulationConfig.seed,
-          ruinThreshold: simulationConfig.ddThreshold,
-          targets: simulationConfig.targets,
-          initialCapital: simulationConfig.initialCapital,
-          blockSize: simulationConfig.blockSize,
-          dollarsPerR: simulationConfig.dollarsPerR,
-        });
+    try {
+      const res = await runWorker(scores, {
+        method: simulationConfig.method,
+        runs: simulationConfig.runs,
+        seed: simulationConfig.seed,
+        ruinThreshold: simulationConfig.ddThreshold,
+        targets: simulationConfig.targets,
+        initialCapital: simulationConfig.initialCapital,
+        blockSize: simulationConfig.blockSize,
+        dollarsPerR: simulationConfig.dollarsPerR,
+      });
 
-        if (res) {
-          res.unitMode = simulationConfig.unitMode;
-          res.simulationConfig = { ...simulationConfig };
-        }
-        if (runId === simulationRunId.current) {
-          setResult(res);
-        }
-      } catch (err) {
-        console.error('[Simulator] error:', err);
-        if (runId === simulationRunId.current) {
-          setResult(null);
-        }
-      } finally {
-        if (runId === simulationRunId.current) {
-          setIsRunning(false);
-        }
+      if (res) {
+        res.unitMode = simulationConfig.unitMode;
+        res.simulationConfig = { ...simulationConfig };
+        setResult(res);
       }
-    }, 20);
-  }, [scores, simulationConfig]);
+    } catch (err) {
+      if (err.name === 'Cancelled') {
+        console.log('[Simulator] run cancelled by user');
+        return;
+      }
+      console.error('[Simulator] error:', err);
+      setResult(null);
+    }
+  }, [scores, simulationConfig, runWorker]);
+
+  const handleCancel = useCallback(() => {
+    cancelWorker();
+  }, [cancelWorker]);
 
   const resultIsStale = useMemo(() => {
     if (!result) return false;
@@ -795,6 +798,8 @@ export default function SimulatorPage() {
           onExportRaw={handleExportRaw}
           hasResult={!!result}
           isStale={resultIsStale}
+          onCancel={handleCancel}
+          workerProgress={workerProgress}
         />
 
         {result && resultIsStale && !isRunning && (
