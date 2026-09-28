@@ -1,8 +1,8 @@
 // src/hooks/useFilters.js
 import { useMemo } from 'react';
 import { useAppContext, actions } from '@/app/providers/AppProvider';
-import { applyFilters } from '@/features/dashboard/utils/filterHelpers';
-import { resolveSL } from '@/shared/utils/slResolver';
+import { applyFilters } from '@/shared/trading/filters';
+import { resolveSL } from '@/shared/trading/sl';
 
 export function useFilters() {
   const { state, dispatch } = useAppContext();

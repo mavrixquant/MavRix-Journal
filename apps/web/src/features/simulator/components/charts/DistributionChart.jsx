@@ -1,7 +1,7 @@
 // apps/web/src/features/simulator/components/charts/DistributionChart.jsx
 import { useMemo, useRef } from 'react';
 import { Bar } from 'react-chartjs-2';
-import { buildHistogram } from '@/features/simulator/utils/monteCarlo';
+import { buildHistogram } from '@/shared/trading/monteCarlo';
 import { chartColors, baseTooltip, baseAxis, baseCategoryAxis, baseAnimation } from '@/shared/charts/theme';
 import { ChartExportButton } from '@/components/ui/chart-export';
 

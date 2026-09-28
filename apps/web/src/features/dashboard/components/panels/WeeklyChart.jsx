@@ -1,7 +1,7 @@
-// apps/web/src/features/dashboard/components/panels/WeeklyChart.jsx
+// src/components/dashboard/sections/WeeklyCards.jsx
 import { useMemo } from 'react';
 import { useStats } from '@/features/dashboard/hooks/useStats';
-import { getWeekStart } from '@/shared/utils/timeHelpers';
+import { getWeekStart } from '@/shared/trading/time';
 
 import { chartColors as COLORS } from '@/shared/charts/theme';
 

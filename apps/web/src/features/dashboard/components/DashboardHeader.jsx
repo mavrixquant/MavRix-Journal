@@ -4,7 +4,7 @@ import { useAppContext } from '@/app/providers/AppProvider';
 import { useTrades } from '@/services/trades.service';
 import { useFilters } from '@/features/dashboard/hooks/useFilters';
 import { useFilterUrlSync } from '@/features/dashboard/hooks/useFilterUrlSync';
-import { enrichTradesFromDB } from '@/shared/utils/enrichTrades';
+import { enrichTradesFromDB } from '@/shared/trading/enrich';
 import { FaSlidersH } from 'react-icons/fa';
 
 import RRTabs from '@/features/dashboard/components/filters/RRTabs';

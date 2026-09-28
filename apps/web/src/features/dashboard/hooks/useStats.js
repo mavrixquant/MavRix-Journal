@@ -2,14 +2,14 @@
 import { useMemo } from 'react';
 import { useAppContext } from '@/app/providers/AppProvider';
 import { useFilters } from './useFilters';
-import { computeStats, groupAgg } from '@/features/dashboard/utils/statsEngine';
-import { getMetricMode, resolveSL } from '@/shared/utils/slResolver';
+import { computeStats, groupAgg } from '@/shared/trading/stats';
+import { getMetricMode, resolveSL } from '@/shared/trading/sl';
 import {
   buildMonthlySeries,
   buildRollingExpectancy,
   buildUnderwaterCurve,
   buildSymbolBreakdown,
-} from '@/features/dashboard/utils/analyticsEngine';
+} from '@/shared/trading/analytics';
 
 export function useStats() {
   const { state } = useAppContext();

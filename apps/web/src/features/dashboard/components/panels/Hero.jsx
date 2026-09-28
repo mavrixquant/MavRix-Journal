@@ -1,7 +1,7 @@
 // src/components/dashboard/sections/Hero.jsx
 import { useMemo } from 'react';
 import { useStats } from '@/features/dashboard/hooks/useStats';
-import { computeStats } from '@/features/dashboard/utils/statsEngine';
+import { computeStats } from '@/shared/trading/stats';
 import EquityChart from '@/features/dashboard/components/charts/EquityChart';
 import { FaProjectDiagram } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';

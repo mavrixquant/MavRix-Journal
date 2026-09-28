@@ -2,7 +2,7 @@
 import { useMemo, useRef, useState, useEffect } from 'react';
 import { Bar } from 'react-chartjs-2';
 import { useStats } from '@/features/dashboard/hooks/useStats';
-import { computeStats } from '@/features/dashboard/utils/statsEngine';
+import { computeStats } from '@/shared/trading/stats';
 import {
   chartColors,
   baseTooltip,

@@ -11,7 +11,7 @@
 //   ← { type: 'cancelled', runId }
 //   ← { type: 'error', runId, error: string }
 
-import { runMonteCarlo } from '../utils/monteCarlo';
+import { runMonteCarlo } from '@/shared/trading/monteCarlo';
 
 // Track the current run so cancel messages know what to abort.
 let activeRunId = null;

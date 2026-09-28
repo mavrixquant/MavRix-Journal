@@ -4,7 +4,7 @@ import { FaFileUpload, FaFolderOpen } from 'react-icons/fa';
 
 import { useAccounts } from '@/services/accounts.service';
 import { useTrades } from '@/services/trades.service';
-import { enrichTradesFromDB } from '@/shared/utils/enrichTrades';
+import { enrichTradesFromDB } from '@/shared/trading/enrich';
 import UploadModal from './UploadModal';
 import DataTable from '@/components/ui/data-table';
 import { PageSkeleton } from '@/components/ui/page-skeleton';
