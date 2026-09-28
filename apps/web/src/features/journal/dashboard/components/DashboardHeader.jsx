@@ -2,16 +2,16 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useAppContext } from '@/app/providers/AppProvider';
 import { useTrades } from '@/services/trades.service';
-import { useFilters } from '@/features/dashboard/hooks/useFilters';
-import { useFilterUrlSync } from '@/features/dashboard/hooks/useFilterUrlSync';
+import { useFilters } from '@/features/journal/dashboard/hooks/useFilters';
+import { useFilterUrlSync } from '@/features/journal/dashboard/hooks/useFilterUrlSync';
 import { enrichTradesFromDB } from '@/shared/trading/enrich';
 import { FaSlidersH } from 'react-icons/fa';
 
-import RRTabs from '@/features/dashboard/components/filters/RRTabs';
-import DynamicFilters from '@/features/dashboard/components/filters/DynamicFilters';
-import SessionTimeModal from '@/features/dashboard/components/filters/SessionTimeModal';
-import LimitsModal from '@/features/dashboard/components/filters/LimitsModal';
-import OptimizeModal from '@/features/dashboard/components/optimize/OptimizeModal';
+import RRTabs from '@/features/journal/dashboard/components/filters/RRTabs';
+import DynamicFilters from '@/features/journal/dashboard/components/filters/DynamicFilters';
+import SessionTimeModal from '@/features/journal/dashboard/components/filters/SessionTimeModal';
+import LimitsModal from '@/features/journal/dashboard/components/filters/LimitsModal';
+import OptimizeModal from '@/features/journal/dashboard/components/optimize/OptimizeModal';
 
 /* ------------------------------------------------------------------ */
 /*  Scoped CSS — matches the dashboard's panel language                */

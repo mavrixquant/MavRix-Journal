@@ -1,5 +1,5 @@
 // src/components/dashboard/sections/AdvancedKPIGrid.jsx
-import { useStats } from '@/features/dashboard/hooks/useStats';
+import { useStats } from '@/features/journal/dashboard/hooks/useStats';
 
 const ADV_CSS = `
   .adv-kpi-container {

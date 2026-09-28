@@ -1,7 +1,7 @@
 // apps/web/src/features/dashboard/components/charts/CategoryBarChart.jsx
 import { Bar } from 'react-chartjs-2';
 import { useMemo, useRef } from 'react';
-import { useStats } from '@/features/dashboard/hooks/useStats';
+import { useStats } from '@/features/journal/dashboard/hooks/useStats';
 import { chartColors, baseTooltip, baseAxis, baseCategoryAxis, baseAnimation } from '@/shared/charts/theme';
 import { ChartExportButton } from '@/shared/ui/chart-export';
 

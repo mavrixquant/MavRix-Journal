@@ -26,16 +26,16 @@ const ResetPassword = lazy(() =>
 
 /* ---- Journal ---- */
 const DashboardMain = lazy(() =>
-  import('@/features/dashboard/components/DashboardMain')
+  import('@/features/journal/dashboard/DashboardPage')
 );
 const Analyse = lazy(() =>
-  import('@/features/journal/components/Analyse')
+  import('@/features/journal/analyse/AnalysePage')
 );
 const JournalMain = lazy(() =>
-  import('@/features/journal/components/JournalMain')
+  import('@/features/journal/trade-logs/TradeLogsPage')
 );
 const EconomicCalendar = lazy(() =>
-  import('@/features/journal/components/EconomicCalendar')
+  import('@/features/journal/economic-calendar/EconomicCalendarPage')
 );
 
 /* ---- Backtester ---- */

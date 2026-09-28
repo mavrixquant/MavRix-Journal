@@ -1,7 +1,7 @@
 // apps/web/src/features/dashboard/components/panels/TradeTable.jsx
 import { useMemo } from 'react';
 import { useAppContext } from '@/app/providers/AppProvider';
-import { useStats } from '@/features/dashboard/hooks/useStats';
+import { useStats } from '@/features/journal/dashboard/hooks/useStats';
 import DataTable from '@/shared/ui/data-table';
 
 /* ------------------------------------------------------------------ */

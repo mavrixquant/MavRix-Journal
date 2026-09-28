@@ -1,7 +1,7 @@
 // apps/web/src/features/dashboard/components/charts/RollingExpectancyChart.jsx
 import { useMemo, useRef } from 'react';
 import { Line } from 'react-chartjs-2';
-import { useStats } from '@/features/dashboard/hooks/useStats';
+import { useStats } from '@/features/journal/dashboard/hooks/useStats';
 import {
   chartColors,
   baseTooltip,

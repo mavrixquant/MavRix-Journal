@@ -1,9 +1,9 @@
-// apps/web/src/features/dashboard/components/DashboardMain.jsx
+// apps/web/src/features/journal/dashboard/DashboardPage.jsx
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Responsive, WidthProvider } from 'react-grid-layout/legacy';
-import DashboardHeader from './DashboardHeader';
-import DashboardFooter from './DashboardFooter';
+import DashboardHeader from './components/DashboardHeader';
+import DashboardFooter from './components/DashboardFooter';
 import {
   GRID_COLS,
   GRID_COLS_BY_BP,
@@ -18,7 +18,7 @@ import {
   makeLayoutName,
   scaleLayoutToBreakpoint,
   upscaleToLg,
-} from '@/features/dashboard/layout/dashboardLayout';
+} from '@/features/journal/dashboard/layout/dashboardLayout';
 import {
   FaEye,
   FaEyeSlash,
@@ -29,16 +29,16 @@ import {
   FaPlus,
 } from 'react-icons/fa';
 import { useAuth } from '@/app/providers/AuthProvider';
-import { useStats } from '@/features/dashboard/hooks/useStats';
+import { useStats } from '@/features/journal/dashboard/hooks/useStats';
 import {
   subscribeToUserLayouts,
   saveUserLayouts,
 } from '@/services/user.service';
 
-import { PANEL_REGISTRY, panelLabel } from './panels/panelRegistry';
+import { PANEL_REGISTRY, panelLabel } from './components/panels/panelRegistry';
 import { PanelSkeleton } from '@/shared/ui/panel-skeleton';
 import { PageSkeleton } from '@/shared/ui/page-skeleton';
-import TradeTable from './panels/TradeTable';
+import TradeTable from './components/panels/TradeTable';
 
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
