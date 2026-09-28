@@ -702,7 +702,7 @@ export default function DashboardMain({ onNavigate: externalNavigate }) {
             <button
               type="button"
               className="dash-tb-primary"
-              onClick={() => navigate('/dashboard/journal')}
+              onClick={() => navigate('/journal/logs')}
             >
               Add Your First Trade →
             </button>

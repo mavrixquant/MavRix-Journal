@@ -11,8 +11,7 @@ import { useAuth } from '@/app/providers/AuthProvider';
 import AppLayout from '@/app/AppLayout';
 import { PageSkeleton } from '@/components/ui/page-skeleton';
 
-/* ---- Lazy pages ---- */
-const Landing = lazy(() => import('@/features/landing/LandingPage'));
+/* ---- Auth pages ---- */
 const Login = lazy(() => import('@/features/auth/components/LoginPage'));
 const Signup = lazy(() => import('@/features/auth/components/SignupPage'));
 const EmailVerification = lazy(() =>
@@ -25,18 +24,48 @@ const ResetPassword = lazy(() =>
   import('@/features/auth/components/ResetPasswordPage')
 );
 
-/* ---- Lazy dashboard children (rendered via AppLayout <Outlet />) ---- */
+/* ---- Journal ---- */
 const DashboardMain = lazy(() =>
   import('@/features/dashboard/components/DashboardMain')
 );
 const JournalMain = lazy(() =>
   import('@/features/journal/components/JournalMain')
 );
-const AccountsMain = lazy(() =>
-  import('@/features/accounts/components/AccountsMain')
+const EconomicCalendar = lazy(() =>
+  import('@/features/journal/components/EconomicCalendar')
+);
+const Reports = lazy(() =>
+  import('@/features/journal/components/Reports')
+);
+
+/* ---- Backtester ---- */
+const BacktesterDashboard = lazy(() =>
+  import('@/features/backtester/components/BacktesterDashboard')
+);
+const TestLogs = lazy(() =>
+  import('@/features/backtester/components/TestLogs')
 );
 const SimulatorPage = lazy(() =>
   import('@/features/simulator/components/SimulatorPage')
+);
+const BacktesterChart = lazy(() =>
+  import('@/features/backtester/components/Chart')
+);
+
+/* ---- Manage ---- */
+const AccountsMain = lazy(() =>
+  import('@/features/accounts/components/AccountsMain')
+);
+const Strategies = lazy(() =>
+  import('@/features/strategies/components/Strategies')
+);
+
+/* ---- Personal Space ---- */
+const Discussion = lazy(() =>
+  import('@/features/personal/components/Discussion')
+);
+const Chats = lazy(() =>
+  import('@/features/personal/components/Chats')
 );
 
 function App() {
@@ -47,14 +76,26 @@ function App() {
   }
 
   const isVerified = user?.emailVerified;
-  const authedHome = isVerified ? '/dashboard' : '/verify-email';
+  const authedHome = isVerified ? '/journal' : '/verify-email';
+
+  /* Guard used by every protected subtree */
+  const protect = (element) => {
+    if (!user) return <Navigate to="/login" replace />;
+    if (!isVerified) return <Navigate to="/verify-email" replace />;
+    return element;
+  };
 
   return (
     <BrowserRouter>
       <Suspense fallback={<PageSkeleton />}>
         <Routes>
-          <Route path="/" element={<Landing />} />
+          {/* Root → redirect based on auth state */}
+          <Route
+            path="/"
+            element={<Navigate to={user ? authedHome : '/login'} replace />}
+          />
 
+          {/* Auth routes (unauthenticated only) */}
           <Route
             path="/login"
             element={user ? <Navigate to={authedHome} replace /> : <Login />}
@@ -65,46 +106,73 @@ function App() {
           />
           <Route
             path="/forgot-password"
-            element={user ? <Navigate to={authedHome} replace /> : <ForgotPassword />}
+            element={
+              user ? <Navigate to={authedHome} replace /> : <ForgotPassword />
+            }
           />
           <Route
             path="/reset-password"
-            element={user ? <Navigate to={authedHome} replace /> : <ResetPassword />}
+            element={
+              user ? <Navigate to={authedHome} replace /> : <ResetPassword />
+            }
           />
-
           <Route
             path="/verify-email"
             element={
               !user ? (
                 <Navigate to="/login" replace />
               ) : isVerified ? (
-                <Navigate to="/dashboard" replace />
+                <Navigate to="/journal" replace />
               ) : (
                 <EmailVerification />
               )
             }
           />
 
-          {/* Dashboard shell with nested routes */}
+          {/* Protected app shell — AppLayout renders <Outlet /> */}
+          <Route element={protect(<AppLayout />)}>
+            {/* ---- Journal ---- */}
+            <Route path="/journal" element={<DashboardMain />} />
+            <Route path="/journal/logs" element={<JournalMain />} />
+            <Route path="/journal/calendar" element={<EconomicCalendar />} />
+            <Route path="/journal/reports" element={<Reports />} />
+
+            {/* ---- Backtester ---- */}
+            <Route path="/backtester" element={<BacktesterDashboard />} />
+            <Route path="/backtester/logs" element={<TestLogs />} />
+            <Route path="/backtester/simulator" element={<SimulatorPage />} />
+            <Route path="/backtester/chart" element={<BacktesterChart />} />
+
+            {/* ---- Manage ---- */}
+            <Route path="/manage/accounts" element={<AccountsMain />} />
+            <Route path="/manage/strategies" element={<Strategies />} />
+
+            {/* ---- Personal Space ---- */}
+            <Route path="/personal/discussion" element={<Discussion />} />
+            <Route path="/personal/chats" element={<Chats />} />
+          </Route>
+
+          {/* ---- Legacy redirects (old bookmarks still land correctly) ---- */}
+          <Route
+            path="/dashboard/simulator"
+            element={<Navigate to="/backtester/simulator" replace />}
+          />
+          <Route
+            path="/dashboard/journal"
+            element={<Navigate to="/journal/logs" replace />}
+          />
+          <Route
+            path="/dashboard/accounts"
+            element={<Navigate to="/manage/accounts" replace />}
+          />
           <Route
             path="/dashboard"
-            element={
-              user ? (
-                isVerified ? (
-                  <AppLayout />
-                ) : (
-                  <Navigate to="/verify-email" replace />
-                )
-              ) : (
-                <Navigate to="/login" replace />
-              )
-            }
-          >
-            <Route index element={<DashboardMain />} />
-            <Route path="journal" element={<JournalMain />} />
-            <Route path="accounts" element={<AccountsMain />} />
-            <Route path="simulator" element={<SimulatorPage />} />
-          </Route>
+            element={<Navigate to="/journal" replace />}
+          />
+          <Route
+            path="/dashboard/*"
+            element={<Navigate to="/journal" replace />}
+          />
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

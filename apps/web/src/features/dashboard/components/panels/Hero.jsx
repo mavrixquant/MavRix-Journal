@@ -41,7 +41,7 @@ export default function Hero() {
   const canSimulate = stats.n >= 5;
 
   const handleSimulate = () => {
-    if (canSimulate) navigate('/dashboard/simulator');
+    if (canSimulate) navigate('/backtester/simulator');
   };
 
   return (

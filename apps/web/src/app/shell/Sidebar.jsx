@@ -1,5 +1,5 @@
 // apps/web/src/app/shell/Sidebar.jsx
-import { useState, useEffect, useLayoutEffect, useCallback } from 'react';
+import { useLayoutEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
   FaBook,
@@ -9,7 +9,6 @@ import {
   FaSignOutAlt,
   FaBars,
   FaTimes,
-  FaChevronDown,
   FaThLarge,
   FaCalendarAlt,
   FaFileAlt,
@@ -26,7 +25,6 @@ import navLogo from '@/assets/navLOGO.png';
 export const SIDEBAR_WIDTH = 240;
 export const SIDEBAR_COLLAPSED_WIDTH = 68;
 
-const FOLD_STORAGE_KEY = 'mavrix:sidebar:folded-groups';
 const SB_STYLE_ID = 'mavrix-sidebar-styles';
 
 /* ------------------------------------------------------------------ */
@@ -199,11 +197,11 @@ const SB_CSS = `
     overflow: visible;
   }
 
-  /* ---------- Group (expanded accordion) ---------- */
+  /* ---------- Group (static header + always-visible items) ---------- */
   .sb-group { display: flex; flex-direction: column; }
   .sb-group + .sb-group {
-    margin-top: 6px;
-    padding-top: 6px;
+    margin-top: 8px;
+    padding-top: 8px;
     border-top: 1px solid rgba(255,255,255,.035);
   }
 
@@ -213,24 +211,14 @@ const SB_CSS = `
     gap: 6px;
     width: 100%;
     padding: 8px 10px 6px;
-    background: transparent;
-    border: none;
     color: var(--label);
     font-family: 'IBM Plex Mono', ui-monospace, monospace;
     font-size: 9.5px;
     font-weight: 700;
     letter-spacing: .18em;
     text-transform: uppercase;
-    cursor: pointer;
     text-align: left;
-    outline: none;
-    transition: color .18s ease;
-  }
-  .sb-group-head:hover { color: var(--ink-2); }
-  .sb-group-head:focus-visible {
-    outline: 1px solid var(--accent-soft2);
-    outline-offset: -2px;
-    border-radius: 4px;
+    user-select: none;
   }
   .sb-group.has-active .sb-group-head { color: var(--ink-3); }
 
@@ -241,32 +229,9 @@ const SB_CSS = `
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  .sb-group-chev {
-    flex-shrink: 0;
-    color: inherit;
-    opacity: .6;
-    transition: transform .35s cubic-bezier(.2,.8,.25,1);
-  }
-  .sb-group.is-folded .sb-group-chev { transform: rotate(-90deg); }
 
-  .sb-group-active-dot {
-    flex-shrink: 0;
-    width: 5px;
-    height: 5px;
-    border-radius: 50%;
-    background: #FDE68A;
-    box-shadow: 0 0 8px rgba(245,158,11,.9);
-  }
-
-  .sb-group-items-wrap {
-    display: grid;
-    grid-template-rows: 1fr;
-    transition: grid-template-rows .35s cubic-bezier(.2,.8,.25,1);
-  }
-  .sb-group.is-folded .sb-group-items-wrap { grid-template-rows: 0fr; }
+  .sb-group-items-wrap { display: block; }
   .sb-group-items {
-    min-height: 0;
-    overflow: hidden;
     display: flex;
     flex-direction: column;
     gap: 1px;
@@ -583,7 +548,7 @@ const SB_CSS = `
   }
   @media (prefers-reduced-motion: reduce) {
     .sb-root, .sb-item, .sb-toggle, .sb-user, .sb-logout,
-    .sb-group-items-wrap, .sb-group-chev, .sb-icon { transition: none !important; }
+    .sb-icon { transition: none !important; }
     .sb-root::before, .sb-flyout { animation: none !important; }
   }
 `;
@@ -609,25 +574,18 @@ function useSidebarStyles() {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Expanded: accordion group                                          */
+/*  Expanded: static group label + always-visible items                */
 /* ------------------------------------------------------------------ */
-function ExpandedGroup({ group, folded, onToggle, onNavigate, pathname }) {
+function ExpandedGroup({ group, onNavigate, pathname }) {
   const hasActive = groupHasActive(pathname, group);
 
   return (
-    <div className={`sb-group${folded ? ' is-folded' : ''}${hasActive ? ' has-active' : ''}`}>
-      <button
-        type="button"
-        className="sb-group-head"
-        onClick={onToggle}
-        aria-expanded={!folded}
-      >
+    <div className={`sb-group${hasActive ? ' has-active' : ''}`}>
+      <div className="sb-group-head">
         <span className="sb-group-label">{group.label}</span>
-        {hasActive && folded && <span className="sb-group-active-dot" />}
-        <FaChevronDown className="sb-group-chev" size={9} />
-      </button>
+      </div>
 
-      <div className="sb-group-items-wrap" aria-hidden={folded}>
+      <div className="sb-group-items-wrap">
         <div className="sb-group-items">
           {group.items.map((item) => {
             const Icon = item.icon;
@@ -727,33 +685,6 @@ export function SidebarContent({
 
   const { pathname } = useLocation();
 
-  const [folded, setFolded] = useState(() => {
-    try {
-      const raw = localStorage.getItem(FOLD_STORAGE_KEY);
-      return raw ? JSON.parse(raw) : {};
-    } catch {
-      return {};
-    }
-  });
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(FOLD_STORAGE_KEY, JSON.stringify(folded));
-    } catch { /* ignore */ }
-  }, [folded]);
-
-  useEffect(() => {
-    const activeGroup = SIDEBAR_GROUPS.find((g) => groupHasActive(pathname, g));
-    if (!activeGroup) return;
-    setFolded((prev) =>
-      prev[activeGroup.id] ? { ...prev, [activeGroup.id]: false } : prev
-    );
-  }, [pathname]);
-
-  const toggleGroup = useCallback((id) => {
-    setFolded((prev) => ({ ...prev, [id]: !prev[id] }));
-  }, []);
-
   const displayName =
     (typeof user?.displayName === 'string' && user.displayName.trim()) ||
     [user?.firstName, user?.lastName].filter(Boolean).join(' ').trim() ||
@@ -811,8 +742,6 @@ export function SidebarContent({
               <ExpandedGroup
                 key={group.id}
                 group={group}
-                folded={!!folded[group.id]}
-                onToggle={() => toggleGroup(group.id)}
                 onNavigate={onNavigate}
                 pathname={pathname}
               />
