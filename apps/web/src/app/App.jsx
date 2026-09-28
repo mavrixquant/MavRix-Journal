@@ -40,16 +40,16 @@ const EconomicCalendar = lazy(() =>
 
 /* ---- Backtester ---- */
 const BacktesterDashboard = lazy(() =>
-  import('@/features/backtester/components/BacktesterDashboard')
+  import('@/features/backtester/dashboard/BacktesterDashboardPage')
 );
 const TestLogs = lazy(() =>
-  import('@/features/backtester/components/TestLogs')
+  import('@/features/backtester/test-logs/TestLogsPage')
 );
 const SimulatorPage = lazy(() =>
-  import('@/features/simulator/components/SimulatorPage')
+  import('@/features/backtester/simulator/components/SimulatorPage')
 );
 const BacktesterChart = lazy(() =>
-  import('@/features/backtester/components/Chart')
+  import('@/features/backtester/chart/BacktesterChartPage')
 );
 
 /* ---- Manage ---- */

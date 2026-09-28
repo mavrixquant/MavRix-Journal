@@ -7,7 +7,7 @@ import { enrichTradesFromDB } from '@/shared/trading/enrich';
 import { computeStats } from '@/shared/trading/stats';
 import { getMetricMode } from '@/shared/trading/sl';
 import { summarizeMC } from '@/shared/trading/monteCarlo';
-import { useMonteCarloWorker } from '@/features/simulator/hooks/useMonteCarloWorker';
+import { useMonteCarloWorker } from '@/features/backtester/simulator/hooks/useMonteCarloWorker';
 import SimulatorControls from './SimulatorControls';
 import SimulatorPanels from './SimulatorPanels';
 
