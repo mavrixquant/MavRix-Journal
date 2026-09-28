@@ -17,6 +17,7 @@ import {
   makeLayoutId,
   makeLayoutName,
   scaleLayoutToBreakpoint,
+  upscaleToLg,
 } from '@/features/dashboard/layout/dashboardLayout';
 import {
   FaEye,
@@ -472,6 +473,11 @@ export default function DashboardMain({ onNavigate: externalNavigate }) {
     return () => window.removeEventListener('resize', h);
   }, []);
 
+  // Which responsive breakpoint RGL is currently rendering.
+  // Needed so drag/resize writes get converted back to lg before they
+  // hit the source-of-truth draft layout.
+  const [currentBreakpoint, setCurrentBreakpoint] = useState('lg');
+
   // ---- Cloud sync ----
   useEffect(() => {
     if (!user?.uid) return;
@@ -630,20 +636,48 @@ export default function DashboardMain({ onNavigate: externalNavigate }) {
   };
 
   // ---- Grid handlers ----
-  const handleLayoutChange = (newLayout) => {
+  //
+  // We intentionally do NOT use onLayoutChange here. RGL fires that callback
+  // on every render (including mount), and the responsive grid hands us back
+  // the *current breakpoint's* layout — which, if written straight back into
+  // the 24-col source, corrupts it and causes an infinite shrink loop.
+  //
+  // Instead we listen to onDragStop / onResizeStop (user-initiated only) and
+  // convert the incoming values back up to the lg source-of-truth grid.
+  const handleDragOrResizeStop = (currentLayout) => {
     if (!editMode || !draftActiveId) return;
-    const byId = new Map(newLayout.map((it) => [it.i, it]));
+
+    const sourceCols = GRID_COLS_BY_BP[currentBreakpoint] ?? GRID_COLS;
+    const upscaled = upscaleToLg(currentLayout, sourceCols);
+    const byId = new Map(upscaled.map((it) => [it.i, it]));
+
     setDraftLayouts((prev) =>
       (prev || []).map((l) => {
         if (l.id !== draftActiveId) return l;
-        return {
-          ...l,
-          layout: l.layout.map((item) => {
-            const updated = byId.get(item.i);
-            if (!updated) return item;
-            return { ...item, x: updated.x, y: updated.y, w: updated.w, h: updated.h };
-          }),
-        };
+
+        let changed = false;
+        const nextLayout = l.layout.map((item) => {
+          const updated = byId.get(item.i);
+          if (!updated) return item;
+          if (
+            item.x === updated.x &&
+            item.y === updated.y &&
+            item.w === updated.w &&
+            item.h === updated.h
+          ) {
+            return item; // no-op; keep reference for cheap diffing
+          }
+          changed = true;
+          return {
+            ...item,
+            x: updated.x,
+            y: updated.y,
+            w: updated.w,
+            h: updated.h,
+          };
+        });
+
+        return changed ? { ...l, layout: nextLayout } : l;
       })
     );
   };
@@ -824,7 +858,9 @@ export default function DashboardMain({ onNavigate: externalNavigate }) {
                 cols={GRID_COLS_BY_BP}
                 rowHeight={GRID_ROW_HEIGHT}
                 layouts={responsiveLayouts}
-                onLayoutChange={handleLayoutChange}
+                onBreakpointChange={setCurrentBreakpoint}
+                onDragStop={handleDragOrResizeStop}
+                onResizeStop={handleDragOrResizeStop}
                 isDraggable={editMode && !isMobile}
                 isResizable={editMode && !isMobile}
                 compactType="vertical"

@@ -6,7 +6,6 @@ import {
   FaProjectDiagram,
   FaUsers,
   FaComments,
-  FaSignOutAlt,
   FaBars,
   FaTimes,
   FaThLarge,
@@ -24,6 +23,7 @@ import navLogo from '@/assets/navLOGO.png';
 
 export const SIDEBAR_WIDTH = 240;
 export const SIDEBAR_COLLAPSED_WIDTH = 68;
+const SIDEBAR_HEAD_HEIGHT = 72;
 
 const SB_STYLE_ID = 'mavrix-sidebar-styles';
 
@@ -83,7 +83,15 @@ function groupHasActive(pathname, group) {
 
 /* ------------------------------------------------------------------ */
 /*  Scoped CSS                                                        */
-/*  Note: strip z-index is 0 (was 2) so .sb-head can sit above it.    */
+/*                                                                    */
+/*  Layout strategy:                                                  */
+/*    .sb-root       → position: relative, full height                */
+/*    .sb-head       → position: absolute, top: 0, height: 72px       */
+/*    .sb-nav        → position: absolute, top: 72px, bottom: 0       */
+/*                                                                    */
+/*  Absolute positioning removes any dependency on flex ordering      */
+/*  from parent containers, so the nav tiles are guaranteed to        */
+/*  render from the top of the nav region down.                       */
 /* ------------------------------------------------------------------ */
 const SB_CSS = `
   .sb-root {
@@ -98,91 +106,187 @@ const SB_CSS = `
     --ink-3: #545E6E;
     --label: #4A5468;
 
-    display: flex;
-    flex-direction: column;
+    position: relative;
+    display: block;
     height: 100%;
+    min-height: 0;
     width: 100%;
     background: linear-gradient(180deg, #0F121A 0%, #0A0D13 100%);
     border-right: 1px solid var(--line);
-    justify-content: space-between;
     color: var(--ink-1);
     font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
     user-select: none;
     overflow: hidden;
-    position: relative;
     -webkit-font-smoothing: antialiased;
   }
   .sb-root.is-open { box-shadow: 12px 0 40px -20px rgba(0,0,0,.75); }
 
-  /* Amber strip — z-index 0, sits behind content */
-  .sb-root::before {
-    content: '';
-    position: absolute;
-    left: 0; right: 0; top: 0; height: 2px;
-    background: linear-gradient(90deg, transparent, var(--accent), var(--accent-2), var(--accent), transparent);
-    background-size: 200% 100%;
-    animation: sbGrad 4s linear infinite;
-    pointer-events: none;
-    z-index: 0;
-    opacity: 0;
-    transition: opacity .3s ease;
-  }
-  .sb-root.is-open::before { opacity: 1; }
 
-  /* ---------- Header ---------- */
+  /* ---------- Header (absolute, pinned top) ---------- */
   .sb-head {
-    height: 64px;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: ${SIDEBAR_HEAD_HEIGHT}px;
     display: flex;
     align-items: center;
-    padding: 0 18px;
-    border-bottom: 1px solid var(--line-soft);
     justify-content: space-between;
-    flex-shrink: 0;
-    position: relative;   /* establishes stacking */
-    z-index: 1;           /* above the amber strip */
+    padding: 0 14px 0 18px;
+    z-index: 2;
     background: inherit;
   }
-  .sb-root.is-collapsed .sb-head { justify-content: center; padding: 0; }
-  .sb-logo { height: 44px; width: auto; object-fit: contain; display: block; }
+  .sb-head::after {
+    content: '';
+    position: absolute;
+    left: 0; right: 0; bottom: 0; height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255,255,255,.085) 12%,
+      rgba(255,255,255,.085) 88%,
+      transparent
+    );
+    pointer-events: none;
+  }
+  .sb-head::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(
+      120% 100% at 22% 0%,
+      rgba(245,158,11,.07),
+      transparent 62%
+    );
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity .5s ease;
+  }
+  .sb-root.is-open .sb-head::before { opacity: 1; }
 
+  .sb-root.is-collapsed .sb-head {
+    justify-content: center;
+    padding: 0;
+  }
+
+  /* ---------- Brand ---------- */
+  .sb-brand {
+    position: relative;
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    flex: 1;
+    height: 100%;
+  }
+  .sb-brand::before {
+    content: '';
+    position: absolute;
+    left: -22px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 220px;
+    height: 80px;
+    background: radial-gradient(
+      closest-side,
+      rgba(245,158,11,.20),
+      rgba(245,158,11,.05) 45%,
+      transparent 75%
+    );
+    pointer-events: none;
+    filter: blur(6px);
+  }
+  .sb-logo {
+    position: relative;
+    height: 36px;
+    width: auto;
+    max-width: 100%;
+    object-fit: contain;
+    display: block;
+    filter: drop-shadow(0 2px 12px rgba(245,158,11,.28));
+    transition: filter .35s ease;
+  }
+  .sb-root:hover .sb-logo {
+    filter: drop-shadow(0 2px 18px rgba(245,158,11,.46));
+  }
+
+  /* ---------- Collapse / expand toggle ---------- */
   .sb-toggle {
+    position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 32px;
-    height: 32px;
-    background: transparent;
-    border: 1px solid transparent;
-    border-radius: 8px;
-    color: var(--ink-2);
-    cursor: pointer;
+    width: 34px;
+    height: 34px;
     padding: 0;
+    border-radius: 10px;
+    background: rgba(255,255,255,.025);
+    border: 1px solid rgba(255,255,255,.07);
+    color: var(--ink-3);
+    cursor: pointer;
     flex-shrink: 0;
-    pointer-events: auto;   /* belt & suspenders */
-    position: relative;     /* stacking safe-haven */
     z-index: 2;
-    transition: all .22s cubic-bezier(.2,.8,.25,1);
+    transition:
+      color .22s cubic-bezier(.2,.8,.25,1),
+      background .22s cubic-bezier(.2,.8,.25,1),
+      border-color .22s cubic-bezier(.2,.8,.25,1),
+      box-shadow .25s ease,
+      transform .15s ease;
+  }
+  .sb-toggle svg {
+    transition: transform .35s cubic-bezier(.2,.8,.25,1);
   }
   .sb-toggle:hover {
     color: var(--accent);
-    background: rgba(245,158,11,.08);
+    background: linear-gradient(135deg, rgba(245,158,11,.14), rgba(245,158,11,.05));
     border-color: var(--accent-soft2);
-    box-shadow: 0 0 18px -6px rgba(245,158,11,.5);
+    box-shadow:
+      0 0 22px -6px rgba(245,158,11,.6),
+      inset 0 1px 0 rgba(255,255,255,.06);
+    transform: translateY(-1px);
   }
-  .sb-toggle:active { transform: scale(.94); }
-  .sb-toggle.is-expand { width: 40px; height: 40px; }
+  .sb-toggle:hover svg { transform: scale(1.14); }
+  .sb-toggle:active { transform: translateY(0) scale(.94); }
+  .sb-toggle:focus-visible {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(245,158,11,.20);
+  }
 
-  /* ---------- Nav ---------- */
+  .sb-toggle.is-expand {
+    width: 46px;
+    height: 46px;
+    border-radius: 13px;
+    color: var(--ink-2);
+    background: linear-gradient(135deg, rgba(245,158,11,.06), rgba(255,255,255,.02));
+    border-color: rgba(255,255,255,.09);
+  }
+  .sb-toggle.is-expand:hover {
+    color: var(--accent);
+    border-color: var(--accent-soft2);
+    background: linear-gradient(135deg, rgba(245,158,11,.18), rgba(245,158,11,.06));
+    box-shadow:
+      0 0 30px -6px rgba(245,158,11,.7),
+      inset 0 1px 0 rgba(255,255,255,.10);
+  }
+  .sb-toggle.is-expand:hover svg { transform: scale(1.12); }
+
+  /* ---------- Nav (absolute, pinned below header) ---------- */
   .sb-nav {
-    padding: 8px 8px 14px;
+    position: absolute;
+    top: ${SIDEBAR_HEAD_HEIGHT}px;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 14px 8px;
     display: flex;
     flex-direction: column;
+    justify-content: flex-start;
+    align-items: stretch;
     gap: 0;
     overflow-y: auto;
+    overflow-x: hidden;
     scrollbar-width: thin;
     scrollbar-color: rgba(255,255,255,.08) transparent;
-    min-height: 0;
-    position: relative;
     z-index: 1;
   }
   .sb-nav::-webkit-scrollbar { width: 6px; }
@@ -190,15 +294,16 @@ const SB_CSS = `
     background: rgba(255,255,255,.08);
     border-radius: 99px;
   }
+
+  /* Collapsed mode — icon tiles, centered horizontally, top-aligned vertically */
   .sb-root.is-collapsed .sb-nav {
     padding: 14px 8px;
     gap: 10px;
     align-items: center;
-    overflow: visible;
   }
 
-  /* ---------- Group (static header + always-visible items) ---------- */
-  .sb-group { display: flex; flex-direction: column; }
+  /* ---------- Group ---------- */
+  .sb-group { display: flex; flex-direction: column; flex-shrink: 0; }
   .sb-group + .sb-group {
     margin-top: 8px;
     padding-top: 8px;
@@ -238,7 +343,7 @@ const SB_CSS = `
     padding: 2px 0 2px;
   }
 
-  /* ---------- Item (expanded) ---------- */
+  /* ---------- Item ---------- */
   .sb-item {
     position: relative;
     display: flex;
@@ -327,6 +432,7 @@ const SB_CSS = `
     width: 52px;
     min-height: 52px;
     border-radius: 12px;
+    flex-shrink: 0;
   }
   .sb-root.is-collapsed .sb-item.is-active {
     color: var(--accent);
@@ -434,122 +540,14 @@ const SB_CSS = `
   }
   .sb-flyout-item .sb-icon { width: 14px; }
 
-  /* ---------- Footer ---------- */
-  .sb-foot {
-    padding: 12px 10px 14px;
-    border-top: 1px solid var(--line-soft);
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    flex-shrink: 0;
-    position: relative;
-    z-index: 1;
-  }
-  .sb-root.is-collapsed .sb-foot { padding: 12px 8px 14px; }
-
-  .sb-user {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    width: 100%;
-    min-height: 44px;
-    padding: 8px 12px;
-    border-radius: 10px;
-    border: 1px solid transparent;
-    background: transparent;
-    color: inherit;
-    cursor: pointer;
-    text-align: left;
-    transition: all .22s cubic-bezier(.2,.8,.25,1);
-  }
-  .sb-user:hover {
-    background: rgba(255,255,255,.045);
-    border-color: rgba(255,255,255,.08);
-  }
-  .sb-root.is-collapsed .sb-user { justify-content: center; padding: 8px 0; }
-  .sb-avatar {
-    width: 30px;
-    height: 30px;
-    border-radius: 50%;
-    flex-shrink: 0;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background: linear-gradient(135deg, rgba(245,158,11,.18), rgba(245,158,11,.05));
-    border: 1px solid var(--accent-soft2);
-    color: var(--accent);
-    box-shadow: 0 0 20px -8px rgba(245,158,11,.5);
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    font-weight: 700;
-    font-size: 11px;
-  }
-  .sb-user-text {
-    display: flex;
-    flex-direction: column;
-    gap: 1px;
-    min-width: 0;
-    overflow: hidden;
-  }
-  .sb-user-name {
-    font-size: 12px;
-    font-weight: 700;
-    color: var(--ink-1);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    letter-spacing: -.01em;
-  }
-  .sb-user-hint {
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    font-size: 9.5px;
-    color: var(--ink-3);
-    letter-spacing: .12em;
-    text-transform: uppercase;
-    font-weight: 700;
-  }
-  .sb-logout {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    width: 100%;
-    min-height: 38px;
-    padding: 0 14px;
-    background: transparent;
-    border: 1px solid transparent;
-    border-radius: 10px;
-    color: var(--ink-3);
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    font-size: 12px;
-    font-weight: 600;
-    letter-spacing: .02em;
-    cursor: pointer;
-    transition: all .22s cubic-bezier(.2,.8,.25,1);
-    outline: none;
-    text-align: left;
-    white-space: nowrap;
-  }
-  .sb-root.is-collapsed .sb-logout { justify-content: center; padding: 0; }
-  .sb-logout:hover {
-    color: #f87171;
-    background: rgba(239,68,68,.08);
-    border-color: rgba(239,68,68,.35);
-    box-shadow: 0 0 20px -8px rgba(239,68,68,.5);
-  }
-  .sb-logout:active { transform: scale(.98); }
-
   /* ---------- Animations ---------- */
-  @keyframes sbGrad {
-    0%   { background-position: 0% 50%; }
-    100% { background-position: 200% 50%; }
-  }
   @keyframes sbFlyoutIn {
     from { opacity: 0; transform: translateX(-6px) scale(.98); }
     to   { opacity: 1; transform: none; }
   }
   @media (prefers-reduced-motion: reduce) {
-    .sb-root, .sb-item, .sb-toggle, .sb-user, .sb-logout,
-    .sb-icon { transition: none !important; }
-    .sb-root::before, .sb-flyout { animation: none !important; }
+    .sb-item, .sb-toggle, .sb-icon { transition: none !important; }
+    .sb-flyout { animation: none !important; }
   }
 `;
 
@@ -675,107 +673,65 @@ function CollapsedGroupTile({ group, onNavigate, pathname }) {
 export function SidebarContent({
   collapsed = false,
   showCollapseButton = true,
-  user,
-  onLogout,
-  onAccountClick,
   onCollapseToggle,
   onNavigate,
 }) {
-  useSidebarStyles();  // ← injects CSS before paint
+  useSidebarStyles();
 
   const { pathname } = useLocation();
 
-  const displayName =
-    (typeof user?.displayName === 'string' && user.displayName.trim()) ||
-    [user?.firstName, user?.lastName].filter(Boolean).join(' ').trim() ||
-    user?.email ||
-    'User';
-
-  const initials =
-    (displayName.match(/\b[A-Za-z]/g) || [])
-      .slice(0, 2)
-      .join('')
-      .toUpperCase() || 'U';
-
   return (
     <div className={`sb-root ${collapsed ? 'is-collapsed' : 'is-open'}`}>
-      <div style={{ display: 'flex', flexDirection: 'column', width: '100%', minHeight: 0 }}>
-        <div className="sb-head">
-          {!collapsed ? (
-            <>
+      <div className="sb-head">
+        {!collapsed ? (
+          <>
+            <div className="sb-brand">
               <img src={navLogo} alt="Mavrix" className="sb-logo" />
-              {showCollapseButton && (
-                <button
-                  type="button"
-                  onClick={onCollapseToggle}
-                  title="Collapse sidebar"
-                  aria-label="Collapse sidebar"
-                  className="sb-toggle"
-                >
-                  <FaTimes size={15} />
-                </button>
-              )}
-            </>
+            </div>
+            {showCollapseButton && (
+              <button
+                type="button"
+                onClick={onCollapseToggle}
+                title="Collapse sidebar"
+                aria-label="Collapse sidebar"
+                className="sb-toggle"
+              >
+                <FaTimes size={14} />
+              </button>
+            )}
+          </>
+        ) : (
+          <button
+            type="button"
+            onClick={onCollapseToggle}
+            title="Expand sidebar"
+            aria-label="Expand sidebar"
+            className="sb-toggle is-expand"
+          >
+            <FaBars size={19} />
+          </button>
+        )}
+      </div>
+
+      <nav className="sb-nav">
+        {SIDEBAR_GROUPS.map((group) =>
+          collapsed ? (
+            <CollapsedGroupTile
+              key={group.id}
+              group={group}
+              pathname={pathname}
+              onNavigate={onNavigate}
+            />
           ) : (
-            <button
-              type="button"
-              onClick={onCollapseToggle}
-              title="Expand sidebar"
-              aria-label="Expand sidebar"
-              className="sb-toggle is-expand"
-            >
-              <FaBars size={17} />
-            </button>
-          )}
-        </div>
-
-        <nav className="sb-nav">
-          {SIDEBAR_GROUPS.map((group) =>
-            collapsed ? (
-              <CollapsedGroupTile
-                key={group.id}
-                group={group}
-                pathname={pathname}
-                onNavigate={onNavigate}
-              />
-            ) : (
-              <ExpandedGroup
-                key={group.id}
-                group={group}
-                onNavigate={onNavigate}
-                pathname={pathname}
-              />
-            )
-          )}
-        </nav>
-      </div>
-
-      <div className="sb-foot">
-        <button
-          type="button"
-          className="sb-user"
-          onClick={onAccountClick}
-          title={collapsed ? displayName : undefined}
-        >
-          <span className="sb-avatar">{initials}</span>
-          {!collapsed && (
-            <span className="sb-user-text">
-              <span className="sb-user-name">{displayName}</span>
-              <span className="sb-user-hint">Account</span>
-            </span>
-          )}
-        </button>
-
-        <button
-          type="button"
-          className="sb-logout"
-          onClick={onLogout}
-          title={collapsed ? 'Logout' : undefined}
-        >
-          <FaSignOutAlt size={15} style={{ flexShrink: 0 }} />
-          {!collapsed && <span>Logout</span>}
-        </button>
-      </div>
+            <ExpandedGroup
+              key={group.id}
+              group={group}
+              onNavigate={onNavigate}
+              pathname={pathname}
+            />
+          )
+        )}
+      </nav>
     </div>
   );
 }
@@ -783,13 +739,7 @@ export function SidebarContent({
 /* ------------------------------------------------------------------ */
 /*  Desktop aside                                                      */
 /* ------------------------------------------------------------------ */
-export default function Sidebar({
-  collapsed,
-  onCollapseToggle,
-  user,
-  onLogout,
-  onAccountClick,
-}) {
+export default function Sidebar({ collapsed, onCollapseToggle }) {
   return (
     <aside
       className="fixed inset-y-0 left-0 z-40 hidden lg:flex flex-col"
@@ -802,9 +752,6 @@ export default function Sidebar({
       <SidebarContent
         collapsed={collapsed}
         onCollapseToggle={onCollapseToggle}
-        user={user}
-        onLogout={onLogout}
-        onAccountClick={onAccountClick}
       />
     </aside>
   );

@@ -79,11 +79,27 @@ export function scaleLayoutToBreakpoint(lgLayout, targetCols) {
   return lgLayout.map((item) => ({
     ...item,
     x: Math.floor(item.x * scale),
-    y: Math.floor(item.y * scale),
+    // y is row-count based; rows have the same pixel height at every breakpoint.
+    y: item.y,
     w: Math.max(1, Math.min(targetCols, Math.round(item.w * scale))),
-    h: Math.max(1, item.h), // don't shrink heights — content needs the room
+    h: Math.max(1, item.h),
     minW: 1,
     minH: 1,
+  }));
+}
+
+/* Inverse of scaleLayoutToBreakpoint — brings a smaller-breakpoint layout
+   back up to the 24-column source-of-truth. Used when the user drags or
+   resizes on md/sm/xs, so the write goes to the lg source. */
+export function upscaleToLg(items, sourceCols) {
+  if (sourceCols === GRID_COLS) return items;
+  const scale = GRID_COLS / sourceCols;
+  return items.map((it) => ({
+    ...it,
+    x: Math.max(0, Math.round(it.x * scale)),
+    y: it.y,
+    w: Math.max(1, Math.min(GRID_COLS, Math.round(it.w * scale))),
+    h: Math.max(1, it.h),
   }));
 }
 

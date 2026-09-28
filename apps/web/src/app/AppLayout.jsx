@@ -1,7 +1,6 @@
 // apps/web/src/app/AppLayout.jsx
 import { useState, useEffect, Suspense } from 'react';
 import { Outlet } from 'react-router-dom';
-import { Menu as MenuIcon } from 'lucide-react';
 
 import { useAuth } from '@/app/providers/AuthProvider';
 import Sidebar, {
@@ -9,6 +8,7 @@ import Sidebar, {
   SIDEBAR_WIDTH,
   SIDEBAR_COLLAPSED_WIDTH,
 } from '@/app/shell/Sidebar';
+import HeaderBar from '@/app/shell/HeaderBar';
 import AccountModal from '@/features/auth/components/AccountModal';
 import { PageSkeleton } from '@/components/ui/page-skeleton';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -17,6 +17,39 @@ import { useHotkey } from '@/lib/useHotkey';
 import { useSSEBridge } from '@/lib/sse';
 
 const STORAGE_KEY = 'mavrix:sidebar:collapsed';
+
+/* ------------------------------------------------------------------ */
+/*  Single shared amber strip that spans the full viewport top.        */
+/*  Above sidebar (z-40) and header (z-30) via z-index: 100.           */
+/* ------------------------------------------------------------------ */
+const STRIP_CSS = `
+  .app-top-strip {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    z-index: 100;
+    pointer-events: none;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      #F59E0B,
+      #FDE68A,
+      #F59E0B,
+      transparent
+    );
+    background-size: 200% 100%;
+    animation: appTopStripGrad 4s linear infinite;
+  }
+  @keyframes appTopStripGrad {
+    0%   { background-position: 0% 50%; }
+    100% { background-position: 200% 50%; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .app-top-strip { animation: none !important; }
+  }
+`;
 
 export default function AppLayout() {
   const { user, logout } = useAuth();
@@ -35,12 +68,7 @@ export default function AppLayout() {
 
   useHotkey('mod+b', () => setCollapsed((v) => !v));
 
-  // Open one SSE stream for the whole authenticated session.
-  // Every mutation the user makes (from this tab or any other) will
-  // trigger cache invalidations here.
-  const { connected: sseConnected, fallbackMode: sseFallback } = useSSEBridge({
-    enabled: !!user,
-  });
+  useSSEBridge({ enabled: !!user });
 
   const handleLogout = async () => {
     await logout();
@@ -50,6 +78,7 @@ export default function AppLayout() {
 
   return (
     <TooltipProvider delayDuration={250}>
+      <style>{STRIP_CSS}</style>
       <style>{`
         @media (min-width: 1024px) {
           .app-shell-main {
@@ -58,14 +87,16 @@ export default function AppLayout() {
         }
       `}</style>
 
+      {/* Single continuous amber strip across the whole viewport top */}
+      <div className="app-top-strip" aria-hidden />
+
+      {/* ---- Desktop sidebar ---- */}
       <Sidebar
         collapsed={collapsed}
         onCollapseToggle={() => setCollapsed((v) => !v)}
-        user={user}
-        onLogout={handleLogout}
-        onAccountClick={() => setIsAccountModalOpen(true)}
       />
 
+      {/* ---- Mobile drawer ---- */}
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
         <SheetContent
           side="left"
@@ -75,39 +106,22 @@ export default function AppLayout() {
           <SidebarContent
             collapsed={false}
             showCollapseButton={false}
-            user={user}
-            onLogout={async () => {
-              setMobileOpen(false);
-              await handleLogout();
-            }}
-            onAccountClick={() => {
-              setMobileOpen(false);
-              setIsAccountModalOpen(true);
-            }}
             onNavigate={() => setMobileOpen(false)}
           />
         </SheetContent>
       </Sheet>
 
+      {/* ---- Main column: HeaderBar (sticky) → page content ---- */}
       <div
         className="app-shell-main min-h-screen"
         style={{ transition: 'margin-left .4s cubic-bezier(.16, 1, .3, 1)' }}
       >
-        {/* Mobile top bar */}
-        <div className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-white/[.06] bg-[#0A0D13]/85 px-4 backdrop-blur lg:hidden">
-          <button
-            type="button"
-            onClick={() => setMobileOpen(true)}
-            aria-label="Open navigation"
-            className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-white/[.03] text-ink-2 transition-colors hover:border-amber-500/30 hover:text-amber-500"
-          >
-            <MenuIcon size={16} />
-          </button>
-          <span className="font-display text-[15px] font-semibold tracking-tight text-ink-1">
-            Mavrix Journal
-          </span>
-          <SSEIndicator connected={sseConnected} fallback={sseFallback} />
-        </div>
+        <HeaderBar
+          collapsed={collapsed}
+          onMobileMenuClick={() => setMobileOpen(true)}
+          onAccountClick={() => setIsAccountModalOpen(true)}
+          onLogout={handleLogout}
+        />
 
         <main className="box-border w-full px-4 py-5 lg:px-7 lg:py-6">
           <Suspense fallback={<PageSkeleton />}>
@@ -121,57 +135,5 @@ export default function AppLayout() {
         onClose={() => setIsAccountModalOpen(false)}
       />
     </TooltipProvider>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/*  Small connection status pill (mobile only — desktop has no place)  */
-/* ------------------------------------------------------------------ */
-function SSEIndicator({ connected, fallback }) {
-  const color = fallback ? '#f97316' : connected ? '#22c55e' : '#545E6E';
-  const label = fallback
-    ? 'Polling'
-    : connected
-      ? 'Live'
-      : 'Connecting';
-
-  return (
-    <span
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 6,
-        marginLeft: 'auto',
-        padding: '3px 9px',
-        borderRadius: 999,
-        border: `1px solid ${color}44`,
-        background: `${color}15`,
-        color,
-        fontFamily: "'IBM Plex Mono', monospace",
-        fontSize: 9.5,
-        fontWeight: 700,
-        letterSpacing: '.08em',
-        textTransform: 'uppercase',
-        whiteSpace: 'nowrap',
-      }}
-      title={
-        fallback
-          ? 'Real-time updates unavailable — using periodic polling'
-          : connected
-            ? 'Real-time connection active'
-            : 'Connecting to real-time updates…'
-      }
-    >
-      <span
-        style={{
-          width: 6,
-          height: 6,
-          borderRadius: '50%',
-          background: color,
-          boxShadow: `0 0 8px ${color}`,
-        }}
-      />
-      {label}
-    </span>
   );
 }

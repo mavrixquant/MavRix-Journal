@@ -1,10 +1,7 @@
-// src/components/dashboard/DashboardHeader.jsx
-import { useState, useEffect } from 'react';
+// apps/web/src/features/dashboard/components/DashboardHeader.jsx
+import { useState, useEffect, useMemo } from 'react';
 import { useAppContext } from '@/app/providers/AppProvider';
-import { useMemo } from 'react';   // if not already imported
-import { useAccounts } from '@/services/accounts.service';
 import { useTrades } from '@/services/trades.service';
-import { useAuth } from '@/app/providers/AuthProvider';
 import { useFilters } from '@/features/dashboard/hooks/useFilters';
 import { useFilterUrlSync } from '@/features/dashboard/hooks/useFilterUrlSync';
 import { enrichTradesFromDB } from '@/shared/utils/enrichTrades';
@@ -178,48 +175,6 @@ const HDR_CSS = `
     transform: translateY(-1px);
   }
 
-  /* ---------- Account select ---------- */
-  .hdr-account {
-    position: relative;
-    min-width: 220px;
-  }
-  .hdr-account-select {
-    width: 100%;
-    appearance: none;
-    -webkit-appearance: none;
-    background: rgba(10,13,19,.6);
-    color: var(--ink-1);
-    border: 1px solid rgba(255,255,255,.1);
-    border-radius: 10px;
-    padding: 9px 36px 9px 14px;
-    font-size: 12.5px;
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    font-weight: 500;
-    cursor: pointer;
-    outline: none;
-    transition: all .2s ease;
-  }
-  .hdr-account-select:hover {
-    border-color: rgba(255,255,255,.22);
-    background: rgba(15,18,25,.85);
-  }
-  .hdr-account-select:focus {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(245,158,11,.15);
-  }
-  .hdr-account-chevron {
-    position: absolute;
-    right: 12px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 14px;
-    height: 14px;
-    color: var(--ink-3);
-    pointer-events: none;
-    transition: color .2s;
-  }
-  .hdr-account:hover .hdr-account-chevron { color: var(--accent); }
-
   /* ---------- Collapsible toolbar wrapper ---------- */
   .hdr-toolbar-wrap {
     display: grid;
@@ -240,10 +195,10 @@ const HDR_CSS = `
   .hdr-toolbar-inner {
     min-height: 0;
   }
-  
+
   .hdr-toolbar-wrap.is-closed .hdr-toolbar-inner {
-  overflow: hidden;
-}
+    overflow: hidden;
+  }
 
   /* ---------- Toolbar row ---------- */
   .hdr-toolbar {
@@ -357,7 +312,6 @@ const HDR_CSS = `
     .hdr-root { padding: 14px 16px; }
     .hdr-main { flex-direction: column; align-items: stretch; }
     .hdr-right { width: 100%; }
-    .hdr-account { flex: 1; min-width: 0; }
     .hdr-toolbar { flex-direction: column; align-items: stretch; }
     .hdr-actions { width: 100%; }
   }
@@ -365,7 +319,6 @@ const HDR_CSS = `
 
 export default function DashboardHeader({ onCustomize }) {
   const { state, dispatch } = useAppContext();
-  const { user } = useAuth();
   const { resetAllFilters } = useFilters();
   // Mirror filter state to the URL for shareable / back-button support.
   useFilterUrlSync();
@@ -378,25 +331,9 @@ export default function DashboardHeader({ onCustomize }) {
   const [toolbarOpen, setToolbarOpen] = useState(true);
 
   // ---------- React Query reads ----------
-  const { data: accounts = [] } = useAccounts();
+  // Accounts are bridged into AppProvider by HeaderBar (single owner).
+  // Here we only need the trades for the currently selected account.
   const { data: rawTrades = [] } = useTrades(state.selectedAccountId);
-
-  // ---------- Bridge into AppProvider ----------
-  useEffect(() => {
-    if (!user) {
-      dispatch({ type: 'SET_ACCOUNTS', payload: [] });
-      dispatch({ type: 'SET_SELECTED_ACCOUNT_ID', payload: null });
-      return;
-    }
-    dispatch({ type: 'SET_ACCOUNTS', payload: accounts });
-  }, [user, accounts, dispatch]);
-
-  // Auto-select the first account once data arrives
-  useEffect(() => {
-    if (accounts.length > 0 && !state.selectedAccountId) {
-      dispatch({ type: 'SET_SELECTED_ACCOUNT_ID', payload: accounts[0].id });
-    }
-  }, [accounts, state.selectedAccountId, dispatch]);
 
   // Enrich once per (rawTrades, accountId) pair — no re-run on dispatch
   const enriched = useMemo(() => {
@@ -411,8 +348,8 @@ export default function DashboardHeader({ onCustomize }) {
     dispatch({ type: 'SET_DYNAMIC_FILTER_KEYS', payload: enriched.dynamicKeys });
   }, [enriched, dispatch]);
 
-  
-  const selectedAccount = state.accounts.find((acc) => acc.id === state.selectedAccountId) || null;
+  const selectedAccount =
+    state.accounts.find((acc) => acc.id === state.selectedAccountId) || null;
   const isBacktest = selectedAccount?.type === 'Backtest';
 
   return (
@@ -461,34 +398,6 @@ export default function DashboardHeader({ onCustomize }) {
               <FaSlidersH size={12} />
               Customize
             </button>
-
-            <div className="hdr-account">
-              <label htmlFor="account-select" className="sr-only">
-                Select Trading Account
-              </label>
-              <select
-                id="account-select"
-                className="hdr-account-select"
-                value={state.selectedAccountId || ''}
-                onChange={(e) =>
-                  dispatch({ type: 'SET_SELECTED_ACCOUNT_ID', payload: e.target.value })
-                }
-              >
-                <option value="" disabled>Select Account</option>
-                {state.accounts.map((acc) => (
-                  <option key={acc.id} value={acc.id}>
-                    {acc.name} ({acc.type})
-                  </option>
-                ))}
-              </select>
-              <svg className="hdr-account-chevron" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                <path
-                  fillRule="evenodd"
-                  d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                  clipRule="evenodd"
-                />
-              </svg>
-            </div>
           </div>
         </div>
 
