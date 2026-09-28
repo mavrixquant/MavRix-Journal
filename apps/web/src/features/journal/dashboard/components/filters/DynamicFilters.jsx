@@ -1,6 +1,6 @@
 // apps/web/src/features/dashboard/components/filters/DynamicFilters.jsx
 import { useMemo, useCallback, useEffect } from 'react';
-import { ChevronDown, Check, X } from 'lucide-react';
+import { ChevronDown, Check } from 'lucide-react';
 import { Command } from 'cmdk';
 
 import { useAppContext } from '@/app/providers/AppProvider';

@@ -1,7 +1,7 @@
 // apps/web/src/features/simulator/components/charts/FanChart.jsx
 import { useMemo, useRef } from 'react';
 import { Line } from 'react-chartjs-2';
-import { chartColors, chartFonts } from '@/shared/charts/theme';
+import { chartColors } from '@/shared/charts/theme';
 import { ChartExportButton } from '@/shared/ui/chart-export';
 
 const COLORS = {

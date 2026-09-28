@@ -25,12 +25,6 @@ function formatMoney(v) {
   return `${sign}$${Math.abs(n).toFixed(2)}`;
 }
 
-function formatR(v) {
-  if (v == null || Number.isNaN(Number(v))) return '—';
-  const n = Number(v);
-  return `${n >= 0 ? '+' : ''}${n.toFixed(2)}R`;
-}
-
 /* ------------------------------------------------------------------ */
 /*  Cell renderers (pure)                                              */
 /* ------------------------------------------------------------------ */

@@ -441,12 +441,11 @@ const CSS = `
 /* ------------------------------------------------------------------ */
 /*  Main                                                               */
 /* ------------------------------------------------------------------ */
-export default function DashboardMain({ onNavigate: externalNavigate }) {
+export default function DashboardPage() {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { stats } = useStats();
-  const navigate = useNavigate();
 
-  const onNavigate = externalNavigate || ((tab) => navigate(`/journal/${tab}`));
 
   // Committed state (from server)
   const [layouts, setLayouts] = useState([]);

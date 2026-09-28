@@ -1,5 +1,5 @@
 // apps/web/src/features/simulator/components/SimulatorPage.jsx
-import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useAppContext } from '@/app/providers/AppProvider';
 import { useTrades } from '@/shared/api/trades';
 import { useAccounts } from '@/shared/api/accounts';

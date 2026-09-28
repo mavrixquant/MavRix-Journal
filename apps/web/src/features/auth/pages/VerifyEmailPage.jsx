@@ -1,5 +1,5 @@
-// apps/web/src/features/auth/components/EmailVerificationPage.jsx
-import { useEffect, useRef, useState } from 'react';
+// apps/web/src/features/auth/pages/VerifyEmailPage.jsx
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { MailCheck } from 'lucide-react';
 
@@ -11,7 +11,7 @@ import AuthButton from '../components/AuthButton';
 import { ErrorBanner } from '../components/ErrorBanner';
 import { SuccessBanner } from '../components/SuccessBanner';
 
-export default function EmailVerification() {
+export default function VerifyEmail() {
   const { user, logout, refreshUser } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -26,36 +26,38 @@ export default function EmailVerification() {
   const autoTriedRef = useRef(false);
   const urlToken = searchParams.get('token');
 
+  const verifyToken = useCallback(
+    async (t) => {
+      const trimmed = (t ?? '').trim();
+      if (!trimmed) {
+        setError('Enter the verification code from your email.');
+        return;
+      }
+      setVerifying(true);
+      setError('');
+      setStatus('');
+      try {
+        await authService.verifyEmail(trimmed);
+        const updated = await refreshUser();
+        if (updated?.emailVerified) {
+          setStatus('Email verified. Redirecting…');
+          navigate('/journal', { replace: true });
+        }
+      } catch (err) {
+        setError(err.message || 'Verification failed');
+      } finally {
+        setVerifying(false);
+      }
+    },
+    [refreshUser, navigate]
+  );
+
   useEffect(() => {
     if (!urlToken || autoTriedRef.current) return;
     autoTriedRef.current = true;
     setToken(urlToken);
     verifyToken(urlToken);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [urlToken]);
-
-  const verifyToken = async (t) => {
-    const trimmed = (t ?? '').trim();
-    if (!trimmed) {
-      setError('Enter the verification code from your email.');
-      return;
-    }
-    setVerifying(true);
-    setError('');
-    setStatus('');
-    try {
-      await authService.verifyEmail(trimmed);
-      const updated = await refreshUser();
-      if (updated?.emailVerified) {
-        setStatus('Email verified. Redirecting…');
-        navigate('/journal', { replace: true });
-      }
-    } catch (err) {
-      setError(err.message || 'Verification failed');
-    } finally {
-      setVerifying(false);
-    }
-  };
+  }, [urlToken, verifyToken]);
 
   const handleVerify = () => verifyToken(token);
 
