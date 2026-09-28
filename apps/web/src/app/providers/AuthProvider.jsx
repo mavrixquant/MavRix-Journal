@@ -6,8 +6,8 @@ import {
   useEffect,
   useCallback,
 } from 'react';
-import * as authService from '@/services/auth.service';
-import { setAccessToken, setUnauthorizedHandler } from '@/services/api';
+import * as authService from '@/features/auth/api';
+import { setAccessToken, setUnauthorizedHandler } from '@/shared/api/client';
 
 const AuthContext = createContext();
 

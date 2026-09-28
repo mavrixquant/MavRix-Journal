@@ -1,5 +1,5 @@
-// apps/web/src/services/auth.service.js
-import { apiJson, setAccessToken } from './api';
+// apps/web/src/features/auth/api.js
+import { apiJson, setAccessToken } from '@/shared/api/client';
 
 // Normalize our API's user shape into a Firebase-compatible shape
 // so existing consumers (Sidebar, AccountModal, AppLayout, App.jsx)

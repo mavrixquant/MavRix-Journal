@@ -1,11 +1,11 @@
-// apps/web/src/services/trades.service.js
+// apps/web/src/shared/api/trades.js
 import {
   useQuery,
   useMutation,
   useQueryClient,
 } from '@tanstack/react-query';
-import { apiJson } from './api';
-import { accountsKeys } from './accounts.service';
+import { apiJson } from './client';
+import { accountsKeys } from './accounts';
 import { useSSEFallback } from '@/shared/api/sse';
 
 // ---------- Trade ID generator (canonical source: @/shared/trading/tradeId) ----------

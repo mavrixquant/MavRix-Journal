@@ -1,10 +1,10 @@
-// apps/web/src/services/accounts.service.js
+// apps/web/src/shared/api/accounts.js
 import {
   useQuery,
   useMutation,
   useQueryClient,
 } from '@tanstack/react-query';
-import { apiJson } from './api';
+import { apiJson } from './client';
 import { useSSEFallback } from '@/shared/api/sse';
 
 // ---------- Query keys ----------

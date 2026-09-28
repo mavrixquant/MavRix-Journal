@@ -1,4 +1,4 @@
-// apps/web/src/services/api.js
+// apps/web/src/shared/api/client.js
 // Central fetch wrapper for the Mavrix API.
 // - Prefixes VITE_API_URL
 // - Injects Authorization: Bearer <accessToken> when set

@@ -8,7 +8,7 @@ import { z } from 'zod';
 import { signupSchema } from '@mavrix/shared/validators';
 
 import { useAuth } from '@/app/providers/AuthProvider';
-import * as google from '@/services/google';
+import * as google from '@/features/auth/google';
 import AuthLayout from '../components/AuthLayout';
 import AuthField from '../components/AuthField';
 import AuthButton from '../components/AuthButton';

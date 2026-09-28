@@ -7,7 +7,7 @@ import { useAuth } from '@/app/providers/AuthProvider';
 import {
   createAccount,
   updateAccount,
-} from '@/services/accounts.service';
+} from '@/shared/api/accounts';
 import { queryClient } from '@/shared/api/queryClient';
 
 import './AccountFormModal.css';

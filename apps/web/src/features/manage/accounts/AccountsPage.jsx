@@ -21,12 +21,12 @@ import LoadingOverlay from '@/shared/components/LoadingOverlay';
 import {
   useAccounts,
   deleteAccount,
-} from '@/services/accounts.service';
+} from '@/shared/api/accounts';
 import {
   getTrades,
   deleteTradesByAccountId,
   tradesKeys,
-} from '@/services/trades.service';
+} from '@/shared/api/trades';
 import { queryClient } from '@/shared/api/queryClient';
 
 import AccountFormModal from './AccountFormModal';

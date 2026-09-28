@@ -2,8 +2,8 @@
 import { useState, useMemo, useEffect } from 'react';
 import { FaFileUpload, FaFolderOpen } from 'react-icons/fa';
 
-import { useAccounts } from '@/services/accounts.service';
-import { useTrades } from '@/services/trades.service';
+import { useAccounts } from '@/shared/api/accounts';
+import { useTrades } from '@/shared/api/trades';
 import { enrichTradesFromDB } from '@/shared/trading/enrich';
 import UploadModal from './UploadModal';
 import DataTable from '@/shared/ui/data-table';

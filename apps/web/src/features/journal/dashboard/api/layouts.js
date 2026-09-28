@@ -1,5 +1,5 @@
-// apps/web/src/services/user.service.js
-import { apiJson } from './api';
+// apps/web/src/features/journal/dashboard/api/layouts.js
+import { apiJson } from '@/shared/api/client';
 
 export async function getLayouts() {
   return apiJson('/api/users/layouts');

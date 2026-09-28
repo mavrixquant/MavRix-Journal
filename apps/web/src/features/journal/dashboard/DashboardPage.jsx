@@ -33,7 +33,7 @@ import { useStats } from '@/features/journal/dashboard/hooks/useStats';
 import {
   subscribeToUserLayouts,
   saveUserLayouts,
-} from '@/services/user.service';
+} from '@/features/journal/dashboard/api/layouts';
 
 import { PANEL_REGISTRY, panelLabel } from './components/panels/panelRegistry';
 import { PanelSkeleton } from '@/shared/ui/panel-skeleton';

@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Mail } from 'lucide-react';
 import { z } from 'zod';
 
-import * as authService from '@/services/auth.service';
+import * as authService from '@/features/auth/api';
 import AuthLayout from '../components/AuthLayout';
 import AuthField from '../components/AuthField';
 import AuthButton from '../components/AuthButton';

@@ -1,4 +1,4 @@
-// apps/web/src/services/google.js
+// apps/web/src/features/auth/google.js
 // Thin wrapper around Google Identity Services (GIS).
 // Loads window.google (script tag in index.html), initializes an
 // OAuth2 token client, and exposes a Promise-based signIn() that

@@ -3,8 +3,8 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import * as XLSX from 'xlsx';
 import { FaFileUpload, FaTimes, FaCheckCircle, FaExclamationTriangle } from 'react-icons/fa';
 import Portal from '@/shared/components/Portal';
-import { createTrades, generateTradeId } from '@/services/trades.service';
-import { updateAccountColumnConfigs } from '@/services/accounts.service';
+import { createTrades, generateTradeId } from '@/shared/api/trades';
+import { updateAccountColumnConfigs } from '@/shared/api/accounts';
 import { queryClient } from '@/shared/api/queryClient';
 
 const TICKS_PER_POINT = 4;

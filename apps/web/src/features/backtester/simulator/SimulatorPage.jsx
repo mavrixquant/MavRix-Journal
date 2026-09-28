@@ -1,8 +1,8 @@
 // apps/web/src/features/simulator/components/SimulatorPage.jsx
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useAppContext } from '@/app/providers/AppProvider';
-import { useTrades } from '@/services/trades.service';
-import { useAccounts } from '@/services/accounts.service';
+import { useTrades } from '@/shared/api/trades';
+import { useAccounts } from '@/shared/api/accounts';
 import { enrichTradesFromDB } from '@/shared/trading/enrich';
 import { computeStats } from '@/shared/trading/stats';
 import { getMetricMode } from '@/shared/trading/sl';

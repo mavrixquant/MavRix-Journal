@@ -1,7 +1,7 @@
 // apps/web/src/features/dashboard/components/DashboardHeader.jsx
 import { useState, useEffect, useMemo } from 'react';
 import { useAppContext } from '@/app/providers/AppProvider';
-import { useTrades } from '@/services/trades.service';
+import { useTrades } from '@/shared/api/trades';
 import { useFilters } from '@/features/journal/dashboard/hooks/useFilters';
 import { useFilterUrlSync } from '@/features/journal/dashboard/hooks/useFilterUrlSync';
 import { enrichTradesFromDB } from '@/shared/trading/enrich';

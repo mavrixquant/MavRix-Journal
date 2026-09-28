@@ -1,7 +1,7 @@
 // apps/web/src/shared/api/sse.js
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { ensureFreshAccessToken } from '@/services/api';
+import { ensureFreshAccessToken } from './client';
 
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 

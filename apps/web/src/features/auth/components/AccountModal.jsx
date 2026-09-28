@@ -3,8 +3,8 @@ import { useState } from 'react';
 import Portal from '@/shared/components/Portal';
 import Alert from '@/shared/components/Alert';
 import { useAuth } from '@/app/providers/AuthProvider';
-import * as authService from '@/services/auth.service';
-import * as google from '@/services/google';
+import * as authService from '@/features/auth/api';
+import * as google from '@/features/auth/google';
 
 
 /* ------------------------------------------------------------------ */

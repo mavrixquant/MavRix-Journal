@@ -10,7 +10,7 @@ import {
 
 import { useAuth } from '@/app/providers/AuthProvider';
 import { useAppContext } from '@/app/providers/AppProvider';
-import { useAccounts } from '@/services/accounts.service';
+import { useAccounts } from '@/shared/api/accounts';
 import { AccountSelect } from './AccountSelect';
 import { IconButton, HBTooltip } from './IconButton';
 
