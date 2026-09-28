@@ -1,4 +1,4 @@
-// apps/web/src/app/AppLayout.jsx
+// apps/web/src/app/layout/AppLayout.jsx
 import { useState, useEffect, Suspense } from 'react';
 import { Outlet } from 'react-router-dom';
 
@@ -7,8 +7,9 @@ import Sidebar, {
   SidebarContent,
   SIDEBAR_WIDTH,
   SIDEBAR_COLLAPSED_WIDTH,
-} from '@/app/shell/Sidebar';
-import HeaderBar from '@/app/shell/HeaderBar';
+} from './Sidebar/Sidebar';
+import HeaderBar from './HeaderBar/HeaderBar';
+import TopStrip from './TopStrip';
 import AccountModal from '@/features/auth/components/AccountModal';
 import { PageSkeleton } from '@/shared/ui/page-skeleton';
 import { TooltipProvider } from '@/shared/ui/tooltip';
@@ -17,39 +18,6 @@ import { useHotkey } from '@/shared/hooks/useHotkey';
 import { useSSEBridge } from '@/shared/api/sse';
 
 const STORAGE_KEY = 'mavrix:sidebar:collapsed';
-
-/* ------------------------------------------------------------------ */
-/*  Single shared amber strip that spans the full viewport top.        */
-/*  Above sidebar (z-40) and header (z-30) via z-index: 100.           */
-/* ------------------------------------------------------------------ */
-const STRIP_CSS = `
-  .app-top-strip {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 2px;
-    z-index: 100;
-    pointer-events: none;
-    background: linear-gradient(
-      90deg,
-      transparent,
-      #F59E0B,
-      #FDE68A,
-      #F59E0B,
-      transparent
-    );
-    background-size: 200% 100%;
-    animation: appTopStripGrad 4s linear infinite;
-  }
-  @keyframes appTopStripGrad {
-    0%   { background-position: 0% 50%; }
-    100% { background-position: 200% 50%; }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .app-top-strip { animation: none !important; }
-  }
-`;
 
 export default function AppLayout() {
   const { user, logout } = useAuth();
@@ -78,7 +46,6 @@ export default function AppLayout() {
 
   return (
     <TooltipProvider delayDuration={250}>
-      <style>{STRIP_CSS}</style>
       <style>{`
         @media (min-width: 1024px) {
           .app-shell-main {
@@ -87,16 +54,13 @@ export default function AppLayout() {
         }
       `}</style>
 
-      {/* Single continuous amber strip across the whole viewport top */}
-      <div className="app-top-strip" aria-hidden />
+      <TopStrip />
 
-      {/* ---- Desktop sidebar ---- */}
       <Sidebar
         collapsed={collapsed}
         onCollapseToggle={() => setCollapsed((v) => !v)}
       />
 
-      {/* ---- Mobile drawer ---- */}
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
         <SheetContent
           side="left"
@@ -111,7 +75,6 @@ export default function AppLayout() {
         </SheetContent>
       </Sheet>
 
-      {/* ---- Main column: HeaderBar (sticky) → page content ---- */}
       <div
         className="app-shell-main min-h-screen"
         style={{ transition: 'margin-left .4s cubic-bezier(.16, 1, .3, 1)' }}

@@ -8,7 +8,7 @@ import {
 } from 'react-router-dom';
 
 import { useAuth } from '@/app/providers/AuthProvider';
-import AppLayout from '@/app/AppLayout';
+import AppLayout from '@/app/layout/AppLayout';
 import { PageSkeleton } from '@/shared/ui/page-skeleton';
 
 /* ---- Auth pages ---- */

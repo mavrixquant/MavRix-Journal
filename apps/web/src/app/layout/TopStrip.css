@@ -1,0 +1,30 @@
+/* apps/web/src/app/layout/TopStrip.css */
+
+.app-top-strip {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  z-index: 100;
+  pointer-events: none;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    #F59E0B,
+    #FDE68A,
+    #F59E0B,
+    transparent
+  );
+  background-size: 200% 100%;
+  animation: appTopStripGrad 4s linear infinite;
+}
+
+@keyframes appTopStripGrad {
+  0%   { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-top-strip { animation: none !important; }
+}
