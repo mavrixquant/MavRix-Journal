@@ -2,7 +2,7 @@
 import { useMemo } from 'react';
 import { useAppContext } from '@/app/providers/AppProvider';
 import { useStats } from '@/features/dashboard/hooks/useStats';
-import DataTable from '@/components/ui/data-table';
+import DataTable from '@/shared/ui/data-table';
 
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                            */

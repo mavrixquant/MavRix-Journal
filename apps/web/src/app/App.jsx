@@ -9,7 +9,7 @@ import {
 
 import { useAuth } from '@/app/providers/AuthProvider';
 import AppLayout from '@/app/AppLayout';
-import { PageSkeleton } from '@/components/ui/page-skeleton';
+import { PageSkeleton } from '@/shared/ui/page-skeleton';
 
 /* ---- Auth pages ---- */
 const Login = lazy(() => import('@/features/auth/components/LoginPage'));

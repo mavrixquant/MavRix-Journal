@@ -8,7 +8,7 @@ import App from '@/app/App';
 import ErrorBoundary from '@/app/ErrorBoundary';
 import { AuthProvider, useAuth } from '@/app/providers/AuthProvider';
 import { AppProvider } from '@/app/providers/AppProvider';
-import { Toaster } from '@/components/ui/sonner';
+import { Toaster } from '@/shared/ui/sonner';
 import { queryClient } from '@/shared/api/queryClient';
 
 import '@/styles/global.css';

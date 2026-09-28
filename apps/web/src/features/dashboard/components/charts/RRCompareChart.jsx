@@ -11,7 +11,7 @@ import {
   baseLegend,
   baseAnimation,
 } from '@/shared/charts/theme';
-import { ChartExportButton } from '@/components/ui/chart-export';
+import { ChartExportButton } from '@/shared/ui/chart-export';
 
 const RR_LEVELS = [1, 2, 3, 4, 5, 6, 7, 8];
 

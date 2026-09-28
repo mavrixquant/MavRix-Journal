@@ -9,7 +9,7 @@ import {
   baseLegend,
   baseAnimation,
 } from '@/shared/charts/theme';
-import { ChartExportButton } from '@/components/ui/chart-export';
+import { ChartExportButton } from '@/shared/ui/chart-export';
 
 const WINDOW = 20;
 

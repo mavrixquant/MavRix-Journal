@@ -1,7 +1,7 @@
 // apps/web/src/features/dashboard/components/panels/SymbolBreakdownTable.jsx
 import { useMemo } from 'react';
 import { useStats } from '@/features/dashboard/hooks/useStats';
-import DataTable from '@/components/ui/data-table';
+import DataTable from '@/shared/ui/data-table';
 
 function formatMoney(v) {
   if (v == null || Number.isNaN(Number(v))) return '—';

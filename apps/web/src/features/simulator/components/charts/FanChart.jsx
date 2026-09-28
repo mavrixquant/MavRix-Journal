@@ -2,7 +2,7 @@
 import { useMemo, useRef } from 'react';
 import { Line } from 'react-chartjs-2';
 import { chartColors, chartFonts } from '@/shared/charts/theme';
-import { ChartExportButton } from '@/components/ui/chart-export';
+import { ChartExportButton } from '@/shared/ui/chart-export';
 
 const COLORS = {
   median: chartColors.amber,

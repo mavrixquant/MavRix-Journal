@@ -3,7 +3,7 @@ import { useMemo, useRef } from 'react';
 import { Bar } from 'react-chartjs-2';
 import { useStats } from '@/features/dashboard/hooks/useStats';
 import { chartColors, baseTooltip, baseAxis, baseCategoryAxis, baseAnimation } from '@/shared/charts/theme';
-import { ChartExportButton } from '@/components/ui/chart-export';
+import { ChartExportButton } from '@/shared/ui/chart-export';
 
 const monthLabel = (ym) => {
   const [y, m] = ym.split('-');

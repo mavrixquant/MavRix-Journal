@@ -6,8 +6,8 @@ import { useAccounts } from '@/services/accounts.service';
 import { useTrades } from '@/services/trades.service';
 import { enrichTradesFromDB } from '@/shared/trading/enrich';
 import UploadModal from './UploadModal';
-import DataTable from '@/components/ui/data-table';
-import { PageSkeleton } from '@/components/ui/page-skeleton';
+import DataTable from '@/shared/ui/data-table';
+import { PageSkeleton } from '@/shared/ui/page-skeleton';
 
 /* ------------------------------------------------------------------ */
 /*  Scoped CSS — matches the rest of the app                           */

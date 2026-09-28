@@ -3,7 +3,7 @@ import { Bar } from 'react-chartjs-2';
 import { useMemo, useRef } from 'react';
 import { useStats } from '@/features/dashboard/hooks/useStats';
 import { chartColors, baseTooltip, baseAxis, baseCategoryAxis, baseAnimation } from '@/shared/charts/theme';
-import { ChartExportButton } from '@/components/ui/chart-export';
+import { ChartExportButton } from '@/shared/ui/chart-export';
 
 const valueOf = (d) => d.total ?? d.totalR ?? 0;
 

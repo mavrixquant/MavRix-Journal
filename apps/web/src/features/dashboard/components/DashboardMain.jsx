@@ -36,8 +36,8 @@ import {
 } from '@/services/user.service';
 
 import { PANEL_REGISTRY, panelLabel } from './panels/panelRegistry';
-import { PanelSkeleton } from '@/components/ui/panel-skeleton';
-import { PageSkeleton } from '@/components/ui/page-skeleton';
+import { PanelSkeleton } from '@/shared/ui/panel-skeleton';
+import { PageSkeleton } from '@/shared/ui/page-skeleton';
 import TradeTable from './panels/TradeTable';
 
 import 'react-grid-layout/css/styles.css';

@@ -10,9 +10,9 @@ import Sidebar, {
 } from '@/app/shell/Sidebar';
 import HeaderBar from '@/app/shell/HeaderBar';
 import AccountModal from '@/features/auth/components/AccountModal';
-import { PageSkeleton } from '@/components/ui/page-skeleton';
-import { TooltipProvider } from '@/components/ui/tooltip';
-import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
+import { PageSkeleton } from '@/shared/ui/page-skeleton';
+import { TooltipProvider } from '@/shared/ui/tooltip';
+import { Sheet, SheetContent, SheetTitle } from '@/shared/ui/sheet';
 import { useHotkey } from '@/shared/hooks/useHotkey';
 import { useSSEBridge } from '@/shared/api/sse';
 

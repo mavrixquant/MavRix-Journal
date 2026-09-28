@@ -9,7 +9,7 @@ import {
   decimationConfig,
   baseAnimation,
 } from '@/shared/charts/theme';
-import { ChartExportButton } from '@/components/ui/chart-export';
+import { ChartExportButton } from '@/shared/ui/chart-export';
 
 export default function UnderwaterChart() {
   const { underwaterCurve, metric } = useStats();

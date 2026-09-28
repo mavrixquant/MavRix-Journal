@@ -9,7 +9,7 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from '@/components/ui/popover';
+} from '@/shared/ui/popover';
 
 /* ------------------------------------------------------------------ */
 /*  Scoped styles for cmdk + popover                                  */
