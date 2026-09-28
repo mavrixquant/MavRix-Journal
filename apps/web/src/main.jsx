@@ -1,10 +1,17 @@
+// apps/web/src/main.jsx
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+
 import App from '@/app/App';
+import ErrorBoundary from '@/app/ErrorBoundary';
 import { AuthProvider, useAuth } from '@/app/providers/AuthProvider';
 import { AppProvider } from '@/app/providers/AppProvider';
 import { Toaster } from '@/components/ui/sonner';
-import '@/styles/global.css';   // imports tailwind + tokens
+import { queryClient } from '@/lib/queryClient';
+
+import '@/styles/global.css';
 import '@fontsource/space-grotesk';
 import '@fontsource/inter';
 import '@fontsource/ibm-plex-mono';
@@ -28,14 +35,21 @@ function AppShell() {
           },
         }}
       />
+      {import.meta.env.DEV && (
+        <ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-left" />
+      )}
     </AppProvider>
   );
 }
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <AuthProvider>
-      <AppShell />
-    </AuthProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <AppShell />
+        </AuthProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   </React.StrictMode>
 );

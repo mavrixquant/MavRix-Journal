@@ -5,6 +5,7 @@ import { FaFileUpload, FaTimes, FaCheckCircle, FaExclamationTriangle } from 'rea
 import Portal from '@/shared/components/Portal';
 import { createTrades, generateTradeId } from '@/services/trades.service';
 import { updateAccountColumnConfigs } from '@/services/accounts.service';
+import { queryClient } from '@/lib/queryClient';
 
 const TICKS_PER_POINT = 4;
 const MAX_DROPDOWN_UNIQUES = 10;
@@ -761,6 +762,9 @@ export default function UploadModal({ isOpen, onClose, account, existingTrades, 
     try {
       const newConfigs = { ...(account.columnConfigs || {}), ...columnTypes };
       await createTrades(account.id, parseResult.trades);
+      queryClient.invalidateQueries({
+        queryKey: ['trades', account.id],
+      });
       await updateAccountColumnConfigs(account.id, newConfigs);
       if (onSuccess) onSuccess(parseResult.trades.length);
       reset();

@@ -1,7 +1,8 @@
-// src/components/simulator/SimulatorPage.jsx
+// apps/web/src/features/simulator/components/SimulatorPage.jsx
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useAppContext } from '@/app/providers/AppProvider';
-import { subscribeToTrades } from '@/services/trades.service';
+import { useTrades } from '@/services/trades.service';
+import { useAccounts } from '@/services/accounts.service';
 import { enrichTradesFromDB } from '@/shared/utils/enrichTrades';
 import { computeStats } from '@/features/dashboard/utils/statsEngine';
 import { getMetricMode } from '@/shared/utils/slResolver';
@@ -10,6 +11,7 @@ import SimulatorControls from './SimulatorControls';
 import SimulatorPanels from './SimulatorPanels';
 
 const randomSeed = () => Math.floor(Math.random() * 1e9);
+
 const simulationConfigsEqual = (a, b) => {
   if (!a || !b) return false;
 
@@ -196,34 +198,39 @@ const SIM_CSS = `
 export default function SimulatorPage() {
   const { state } = useAppContext();
 
+  // ──────────────────────────────────────────────────────────────
+  //  Data layer — React Query hooks (Phase 5)
+  // ──────────────────────────────────────────────────────────────
+
+  // Accounts come from the shared query cache (no more reading state.accounts
+  // which depended on DashboardHeader having run first).
+  const { data: accounts = [] } = useAccounts();
+
   const [simAccountId, setSimAccountId] = useState('');
   const [initialized, setInitialized] = useState(false);
 
+  // Auto-select an account on first load. Prefers whatever the dashboard
+  // already selected, otherwise falls back to the first account.
   useEffect(() => {
-    if (!initialized && state.accounts.length > 0) {
-      const preferred = state.selectedAccountId || state.accounts[0].id;
+    if (!initialized && accounts.length > 0) {
+      const preferred = state.selectedAccountId || accounts[0].id;
       setSimAccountId(preferred);
       setInitialized(true);
     }
-  }, [state.accounts, state.selectedAccountId, initialized]);
+  }, [accounts, state.selectedAccountId, initialized]);
 
-  const [simTrades, setSimTrades] = useState([]);
-  const [loadingTrades, setLoadingTrades] = useState(false);
+  // Trades come straight from React Query — cached, deduped, auto-refreshing.
+  const { data: rawSimTrades = [], isLoading: loadingTrades } = useTrades(simAccountId);
 
-  useEffect(() => {
-    if (!simAccountId) { setSimTrades([]); return; }
-    setLoadingTrades(true);
-    const unsub = subscribeToTrades(simAccountId, (rawTrades) => {
-      const { enrichedTrades } = enrichTradesFromDB(rawTrades);
-      setSimTrades(enrichedTrades);
-      setLoadingTrades(false);
-    });
-    return () => unsub();
-  }, [simAccountId]);
+  // Enrichment is pure — memo on the raw array reference.
+  const simTrades = useMemo(() => {
+    if (!rawSimTrades || rawSimTrades.length === 0) return [];
+    return enrichTradesFromDB(rawSimTrades).enrichedTrades;
+  }, [rawSimTrades]);
 
   const simAccount = useMemo(
-    () => state.accounts.find(a => a.id === simAccountId) || null,
-    [state.accounts, simAccountId]
+    () => accounts.find((a) => a.id === simAccountId) || null,
+    [accounts, simAccountId]
   );
 
   const metric = useMemo(() => getMetricMode(simAccount), [simAccount]);
@@ -239,7 +246,10 @@ export default function SimulatorPage() {
     [simTrades, state.currentR, simAccount]
   );
 
-  // ---- State --------------------------------------------------------------
+  // ──────────────────────────────────────────────────────────────
+  //  Simulation state
+  // ──────────────────────────────────────────────────────────────
+
   const [method, setMethod] = useState('permutation');
   const [runs, setRuns] = useState(10000);
   const [blockSize, setBlockSize] = useState(5);
@@ -260,6 +270,7 @@ export default function SimulatorPage() {
   // The current account balance is only the default; the user can override it.
   useEffect(() => {
     setInitialCapital(accountBalance);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [simAccountId]);
 
   // Best-effort $/R conversion: if the account exposes per-trade risk we use it.
@@ -270,18 +281,12 @@ export default function SimulatorPage() {
     if (unitMode === 'money') return 0;
 
     const perTradeRisk = Number(simAccount?.riskPerTrade);
-
     if (Number.isFinite(perTradeRisk) && perTradeRisk > 0) {
       return perTradeRisk;
     }
 
     const pct = Number(simAccount?.riskPerTradePct);
-
-    if (
-      Number.isFinite(pct) &&
-      pct > 0 &&
-      initialCapital > 0
-    ) {
+    if (Number.isFinite(pct) && pct > 0 && initialCapital > 0) {
       return (pct / 100) * initialCapital;
     }
 
@@ -290,9 +295,12 @@ export default function SimulatorPage() {
 
   // Threshold is a DRAWDOWN DEPTH now, always stored as a negative magnitude.
   const defaultRuin = useMemo(
-    () => unitMode === 'money'
-      ? (initialCapital > 0 ? -initialCapital * 0.20 : -1000)
-      : -10,
+    () =>
+      unitMode === 'money'
+        ? initialCapital > 0
+          ? -initialCapital * 0.2
+          : -1000
+        : -10,
     [unitMode, initialCapital]
   );
 
@@ -314,7 +322,7 @@ export default function SimulatorPage() {
     // Account/mode changes restore the default DD threshold.
     setThresholdCustomized(false);
     setRuinThreshold(defaultRuin);
-  }, [simAccountId, unitMode]);
+  }, [simAccountId, unitMode, defaultRuin]);
 
   useEffect(() => {
     if (!thresholdCustomized) {
@@ -323,48 +331,53 @@ export default function SimulatorPage() {
   }, [defaultRuin, thresholdCustomized]);
 
   const scores = useMemo(
-    () => (stats?.outcomes || []).map(o => o.score ?? 0),
+    () => (stats?.outcomes || []).map((o) => o.score ?? 0),
     [stats]
   );
 
   const actualCurve = useMemo(() => {
     const eq = stats?.equity || [];
-    return [0, ...eq.map(p => p.y)];
+    return [0, ...eq.map((p) => p.y)];
   }, [stats]);
 
   const targets = useMemo(
-    () => isMoney
-      ? [
-          initialCapital > 0 ? initialCapital * 0.05 : 500,
-          initialCapital > 0 ? initialCapital * 0.10 : 1000,
-          initialCapital > 0 ? initialCapital * 0.25 : 2500,
-          initialCapital > 0 ? initialCapital * 0.50 : 5000,
-        ]
-      : [5, 10, 20, 50],
+    () =>
+      isMoney
+        ? [
+            initialCapital > 0 ? initialCapital * 0.05 : 500,
+            initialCapital > 0 ? initialCapital * 0.1 : 1000,
+            initialCapital > 0 ? initialCapital * 0.25 : 2500,
+            initialCapital > 0 ? initialCapital * 0.5 : 5000,
+          ]
+        : [5, 10, 20, 50],
     [isMoney, initialCapital]
   );
 
-  const simulationConfig = useMemo(() => ({
-    unitMode,
-    method,
-    runs,
-    seed,
-    ddThreshold: Number.isFinite(ruinThreshold) ? ruinThreshold : null,
-    targets,
-    initialCapital,
-    blockSize,
-    dollarsPerR,
-  }), [
-    unitMode,
-    method,
-    runs,
-    seed,
-    ruinThreshold,
-    targets,
-    initialCapital,
-    blockSize,
-    dollarsPerR,
-  ]);
+  const simulationConfig = useMemo(
+    () => ({
+      unitMode,
+      method,
+      runs,
+      seed,
+      ddThreshold: Number.isFinite(ruinThreshold) ? ruinThreshold : null,
+      targets,
+      initialCapital,
+      blockSize,
+      dollarsPerR,
+    }),
+    [
+      unitMode,
+      method,
+      runs,
+      seed,
+      ruinThreshold,
+      targets,
+      initialCapital,
+      blockSize,
+      dollarsPerR,
+    ]
+  );
+
   const run = useCallback(() => {
     if (scores.length < 5) {
       console.warn(
@@ -381,11 +394,7 @@ export default function SimulatorPage() {
           method: simulationConfig.method,
           runs: simulationConfig.runs,
           seed: simulationConfig.seed,
-
-          // Keep the engine-compatible field for now.
-          // In Phase 3 we'll rename the engine API completely.
           ruinThreshold: simulationConfig.ddThreshold,
-
           targets: simulationConfig.targets,
           initialCapital: simulationConfig.initialCapital,
           blockSize: simulationConfig.blockSize,
@@ -393,10 +402,7 @@ export default function SimulatorPage() {
         });
 
         if (res) {
-          // Explicit unit mode for downstream panels/export.
           res.unitMode = simulationConfig.unitMode;
-
-          // Store the exact configuration that produced this result.
           res.simulationConfig = { ...simulationConfig };
         }
         if (runId === simulationRunId.current) {
@@ -404,7 +410,6 @@ export default function SimulatorPage() {
         }
       } catch (err) {
         console.error('[Simulator] error:', err);
-
         if (runId === simulationRunId.current) {
           setResult(null);
         }
@@ -418,17 +423,14 @@ export default function SimulatorPage() {
 
   const resultIsStale = useMemo(() => {
     if (!result) return false;
-
-    return !simulationConfigsEqual(
-      result.simulationConfig,
-      simulationConfig
-    );
+    return !simulationConfigsEqual(result.simulationConfig, simulationConfig);
   }, [result, simulationConfig]);
 
-  const summary = useMemo(
-    () => summarizeMC(result),
-    [result]
-  );
+  const summary = useMemo(() => summarizeMC(result), [result]);
+
+  // ──────────────────────────────────────────────────────────────
+  //  Export handlers
+  // ──────────────────────────────────────────────────────────────
 
   const handleExport = () => {
     if (!result || !summary || resultIsStale) return;
@@ -443,7 +445,6 @@ export default function SimulatorPage() {
 
     const csvEscape = (value) => {
       const text = fmt(value);
-
       if (
         text.includes(',') ||
         text.includes('"') ||
@@ -452,7 +453,6 @@ export default function SimulatorPage() {
       ) {
         return `"${text.replace(/"/g, '""')}"`;
       }
-
       return text;
     };
 
@@ -460,13 +460,7 @@ export default function SimulatorPage() {
       rows.push([label, value, extra]);
     };
 
-    const rows = [
-      ['Monte Carlo Export'],
-      ['Generated', new Date().toISOString()],
-      [],
-
-      ['Simulation Configuration'],
-    ];
+    const rows = [['Monte Carlo Export'], ['Generated', new Date().toISOString()], [], ['Simulation Configuration']];
 
     addRow(rows, 'Account', result.account ?? '');
     addRow(rows, 'Account Type', result.accountType ?? '');
@@ -475,11 +469,7 @@ export default function SimulatorPage() {
     addRow(rows, 'Runs', result.runs ?? '');
     addRow(rows, 'Trades per Run', result.n ?? '');
     addRow(rows, 'Seed', result.seed ?? '');
-    addRow(
-      rows,
-      'Block Size',
-      result.method === 'block' ? result.blockSize ?? '' : ''
-    );
+    addRow(rows, 'Block Size', result.method === 'block' ? result.blockSize ?? '' : '');
     addRow(rows, 'Starting Capital', result.initialCapital ?? '');
     addRow(rows, 'Dollars per R', result.dollarsPerR ?? '');
     addRow(rows, 'DD Threshold (breach depth)', result.ddThreshold ?? 'none');
@@ -488,203 +478,58 @@ export default function SimulatorPage() {
       addRow(rows, 'Targets', result.targets.join(' | '));
     }
 
-    rows.push(
-      [],
-      ['Core Results']
-    );
-
+    rows.push([], ['Core Results']);
     addRow(rows, 'Final P&L — p5', summary.finalPnl?.p5 ?? '');
     addRow(rows, 'Final P&L — p50', summary.finalPnl?.p50 ?? '');
     addRow(rows, 'Final P&L — p95', summary.finalPnl?.p95 ?? '');
     addRow(rows, 'Profitable Samples %', summary.profitPct ?? '');
     addRow(rows, 'Profitable Samples Count', summary.profitCount ?? '');
-    addRow(
-      rows,
-      'DD Threshold Breach %',
-      summary.ddBreachPct ?? ''
-    );
-    addRow(
-      rows,
-      'DD Threshold Breach Count',
-      summary.ddBreachCount ?? ''
-    );
+    addRow(rows, 'DD Threshold Breach %', summary.ddBreachPct ?? '');
+    addRow(rows, 'DD Threshold Breach Count', summary.ddBreachCount ?? '');
 
-    rows.push(
-      [],
-      ['Drawdown']
-    );
+    rows.push([], ['Drawdown']);
+    addRow(rows, 'Max Drawdown — p5', result.maxDrawdown?.p5 ?? '');
+    addRow(rows, 'Max Drawdown — p50', result.maxDrawdown?.p50 ?? '');
+    addRow(rows, 'Max Drawdown — p95', result.maxDrawdown?.p95 ?? '');
 
-    addRow(
-      rows,
-      'Max Drawdown — p5',
-      result.maxDrawdown?.p5 ?? ''
-    );
-    addRow(
-      rows,
-      'Max Drawdown — p50',
-      result.maxDrawdown?.p50 ?? ''
-    );
-    addRow(
-      rows,
-      'Max Drawdown — p95',
-      result.maxDrawdown?.p95 ?? ''
-    );
+    rows.push([], ['Recovery']);
+    addRow(rows, 'Recovery Trades — p5', result.recovery?.p5 ?? '');
+    addRow(rows, 'Recovery Trades — p50', result.recovery?.p50 ?? '');
+    addRow(rows, 'Recovery Trades — p95', result.recovery?.p95 ?? '');
 
-    rows.push(
-      [],
-      ['Recovery']
-    );
+    rows.push([], ['Streaks']);
+    addRow(rows, 'Longest Win Streak — p5', result.streaks?.wins?.p5 ?? '');
+    addRow(rows, 'Longest Win Streak — p50', result.streaks?.wins?.p50 ?? '');
+    addRow(rows, 'Longest Win Streak — p95', result.streaks?.wins?.p95 ?? '');
+    addRow(rows, 'Longest Loss Streak — p5', result.streaks?.losses?.p5 ?? '');
+    addRow(rows, 'Longest Loss Streak — p50', result.streaks?.losses?.p50 ?? '');
+    addRow(rows, 'Longest Loss Streak — p95', result.streaks?.losses?.p95 ?? '');
 
-    addRow(
-      rows,
-      'Recovery Trades — p5',
-      result.recovery?.p5 ?? ''
-    );
-    addRow(
-      rows,
-      'Recovery Trades — p50',
-      result.recovery?.p50 ?? ''
-    );
-    addRow(
-      rows,
-      'Recovery Trades — p95',
-      result.recovery?.p95 ?? ''
-    );
-
-    rows.push(
-      [],
-      ['Streaks']
-    );
-
-    addRow(
-      rows,
-      'Longest Win Streak — p5',
-      result.streaks?.wins?.p5 ?? ''
-    );
-    addRow(
-      rows,
-      'Longest Win Streak — p50',
-      result.streaks?.wins?.p50 ?? ''
-    );
-    addRow(
-      rows,
-      'Longest Win Streak — p95',
-      result.streaks?.wins?.p95 ?? ''
-    );
-
-    addRow(
-      rows,
-      'Longest Loss Streak — p5',
-      result.streaks?.losses?.p5 ?? ''
-    );
-    addRow(
-      rows,
-      'Longest Loss Streak — p50',
-      result.streaks?.losses?.p50 ?? ''
-    );
-    addRow(
-      rows,
-      'Longest Loss Streak — p95',
-      result.streaks?.losses?.p95 ?? ''
-    );
-
-    rows.push(
-      [],
-      ['Ratios']
-    );
-
+    rows.push([], ['Ratios']);
     addRow(rows, 'Sharpe — p5', result.ratios?.sharpe?.p5 ?? '');
     addRow(rows, 'Sharpe — p50', result.ratios?.sharpe?.p50 ?? '');
     addRow(rows, 'Sharpe — p95', result.ratios?.sharpe?.p95 ?? '');
-
     addRow(rows, 'Sortino — p5', result.ratios?.sortino?.p5 ?? '');
     addRow(rows, 'Sortino — p50', result.ratios?.sortino?.p50 ?? '');
     addRow(rows, 'Sortino — p95', result.ratios?.sortino?.p95 ?? '');
-
-    addRow(
-      rows,
-      'Profit Factor — p5',
-      result.ratios?.profitFactor?.p5 ?? ''
-    );
-    addRow(
-      rows,
-      'Profit Factor — p50',
-      result.ratios?.profitFactor?.p50 ?? ''
-    );
-    addRow(
-      rows,
-      'Profit Factor — p95',
-      result.ratios?.profitFactor?.p95 ?? ''
-    );
-
-    addRow(
-      rows,
-      'Expectancy — p5',
-      result.ratios?.expectancy?.p5 ?? ''
-    );
-    addRow(
-      rows,
-      'Expectancy — p50',
-      result.ratios?.expectancy?.p50 ?? ''
-    );
-    addRow(
-      rows,
-      'Expectancy — p95',
-      result.ratios?.expectancy?.p95 ?? ''
-    );
-
-    addRow(
-      rows,
-      'Win Rate — p5',
-      result.ratios?.winRate?.p5 ?? ''
-    );
-    addRow(
-      rows,
-      'Win Rate — p50',
-      result.ratios?.winRate?.p50 ?? ''
-    );
-    addRow(
-      rows,
-      'Win Rate — p95',
-      result.ratios?.winRate?.p95 ?? ''
-    );
+    addRow(rows, 'Profit Factor — p5', result.ratios?.profitFactor?.p5 ?? '');
+    addRow(rows, 'Profit Factor — p50', result.ratios?.profitFactor?.p50 ?? '');
+    addRow(rows, 'Profit Factor — p95', result.ratios?.profitFactor?.p95 ?? '');
+    addRow(rows, 'Expectancy — p5', result.ratios?.expectancy?.p5 ?? '');
+    addRow(rows, 'Expectancy — p50', result.ratios?.expectancy?.p50 ?? '');
+    addRow(rows, 'Expectancy — p95', result.ratios?.expectancy?.p95 ?? '');
+    addRow(rows, 'Win Rate — p5', result.ratios?.winRate?.p5 ?? '');
+    addRow(rows, 'Win Rate — p50', result.ratios?.winRate?.p50 ?? '');
+    addRow(rows, 'Win Rate — p95', result.ratios?.winRate?.p95 ?? '');
 
     if (Array.isArray(result.timeToTarget) && result.timeToTarget.length > 0) {
-      rows.push(
-        [],
-        ['Targets']
-      );
-
+      rows.push([], ['Targets']);
       result.timeToTarget.forEach((target) => {
-        addRow(
-          rows,
-          `Target ${target.target} — P(ever touched)`,
-          target.successPct ?? ''
-        );
-
-        addRow(
-          rows,
-          `Target ${target.target} — P(final ≥ target)`,
-          target.finalPct ?? ''
-        );
-
-        addRow(
-          rows,
-          `Target ${target.target} — First Hit p25`,
-          target.p25Trades ?? ''
-        );
-
-        addRow(
-          rows,
-          `Target ${target.target} — First Hit p50`,
-          target.medianTrades ?? ''
-        );
-
-        addRow(
-          rows,
-          `Target ${target.target} — First Hit p75`,
-          target.p75Trades ?? ''
-        );
+        addRow(rows, `Target ${target.target} — P(ever touched)`, target.successPct ?? '');
+        addRow(rows, `Target ${target.target} — P(final ≥ target)`, target.finalPct ?? '');
+        addRow(rows, `Target ${target.target} — First Hit p25`, target.p25Trades ?? '');
+        addRow(rows, `Target ${target.target} — First Hit p50`, target.medianTrades ?? '');
+        addRow(rows, `Target ${target.target} — First Hit p75`, target.p75Trades ?? '');
       });
     }
 
@@ -692,43 +537,25 @@ export default function SimulatorPage() {
       rows.push(
         [],
         ['Permutation Note'],
-        [
-          'Explanation',
-          'Total P&L is invariant across permutation runs; only trade ordering and path shape change.'
-        ]
+        ['Explanation', 'Total P&L is invariant across permutation runs; only trade ordering and path shape change.']
       );
     }
 
     if (result.infinitePfCount != null) {
-      rows.push(
-        [],
-        ['Profit Factor Note'],
-        [
-          'Runs with infinite Profit Factor',
-          result.infinitePfCount
-        ]
-      );
+      rows.push([], ['Profit Factor Note'], ['Runs with infinite Profit Factor', result.infinitePfCount]);
     }
 
-    const csv = rows
-      .map((row) => row.map(csvEscape).join(','))
-      .join('\r\n');
+    const csv = rows.map((row) => row.map(csvEscape).join(',')).join('\r\n');
 
-    const blob = new Blob([csv], {
-      type: 'text/csv;charset=utf-8;',
-    });
-
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
 
     const anchor = document.createElement('a');
     anchor.href = url;
-    anchor.download =
-      `monte-carlo-${result.method}-${result.runs}-seed${result.seed}.csv`;
-
+    anchor.download = `monte-carlo-${result.method}-${result.runs}-seed${result.seed}.csv`;
     document.body.appendChild(anchor);
     anchor.click();
     document.body.removeChild(anchor);
-
     URL.revokeObjectURL(url);
   };
 
@@ -737,19 +564,16 @@ export default function SimulatorPage() {
 
     const fmt = (value) => {
       if (value == null || value === '') return '';
-
       if (typeof value === 'number') {
         if (value === Infinity) return 'Infinity';
         if (value === -Infinity) return '-Infinity';
         return Number.isFinite(value) ? String(value) : '';
       }
-
       return String(value);
     };
 
     const csvEscape = (value) => {
       const text = fmt(value);
-
       if (
         text.includes(',') ||
         text.includes('"') ||
@@ -758,7 +582,6 @@ export default function SimulatorPage() {
       ) {
         return `"${text.replace(/"/g, '""')}"`;
       }
-
       return text;
     };
 
@@ -798,33 +621,23 @@ export default function SimulatorPage() {
         result.sortinos?.[i] ?? '',
         pf,
         result.expectancies?.[i] ?? '',
-        Number.isFinite(result.winRates?.[i])
-          ? result.winRates[i] * 100
-          : '',
+        Number.isFinite(result.winRates?.[i]) ? result.winRates[i] * 100 : '',
         result.longestWins?.[i] ?? '',
         result.longestLosses?.[i] ?? '',
       ]);
     }
 
-    const csv = rows
-      .map((row) => row.map(csvEscape).join(','))
-      .join('\r\n');
+    const csv = rows.map((row) => row.map(csvEscape).join(',')).join('\r\n');
 
-    const blob = new Blob([csv], {
-      type: 'text/csv;charset=utf-8;',
-    });
-
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
 
     const anchor = document.createElement('a');
     anchor.href = url;
-    anchor.download =
-      `monte-carlo-runs-${result.method}-${result.runs}-seed${result.seed}.csv`;
-
+    anchor.download = `monte-carlo-runs-${result.method}-${result.runs}-seed${result.seed}.csv`;
     document.body.appendChild(anchor);
     anchor.click();
     document.body.removeChild(anchor);
-
     URL.revokeObjectURL(url);
   };
 
@@ -838,7 +651,7 @@ export default function SimulatorPage() {
         value={simAccountId}
         onChange={(e) => setSimAccountId(e.target.value)}
       >
-        {state.accounts.map(acc => (
+        {accounts.map((acc) => (
           <option key={acc.id} value={acc.id}>
             {acc.name} ({acc.type})
           </option>
@@ -847,7 +660,11 @@ export default function SimulatorPage() {
     </div>
   );
 
-  if (state.accounts.length === 0) {
+  // ──────────────────────────────────────────────────────────────
+  //  Early returns
+  // ──────────────────────────────────────────────────────────────
+
+  if (accounts.length === 0) {
     return (
       <>
         <style>{SIM_CSS}</style>
@@ -862,7 +679,9 @@ export default function SimulatorPage() {
                 </svg>
               </div>
               <h3>No accounts configured</h3>
-              <p>Create or sync a trading account in the <b>Accounts</b> tab to generate Monte Carlo probabilistic scenarios.</p>
+              <p>
+                Create or sync a trading account in the <b>Accounts</b> tab to generate Monte Carlo probabilistic scenarios.
+              </p>
             </div>
           </div>
         </div>
@@ -916,9 +735,12 @@ export default function SimulatorPage() {
     );
   }
 
-  const badgeClass = simAccount?.type === 'Live'
-    ? 'is-live' : simAccount?.type === 'Demo'
-      ? 'is-demo' : 'is-backtest';
+  const badgeClass =
+    simAccount?.type === 'Live'
+      ? 'is-live'
+      : simAccount?.type === 'Demo'
+        ? 'is-demo'
+        : 'is-backtest';
 
   return (
     <>
@@ -937,8 +759,13 @@ export default function SimulatorPage() {
               <b>{stats.n}</b> executions loaded · Model Mode:{' '}
               <b>{unitMode === 'money' ? 'Net Cash P&L' : 'R-Multiple Shift'}</b>
               {initialCapital > 0 && !isMoney && (
-                <> · Starting Capital: <b>${initialCapital.toLocaleString()}</b>
-                  {dollarsPerR > 0 && <> · 1R ≈ <b>${dollarsPerR.toFixed(2)}</b></>}
+                <>
+                  {' '}· Starting Capital: <b>${initialCapital.toLocaleString()}</b>
+                  {dollarsPerR > 0 && (
+                    <>
+                      {' '}· 1R ≈ <b>${dollarsPerR.toFixed(2)}</b>
+                    </>
+                  )}
                 </>
               )}
             </span>
@@ -947,12 +774,17 @@ export default function SimulatorPage() {
         </div>
 
         <SimulatorControls
-          method={method} setMethod={setMethod}
-          runs={runs} setRuns={setRuns}
+          method={method}
+          setMethod={setMethod}
+          runs={runs}
+          setRuns={setRuns}
           initialCapital={initialCapital}
           setInitialCapital={setInitialCapital}
-          seed={seed} setSeed={setSeed} randomizeSeed={() => setSeed(randomSeed())}
-          blockSize={blockSize} setBlockSize={setBlockSize}
+          seed={seed}
+          setSeed={setSeed}
+          randomizeSeed={() => setSeed(randomSeed())}
+          blockSize={blockSize}
+          setBlockSize={setBlockSize}
           ruinThreshold={ruinThreshold}
           setRuinThreshold={setRuinThreshold}
           setThresholdCustomized={setThresholdCustomized}
@@ -982,11 +814,9 @@ export default function SimulatorPage() {
             }}
           >
             <span style={{ fontSize: 15 }}>⚠</span>
-
             <span>
-              <b>Simulation settings changed.</b>{' '}
-              The results below were generated with an older configuration.
-              Click <b>Run Simulation</b> to update them.
+              <b>Simulation settings changed.</b> The results below were generated
+              with an older configuration. Click <b>Run Simulation</b> to update them.
             </span>
           </div>
         )}

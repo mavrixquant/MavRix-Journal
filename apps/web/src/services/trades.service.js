@@ -1,10 +1,13 @@
 // apps/web/src/services/trades.service.js
+import {
+  useQuery,
+  useMutation,
+  useQueryClient,
+} from '@tanstack/react-query';
 import { apiJson } from './api';
+import { accountsKeys } from './accounts.service';
 
-const POLL_INTERVAL_MS = 5000;
-
-// Local copy of the shared ID generator.
-// Keep in sync with packages/shared/src/tradeId.js.
+// ---------- Local trade ID (kept in sync with @mavrix/shared) ----------
 export function generateTradeId(trade) {
   const { date, entryTime, exitTime, direction, symbol } = trade;
   const parts = [date, entryTime, exitTime, direction || '', symbol || '']
@@ -13,6 +16,13 @@ export function generateTradeId(trade) {
   return parts.join('_');
 }
 
+// ---------- Query keys ----------
+export const tradesKeys = {
+  all: ['trades'],
+  byAccount: (accountId) => ['trades', accountId],
+};
+
+// ---------- Raw API calls ----------
 export async function getTrades(accountId) {
   const data = await apiJson(
     `/api/trades?accountId=${encodeURIComponent(accountId)}`
@@ -75,6 +85,105 @@ export async function renameCustomColumn(accountId, oldName, newName) {
   );
 }
 
+// ---------- Hooks ----------
+
+/**
+ * Trades for a given account.
+ * Pass `null` / `undefined` to disable the query (e.g. no account selected yet).
+ */
+export function useTrades(accountId, { refetchInterval = 10_000 } = {}) {
+  return useQuery({
+    queryKey: tradesKeys.byAccount(accountId),
+    queryFn: () => getTrades(accountId),
+    enabled: !!accountId,
+    refetchInterval: accountId ? refetchInterval : false,
+  });
+}
+
+/** Bulk-import trades. Invalidates the account's trade list on success. */
+export function useBulkCreateTrades() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ accountId, trades }) => createTrades(accountId, trades),
+    onSuccess: (_result, { accountId }) => {
+      qc.invalidateQueries({ queryKey: tradesKeys.byAccount(accountId) });
+    },
+  });
+}
+
+export function useCreateTrade() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ accountId, data }) => createTrade(accountId, data),
+    onSuccess: (_result, { accountId }) => {
+      qc.invalidateQueries({ queryKey: tradesKeys.byAccount(accountId) });
+    },
+  });
+}
+
+export function useUpdateTrade() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ tradeId, data }) => updateTrade(tradeId, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: tradesKeys.all });
+    },
+  });
+}
+
+export function useDeleteTrade() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (tradeId) => deleteTrade(tradeId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: tradesKeys.all });
+    },
+  });
+}
+
+export function useDeleteTradesByAccount() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (accountId) => deleteTradesByAccountId(accountId),
+    onSuccess: (_result, accountId) => {
+      qc.invalidateQueries({ queryKey: tradesKeys.byAccount(accountId) });
+      qc.invalidateQueries({ queryKey: accountsKeys.all });
+    },
+  });
+}
+
+export function useAddCustomColumn() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ accountId, name }) => addCustomColumn(accountId, name),
+    onSuccess: (_r, { accountId }) => {
+      qc.invalidateQueries({ queryKey: tradesKeys.byAccount(accountId) });
+    },
+  });
+}
+
+export function useDeleteCustomColumn() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ accountId, name }) => deleteCustomColumn(accountId, name),
+    onSuccess: (_r, { accountId }) => {
+      qc.invalidateQueries({ queryKey: tradesKeys.byAccount(accountId) });
+    },
+  });
+}
+
+export function useRenameCustomColumn() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ accountId, oldName, newName }) =>
+      renameCustomColumn(accountId, oldName, newName),
+    onSuccess: (_r, { accountId }) => {
+      qc.invalidateQueries({ queryKey: tradesKeys.byAccount(accountId) });
+    },
+  });
+}
+
+// ---------- Deprecated polling helper (kept for compat) ----------
 export function subscribeToTrades(accountId, callback) {
   let cancelled = false;
   let timer = null;
@@ -87,7 +196,7 @@ export function subscribeToTrades(accountId, callback) {
     } catch (err) {
       console.error('[trades] poll error:', err);
     }
-    if (!cancelled) timer = setTimeout(tick, POLL_INTERVAL_MS);
+    if (!cancelled) timer = setTimeout(tick, 10_000);
   };
 
   tick();

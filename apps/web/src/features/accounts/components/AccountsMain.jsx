@@ -22,12 +22,22 @@ import {
   createAccount,
   updateAccount,
   deleteAccount,
-  subscribeToAccounts,
+} from '@/services/accounts.service';
+
+import { useQueries } from '@tanstack/react-query';
+import {
+  useAccounts,
+  createAccount,
+  updateAccount,
+  deleteAccount,
 } from '@/services/accounts.service';
 import {
   getTrades,
   deleteTradesByAccountId,
+  tradesKeys,
 } from '@/services/trades.service';
+import { queryClient } from '@/lib/queryClient';
+
 
 const CURRENCIES = ['USD', 'EUR', 'INR', 'GBP'];
 const ACCOUNT_TYPES = ['Backtest', 'Live', 'Demo'];
@@ -807,8 +817,7 @@ const ACC_CSS = `
 
 export default function AccountsMain() {
   const { user } = useAuth();
-  const [accounts, setAccounts] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { data: accounts = [], isLoading: loading } = useAccounts();
 
   // Filter state defaulting to 'Live'
   const [selectedType, setSelectedType] = useState('Live');
@@ -836,48 +845,26 @@ export default function AccountsMain() {
   const [successAlert, setSuccessAlert] = useState({ show: false, message: '' });
   const [errorAlert, setErrorAlert] = useState({ show: false, message: '' });
 
-  const [pnlMap, setPnlMap] = useState({});
 
-  // Real-time subscription to user's accounts
-  useEffect(() => {
-    if (!user) return;
-
-    setLoading(true);
-    const unsubscribe = subscribeToAccounts(user.uid, (fetchedAccounts) => {
-      setAccounts(fetchedAccounts);
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, [user]);
-
-  useEffect(() => {
-    if (!accounts.length) return;
-    let isMounted = true;
-
-    const fetchPnlForAccounts = async () => {
+  const pnlMap = useQueries({
+    queries: accounts.map((acc) => ({
+      queryKey: tradesKeys.byAccount(acc.id),
+      queryFn: () => getTrades(acc.id),
+      enabled: !!acc.id,
+    })),
+    combine: (results) => {
       const map = {};
-      await Promise.all(
-        accounts.map(async (acc) => {
-          try {
-            const trades = await getTrades(acc.id);
-            const totalPnl = trades.reduce((sum, t) => {
-              const pnl = parseFloat(t.pnl);
-              return sum + (isNaN(pnl) ? 0 : pnl);
-            }, 0);
-            map[acc.id] = { pnl: totalPnl, count: trades.length };
-          } catch (err) {
-            console.error(`Error fetching trades for account ${acc.id}:`, err);
-            map[acc.id] = { pnl: 0, count: 0 };
-          }
-        })
-      );
-      if (isMounted) setPnlMap(map);
-    };
-
-    fetchPnlForAccounts();
-    return () => { isMounted = false; };
-  }, [accounts]);
+      accounts.forEach((acc, i) => {
+        const trades = results[i]?.data || [];
+        const totalPnl = trades.reduce((sum, t) => {
+          const v = parseFloat(t.pnl);
+          return sum + (isNaN(v) ? 0 : v);
+        }, 0);
+        map[acc.id] = { pnl: totalPnl, count: trades.length };
+      });
+      return map;
+    },
+  });
 
   const openCreate = () => {
     setEditingId(null);
@@ -956,6 +943,8 @@ export default function AccountsMain() {
       } else {
         await createAccount(user.uid, accountData);
       }
+      // After either path, force the accounts query to refetch immediately:
+      queryClient.invalidateQueries({ queryKey: ['accounts'] });
       closeModal();
     } catch (error) {
       console.error('Error saving account:', error);
@@ -986,6 +975,8 @@ export default function AccountsMain() {
     try {
       await deleteTradesByAccountId(accountId);
       await deleteAccount(accountId);
+      queryClient.invalidateQueries({ queryKey: ['accounts'] });
+      queryClient.invalidateQueries({ queryKey: ['trades'] });
       setDeleteAlert({ show: false, accountId: null, accountName: '', tradesCount: 0 });
       setSuccessAlert({ show: true, message: `Account "${accountName}" and ${tradesCount} trade(s) deleted successfully.` });
     } catch (error) {

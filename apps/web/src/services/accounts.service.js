@@ -1,7 +1,22 @@
 // apps/web/src/services/accounts.service.js
+import {
+  useQuery,
+  useMutation,
+  useQueryClient,
+} from '@tanstack/react-query';
 import { apiJson } from './api';
 
-const POLL_INTERVAL_MS = 5000;
+// ---------- Query keys ----------
+export const accountsKeys = {
+  all: ['accounts'],
+  detail: (id) => ['accounts', id],
+};
+
+// ---------- Raw API calls (unchanged signatures for compat) ----------
+export async function getAccounts() {
+  const data = await apiJson('/api/accounts');
+  return data.accounts;
+}
 
 export async function createAccount(_userId, accountData) {
   const data = await apiJson('/api/accounts', {
@@ -9,11 +24,6 @@ export async function createAccount(_userId, accountData) {
     body: JSON.stringify(accountData),
   });
   return data.account;
-}
-
-export async function getAccounts(_userId) {
-  const data = await apiJson('/api/accounts');
-  return data.accounts;
 }
 
 export async function updateAccount(accountId, accountData) {
@@ -36,7 +46,67 @@ export async function updateAccountColumnConfigs(accountId, columnConfigs) {
   return data.account;
 }
 
-// Polling-based replacement for Firebase onSnapshot.
+// ---------- Hooks ----------
+
+/** List all accounts for the current user. */
+export function useAccounts({ refetchInterval = 10_000 } = {}) {
+  return useQuery({
+    queryKey: accountsKeys.all,
+    queryFn: getAccounts,
+    refetchInterval,
+  });
+}
+
+/** Create an account. Invalidates the list on success. */
+export function useCreateAccount() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data) => createAccount(null, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: accountsKeys.all });
+    },
+  });
+}
+
+/** Update an account. Invalidates the list and the detail. */
+export function useUpdateAccount() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ accountId, data }) => updateAccount(accountId, data),
+    onSuccess: (_result, { accountId }) => {
+      qc.invalidateQueries({ queryKey: accountsKeys.all });
+      qc.invalidateQueries({ queryKey: accountsKeys.detail(accountId) });
+    },
+  });
+}
+
+/** Delete an account (cascades to its trades on the API). */
+export function useDeleteAccount() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (accountId) => deleteAccount(accountId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: accountsKeys.all });
+      // Any cached trades for a deleted account are now stale.
+      qc.invalidateQueries({ queryKey: ['trades'] });
+    },
+  });
+}
+
+/** Patch the columnConfigs JSON blob on an account. */
+export function useUpdateColumnConfigs() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ accountId, columnConfigs }) =>
+      updateAccountColumnConfigs(accountId, columnConfigs),
+    onSuccess: (_result, { accountId }) => {
+      qc.invalidateQueries({ queryKey: accountsKeys.all });
+      qc.invalidateQueries({ queryKey: accountsKeys.detail(accountId) });
+    },
+  });
+}
+
+// ---------- Deprecated polling helper (kept for compat, do not use) ----------
 export function subscribeToAccounts(_userId, callback) {
   let cancelled = false;
   let timer = null;
@@ -49,7 +119,7 @@ export function subscribeToAccounts(_userId, callback) {
     } catch (err) {
       console.error('[accounts] poll error:', err);
     }
-    if (!cancelled) timer = setTimeout(tick, POLL_INTERVAL_MS);
+    if (!cancelled) timer = setTimeout(tick, 10_000);
   };
 
   tick();

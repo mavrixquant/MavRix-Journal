@@ -1,10 +1,11 @@
 // src/components/dashboard/DashboardHeader.jsx
 import { useState, useEffect } from 'react';
 import { useAppContext } from '@/app/providers/AppProvider';
+import { useMemo } from 'react';   // if not already imported
+import { useAccounts } from '@/services/accounts.service';
+import { useTrades } from '@/services/trades.service';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { useFilters } from '@/features/dashboard/hooks/useFilters';
-import { subscribeToAccounts } from '@/services/accounts.service';
-import { subscribeToTrades } from '@/services/trades.service';
 import { enrichTradesFromDB } from '@/shared/utils/enrichTrades';
 import { FaSlidersH } from 'react-icons/fa';
 
@@ -374,38 +375,41 @@ export default function DashboardHeader({ onCustomize }) {
   // Toolbar expand/collapse — default OPEN (chevron up)
   const [toolbarOpen, setToolbarOpen] = useState(true);
 
+  // ---------- React Query reads ----------
+  const { data: accounts = [] } = useAccounts();
+  const { data: rawTrades = [] } = useTrades(state.selectedAccountId);
+
+  // ---------- Bridge into AppProvider ----------
   useEffect(() => {
     if (!user) {
       dispatch({ type: 'SET_ACCOUNTS', payload: [] });
       dispatch({ type: 'SET_SELECTED_ACCOUNT_ID', payload: null });
       return;
     }
-    const unsubscribe = subscribeToAccounts(user.uid, (accounts) => {
-      dispatch({ type: 'SET_ACCOUNTS', payload: accounts });
-    });
-    return () => unsubscribe();
-  }, [user, dispatch]);
+    dispatch({ type: 'SET_ACCOUNTS', payload: accounts });
+  }, [user, accounts, dispatch]);
+
+  // Auto-select the first account once data arrives
+  useEffect(() => {
+    if (accounts.length > 0 && !state.selectedAccountId) {
+      dispatch({ type: 'SET_SELECTED_ACCOUNT_ID', payload: accounts[0].id });
+    }
+  }, [accounts, state.selectedAccountId, dispatch]);
+
+  // Enrich once per (rawTrades, accountId) pair — no re-run on dispatch
+  const enriched = useMemo(() => {
+    if (!state.selectedAccountId || rawTrades.length === 0) {
+      return { enrichedTrades: [], dynamicKeys: [] };
+    }
+    return enrichTradesFromDB(rawTrades);
+  }, [rawTrades, state.selectedAccountId]);
 
   useEffect(() => {
-    if (state.accounts.length > 0 && !state.selectedAccountId) {
-      dispatch({ type: 'SET_SELECTED_ACCOUNT_ID', payload: state.accounts[0].id });
-    }
-  }, [state.accounts, state.selectedAccountId, dispatch]);
+    dispatch({ type: 'SET_TRADES', payload: enriched.enrichedTrades });
+    dispatch({ type: 'SET_DYNAMIC_FILTER_KEYS', payload: enriched.dynamicKeys });
+  }, [enriched, dispatch]);
 
-  useEffect(() => {
-    if (!state.selectedAccountId) {
-      dispatch({ type: 'SET_TRADES', payload: [] });
-      dispatch({ type: 'SET_DYNAMIC_FILTER_KEYS', payload: [] });
-      return;
-    }
-    const unsubscribe = subscribeToTrades(state.selectedAccountId, (rawTrades) => {
-      const { enrichedTrades, dynamicKeys } = enrichTradesFromDB(rawTrades);
-      dispatch({ type: 'SET_TRADES', payload: enrichedTrades });
-      dispatch({ type: 'SET_DYNAMIC_FILTER_KEYS', payload: dynamicKeys });
-    });
-    return () => unsubscribe();
-  }, [state.selectedAccountId, dispatch]);
-
+  
   const selectedAccount = state.accounts.find((acc) => acc.id === state.selectedAccountId) || null;
   const isBacktest = selectedAccount?.type === 'Backtest';
 
