@@ -1,6 +1,4 @@
 // apps/web/src/features/dashboard/components/panels/panelRegistry.jsx
-import { useNavigate } from 'react-router-dom';
-
 import Hero from './Hero';
 import KPIGrid from './KPIGrid';
 import AdvancedKPIGrid from './AdvancedKPIGrid';
@@ -61,10 +59,9 @@ function Panel({ title, note, children, padding = '14px 16px' }) {
 /* ------------------------------------------------------------------ */
 
 function HeroPanel() {
-  const navigate = useNavigate();
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <Hero onNavigate={(tab) => navigate(`/dashboard/${tab}`)} />
+      <Hero />
     </div>
   );
 }

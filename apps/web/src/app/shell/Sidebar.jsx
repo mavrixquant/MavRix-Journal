@@ -11,7 +11,7 @@ import {
   FaTimes,
   FaThLarge,
   FaCalendarAlt,
-  FaFileAlt,
+  FaChartPie,
   FaChartLine,
   FaClipboardList,
   FaChartBar,
@@ -37,9 +37,9 @@ const SIDEBAR_GROUPS = [
     icon: FaBook,
     items: [
       { to: '/journal',          label: 'Dashboard',         icon: FaThLarge,     end: true },
+      { to: '/journal/analyse',  label: 'Analyse',           icon: FaChartPie },
       { to: '/journal/logs',     label: 'Trade logs',        icon: FaBook },
       { to: '/journal/calendar', label: 'Economic Calendar', icon: FaCalendarAlt },
-      { to: '/journal/reports',  label: 'Reports',           icon: FaFileAlt },
     ],
   },
   {

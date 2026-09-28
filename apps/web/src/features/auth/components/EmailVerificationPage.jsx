@@ -47,7 +47,7 @@ export default function EmailVerification() {
       const updated = await refreshUser();
       if (updated?.emailVerified) {
         setStatus('Email verified. Redirecting…');
-        navigate('/dashboard', { replace: true });
+        navigate('/journal', { replace: true });
       }
     } catch (err) {
       setError(err.message || 'Verification failed');

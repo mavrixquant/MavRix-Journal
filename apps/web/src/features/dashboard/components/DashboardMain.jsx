@@ -445,8 +445,7 @@ export default function DashboardMain({ onNavigate: externalNavigate }) {
   const { stats } = useStats();
   const navigate = useNavigate();
 
-  // Support both an external onNavigate prop (legacy) and the router.
-  const onNavigate = externalNavigate || ((tab) => navigate(`/dashboard/${tab}`));
+  const onNavigate = externalNavigate || ((tab) => navigate(`/journal/${tab}`));
 
   // Committed state (from server)
   const [layouts, setLayouts] = useState([]);

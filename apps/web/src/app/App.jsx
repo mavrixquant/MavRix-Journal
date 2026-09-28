@@ -28,14 +28,14 @@ const ResetPassword = lazy(() =>
 const DashboardMain = lazy(() =>
   import('@/features/dashboard/components/DashboardMain')
 );
+const Analyse = lazy(() =>
+  import('@/features/journal/components/Analyse')
+);
 const JournalMain = lazy(() =>
   import('@/features/journal/components/JournalMain')
 );
 const EconomicCalendar = lazy(() =>
   import('@/features/journal/components/EconomicCalendar')
-);
-const Reports = lazy(() =>
-  import('@/features/journal/components/Reports')
 );
 
 /* ---- Backtester ---- */
@@ -133,9 +133,9 @@ function App() {
           <Route element={protect(<AppLayout />)}>
             {/* ---- Journal ---- */}
             <Route path="/journal" element={<DashboardMain />} />
+            <Route path="/journal/analyse" element={<Analyse />} />
             <Route path="/journal/logs" element={<JournalMain />} />
             <Route path="/journal/calendar" element={<EconomicCalendar />} />
-            <Route path="/journal/reports" element={<Reports />} />
 
             {/* ---- Backtester ---- */}
             <Route path="/backtester" element={<BacktesterDashboard />} />
@@ -152,28 +152,7 @@ function App() {
             <Route path="/personal/chats" element={<Chats />} />
           </Route>
 
-          {/* ---- Legacy redirects (old bookmarks still land correctly) ---- */}
-          <Route
-            path="/dashboard/simulator"
-            element={<Navigate to="/backtester/simulator" replace />}
-          />
-          <Route
-            path="/dashboard/journal"
-            element={<Navigate to="/journal/logs" replace />}
-          />
-          <Route
-            path="/dashboard/accounts"
-            element={<Navigate to="/manage/accounts" replace />}
-          />
-          <Route
-            path="/dashboard"
-            element={<Navigate to="/journal" replace />}
-          />
-          <Route
-            path="/dashboard/*"
-            element={<Navigate to="/journal" replace />}
-          />
-
+          {/* Catch-all — anything unknown lands on root, which re-routes */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>

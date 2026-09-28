@@ -42,7 +42,7 @@ export default function Login() {
     setError('');
     try {
       const user = await login(data);
-      navigate(user.emailVerified ? '/dashboard' : '/verify-email');
+      navigate(user.emailVerified ? '/journal' : '/verify-email');
     } catch (err) {
       setError(err.message || 'Sign in failed. Please try again.');
     }
@@ -54,7 +54,7 @@ export default function Login() {
     try {
       const accessToken = await google.signIn();
       const user = await googleLogin(accessToken);
-      navigate(user.emailVerified ? '/dashboard' : '/verify-email');
+      navigate(user.emailVerified ? '/journal' : '/verify-email');
     } catch (err) {
       setError(err.message || 'Google sign-in failed');
     } finally {

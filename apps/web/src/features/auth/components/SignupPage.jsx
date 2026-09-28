@@ -77,7 +77,7 @@ export default function Signup() {
     try {
       const accessToken = await google.signIn();
       const user = await googleLogin(accessToken);
-      navigate(user.emailVerified ? '/dashboard' : '/verify-email');
+      navigate(user.emailVerified ? '/journal' : '/verify-email');
     } catch (err) {
       setError(err.message || 'Google sign-up failed');
     } finally {
