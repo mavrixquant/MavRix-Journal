@@ -1,0 +1,562 @@
+/* apps/web/src/features/accounts/components/AccountsMain.css
+   Page-level styles. Shared button styles (.acc-btn / .acc-btn-primary /
+   .acc-icon-btn) live here and are reused by AccountFormModal. */
+
+/* ---------- Root ---------- */
+.acc-root {
+  --accent: #F59E0B;
+  --accent-2: #FDE68A;
+  --accent-soft: rgba(245,158,11,.10);
+  --accent-soft2: rgba(245,158,11,.28);
+  --line: rgba(255,255,255,.085);
+  --line-soft: rgba(255,255,255,.05);
+  --ink-1: #E7E9EE;
+  --ink-2: #8892A3;
+  --ink-3: #545E6E;
+  --win: #22c55e;
+  --win-2: #86efac;
+  --loss: #ef4444;
+  --loss-2: #fca5a5;
+
+  padding: 24px;
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  color: var(--ink-1);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---------- Generic glass card ---------- */
+.acc-card {
+  position: relative;
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(15,18,25,.72), rgba(15,18,25,.55));
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  border: 1px solid var(--line);
+  box-shadow:
+    0 20px 50px -30px rgba(0,0,0,.9),
+    inset 0 1px 0 rgba(255,255,255,.03);
+  overflow: hidden;
+}
+
+/* ---------- Header ---------- */
+.acc-header {
+  padding: 18px 22px 16px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+.acc-header::before {
+  content: '';
+  position: absolute;
+  left: 0; right: 0; top: 0; height: 2px;
+  border-radius: 18px 18px 0 0;
+  background: linear-gradient(90deg, transparent, var(--accent), var(--accent-2), var(--accent), transparent);
+  background-size: 200% 100%;
+  animation: accGrad 4s linear infinite;
+  pointer-events: none;
+}
+.acc-header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.acc-title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -.02em;
+  color: var(--ink-1);
+  line-height: 1.1;
+}
+.acc-subtitle {
+  margin: 5px 0 0;
+  font-size: 12.5px;
+  color: var(--ink-2);
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  letter-spacing: .01em;
+}
+.acc-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* ---------- Type tabs (segmented filter) ---------- */
+.acc-type-tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  background: rgba(0,0,0,.32);
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,.06);
+  backdrop-filter: blur(8px);
+}
+.acc-type-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 10px;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+.acc-type-tab {
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 13px;
+  font-size: 11.5px;
+  font-weight: 600;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  letter-spacing: .02em;
+  border-radius: 8px;
+  background: transparent;
+  border: none;
+  color: var(--ink-2);
+  cursor: pointer;
+  transition: all .22s cubic-bezier(.2,.8,.25,1);
+  white-space: nowrap;
+}
+.acc-type-tab:hover {
+  color: var(--ink-1);
+  background: rgba(255,255,255,.04);
+}
+.acc-type-tab.active {
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: #0D1117;
+  box-shadow: 0 8px 20px -10px rgba(245,158,11,.6), inset 0 1px 0 rgba(255,255,255,.4);
+}
+
+/* ---------- Buttons (shared with AccountFormModal) ---------- */
+.acc-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 9px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,.1);
+  background: rgba(255,255,255,.03);
+  color: var(--ink-2);
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: .02em;
+  cursor: pointer;
+  transition: all .22s cubic-bezier(.2,.8,.25,1);
+  white-space: nowrap;
+}
+.acc-btn:hover {
+  color: var(--ink-1);
+  background: rgba(255,255,255,.06);
+  border-color: rgba(255,255,255,.2);
+  transform: translateY(-1px);
+}
+.acc-btn:active { transform: translateY(0) scale(.98); }
+
+.acc-btn-primary {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 10px 18px;
+  border-radius: 10px;
+  border: none;
+  overflow: hidden;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: #0D1117;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: .02em;
+  cursor: pointer;
+  box-shadow:
+    0 10px 30px -8px rgba(245,158,11,.55),
+    inset 0 1px 0 rgba(255,255,255,.4);
+  transition: transform .25s cubic-bezier(.175,.885,.32,1.275), box-shadow .3s;
+  white-space: nowrap;
+}
+.acc-btn-primary::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(105deg, transparent 32%, rgba(255,255,255,.3) 50%, transparent 68%);
+  animation: accShine 4.2s ease-in-out infinite;
+}
+.acc-btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 42px -10px rgba(245,158,11,.7), inset 0 1px 0 rgba(255,255,255,.5);
+}
+.acc-btn-primary:active { transform: translateY(0) scale(.98); }
+
+/* Compact icon-only button for card footers */
+.acc-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,.1);
+  background: rgba(255,255,255,.03);
+  color: var(--ink-2);
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .02em;
+  cursor: pointer;
+  transition: all .18s cubic-bezier(.2,.8,.25,1);
+  white-space: nowrap;
+}
+.acc-icon-btn:hover {
+  color: var(--accent);
+  background: rgba(245,158,11,.08);
+  border-color: var(--accent-soft2);
+  transform: translateY(-1px);
+}
+.acc-icon-btn.is-danger:hover {
+  color: var(--loss-2);
+  background: rgba(239,68,68,.08);
+  border-color: rgba(239,68,68,.4);
+}
+
+/* ---------- KPI summary bar ---------- */
+.acc-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 14px;
+}
+.acc-kpi {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 18px;
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(15,18,25,.72), rgba(15,18,25,.55));
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  border: 1px solid var(--line);
+  box-shadow: 0 20px 50px -30px rgba(0,0,0,.9);
+  transition: border-color .25s, transform .25s;
+}
+.acc-kpi:hover {
+  border-color: var(--accent-soft2);
+  transform: translateY(-1px);
+}
+.acc-kpi-icon {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 17px;
+  background: rgba(255,255,255,.04);
+  border: 1px solid var(--line);
+  color: var(--ink-2);
+}
+.acc-kpi-icon.is-amber {
+  color: var(--accent);
+  background: rgba(245,158,11,.10);
+  border-color: var(--accent-soft2);
+  box-shadow: 0 0 24px -10px rgba(245,158,11,.5);
+}
+.acc-kpi-icon.is-win {
+  color: var(--win);
+  background: rgba(34,197,94,.10);
+  border-color: rgba(34,197,94,.28);
+  box-shadow: 0 0 24px -10px rgba(34,197,94,.5);
+}
+.acc-kpi-icon.is-loss {
+  color: var(--loss);
+  background: rgba(239,68,68,.10);
+  border-color: rgba(239,68,68,.28);
+  box-shadow: 0 0 24px -10px rgba(239,68,68,.5);
+}
+.acc-kpi-label {
+  display: block;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin-bottom: 3px;
+}
+.acc-kpi-value {
+  display: block;
+  font-size: 18px;
+  font-weight: 700;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  color: var(--ink-1);
+  letter-spacing: -.01em;
+  line-height: 1.15;
+}
+.acc-kpi-value.pos { color: var(--win); }
+.acc-kpi-value.neg { color: var(--loss); }
+.acc-kpi-value.zero { color: var(--ink-1); }
+
+/* ---------- Accounts grid ---------- */
+.acc-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 18px;
+}
+
+/* ---------- Account card ---------- */
+.acc-account {
+  padding: 18px 20px 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 14px;
+  transition: border-color .25s ease, transform .25s cubic-bezier(.2,.8,.25,1), box-shadow .25s;
+}
+.acc-account:hover {
+  border-color: var(--accent-soft2);
+  transform: translateY(-2px);
+  box-shadow:
+    0 24px 60px -30px rgba(0,0,0,.95),
+    0 0 40px -18px var(--accent-soft2),
+    inset 0 1px 0 rgba(255,255,255,.04);
+}
+
+.acc-account-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+.acc-name {
+  margin: 0;
+  font-size: 15.5px;
+  font-weight: 700;
+  color: var(--ink-1);
+  letter-spacing: -.01em;
+  line-height: 1.2;
+}
+.acc-base {
+  display: block;
+  margin-top: 3px;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 10.5px;
+  color: var(--ink-3);
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.acc-badge {
+  flex-shrink: 0;
+  padding: 3px 10px;
+  border-radius: 99px;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  border: 1px solid;
+  white-space: nowrap;
+}
+.acc-badge.is-live {
+  color: #4ade80;
+  background: rgba(74,222,128,.10);
+  border-color: rgba(74,222,128,.35);
+}
+.acc-badge.is-demo {
+  color: var(--accent);
+  background: rgba(245,158,11,.10);
+  border-color: var(--accent-soft2);
+}
+.acc-badge.is-backtest {
+  color: #60a5fa;
+  background: rgba(96,165,250,.10);
+  border-color: rgba(96,165,250,.32);
+}
+
+/* ---------- Metric bar (Starting Capital | Total P&L) ---------- */
+.acc-metric-bar {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(0,0,0,.22);
+  border: 1px solid var(--line-soft);
+}
+.acc-metric {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.acc-metric.right { text-align: right; }
+.acc-metric-label {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.acc-metric-value {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink-1);
+  letter-spacing: -.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.acc-metric-value.pos { color: var(--win); }
+.acc-metric-value.neg { color: var(--loss); }
+.acc-metric-value.dim { color: var(--ink-2); font-weight: 600; }
+
+/* ---------- Settings list ---------- */
+.acc-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.acc-setting {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+}
+.acc-setting-icon {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(245,158,11,.08);
+  border: 1px solid var(--accent-soft2);
+  color: var(--accent);
+  font-size: 11px;
+  margin-top: 1px;
+}
+.acc-setting-text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.acc-setting-label {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.acc-setting-value {
+  font-size: 12.5px;
+  color: var(--ink-1);
+  font-weight: 500;
+  word-break: break-word;
+}
+.acc-setting-value .dim { color: var(--ink-3); font-weight: 400; }
+
+/* ---------- Account footer ---------- */
+.acc-account-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 12px;
+  border-top: 1px solid var(--line-soft);
+  gap: 10px;
+}
+.acc-trades-count {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 11.5px;
+  color: var(--ink-2);
+  letter-spacing: .02em;
+}
+.acc-account-actions {
+  display: flex;
+  gap: 6px;
+}
+
+/* ---------- Empty state ---------- */
+.acc-empty {
+  padding: 60px 24px;
+  text-align: center;
+  border: 1px dashed rgba(255,255,255,.10);
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,.005));
+}
+.acc-empty-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(245,158,11,.14), rgba(245,158,11,.04));
+  border: 1px solid var(--accent-soft2);
+  color: var(--accent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  margin-bottom: 16px;
+  box-shadow: 0 0 30px -10px rgba(245,158,11,.55);
+}
+.acc-empty h3 {
+  margin: 0 0 6px;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--ink-1);
+  letter-spacing: -.01em;
+}
+.acc-empty p {
+  margin: 0 auto;
+  max-width: 360px;
+  font-size: 12.5px;
+  line-height: 1.65;
+  color: var(--ink-2);
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+}
+.acc-empty-btn {
+  margin-top: 20px;
+}
+
+/* ---------- Animations ---------- */
+@keyframes accGrad {
+  0%   { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+@keyframes accShine {
+  0%,100% { transform: translateX(-130%) skewX(-18deg); }
+  55%     { transform: translateX(230%) skewX(-18deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .acc-header::before,
+  .acc-btn-primary::after { animation: none !important; }
+  .acc-btn, .acc-btn-primary, .acc-icon-btn, .acc-kpi, .acc-account { transition: none !important; }
+}
+
+@media (max-width: 640px) {
+  .acc-root { padding: 16px; }
+  .acc-header { padding: 16px 18px; }
+}

@@ -1,0 +1,215 @@
+/* apps/web/src/features/accounts/components/AccountFormModal.css
+   Modal-specific styles. Reuses .acc-btn and .acc-btn-primary from
+   AccountsMain.css (both files are loaded whenever the modal is shown). */
+
+.acc-overlay {
+  --accent: #F59E0B;
+  --accent-2: #FDE68A;
+  --accent-soft: rgba(245,158,11,.10);
+  --accent-soft2: rgba(245,158,11,.28);
+  --line: rgba(255,255,255,.085);
+  --line-soft: rgba(255,255,255,.05);
+  --ink-1: #E7E9EE;
+  --ink-2: #8892A3;
+  --ink-3: #545E6E;
+  --win: #22c55e;
+  --loss: #ef4444;
+
+  position: fixed;
+  inset: 0;
+  background: rgba(4,6,9,.72);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+  overflow-y: auto;
+  animation: accFade .18s ease;
+}
+.acc-modal {
+  width: 100%;
+  max-width: 520px;
+  max-height: calc(100vh - 32px);
+  margin: auto;
+  background: linear-gradient(180deg, #12161F, #0C1017);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  box-shadow: 0 40px 100px -30px rgba(0,0,0,.95), 0 0 0 1px var(--accent-soft);
+  color: var(--ink-1);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: accModalIn .28s cubic-bezier(.2,.8,.25,1);
+}
+.acc-modal-head {
+  padding: 18px 22px 14px;
+  border-bottom: 1px solid var(--line-soft);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: relative;
+  flex-shrink: 0;
+}
+.acc-modal-head::before {
+  content: '';
+  position: absolute;
+  left: 0; right: 0; top: 0; height: 2px;
+  background: linear-gradient(90deg, transparent, var(--accent), var(--accent-2), var(--accent), transparent);
+  background-size: 200% 100%;
+  animation: accGrad 4s linear infinite;
+}
+.acc-modal-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -.01em;
+}
+.acc-modal-sub {
+  margin: 4px 0 0;
+  font-size: 11.5px;
+  color: var(--ink-2);
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+}
+.acc-modal-close {
+  background: none;
+  border: none;
+  color: var(--ink-2);
+  font-size: 15px;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 8px;
+  transition: all .2s;
+}
+.acc-modal-close:hover {
+  color: var(--accent);
+  background: rgba(245,158,11,.08);
+}
+.acc-modal-body {
+  padding: 20px 22px;
+  overflow-y: auto;
+  flex: 1 1 0%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.acc-modal-foot {
+  padding: 14px 22px;
+  border-top: 1px solid var(--line-soft);
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  background: rgba(0,0,0,.15);
+  flex-shrink: 0;
+}
+
+/* ---------- Form fields ---------- */
+.acc-label {
+  display: block;
+  margin-bottom: 6px;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.acc-input {
+  width: 100%;
+  padding: 9px 12px;
+  background: rgba(10,13,19,.6);
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 10px;
+  color: var(--ink-1);
+  font-size: 13px;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  outline: none;
+  box-sizing: border-box;
+  transition: all .2s;
+}
+.acc-input::placeholder { color: var(--ink-3); }
+.acc-input:hover { border-color: rgba(255,255,255,.2); }
+.acc-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(245,158,11,.15);
+}
+select.acc-input {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 20 20' fill='%23545E6E'><path d='M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 32px;
+  cursor: pointer;
+}
+
+.acc-input-wrap {
+  position: relative;
+}
+.acc-input-suffix {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 11px;
+  color: var(--ink-3);
+  pointer-events: none;
+}
+.acc-input.has-suffix { padding-right: 30px; }
+
+.acc-field-group {
+  padding: 14px;
+  background: rgba(255,255,255,.02);
+  border: 1px solid var(--line-soft);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.acc-field-group-title {
+  display: block;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 2px;
+}
+.acc-hint {
+  margin: 0;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 10.5px;
+  line-height: 1.6;
+  color: var(--ink-2);
+  letter-spacing: .01em;
+}
+.acc-hint b { color: var(--ink-1); font-weight: 700; }
+
+.acc-grid-3 {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr 1.2fr;
+  gap: 12px;
+}
+.acc-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+/* ---------- Animations ---------- */
+@keyframes accFade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes accModalIn {
+  from { opacity: 0; transform: translateY(-12px) scale(.97); }
+  to   { opacity: 1; transform: none; }
+}
+
+@media (max-width: 640px) {
+  .acc-grid-3 { grid-template-columns: 1fr; }
+}
