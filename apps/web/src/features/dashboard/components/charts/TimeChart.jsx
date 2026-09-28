@@ -9,7 +9,7 @@ import {
   baseCategoryAxis,
   baseLegend,
   baseAnimation,
-} from '@/lib/chartTheme';
+} from '@/shared/charts/theme';
 import { ChartExportButton } from '@/components/ui/chart-export';
 
 function useResponsiveBarConfig() {

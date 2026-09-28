@@ -10,7 +10,7 @@ import {
   baseCategoryAxis,
   baseLegend,
   baseAnimation,
-} from '@/lib/chartTheme';
+} from '@/shared/charts/theme';
 import { ChartExportButton } from '@/components/ui/chart-export';
 
 const RR_LEVELS = [1, 2, 3, 4, 5, 6, 7, 8];

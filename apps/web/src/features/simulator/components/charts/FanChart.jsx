@@ -1,7 +1,7 @@
 // apps/web/src/features/simulator/components/charts/FanChart.jsx
 import { useMemo, useRef } from 'react';
 import { Line } from 'react-chartjs-2';
-import { chartColors, chartFonts } from '@/lib/chartTheme';
+import { chartColors, chartFonts } from '@/shared/charts/theme';
 import { ChartExportButton } from '@/components/ui/chart-export';
 
 const COLORS = {
@@ -145,7 +145,7 @@ export default function FanChart({
   showZeroLine = true,
 
   // Only meaningful for drawdown mode.
-  showThresholdLine = true, 
+  showThresholdLine = true,
 
   showSampled = true,
 }) {

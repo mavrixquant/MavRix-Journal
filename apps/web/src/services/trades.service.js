@@ -6,7 +6,7 @@ import {
 } from '@tanstack/react-query';
 import { apiJson } from './api';
 import { accountsKeys } from './accounts.service';
-import { useSSEFallback } from '@/lib/sse';
+import { useSSEFallback } from '@/shared/api/sse';
 
 // ---------- Local trade ID (kept in sync with @mavrix/shared) ----------
 export function generateTradeId(trade) {

@@ -5,7 +5,7 @@ import {
   useQueryClient,
 } from '@tanstack/react-query';
 import { apiJson } from './api';
-import { useSSEFallback } from '@/lib/sse';
+import { useSSEFallback } from '@/shared/api/sse';
 
 // ---------- Query keys ----------
 export const accountsKeys = {

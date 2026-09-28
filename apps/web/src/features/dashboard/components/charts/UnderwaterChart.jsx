@@ -8,7 +8,7 @@ import {
   baseAxis,
   decimationConfig,
   baseAnimation,
-} from '@/lib/chartTheme';
+} from '@/shared/charts/theme';
 import { ChartExportButton } from '@/components/ui/chart-export';
 
 export default function UnderwaterChart() {

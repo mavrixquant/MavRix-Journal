@@ -1,9 +1,9 @@
-// src/components/dashboard/sections/WeeklyCards.jsx
+// apps/web/src/features/dashboard/components/panels/WeeklyChart.jsx
 import { useMemo } from 'react';
 import { useStats } from '@/features/dashboard/hooks/useStats';
 import { getWeekStart } from '@/shared/utils/timeHelpers';
 
-import { chartColors as COLORS } from '@/lib/chartTheme';
+import { chartColors as COLORS } from '@/shared/charts/theme';
 
 const formatR = (v) => (v >= 0 ? '+' : '') + v.toFixed(2) + 'R';
 const formatMoney = (v) => {

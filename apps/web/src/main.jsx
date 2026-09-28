@@ -9,13 +9,13 @@ import ErrorBoundary from '@/app/ErrorBoundary';
 import { AuthProvider, useAuth } from '@/app/providers/AuthProvider';
 import { AppProvider } from '@/app/providers/AppProvider';
 import { Toaster } from '@/components/ui/sonner';
-import { queryClient } from '@/lib/queryClient';
+import { queryClient } from '@/shared/api/queryClient';
 
 import '@/styles/global.css';
 import '@fontsource/space-grotesk';
 import '@fontsource/inter';
 import '@fontsource/ibm-plex-mono';
-import '@/shared/utils/chartConfig';
+import '@/shared/charts/register';
 
 function AppShell() {
   const { user } = useAuth();

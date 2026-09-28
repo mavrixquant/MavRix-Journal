@@ -13,8 +13,8 @@ import AccountModal from '@/features/auth/components/AccountModal';
 import { PageSkeleton } from '@/components/ui/page-skeleton';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
-import { useHotkey } from '@/lib/useHotkey';
-import { useSSEBridge } from '@/lib/sse';
+import { useHotkey } from '@/shared/hooks/useHotkey';
+import { useSSEBridge } from '@/shared/api/sse';
 
 const STORAGE_KEY = 'mavrix:sidebar:collapsed';
 
