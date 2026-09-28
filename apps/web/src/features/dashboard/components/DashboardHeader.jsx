@@ -6,6 +6,7 @@ import { useAccounts } from '@/services/accounts.service';
 import { useTrades } from '@/services/trades.service';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { useFilters } from '@/features/dashboard/hooks/useFilters';
+import { useFilterUrlSync } from '@/features/dashboard/hooks/useFilterUrlSync';
 import { enrichTradesFromDB } from '@/shared/utils/enrichTrades';
 import { FaSlidersH } from 'react-icons/fa';
 
@@ -367,6 +368,8 @@ export default function DashboardHeader({ onCustomize }) {
   const { state, dispatch } = useAppContext();
   const { user } = useAuth();
   const { resetAllFilters } = useFilters();
+  // Mirror filter state to the URL for shareable / back-button support.
+  useFilterUrlSync();
 
   const [showSessionModal, setShowSessionModal] = useState(false);
   const [showLimitsModal, setShowLimitsModal] = useState(false);

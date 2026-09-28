@@ -1,321 +1,345 @@
-// src/components/filters/DynamicFilters.jsx
-import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+// apps/web/src/features/dashboard/components/filters/DynamicFilters.jsx
+import { useMemo, useCallback, useEffect } from 'react';
+import { ChevronDown, Check, X } from 'lucide-react';
+import { Command } from 'cmdk';
+
 import { useAppContext } from '@/app/providers/AppProvider';
 import { useFilters } from '@/features/dashboard/hooks/useFilters';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 
+/* ------------------------------------------------------------------ */
+/*  Scoped styles for cmdk + popover                                  */
+/* ------------------------------------------------------------------ */
+const CSS = `
+  .dyn-filter-bar {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+    font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  }
+
+  .dyn-filter-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 34px;
+    padding: 0 12px;
+    border-radius: 8px;
+    border: 1px solid #212836;
+    background: #161B26;
+    color: #C5C9D3;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all .15s ease;
+  }
+  .dyn-filter-trigger:hover {
+    border-color: #3A4456;
+    background: #1A2029;
+  }
+  .dyn-filter-trigger.has-selection {
+    background: rgba(255, 176, 32, 0.08);
+    border-color: #FFB020;
+    color: #FFFFFF;
+  }
+  .dyn-filter-trigger[data-state="open"] {
+    border-color: #3A4456;
+  }
+
+  .dyn-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 6px;
+    border-radius: 9px;
+    background: #FFB020;
+    color: #0D1117;
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 10px;
+    font-weight: 700;
+  }
+
+  .dyn-label {
+    font-size: 11px;
+    color: #545E6E;
+    font-weight: 400;
+  }
+  .dyn-filter-trigger.has-selection .dyn-label {
+    color: rgba(255, 255, 255, 0.55);
+  }
+
+  .dyn-pop {
+    width: 260px;
+    padding: 0;
+    background: #11151F !important;
+    border: 1px solid #212836 !important;
+    border-radius: 10px !important;
+    box-shadow: 0 16px 40px -12px rgba(0, 0, 0, 0.7) !important;
+    overflow: hidden;
+  }
+
+  .dyn-cmd {
+    display: flex;
+    flex-direction: column;
+    background: transparent;
+  }
+
+  .dyn-cmd-input-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    border-bottom: 1px solid #1A2029;
+  }
+  .dyn-cmd-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: #E7E9EE;
+    font-size: 12.5px;
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  }
+  .dyn-cmd-input::placeholder {
+    color: #545E6E;
+  }
+
+  .dyn-cmd-list {
+    max-height: 240px;
+    overflow-y: auto;
+    padding: 6px;
+  }
+  .dyn-cmd-empty {
+    padding: 16px 12px;
+    text-align: center;
+    color: #545E6E;
+    font-size: 11.5px;
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  }
+
+  .dyn-cmd-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 7px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    color: #C5C9D3;
+    font-size: 12px;
+    transition: background-color .12s ease;
+  }
+  .dyn-cmd-item[data-selected="true"] {
+    background: rgba(255, 176, 32, 0.06);
+    color: #FFFFFF;
+    font-weight: 500;
+  }
+  .dyn-cmd-item[data-selected="true"] .dyn-cmd-item-check {
+    opacity: 1;
+    color: #FFB020;
+  }
+  .dyn-cmd-item[data-selected="false"] .dyn-cmd-item-check {
+    opacity: 0;
+  }
+
+  .dyn-cmd-item[data-selected="true"]:hover,
+  .dyn-cmd-item[data-selected="false"]:hover {
+    background: #161B26;
+  }
+
+  .dyn-cmd-item-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+  }
+
+  .dyn-cmd-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    border-top: 1px solid #1A2029;
+    background: rgba(0, 0, 0, 0.15);
+  }
+  .dyn-cmd-foot-btn {
+    background: none;
+    border: none;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    cursor: pointer;
+    padding: 3px 6px;
+    border-radius: 4px;
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  }
+  .dyn-cmd-foot-btn.all {
+    color: #FFB020;
+  }
+  .dyn-cmd-foot-btn.all:hover {
+    background: rgba(255, 176, 32, 0.10);
+  }
+  .dyn-cmd-foot-btn.clear {
+    color: #545E6E;
+  }
+  .dyn-cmd-foot-btn.clear:hover {
+    color: #8892A3;
+    background: rgba(255, 255, 255, 0.04);
+  }
+`;
+
+/* ------------------------------------------------------------------ */
+/*  Main                                                                */
+/* ------------------------------------------------------------------ */
 export default function DynamicFilters() {
   const { state } = useAppContext();
   const { setFilterSelection } = useFilters();
-  const [openPanelKey, setOpenPanelKey] = useState(null);
-  const panelRefs = useRef({});
 
-  // Compute unique values for a given dynamic key
+  // Compute options for a key
   const getOptions = useCallback(
     (key) => {
-      const values = [...new Set(state.trades.map((t) => t.dynamic?.[key]))]
-        .filter((v) => v && v !== '—')
-        .sort();
-      return values;
+      const set = new Set();
+      state.trades.forEach((t) => {
+        const v = t.dynamic?.[key];
+        if (v && v !== '—') set.add(v);
+      });
+      return [...set].sort();
     },
     [state.trades]
   );
 
-  // Compute the number of unique values for each key
-  const uniqueCounts = useMemo(() => {
-    const counts = {};
-    state.dynamicFilterKeys.forEach((key) => {
-      counts[key] = new Set(state.trades.map((t) => t.dynamic?.[key])).size;
+  // Eligible keys: 2 ≤ uniqueValues ≤ 9
+  const eligibleKeys = useMemo(() => {
+    return state.dynamicFilterKeys.filter((key) => {
+      const set = new Set();
+      state.trades.forEach((t) => {
+        const v = t.dynamic?.[key];
+        if (v) set.add(v);
+      });
+      return set.size > 1 && set.size < 10;
     });
-    return counts;
   }, [state.dynamicFilterKeys, state.trades]);
 
-  // Filter keys to only those with more than 1 and less than 10 unique values
-  const eligibleKeys = useMemo(() => {
-    return state.dynamicFilterKeys.filter(
-      (key) => uniqueCounts[key] > 1 && uniqueCounts[key] < 10
-    );
-  }, [state.dynamicFilterKeys, uniqueCounts]);
-
-  // Clear selections for keys that are no longer eligible
+  // Clear selections for keys that dropped out
   useEffect(() => {
     const invalidKeys = Object.keys(state.filterSelections).filter(
       (key) => !eligibleKeys.includes(key)
     );
-    if (invalidKeys.length > 0) {
-      invalidKeys.forEach((key) => {
-        setFilterSelection(key, []);
-      });
-    }
-  }, [eligibleKeys, state.filterSelections, setFilterSelection]);
-
-  const togglePanel = (key) => {
-    setOpenPanelKey((prev) => (prev === key ? null : key));
-  };
-
-  // Close panel when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (openPanelKey !== null) {
-        const panel = panelRefs.current[openPanelKey];
-        if (panel && !panel.contains(e.target)) {
-          setOpenPanelKey(null);
-        }
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [openPanelKey]);
-
-  const handleCheckboxChange = (key, value, checked) => {
-    const currentSelections = state.filterSelections[key] || [];
-    let newSelections;
-    if (checked) {
-      newSelections = [...currentSelections, value];
-    } else {
-      newSelections = currentSelections.filter((v) => v !== value);
-    }
-    setFilterSelection(key, newSelections);
-  };
-
-  const selectAll = (key, options) => {
-    setFilterSelection(key, [...options]);
-  };
-
-  const clearAll = (key) => {
-    setFilterSelection(key, []);
-  };
+    invalidKeys.forEach((key) => setFilterSelection(key, []));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [eligibleKeys]);
 
   if (eligibleKeys.length === 0) return null;
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        gap: '8px',
-        flexWrap: 'wrap',
-        alignItems: 'center',
-        fontFamily: "'Inter', sans-serif",
-      }}
-    >
-      {eligibleKeys.map((key) => {
-        const options = getOptions(key);
-        const selected = state.filterSelections[key] || [];
-        const isOpen = openPanelKey === key;
-        const hasSelection = selected.length > 0;
-
-        return (
-          <div
+    <>
+      <style>{CSS}</style>
+      <div className="dyn-filter-bar">
+        {eligibleKeys.map((key) => (
+          <FilterPopover
             key={key}
-            ref={(el) => (panelRefs.current[key] = el)}
-            style={{ position: 'relative', display: 'inline-block' }}
-          >
-            {/* Filter Trigger Button */}
+            filterKey={key}
+            options={getOptions(key)}
+            selected={state.filterSelections[key] || []}
+            onChange={(values) => setFilterSelection(key, values)}
+          />
+        ))}
+      </div>
+    </>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Single filter popover                                              */
+/* ------------------------------------------------------------------ */
+function FilterPopover({ filterKey, options, selected, onChange }) {
+  const hasSelection = selected.length > 0;
+
+  const toggleValue = (value) => {
+    if (selected.includes(value)) {
+      onChange(selected.filter((v) => v !== value));
+    } else {
+      onChange([...selected, value]);
+    }
+  };
+
+  const selectAll = () => onChange([...options]);
+  const clearAll = () => onChange([]);
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className={`dyn-filter-trigger ${hasSelection ? 'has-selection' : ''}`}
+        >
+          <span>{filterKey}</span>
+          {hasSelection ? (
+            <span className="dyn-badge">{selected.length}</span>
+          ) : (
+            <span className="dyn-label">All</span>
+          )}
+          <ChevronDown size={12} />
+        </button>
+      </PopoverTrigger>
+
+      <PopoverContent align="start" sideOffset={6} className="dyn-pop">
+        <Command className="dyn-cmd">
+          <div className="dyn-cmd-input-wrap">
+            <Command.Input
+              placeholder={`Search ${filterKey}…`}
+              className="dyn-cmd-input"
+            />
+          </div>
+
+          <Command.List className="dyn-cmd-list">
+            <Command.Empty className="dyn-cmd-empty">
+              No matches.
+            </Command.Empty>
+
+            {options.map((opt) => {
+              const isSelected = selected.includes(opt);
+              return (
+                <Command.Item
+                  key={opt}
+                  value={opt}
+                  onSelect={() => toggleValue(opt)}
+                  data-selected={String(isSelected)}
+                  className="dyn-cmd-item"
+                >
+                  <span className="dyn-cmd-item-label">{opt}</span>
+                  <Check size={14} className="dyn-cmd-item-check" />
+                </Command.Item>
+              );
+            })}
+          </Command.List>
+
+          <div className="dyn-cmd-foot">
             <button
               type="button"
-              onClick={() => togglePanel(key)}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '8px',
-                height: '34px',
-                padding: '0 12px',
-                backgroundColor: hasSelection ? 'rgba(255, 176, 32, 0.08)' : '#161B26',
-                border: `1px solid ${hasSelection ? '#FFB020' : isOpen ? '#3A4456' : '#212836'}`,
-                borderRadius: '8px',
-                color: hasSelection ? '#FFFFFF' : '#C5C9D3',
-                fontSize: '12px',
-                fontWeight: '500',
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-                outline: 'none',
-              }}
+              className="dyn-cmd-foot-btn all"
+              onClick={selectAll}
             >
-              <span>{key}</span>
-
-              {/* Badge or Selection Indicator */}
-              {hasSelection ? (
-                <span
-                  style={{
-                    backgroundColor: '#FFB020',
-                    color: '#0D1117',
-                    fontSize: '10px',
-                    fontWeight: '700',
-                    borderRadius: '10px',
-                    padding: '1px 6px',
-                    fontFamily: "'IBM Plex Mono', monospace",
-                  }}
-                >
-                  {selected.length}
-                </span>
-              ) : (
-                <span
-                  style={{
-                    fontSize: '11px',
-                    color: '#545E6E',
-                    fontWeight: '400',
-                  }}
-                >
-                  All
-                </span>
-              )}
-
-              {/* Chevron Icon */}
-              <svg
-                width="12"
-                height="12"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke={hasSelection ? '#FFB020' : '#8892A3'}
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                style={{
-                  transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
-                  transition: 'transform 0.2s ease',
-                }}
-              >
-                <polyline points="6 9 12 15 18 9" />
-              </svg>
+              All
             </button>
-
-            {/* Dropdown Panel */}
-            {isOpen && (
-              <div
-                style={{
-                  position: 'absolute',
-                  top: 'calc(100% + 6px)',
-                  left: 0,
-                  zIndex: 99,
-                  minWidth: '200px',
-                  maxWidth: '280px',
-                  backgroundColor: '#11151F',
-                  border: '1px solid #212836',
-                  borderRadius: '10px',
-                  boxShadow: '0 12px 28px -6px rgba(0, 0, 0, 0.65)',
-                  padding: '10px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '6px',
-                }}
-              >
-                {/* Header with Quick Actions */}
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    paddingBottom: '8px',
-                    borderBottom: '1px solid #1A2029',
-                  }}
-                >
-                  <span style={{ fontSize: '11px', fontWeight: '600', color: '#8892A3' }}>
-                    {key} Options
-                  </span>
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <button
-                      type="button"
-                      onClick={() => selectAll(key, options)}
-                      style={{
-                        background: 'none',
-                        border: 'none',
-                        color: '#FFB020',
-                        fontSize: '10px',
-                        fontWeight: '600',
-                        cursor: 'pointer',
-                        padding: 0,
-                      }}
-                    >
-                      All
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => clearAll(key)}
-                      style={{
-                        background: 'none',
-                        border: 'none',
-                        color: '#545E6E',
-                        fontSize: '10px',
-                        fontWeight: '600',
-                        cursor: 'pointer',
-                        padding: 0,
-                      }}
-                      onMouseEnter={(e) => (e.currentTarget.style.color = '#8892A3')}
-                      onMouseLeave={(e) => (e.currentTarget.style.color = '#545E6E')}
-                    >
-                      Reset
-                    </button>
-                  </div>
-                </div>
-
-                {/* Options List */}
-                <div
-                  style={{
-                    maxHeight: '200px',
-                    overflowY: 'auto',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '2px',
-                    paddingRight: '2px',
-                  }}
-                >
-                  {options.length === 0 ? (
-                    <div style={{ fontSize: '11px', color: '#545E6E', padding: '8px', textAlign: 'center' }}>
-                      No options available
-                    </div>
-                  ) : (
-                    options.map((val) => {
-                      const isChecked = selected.includes(val);
-                      return (
-                        <label
-                          key={val}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            padding: '6px 8px',
-                            borderRadius: '6px',
-                            backgroundColor: isChecked ? 'rgba(255, 176, 32, 0.06)' : 'transparent',
-                            cursor: 'pointer',
-                            transition: 'background-color 0.12s ease',
-                          }}
-                          onMouseEnter={(e) => {
-                            if (!isChecked) e.currentTarget.style.backgroundColor = '#161B26';
-                          }}
-                          onMouseLeave={(e) => {
-                            if (!isChecked) e.currentTarget.style.backgroundColor = 'transparent';
-                          }}
-                        >
-                          <span
-                            style={{
-                              fontSize: '12px',
-                              color: isChecked ? '#FFFFFF' : '#C5C9D3',
-                              fontWeight: isChecked ? '500' : '400',
-                            }}
-                          >
-                            {val}
-                          </span>
-                          <input
-                            type="checkbox"
-                            checked={isChecked}
-                            onChange={(e) => handleCheckboxChange(key, val, e.target.checked)}
-                            style={{
-                              accentColor: '#FFB020',
-                              cursor: 'pointer',
-                              width: '14px',
-                              height: '14px',
-                              margin: 0,
-                            }}
-                          />
-                        </label>
-                      );
-                    })
-                  )}
-                </div>
-              </div>
-            )}
+            <button
+              type="button"
+              className="dyn-cmd-foot-btn clear"
+              onClick={clearAll}
+            >
+              Reset
+            </button>
           </div>
-        );
-      })}
-    </div>
+        </Command>
+      </PopoverContent>
+    </Popover>
   );
 }
