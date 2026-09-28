@@ -1,13 +1,14 @@
-﻿import { prisma } from '../lib/prisma.js';
+﻿// apps/api/src/services/trades.service.js
+import { prisma } from '../lib/prisma.js';
 import { HttpError } from '../middleware/error.js';
 import { generateTradeId } from '@mavrix/shared';
+import { broadcastToUser } from '../lib/broadcaster.js';
 
 const RESERVED = new Set([
   'date', 'entryTime', 'exitTime', 'direction', 'symbol',
   'mae', 'mfe', 'pnl', 'slPoints', 'contracts', 'notes',
 ]);
 
-// Split an input payload into { reserved, dynamic }
 function splitTradePayload(payload) {
   const reserved = {};
   const dynamic = {};
@@ -39,6 +40,9 @@ function serialize(t) {
     updatedAt: t.updatedAt,
   };
 }
+
+const notify = (userId, keys) =>
+  broadcastToUser(userId, 'invalidate', { keys });
 
 async function assertAccountOwnership(userId, accountId) {
   const account = await prisma.account.findFirst({
@@ -83,6 +87,7 @@ export async function createTrade(userId, payload) {
     const t = await prisma.trade.create({
       data: { accountId, tradeId, ...reserved, dynamic },
     });
+    notify(userId, [['trades', accountId]]);
     return serialize(t);
   } catch (err) {
     if (err.code === 'P2002') {
@@ -105,7 +110,6 @@ export async function bulkCreateTrades(userId, { accountId, trades, columnConfig
     };
   });
 
-  // Detect duplicates within the batch
   const seen = new Set();
   for (const p of prepared) {
     if (seen.has(p.tradeId)) {
@@ -114,7 +118,6 @@ export async function bulkCreateTrades(userId, { accountId, trades, columnConfig
     seen.add(p.tradeId);
   }
 
-  // Detect duplicates already in the DB
   const existing = await prisma.trade.findMany({
     where: { accountId, tradeId: { in: prepared.map((p) => p.tradeId) } },
     select: { tradeId: true },
@@ -133,6 +136,8 @@ export async function bulkCreateTrades(userId, { accountId, trades, columnConfig
     }
   });
 
+  // Trade list changed AND the account's columnConfigs may have changed.
+  notify(userId, [['trades', accountId], ['accounts']]);
   return { created: prepared.length };
 }
 
@@ -154,12 +159,9 @@ export async function updateTrade(userId, id, payload) {
   try {
     const t = await prisma.trade.update({
       where: { id },
-      data: {
-        ...reserved,
-        tradeId,
-        dynamic: nextDynamic,
-      },
+      data: { ...reserved, tradeId, dynamic: nextDynamic },
     });
+    notify(userId, [['trades', existing.accountId]]);
     return serialize(t);
   } catch (err) {
     if (err.code === 'P2002') {
@@ -170,14 +172,17 @@ export async function updateTrade(userId, id, payload) {
 }
 
 export async function deleteTrade(userId, id) {
-  await assertTradeOwnership(userId, id);
+  const existing = await assertTradeOwnership(userId, id);
+  const accountId = existing.accountId;
   await prisma.trade.delete({ where: { id } });
+  notify(userId, [['trades', accountId]]);
   return { ok: true };
 }
 
 export async function deleteTradesByAccount(userId, accountId) {
   await assertAccountOwnership(userId, accountId);
   const res = await prisma.trade.deleteMany({ where: { accountId } });
+  notify(userId, [['trades', accountId]]);
   return { deleted: res.count };
 }
 
@@ -200,6 +205,7 @@ export async function addCustomColumn(userId, accountId, columnName) {
       })
     )
   );
+  notify(userId, [['trades', accountId]]);
   return { updated: trades.length };
 }
 
@@ -219,6 +225,7 @@ export async function deleteCustomColumn(userId, accountId, columnName) {
       });
     })
   );
+  notify(userId, [['trades', accountId]]);
   return { updated: trades.length };
 }
 
@@ -244,5 +251,6 @@ export async function renameCustomColumn(userId, accountId, oldName, newName) {
       });
     })
   );
+  notify(userId, [['trades', accountId]]);
   return { updated: trades.length };
 }

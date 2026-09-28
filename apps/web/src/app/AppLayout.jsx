@@ -14,6 +14,7 @@ import { PageSkeleton } from '@/components/ui/page-skeleton';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { useHotkey } from '@/lib/useHotkey';
+import { useSSEBridge } from '@/lib/sse';
 
 const STORAGE_KEY = 'mavrix:sidebar:collapsed';
 
@@ -34,6 +35,13 @@ export default function AppLayout() {
 
   useHotkey('mod+b', () => setCollapsed((v) => !v));
 
+  // Open one SSE stream for the whole authenticated session.
+  // Every mutation the user makes (from this tab or any other) will
+  // trigger cache invalidations here.
+  const { connected: sseConnected, fallbackMode: sseFallback } = useSSEBridge({
+    enabled: !!user,
+  });
+
   const handleLogout = async () => {
     await logout();
   };
@@ -42,9 +50,6 @@ export default function AppLayout() {
 
   return (
     <TooltipProvider delayDuration={250}>
-      {/* Inline media-query scoped to this component. Guarantees the
-          main column shifts left by exactly the sidebar width, regardless
-          of whether Tailwind generates the arbitrary classes. */}
       <style>{`
         @media (min-width: 1024px) {
           .app-shell-main {
@@ -53,7 +58,6 @@ export default function AppLayout() {
         }
       `}</style>
 
-      {/* Desktop sidebar */}
       <Sidebar
         collapsed={collapsed}
         onCollapseToggle={() => setCollapsed((v) => !v)}
@@ -62,7 +66,6 @@ export default function AppLayout() {
         onAccountClick={() => setIsAccountModalOpen(true)}
       />
 
-      {/* Mobile sheet */}
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
         <SheetContent
           side="left"
@@ -86,7 +89,6 @@ export default function AppLayout() {
         </SheetContent>
       </Sheet>
 
-      {/* Main column */}
       <div
         className="app-shell-main min-h-screen"
         style={{ transition: 'margin-left .4s cubic-bezier(.16, 1, .3, 1)' }}
@@ -104,6 +106,7 @@ export default function AppLayout() {
           <span className="font-display text-[15px] font-semibold tracking-tight text-ink-1">
             Mavrix Journal
           </span>
+          <SSEIndicator connected={sseConnected} fallback={sseFallback} />
         </div>
 
         <main className="box-border w-full px-4 py-5 lg:px-7 lg:py-6">
@@ -118,5 +121,57 @@ export default function AppLayout() {
         onClose={() => setIsAccountModalOpen(false)}
       />
     </TooltipProvider>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Small connection status pill (mobile only — desktop has no place)  */
+/* ------------------------------------------------------------------ */
+function SSEIndicator({ connected, fallback }) {
+  const color = fallback ? '#f97316' : connected ? '#22c55e' : '#545E6E';
+  const label = fallback
+    ? 'Polling'
+    : connected
+      ? 'Live'
+      : 'Connecting';
+
+  return (
+    <span
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 6,
+        marginLeft: 'auto',
+        padding: '3px 9px',
+        borderRadius: 999,
+        border: `1px solid ${color}44`,
+        background: `${color}15`,
+        color,
+        fontFamily: "'IBM Plex Mono', monospace",
+        fontSize: 9.5,
+        fontWeight: 700,
+        letterSpacing: '.08em',
+        textTransform: 'uppercase',
+        whiteSpace: 'nowrap',
+      }}
+      title={
+        fallback
+          ? 'Real-time updates unavailable — using periodic polling'
+          : connected
+            ? 'Real-time connection active'
+            : 'Connecting to real-time updates…'
+      }
+    >
+      <span
+        style={{
+          width: 6,
+          height: 6,
+          borderRadius: '50%',
+          background: color,
+          boxShadow: `0 0 8px ${color}`,
+        }}
+      />
+      {label}
+    </span>
   );
 }

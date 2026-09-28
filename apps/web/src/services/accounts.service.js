@@ -5,6 +5,7 @@ import {
   useQueryClient,
 } from '@tanstack/react-query';
 import { apiJson } from './api';
+import { useSSEFallback } from '@/lib/sse';
 
 // ---------- Query keys ----------
 export const accountsKeys = {
@@ -49,11 +50,21 @@ export async function updateAccountColumnConfigs(accountId, columnConfigs) {
 // ---------- Hooks ----------
 
 /** List all accounts for the current user. */
-export function useAccounts({ refetchInterval = 10_000 } = {}) {
+export function useAccounts({ refetchInterval } = {}) {
+  const sseFallback = useSSEFallback();
+
+  // Poll only if SSE failed AND the caller didn't explicitly override.
+  const interval =
+    refetchInterval !== undefined
+      ? refetchInterval
+      : sseFallback
+        ? 10_000
+        : false;
+
   return useQuery({
     queryKey: accountsKeys.all,
     queryFn: getAccounts,
-    refetchInterval,
+    refetchInterval: interval,
   });
 }
 

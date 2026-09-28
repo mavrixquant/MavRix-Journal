@@ -6,6 +6,7 @@ import {
 } from '@tanstack/react-query';
 import { apiJson } from './api';
 import { accountsKeys } from './accounts.service';
+import { useSSEFallback } from '@/lib/sse';
 
 // ---------- Local trade ID (kept in sync with @mavrix/shared) ----------
 export function generateTradeId(trade) {
@@ -91,12 +92,21 @@ export async function renameCustomColumn(accountId, oldName, newName) {
  * Trades for a given account.
  * Pass `null` / `undefined` to disable the query (e.g. no account selected yet).
  */
-export function useTrades(accountId, { refetchInterval = 10_000 } = {}) {
+export function useTrades(accountId, { refetchInterval } = {}) {
+  const sseFallback = useSSEFallback();
+
+  const interval =
+    refetchInterval !== undefined
+      ? refetchInterval
+      : sseFallback
+        ? 10_000
+        : false;
+
   return useQuery({
     queryKey: tradesKeys.byAccount(accountId),
     queryFn: () => getTrades(accountId),
     enabled: !!accountId,
-    refetchInterval: accountId ? refetchInterval : false,
+    refetchInterval: accountId ? interval : false,
   });
 }
 

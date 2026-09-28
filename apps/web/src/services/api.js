@@ -82,3 +82,9 @@ export async function apiJson(path, options = {}) {
   }
   return body;
 }
+
+export async function ensureFreshAccessToken() {
+  if (accessToken) return accessToken;
+  const data = await doRefresh();
+  return data?.accessToken ?? null;
+}
