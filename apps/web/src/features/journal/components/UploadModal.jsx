@@ -5,7 +5,7 @@ import { FaFileUpload, FaTimes, FaCheckCircle, FaExclamationTriangle } from 'rea
 import Portal from '@/shared/components/Portal';
 import { createTrades, generateTradeId } from '@/services/trades.service';
 import { updateAccountColumnConfigs } from '@/services/accounts.service';
-import { queryClient } from '@/lib/queryClient';
+import { queryClient } from '@/shared/api/queryClient';
 
 const TICKS_PER_POINT = 4;
 const MAX_DROPDOWN_UNIQUES = 10;

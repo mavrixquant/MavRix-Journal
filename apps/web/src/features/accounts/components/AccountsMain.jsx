@@ -31,7 +31,7 @@ import {
   deleteTradesByAccountId,
   tradesKeys,
 } from '@/services/trades.service';
-import { queryClient } from '@/lib/queryClient';
+import { queryClient } from '@/shared/api/queryClient';
 
 
 const CURRENCIES = ['USD', 'EUR', 'INR', 'GBP'];
