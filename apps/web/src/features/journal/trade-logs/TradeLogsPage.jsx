@@ -1,4 +1,4 @@
-// apps/web/src/features/journal/components/JournalMain.jsx
+// apps/web/src/features/journal/trade-logs/TradeLogsPage.jsx
 import { useState, useMemo, useEffect } from 'react';
 import { FaFileUpload, FaFolderOpen } from 'react-icons/fa';
 
@@ -9,8 +9,13 @@ import UploadModal from './UploadModal';
 import DataTable from '@/shared/ui/data-table';
 import { PageSkeleton } from '@/shared/ui/page-skeleton';
 
+import '@/shared/ui/page-header.css';
+
 /* ------------------------------------------------------------------ */
-/*  Scoped CSS — matches the rest of the app                           */
+/*  Page-local CSS.                                                    */
+/*  Header chrome comes from page-header.css (.ph / .ph-row / ...).    */
+/*  This block only styles the KPI strip, the account <select>, the    */
+/*  Upload button, the table wrapper, and the empty state.             */
 /* ------------------------------------------------------------------ */
 const CSS = `
   .jm-root {
@@ -38,55 +43,8 @@ const CSS = `
     font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
     -webkit-font-smoothing: antialiased;
   }
-  .jm-card {
-    position: relative;
-    border-radius: 18px;
-    background: linear-gradient(180deg, rgba(15,18,25,.72), rgba(15,18,25,.55));
-    backdrop-filter: blur(18px) saturate(140%);
-    -webkit-backdrop-filter: blur(18px) saturate(140%);
-    border: 1px solid var(--line);
-    box-shadow:
-      0 20px 50px -30px rgba(0,0,0,.9),
-      inset 0 1px 0 rgba(255,255,255,.03);
-    overflow: hidden;
-  }
-  .jm-head {
-    padding: 18px 22px 16px;
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: 18px;
-  }
-  .jm-head::before {
-    content: '';
-    position: absolute;
-    left: 0; right: 0; top: 0; height: 2px;
-    border-radius: 18px 18px 0 0;
-    background: linear-gradient(90deg, transparent, var(--accent), var(--accent-2), var(--accent), transparent);
-    background-size: 200% 100%;
-    animation: jmGrad 4s linear infinite;
-    pointer-events: none;
-  }
-  .jm-title {
-    margin: 0;
-    font-size: 22px;
-    font-weight: 700;
-    letter-spacing: -.02em;
-    line-height: 1.1;
-  }
-  .jm-sub {
-    margin: 5px 0 0;
-    font-size: 12.5px;
-    color: var(--ink-2);
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
-  }
-  .jm-actions {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    flex-wrap: wrap;
-  }
+
+  /* ---------- Account selector (kept in header actions slot) ---------- */
   .jm-select {
     appearance: none;
     -webkit-appearance: none;
@@ -111,6 +69,8 @@ const CSS = `
     border-color: var(--accent);
     box-shadow: 0 0 0 3px rgba(245,158,11,.15);
   }
+
+  /* ---------- Upload button ---------- */
   .jm-btn-primary {
     position: relative;
     display: inline-flex;
@@ -141,6 +101,8 @@ const CSS = `
     opacity: .5;
     cursor: not-allowed;
   }
+
+  /* ---------- KPI strip ---------- */
   .jm-kpis {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -171,7 +133,23 @@ const CSS = `
   }
   .jm-kpi-value.pos { color: var(--win); }
   .jm-kpi-value.neg { color: var(--loss); }
+
+  /* ---------- Table card (this stays a card — it wraps a data grid) ---------- */
+  .jm-card {
+    position: relative;
+    border-radius: 18px;
+    background: linear-gradient(180deg, rgba(15,18,25,.72), rgba(15,18,25,.55));
+    backdrop-filter: blur(18px) saturate(140%);
+    -webkit-backdrop-filter: blur(18px) saturate(140%);
+    border: 1px solid var(--line);
+    box-shadow:
+      0 20px 50px -30px rgba(0,0,0,.9),
+      inset 0 1px 0 rgba(255,255,255,.03);
+    overflow: hidden;
+  }
   .jm-body { padding: 4px 18px 18px; }
+
+  /* ---------- Empty state ---------- */
   .jm-empty {
     padding: 60px 24px;
     text-align: center;
@@ -207,16 +185,10 @@ const CSS = `
     color: var(--ink-2);
     font-family: 'IBM Plex Mono', ui-monospace, monospace;
   }
-  @keyframes jmGrad {
-    0%   { background-position: 0% 50%; }
-    100% { background-position: 200% 50%; }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .jm-head::before { animation: none !important; }
-  }
+  .jm-empty-full { grid-column: 1 / -1; }
+
   @media (max-width: 640px) {
     .jm-root { padding: 16px; }
-    .jm-head { padding: 16px 18px; }
     .jm-select { min-width: 0; width: 100%; }
   }
 `;
@@ -256,7 +228,7 @@ function DirText({ value }) {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Columns — mirrors Dashboard TradeTable                             */
+/*  Columns                                                            */
 /* ------------------------------------------------------------------ */
 function buildColumns(dynamicKeys, currency) {
   const base = [
@@ -353,12 +325,11 @@ function buildColumns(dynamicKeys, currency) {
 /* ------------------------------------------------------------------ */
 /*  Page                                                               */
 /* ------------------------------------------------------------------ */
-export default function JournalMain() {
+export default function TradeLogsPage() {
   const { data: accounts = [], isLoading: accountsLoading } = useAccounts();
   const [selectedAccountId, setSelectedAccountId] = useState(null);
   const [uploadOpen, setUploadOpen] = useState(false);
 
-  // Auto-select first account once accounts arrive
   useEffect(() => {
     if (accounts.length > 0 && !selectedAccountId) {
       setSelectedAccountId(accounts[0].id);
@@ -386,7 +357,6 @@ export default function JournalMain() {
     [dynamicKeys, currency]
   );
 
-  // Aggregate metrics for the KPI strip
   const kpis = useMemo(() => {
     if (enrichedTrades.length === 0) {
       return { total: 0, wins: 0, losses: 0, netPnl: 0 };
@@ -410,7 +380,6 @@ export default function JournalMain() {
     [dynamicKeys]
   );
 
-  /* ---- Loading ---- */
   if (loading) return <PageSkeleton />;
 
   /* ---- No accounts ---- */
@@ -419,20 +388,26 @@ export default function JournalMain() {
       <>
         <style>{CSS}</style>
         <div className="jm-root">
-          <div className="jm-card jm-head">
-            <div>
-              <h1 className="jm-title">Trade Logs</h1>
-              <p className="jm-sub">Browse and manage every trade in your journal</p>
+          <header className="ph">
+            <div className="ph-row">
+              <div className="ph-left">
+                <span className="ph-eyebrow">Journal</span>
+                <h1 className="ph-title">Trade Logs</h1>
+                <p className="ph-sub">
+                  Browse and manage every trade in your journal
+                </p>
+              </div>
             </div>
-          </div>
+          </header>
+
           <div className="jm-empty">
             <div className="jm-empty-icon">
               <FaFolderOpen />
             </div>
             <h3>No accounts yet</h3>
             <p>
-              Create a trading account first, then come back here to upload and
-              browse your trades.
+              Create a trading account first, then come back here to upload
+              and browse your trades.
             </p>
           </div>
         </div>
@@ -444,41 +419,45 @@ export default function JournalMain() {
     <>
       <style>{CSS}</style>
       <div className="jm-root">
-        {/* ---- Header ---- */}
-        <div className="jm-card jm-head">
-          <div>
-            <h1 className="jm-title">Trade Logs</h1>
-            <p className="jm-sub">
-              Browse, search, and manage every trade in your journal
-            </p>
+
+        {/* ---------- Header ---------- */}
+        <header className="ph">
+          <div className="ph-row">
+            <div className="ph-left">
+              <span className="ph-eyebrow">Journal</span>
+              <h1 className="ph-title">Trade Logs</h1>
+              <p className="ph-sub">
+                Browse, search, and manage every trade in your journal
+              </p>
+            </div>
+
+            <div className="ph-right">
+              <select
+                className="jm-select"
+                value={selectedAccountId || ''}
+                onChange={(e) => setSelectedAccountId(e.target.value)}
+                aria-label="Select account"
+              >
+                {accounts.map((acc) => (
+                  <option key={acc.id} value={acc.id}>
+                    {acc.name} ({acc.type})
+                  </option>
+                ))}
+              </select>
+
+              <button
+                type="button"
+                className="jm-btn-primary"
+                onClick={() => setUploadOpen(true)}
+                disabled={!selectedAccount}
+              >
+                <FaFileUpload size={11} /> Upload Trades
+              </button>
+            </div>
           </div>
+        </header>
 
-          <div className="jm-actions">
-            <select
-              className="jm-select"
-              value={selectedAccountId || ''}
-              onChange={(e) => setSelectedAccountId(e.target.value)}
-              aria-label="Select account"
-            >
-              {accounts.map((acc) => (
-                <option key={acc.id} value={acc.id}>
-                  {acc.name} ({acc.type})
-                </option>
-              ))}
-            </select>
-
-            <button
-              type="button"
-              className="jm-btn-primary"
-              onClick={() => setUploadOpen(true)}
-              disabled={!selectedAccount}
-            >
-              <FaFileUpload size={11} /> Upload Trades
-            </button>
-          </div>
-        </div>
-
-        {/* ---- KPI strip ---- */}
+        {/* ---------- KPI strip ---------- */}
         <div className="jm-kpis">
           <div className="jm-kpi">
             <span className="jm-kpi-label">Total Trades</span>
@@ -502,7 +481,7 @@ export default function JournalMain() {
           </div>
         </div>
 
-        {/* ---- Table ---- */}
+        {/* ---------- Table ---------- */}
         <div className="jm-card jm-body">
           {enrichedTrades.length === 0 ? (
             <div className="jm-empty">
@@ -511,8 +490,8 @@ export default function JournalMain() {
               </div>
               <h3>No trades yet</h3>
               <p>
-                Upload an .xlsx trade log to populate this account. You can add
-                custom columns and change their types during upload.
+                Upload an .xlsx trade log to populate this account. You can
+                add custom columns and change their types during upload.
               </p>
               <button
                 type="button"
@@ -540,7 +519,7 @@ export default function JournalMain() {
           )}
         </div>
 
-        {/* ---- Upload modal ---- */}
+        {/* ---------- Upload modal ---------- */}
         {selectedAccount && (
           <UploadModal
             isOpen={uploadOpen}

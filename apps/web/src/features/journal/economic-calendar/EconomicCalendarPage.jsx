@@ -5,9 +5,9 @@
 //
 // Layout:
 //   ┌──────────────────────────────────────────────────────────────┐
-//   │  Header: title + meta + view toggle                          │
+//   │  Flat header: eyebrow + title + sub + view toggle            │
 //   ├──────────────────────────────────────────────────────────────┤
-//   │  Filters: impact / currency / date range / sync              │
+//   │  Filters card: impact / currency / date range / sync         │
 //   ├──────────────────────────────────────────────────────────────┤
 //   │  Content: List view  OR  Month grid                          │
 //   └──────────────────────────────────────────────────────────────┘
@@ -27,8 +27,13 @@ import CalendarGrid from './components/CalendarGrid';
 import EventList from './components/EventList';
 import EventDetailModal from './components/EventDetailModal';
 
+import '@/shared/ui/page-header.css';
+
 /* ------------------------------------------------------------------ */
-/*  Scoped CSS                                                         */
+/*  Page-local CSS.                                                    */
+/*  Header chrome comes from page-header.css. This block covers the    */
+/*  filter card shell, the content card shell, the view toggle, and    */
+/*  loading/error states.                                              */
 /* ------------------------------------------------------------------ */
 
 const CSS = `
@@ -52,6 +57,8 @@ const CSS = `
     font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
     -webkit-font-smoothing: antialiased;
   }
+
+  /* Content cards (filters + events) — these stay glass panels. */
   .ec-card {
     position: relative;
     border-radius: 18px;
@@ -62,44 +69,9 @@ const CSS = `
     box-shadow: 0 20px 50px -30px rgba(0,0,0,.9), inset 0 1px 0 rgba(255,255,255,.03);
     overflow: hidden;
   }
-  .ec-head {
-    padding: 18px 22px 16px;
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: 18px;
-  }
-  .ec-head::before {
-    content: '';
-    position: absolute;
-    left: 0; right: 0; top: 0; height: 2px;
-    border-radius: 18px 18px 0 0;
-    background: linear-gradient(90deg, transparent, var(--accent), var(--accent-2), var(--accent), transparent);
-    background-size: 200% 100%;
-    animation: ecGrad 4s linear infinite;
-    pointer-events: none;
-  }
-  .ec-title {
-    margin: 0;
-    font-size: 22px;
-    font-weight: 700;
-    letter-spacing: -.02em;
-    line-height: 1.1;
-  }
-  .ec-sub {
-    margin: 5px 0 0;
-    font-size: 12.5px;
-    color: var(--ink-2);
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    letter-spacing: .01em;
-  }
-  .ec-head-right {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    flex-wrap: wrap;
-  }
+  .ec-body { padding: 4px 18px 18px; }
+
+  /* View toggle (in header actions slot). */
   .ec-view-toggle {
     display: inline-flex;
     padding: 3px;
@@ -132,7 +104,7 @@ const CSS = `
     font-weight: 700;
     box-shadow: 0 6px 16px -8px rgba(245,158,11,.6);
   }
-  .ec-body { padding: 4px 18px 18px; }
+
   .ec-loading {
     padding: 80px 20px;
     text-align: center;
@@ -163,17 +135,13 @@ const CSS = `
     font-size: 12.5px;
     line-height: 1.6;
   }
-  @keyframes ecGrad {
-    0%   { background-position: 0% 50%; }
-    100% { background-position: 200% 50%; }
-  }
+
   @keyframes ecSpin { to { transform: rotate(360deg); } }
   @media (prefers-reduced-motion: reduce) {
-    .ec-head::before, .ec-spinner { animation: none !important; }
+    .ec-spinner { animation: none !important; }
   }
   @media (max-width: 640px) {
     .ec-root { padding: 16px; }
-    .ec-head { padding: 16px 18px; }
   }
 `;
 
@@ -184,39 +152,24 @@ const CSS = `
 export default function EconomicCalendarPage() {
   const filters = useCalendarFilters();
 
-  // Meta: total cached events, date span
   const meta = useCalendarMeta();
-
-  // Currency list for the filter chips
   const currencies = useCalendarCurrencies();
 
-  // The main events query — driven by the filter object
   const eventsQuery = useCalendarEvents(filters.query, {
     enabled: !!filters.from && !!filters.to,
   });
 
-  // Stable array reference. `eventsQuery.data ?? []` would create a new
-  // array on every render when data is undefined, defeating downstream
-  // useMemo hooks in EventList and this component's own selectedEvent memo.
   const events = useMemo(() => eventsQuery.data ?? [], [eventsQuery.data]);
 
-  // The event currently shown in the detail modal, resolved from the list.
-  // If a filter change removes it, selectedEventId becomes orphaned and
-  // we silently render no modal.
   const selectedEvent = useMemo(() => {
     if (!filters.selectedEventId) return null;
     return events.find((e) => e.id === filters.selectedEventId) ?? null;
   }, [events, filters.selectedEventId]);
 
-  // ─── Handlers ────────────────────────────────────────────────
-
   const handleDayClick = (isoDate) => {
-    // Jump to List view scoped to a single day.
     filters.setCustomRange(isoDate, isoDate);
     filters.setView('list');
   };
-
-  // ─── Render states ───────────────────────────────────────────
 
   const showInitialSkeleton =
     eventsQuery.isPending && eventsQuery.data === undefined;
@@ -229,41 +182,44 @@ export default function EconomicCalendarPage() {
       <div className="ec-root">
 
         {/* ---------- Header ---------- */}
-        <div className="ec-card ec-head">
-          <div>
-            <h1 className="ec-title">Economic Calendar</h1>
-            <p className="ec-sub">
-              {meta.data?.totalEvents
-                ? `${meta.data.totalEvents.toLocaleString()} events cached · live from Biquote`
-                : 'Live macro releases · CPI · NFP · FOMC · central banks'}
-            </p>
-          </div>
+        <header className="ph">
+          <div className="ph-row">
+            <div className="ph-left">
+              <span className="ph-eyebrow">Journal</span>
+              <h1 className="ph-title">Economic Calendar</h1>
+              <p className="ph-sub">
+                {meta.data?.totalEvents
+                  ? `${meta.data.totalEvents.toLocaleString()} events cached · live from Biquote`
+                  : 'Live macro releases · CPI · NFP · FOMC · central banks'}
+              </p>
+            </div>
 
-          <div className="ec-head-right">
-            <div className="ec-view-toggle" role="tablist">
-              <button
-                type="button"
-                role="tab"
-                aria-selected={filters.view === 'list'}
-                className={`ec-view-btn ${filters.view === 'list' ? 'is-active' : ''}`}
-                onClick={() => filters.setView('list')}
-              >
-                <List size={12} /> List
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={filters.view === 'month'}
-                className={`ec-view-btn ${filters.view === 'month' ? 'is-active' : ''}`}
-                onClick={() => filters.setView('month')}
-              >
-                <CalendarDays size={12} /> Month
-              </button>
+            <div className="ph-right">
+              <div className="ec-view-toggle" role="tablist">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={filters.view === 'list'}
+                  className={`ec-view-btn ${filters.view === 'list' ? 'is-active' : ''}`}
+                  onClick={() => filters.setView('list')}
+                >
+                  <List size={12} /> List
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={filters.view === 'month'}
+                  className={`ec-view-btn ${filters.view === 'month' ? 'is-active' : ''}`}
+                  onClick={() => filters.setView('month')}
+                >
+                  <CalendarDays size={12} /> Month
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        </header>
 
-        {/* ---------- Filters ---------- */}
+        {/* ---------- Filters card ---------- */}
         <div className="ec-card" style={{ padding: '18px 22px' }}>
           <CalendarFilters
             availableCurrencies={currencies.data ?? []}
@@ -282,7 +238,7 @@ export default function EconomicCalendarPage() {
           />
         </div>
 
-        {/* ---------- Content ---------- */}
+        {/* ---------- Content card ---------- */}
         <div className="ec-card ec-body">
           {showInitialSkeleton && (
             <div className="ec-loading">
