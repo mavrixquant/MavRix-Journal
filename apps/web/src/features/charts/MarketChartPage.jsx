@@ -2,9 +2,21 @@
 //
 // /backtester/chart - full-page TradingView advanced chart.
 //
-// Defaults to XAUUSD on the 1-minute timeframe. Users change symbol,
-// interval, chart type, indicators, and drawings directly inside the
-// widget's built-in toolbars. We only own the page chrome + fullscreen.
+// Deliberately minimal:
+//   - No custom symbol or timeframe chips. The widget's own toolbar
+//     (top of the chart) already handles every control a user needs.
+//   - No URL state. The widget manages its own state internally.
+//   - Only chrome: page title + fullscreen toggle.
+//
+// The entire file's job is to give the TradingView iframe a DEFINITE
+// height that follows the viewport. The widget's `autosize: true` flag
+// reads its parent's computed height at mount; if the parent is only
+// `min-height` sized, autosize falls back to ~200 px. So:
+//
+//   .chart-root   -> height: calc(100dvh - --chart-chrome)   [DEFINITE]
+//   .chart-shell  -> flex: 1 1 auto; min-height: 0           [fills rest]
+//   host div      -> height: 100%                             [resolves]
+//   iframe        -> autosize reads definite parent           [fills]
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Maximize2, Minimize2 } from 'lucide-react';
@@ -19,33 +31,49 @@ import {
 import '@/shared/ui/page-header.css';
 
 /* ------------------------------------------------------------------ */
-/*  Page-local CSS.                                                    */
-/*  Header chrome comes from page-header.css. This block styles the    */
-/*  chart shell and the fullscreen button.                             */
+/*  Page CSS.                                                          */
+/*                                                                     */
+/*  --chart-chrome = total pixels of chrome ABOVE the chart shell:     */
+/*    AppLayout header   (64)                                          */
+/*    main padding top   (24)                                          */
+/*    .ph eyebrow+title+sub (~90)                                      */
+/*    gap between .ph and .chart-shell (18)                            */
+/*    main padding bottom (24)                                         */
+/*                                                                     */
+/*  Tune it in ONE place if the chart over- or under-flows:            */
+/*    increase the value -> shorter chart                              */
+/*    decrease the value -> taller chart                               */
 /* ------------------------------------------------------------------ */
 
 const CSS = `
   .chart-root {
     --accent: #F59E0B;
     --accent-2: #FDE68A;
-    --accent-soft: rgba(245,158,11,.10);
     --accent-soft2: rgba(245,158,11,.28);
     --line: rgba(255,255,255,.085);
     --ink-1: #E7E9EE;
     --ink-2: #8892A3;
-    --ink-3: #545E6E;
+
+    --chart-chrome: 220px;
 
     width: 100%;
     display: flex;
     flex-direction: column;
     gap: 18px;
-    min-height: calc(100vh - 140px);
+
+    /* Definite height. 100dvh handles mobile browser chrome; 100vh is a
+       fallback for engines without dvh support. min-height is a floor so
+       short viewports scroll instead of squishing the chart. */
+    height: calc(100vh  - var(--chart-chrome));
+    height: calc(100dvh - var(--chart-chrome));
+    min-height: 520px;
+
     color: var(--ink-1);
     font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
     -webkit-font-smoothing: antialiased;
   }
 
-  /* ---------- Fullscreen toggle button ---------- */
+  /* ---------- Fullscreen toggle ---------- */
   .chart-fs-btn {
     display: inline-flex;
     align-items: center;
@@ -75,9 +103,7 @@ const CSS = `
     box-shadow: 0 0 20px -6px rgba(245,158,11,.4);
     transform: translateY(-1px);
   }
-  .chart-fs-btn:active {
-    transform: translateY(0) scale(.98);
-  }
+  .chart-fs-btn:active { transform: translateY(0) scale(.98); }
   .chart-fs-btn:focus-visible {
     outline: none;
     border-color: var(--accent);
@@ -88,8 +114,8 @@ const CSS = `
   /* ---------- Chart shell ---------- */
   .chart-shell {
     position: relative;
-    flex: 1;
-    min-height: 520px;
+    flex: 1 1 auto;
+    min-height: 0;
     border-radius: 18px;
     border: 1px solid var(--line);
     background: linear-gradient(180deg, rgba(15,18,25,.72), rgba(15,18,25,.55));
@@ -99,16 +125,19 @@ const CSS = `
     overflow: hidden;
   }
 
-  /* ---------- Fullscreen mode ---------- */
-  /* When the shell itself is the fullscreen element, the browser gives it
-     the full viewport. We strip the rounded corners, border, and any
-     inherited padding so the chart bleeds to every edge. The widget
-     resizes itself via autosize:true on the resulting resize event. */
+  /* Belt-and-braces: force the wrapper's direct child to fill the shell
+     even if its inline style is ever removed. */
+  .chart-shell > * {
+    height: 100%;
+    min-height: 0;
+  }
+
+  /* ---------- Fullscreen ---------- */
   .chart-shell:fullscreen,
   .chart-shell:-webkit-full-screen {
     border-radius: 0;
     border: none;
-    min-height: 100vh;
+    min-height: 100dvh;
     background: #07090D;
     box-shadow: none;
   }
@@ -122,8 +151,7 @@ export default function MarketChartPage() {
   const shellRef = useRef(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
-  // Keep button label in sync with whatever the browser actually did -
-  // including ESC-triggered exits.
+  // ---------- Fullscreen wiring ----------
   useEffect(() => {
     const onChange = () => {
       setIsFullscreen(document.fullscreenElement === shellRef.current);
@@ -139,18 +167,15 @@ export default function MarketChartPage() {
   const toggleFullscreen = useCallback(async () => {
     const shell = shellRef.current;
     if (!shell) return;
-
     try {
       if (document.fullscreenElement === shell) {
         await document.exitFullscreen();
-      } else {
-        // Fallback chain for Safari.
-        if (shell.requestFullscreen) await shell.requestFullscreen();
-        else if (shell.webkitRequestFullscreen) shell.webkitRequestFullscreen();
+      } else if (shell.requestFullscreen) {
+        await shell.requestFullscreen();
+      } else if (shell.webkitRequestFullscreen) {
+        shell.webkitRequestFullscreen();
       }
     } catch (err) {
-      // Browsers reject requestFullscreen if the click was not user-initiated
-      // or if a permissions policy blocks it. Log without crashing.
       console.warn('[chart] fullscreen rejected:', err);
     }
   }, []);
@@ -167,9 +192,8 @@ export default function MarketChartPage() {
               <span className="ph-eyebrow">Backtester</span>
               <h1 className="ph-title">Market Chart</h1>
               <p className="ph-sub">
-                Live TradingView feed - starting on <b>XAUUSD / 1m</b> -
-                change symbol, interval, indicators, and drawings from the
-                chart's own toolbar
+                Live TradingView feed - use the chart's own toolbar for
+                symbol, interval, indicators, and drawings
               </p>
             </div>
 

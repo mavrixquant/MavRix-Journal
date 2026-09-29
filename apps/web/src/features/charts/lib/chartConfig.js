@@ -27,6 +27,30 @@ export const DEFAULT_INTERVAL = '1';
 export const DEFAULT_STYLE = '1';
 
 /* ------------------------------------------------------------------ */
+/*  Quick-symbol chips                                                 */
+/* ------------------------------------------------------------------ */
+
+// One-click symbol shortcuts rendered under the page header.
+// `tv` is the exact TradingView ticker; `label` is what the chip shows.
+// Users can still search any other symbol inside the widget itself.
+//
+// Ticker notes:
+//   OANDA:*        - clean spot forex / metals feed
+//   NASDAQ:NQ1!    - continuous front-month NQ futures
+//   CME_MINI:ES1!  - continuous front-month ES futures
+//   BITSTAMP:*     - liquid crypto feed
+export const QUICK_SYMBOLS = [
+  { label: 'XAUUSD', tv: 'OANDA:XAUUSD',    category: 'Metal'   },
+  { label: 'XAGUSD', tv: 'OANDA:XAGUSD',    category: 'Metal'   },
+  { label: 'NQ',     tv: 'NASDAQ:NQ1!',     category: 'Futures' },
+  { label: 'ES',     tv: 'CME_MINI:ES1!',   category: 'Futures' },
+  { label: 'BTCUSD', tv: 'BITSTAMP:BTCUSD', category: 'Crypto'  },
+  { label: 'ETHUSD', tv: 'BITSTAMP:ETHUSD', category: 'Crypto'  },
+  { label: 'EURUSD', tv: 'OANDA:EURUSD',    category: 'Forex'   },
+  { label: 'GBPUSD', tv: 'OANDA:GBPUSD',    category: 'Forex'   },
+];
+
+/* ------------------------------------------------------------------ */
 /*  Widget embed configuration                                         */
 /* ------------------------------------------------------------------ */
 
