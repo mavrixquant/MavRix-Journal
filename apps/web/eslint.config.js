@@ -13,10 +13,22 @@ import { defineConfig, globalIgnores } from 'eslint/config'
      features/  one folder per sidebar group, self-contained
      shared/    cross-cutting primitives
 
+   Feature groups:
+     auth        — sign-in / sign-up / verify / reset
+     dashboard   — shared dashboard subsystem (panels, charts,
+                   filters, hooks, layout). Consumed by journal
+                   and backtester only. Leaf — imports nothing
+                   from other feature groups.
+     journal     — trade-log side of the app. MAY import dashboard.
+     backtester  — Monte Carlo side of the app. MAY import dashboard.
+     manage      — accounts, strategies
+     personal    — discussion, chats
+
    Rules:
      1. Paths that no longer exist after the revamp are hard errors.
      2. A feature group may import within itself freely, but not from
-        any other feature group.
+        any OTHER feature group — with the single sanctioned exception
+        that journal/ and backtester/ may import from dashboard/.
      3. shared/ may not import from app/ or features/.
    ────────────────────────────────────────────────────────────── */
 
@@ -31,7 +43,6 @@ const DEAD_PATHS = {
     '@/firebase/*',
     '@/pages/*',
     '@/app/shell/*',
-    '@/features/dashboard/*',
     '@/features/simulator/*',
     '@/features/accounts/*',
     '@/features/strategies/*',
@@ -52,12 +63,35 @@ const FIREBASE_SDK_PATTERN = {
     'Firebase SDK imports are only allowed inside src/app/providers/** and src/features/auth/**. Application code should import from a service or hook instead.',
 };
 
-// Every top-level feature group. Each group forbids the others.
-const FEATURE_GROUPS = ['auth', 'journal', 'backtester', 'manage', 'personal'];
+// Every top-level feature group. Each group forbids the others,
+// subject to the DASHBOARD_CONSUMERS exception below.
+const FEATURE_GROUPS = [
+  'auth',
+  'dashboard',
+  'journal',
+  'backtester',
+  'manage',
+  'personal',
+];
 
-/** Build a per-group override that forbids the *other* feature groups. */
+// Groups that are allowed to import from features/dashboard/.
+// The direction is one-way: these two may import dashboard/,
+// but dashboard/ may NOT import them.
+const DASHBOARD_CONSUMERS = ['journal', 'backtester'];
+
+/** Build a per-group override that forbids the *other* feature groups,
+ *  honouring the single sanctioned consumer → dashboard exception. */
 function featureBoundary(group) {
   const others = FEATURE_GROUPS.filter((g) => g !== group);
+
+  // If this group is a sanctioned consumer of dashboard/, remove
+  // 'dashboard' from its forbidden list. dashboard itself is NOT a
+  // consumer, so the reverse direction (dashboard → journal, etc.)
+  // stays forbidden.
+  const forbidden = DASHBOARD_CONSUMERS.includes(group)
+    ? others.filter((g) => g !== 'dashboard')
+    : others;
+
   return {
     files: [`src/features/${group}/**/*.{js,jsx}`],
     rules: {
@@ -68,7 +102,7 @@ function featureBoundary(group) {
             DEAD_PATHS,
             FIREBASE_SDK_PATTERN,
             {
-              group: others.map((g) => `@/features/${g}/*`),
+              group: forbidden.map((g) => `@/features/${g}/*`),
               message: `${group}/ cannot import from another feature group. Lift the shared piece into shared/ instead.`,
             },
           ],

@@ -12,7 +12,7 @@ import TimeChart from '../charts/TimeChart';
 import MonthlyChart from '../charts/MonthlyChart';
 import RollingExpectancyChart from '../charts/RollingExpectancyChart';
 import CategoryBarChart from '../charts/CategoryBarChart';
-import { useStats } from '@/features/journal/dashboard/hooks/useStats';
+import { useStats } from '@/features/dashboard/hooks/useStats';
 
 /* ------------------------------------------------------------------ */
 /*  Shared Panel shell                                                 */

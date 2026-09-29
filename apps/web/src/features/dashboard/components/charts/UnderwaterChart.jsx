@@ -1,7 +1,7 @@
-// apps/web/src/features/dashboard/components/charts/EquityChart.jsx
+// apps/web/src/features/dashboard/components/charts/UnderwaterChart.jsx
 import { useMemo, useRef } from 'react';
 import { Line } from 'react-chartjs-2';
-import { useStats } from '@/features/journal/dashboard/hooks/useStats';
+import { useStats } from '@/features/dashboard/hooks/useStats';
 import {
   chartColors,
   baseTooltip,
@@ -11,48 +11,46 @@ import {
 } from '@/shared/charts/theme';
 import { ChartExportButton } from '@/shared/ui/chart-export';
 
-export default function EquityChart() {
-  const { stats, metric } = useStats();
-  const equityData = stats?.equity;
+export default function UnderwaterChart() {
+  const { underwaterCurve, metric } = useStats();
   const isMoney = metric === '$';
   const chartRef = useRef(null);
 
   const chartData = useMemo(() => {
-    if (!equityData || equityData.length === 0) return null;
+    if (!underwaterCurve || underwaterCurve.length === 0) return null;
     return {
-      labels: equityData.map((_, i) => `Trade #${i + 1}`),
+      labels: underwaterCurve.map((d) => `#${d.idx}`),
       datasets: [
         {
-          label: isMoney ? 'Cumulative Net P&L' : 'Cumulative R',
-          data: equityData.map((e) => e.y),
-          borderColor: chartColors.amber,
-          borderWidth: 2,
-          fill: true,
-          tension: 0.2,
+          label: 'Drawdown',
+          data: underwaterCurve.map((d) => d.y),
+          borderColor: chartColors.loss,
+          borderWidth: 1.5,
+          fill: 'origin',
           backgroundColor: (context) => {
             const ctx = context.chart.ctx;
-            const gradient = ctx.createLinearGradient(0, 0, 0, 240);
-            gradient.addColorStop(0, chartColors.amberFill);
-            gradient.addColorStop(0.8, 'rgba(255,176,32,.02)');
-            gradient.addColorStop(1, 'rgba(255,176,32,0)');
+            const gradient = ctx.createLinearGradient(0, 0, 0, 200);
+            gradient.addColorStop(0, 'rgba(255,92,92,0)');
+            gradient.addColorStop(1, 'rgba(255,92,92,.28)');
             return gradient;
           },
           pointRadius: 0,
           pointHoverRadius: 5,
-          pointHoverBackgroundColor: chartColors.amber,
+          pointHoverBackgroundColor: chartColors.loss,
           pointHoverBorderColor: '#0D1117',
           pointHoverBorderWidth: 2,
+          tension: 0.2,
         },
       ],
     };
-  }, [equityData, isMoney]);
+  }, [underwaterCurve]);
 
   const options = useMemo(
     () => ({
       responsive: true,
       maintainAspectRatio: false,
-      interaction: { mode: 'index', intersect: false },
       animation: baseAnimation,
+      interaction: { mode: 'index', intersect: false },
       plugins: {
         legend: { display: false },
         decimation: decimationConfig,
@@ -60,16 +58,25 @@ export default function EquityChart() {
           callbacks: {
             title: (items) => {
               const idx = items[0]?.dataIndex;
-              const item = equityData?.[idx];
-              return item?.x ? `${item.x} (Trade #${idx + 1})` : `Trade #${idx + 1}`;
+              const d = underwaterCurve?.[idx];
+              return d ? `${d.date} · Trade #${d.idx}` : '';
             },
             label: (item) => {
               const val = item.parsed.y;
+              const peak = underwaterCurve?.[item.dataIndex]?.peak ?? 0;
+              const eq = underwaterCurve?.[item.dataIndex]?.equity ?? 0;
               if (isMoney) {
-                const sign = val >= 0 ? '+' : '-';
-                return `Equity: ${sign}$${Math.abs(val).toFixed(2)}`;
+                return [
+                  `Drawdown  : $${val.toFixed(2)}`,
+                  `Equity    : $${eq.toFixed(2)}`,
+                  `Peak      : $${peak.toFixed(2)}`,
+                ];
               }
-              return `Equity: ${(val >= 0 ? '+' : '') + val.toFixed(2)}R`;
+              return [
+                `Drawdown  : ${val.toFixed(2)}R`,
+                `Equity    : ${eq.toFixed(2)}R`,
+                `Peak      : ${peak.toFixed(2)}R`,
+              ];
             },
           },
         }),
@@ -77,19 +84,19 @@ export default function EquityChart() {
       scales: {
         x: { grid: { display: false }, ticks: { display: false } },
         y: baseAxis({
+          max: 0,
           ticks: {
             color: chartColors.text,
             font: { family: "'IBM Plex Mono', monospace", size: 10 },
-            callback: (v) =>
-              isMoney ? `$${v}` : `${v > 0 ? '+' : ''}${v}R`,
+            callback: (v) => (isMoney ? `-$${Math.abs(v)}` : `${v}R`),
           },
         }),
       },
     }),
-    [equityData, isMoney]
+    [underwaterCurve, isMoney]
   );
 
-  if (!equityData || equityData.length === 0) {
+  if (!underwaterCurve || underwaterCurve.length === 0) {
     return (
       <div
         style={{
@@ -98,7 +105,7 @@ export default function EquityChart() {
           alignItems: 'center',
           justifyContent: 'center',
           height: '100%',
-          minHeight: 200,
+          minHeight: 160,
           color: chartColors.textDim,
           fontFamily: "'IBM Plex Mono', monospace",
           fontSize: 12,
@@ -116,13 +123,10 @@ export default function EquityChart() {
           strokeWidth="1.5"
           style={{ marginBottom: 8, opacity: 0.6 }}
         >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M2.25 18 9 11.25l4.306 4.306a1.194 1.194 0 0 0 1.581 0l6.363-6.364M22.5 10.5V15m0-4.5h-4.5"
-          />
+          <polyline points="3 7 9 13 13 9 21 15" />
+          <polyline points="14 15 21 15 21 8" />
         </svg>
-        <span>No equity curve data recorded</span>
+        <span>No drawdown data available</span>
       </div>
     );
   }
@@ -133,10 +137,10 @@ export default function EquityChart() {
         position: 'relative',
         width: '100%',
         height: '100%',
-        minHeight: 200,
+        minHeight: 160,
       }}
     >
-      <ChartExportButton chartRef={chartRef} filename="equity-curve" />
+      <ChartExportButton chartRef={chartRef} filename="underwater-curve" />
       <Line ref={chartRef} data={chartData} options={options} />
     </div>
   );

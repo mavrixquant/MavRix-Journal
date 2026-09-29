@@ -1,7 +1,7 @@
 // apps/web/src/features/dashboard/components/charts/TimeChart.jsx
 import { useMemo, useRef, useState, useEffect } from 'react';
 import { Bar } from 'react-chartjs-2';
-import { useStats } from '@/features/journal/dashboard/hooks/useStats';
+import { useStats } from '@/features/dashboard/hooks/useStats';
 import {
   chartColors,
   baseTooltip,

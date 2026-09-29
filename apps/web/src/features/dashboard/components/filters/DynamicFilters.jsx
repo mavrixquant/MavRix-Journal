@@ -4,7 +4,7 @@ import { ChevronDown, Check } from 'lucide-react';
 import { Command } from 'cmdk';
 
 import { useAppContext } from '@/app/providers/AppProvider';
-import { useFilters } from '@/features/journal/dashboard/hooks/useFilters';
+import { useFilters } from '@/features/dashboard/hooks/useFilters';
 import {
   Popover,
   PopoverContent,

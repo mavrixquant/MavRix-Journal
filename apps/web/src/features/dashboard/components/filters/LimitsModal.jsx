@@ -2,8 +2,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { X } from 'lucide-react';
 
-import { useFilters } from '@/features/journal/dashboard/hooks/useFilters';
-import { useStats } from '@/features/journal/dashboard/hooks/useStats';
+import { useFilters } from '@/features/dashboard/hooks/useFilters';
+import { useStats } from '@/features/dashboard/hooks/useStats';
 import Portal from '@/shared/components/Portal';
 
 /* ------------------------------------------------------------------ */

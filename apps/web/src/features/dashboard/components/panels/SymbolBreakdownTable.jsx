@@ -1,6 +1,6 @@
 // apps/web/src/features/dashboard/components/panels/SymbolBreakdownTable.jsx
 import { useMemo } from 'react';
-import { useStats } from '@/features/journal/dashboard/hooks/useStats';
+import { useStats } from '@/features/dashboard/hooks/useStats';
 import DataTable from '@/shared/ui/data-table';
 
 function formatMoney(v) {
