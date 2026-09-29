@@ -14,12 +14,13 @@
 //     finishes, so a slow cycle cannot cause overlaps.
 //   - Per-request AbortController timeout so a hung Biquote response cannot
 //     stall the loop.
-//   - Broadcasts an SSE `invalidate` with [['calendar']] after a sync that
-//     changed at least one row.
+//   - Broadcasts a global SSE `invalidate` with [['calendar']] after a sync
+//     that changed at least one row. The calendar is not user-scoped, so we
+//     use broadcastToAll() — every connected client refreshes.
 //   - Prunes rows older than `backwardDays` on each successful sync.
 
 import { prisma } from './prisma.js';
-import { broadcastToUser } from './broadcaster.js';
+import { broadcastToAll } from './broadcaster.js';
 
 /* ------------------------------------------------------------------ */
 /*  Config                                                             */
@@ -206,7 +207,6 @@ function mapBiquoteRow(row) {
 async function upsertEventsBatched(rows) {
   if (rows.length === 0) return { created: 0, updated: 0 };
 
-  // Map & drop rows without a stable externalId.
   const mapped = [];
   const seen = new Set();
   for (const row of rows) {
@@ -218,8 +218,6 @@ async function upsertEventsBatched(rows) {
   }
   if (mapped.length === 0) return { created: 0, updated: 0 };
 
-  // One query: existing externalIds in this batch, with the three fields
-  // whose change drives the SSE invalidate.
   const externalIds = mapped.map((m) => m.externalId);
   const existing = await prisma.economicEvent.findMany({
     where: { externalId: { in: externalIds } },
@@ -248,7 +246,6 @@ async function upsertEventsBatched(rows) {
     }
   }
 
-  // Batch insert new rows in one statement.
   let created = 0;
   if (toCreate.length > 0) {
     const now = new Date();
@@ -259,8 +256,6 @@ async function upsertEventsBatched(rows) {
     created = result.count;
   }
 
-  // Only material changes go through the update transaction. In steady state
-  // this is near-zero — most events are future-dated with null actuals.
   let updated = 0;
   if (toUpdate.length > 0) {
     const now = new Date();
@@ -309,8 +304,10 @@ export async function runCalendarSyncOnce() {
     const { created, updated } = await upsertEventsBatched(rows);
     const pruned = await pruneOldEvents(cfg.backwardDays);
 
+    // The calendar is global (not user-scoped), so this broadcast goes to
+    // every connected client. Only fires when actual/forecast/previous moved.
     if (created > 0 || updated > 0) {
-      broadcastToUser('__all__', 'invalidate', { keys: [['calendar']] });
+      broadcastToAll('invalidate', { keys: [['calendar']] });
     }
 
     const elapsed = Date.now() - startedAt;
@@ -365,7 +362,6 @@ async function tick() {
   if (!running) return;
 
   const cfg = getConfig();
-  // After a failure, wait the backoff; otherwise wait the normal interval.
   const delay =
     res?.ok
       ? cfg.intervalMs
@@ -395,7 +391,6 @@ export function startCalendarSync() {
       `window -${cfg.backwardDays}d/+${cfg.forwardDays}d`
   );
 
-  // Kick off the first cycle immediately.
   tick();
 }
 

@@ -4,7 +4,7 @@
 //
 // Single-process only. If you ever run multiple API instances behind a load
 // balancer, swap this for Redis pub/sub. That migration is contained to this
-// file — callers only use broadcastToUser().
+// file — callers only use broadcastToUser() / broadcastToAll().
 
 const clients = new Map(); // userId -> Set<res>
 
@@ -43,7 +43,40 @@ export function broadcastToUser(userId, event, payload) {
   return sent;
 }
 
+/**
+ * Push an event to EVERY connected client, regardless of userId.
+ *
+ * Used for global broadcasts where the data isn't user-scoped — e.g. the
+ * economic calendar, which is shared across all accounts and all users.
+ *
+ * If a client's socket throws (dead connection), we swallow the error and
+ * count it as not-sent. The 'close' handler will clean it up.
+ */
+export function broadcastToAll(event, payload) {
+  const chunk = `event: ${event}\ndata: ${JSON.stringify(payload)}\n\n`;
+
+  let sent = 0;
+  for (const set of clients.values()) {
+    for (const res of set) {
+      try {
+        res.write(chunk);
+        sent += 1;
+      } catch {
+        // Dead socket. 'close' handler will remove it.
+      }
+    }
+  }
+  return sent;
+}
+
 /** Diagnostics — number of open streams for a user. */
 export function getClientCount(userId) {
   return clients.get(userId)?.size ?? 0;
+}
+
+/** Diagnostics — total open streams across all users. */
+export function getTotalClientCount() {
+  let total = 0;
+  for (const set of clients.values()) total += set.size;
+  return total;
 }

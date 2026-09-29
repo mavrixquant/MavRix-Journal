@@ -14,3 +14,4 @@ export { useSSEBridge, useSSEFallback } from './sse.js';
 // Domain resource hooks
 export * from './accounts.js';
 export * from './trades.js';
+export * from './calendar.js';
