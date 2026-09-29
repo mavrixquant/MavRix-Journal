@@ -19,7 +19,22 @@ function splitTradePayload(payload) {
   return { reserved, dynamic };
 }
 
+// Strip any reserved keys that leaked into a dynamic JSON blob
+// (e.g. from historical data written before the frontend excluded `notes`).
+// Returns a fresh object — never mutates its input.
+function sanitizeDynamic(dynamic) {
+  if (!dynamic || typeof dynamic !== 'object') return {};
+  const out = {};
+  for (const [k, v] of Object.entries(dynamic)) {
+    if (RESERVED.has(k)) continue;
+    out[k] = v;
+  }
+  return out;
+}
+
 function serialize(t) {
+  const dyn = sanitizeDynamic(t.dynamic);
+
   return {
     id: t.id,
     accountId: t.accountId,
@@ -35,7 +50,12 @@ function serialize(t) {
     slPoints: t.slPoints,
     contracts: t.contracts,
     notes: t.notes,
-    ...(t.dynamic ?? {}),
+
+    // Dynamic columns come AFTER reserved so a stale `dynamic.notes`
+    // (from a legacy row) can never shadow the real value.
+    // sanitizeDynamic() already strips reserved keys, this is belt-and-braces.
+    ...dyn,
+
     createdAt: t.createdAt,
     updatedAt: t.updatedAt,
   };
@@ -154,7 +174,12 @@ export async function updateTrade(userId, id, payload) {
   };
   const tradeId = generateTradeId(merged);
 
-  const nextDynamic = { ...(existing.dynamic ?? {}), ...dynamic };
+  // Purge any legacy reserved keys from the *existing* dynamic blob,
+  // then merge in the new dynamic values. This permanently cleans up
+  // rows that still carry a stale `dynamic.notes` (or similar) from
+  // the era before `notes` was added to RESERVED on the client.
+  const baseDynamic = sanitizeDynamic(existing.dynamic);
+  const nextDynamic = { ...baseDynamic, ...dynamic };
 
   try {
     const t = await prisma.trade.update({
@@ -193,6 +218,9 @@ export async function addCustomColumn(userId, accountId, columnName) {
   if (!columnName || !columnName.trim()) {
     throw new HttpError(400, 'columnName is required');
   }
+  if (RESERVED.has(columnName)) {
+    throw new HttpError(400, `"${columnName}" is a reserved column name`);
+  }
   const trades = await prisma.trade.findMany({
     where: { accountId },
     select: { id: true, dynamic: true },
@@ -201,7 +229,9 @@ export async function addCustomColumn(userId, accountId, columnName) {
     trades.map((t) =>
       prisma.trade.update({
         where: { id: t.id },
-        data: { dynamic: { ...(t.dynamic ?? {}), [columnName]: '' } },
+        data: {
+          dynamic: { ...sanitizeDynamic(t.dynamic), [columnName]: '' },
+        },
       })
     )
   );
@@ -217,7 +247,7 @@ export async function deleteCustomColumn(userId, accountId, columnName) {
   });
   await prisma.$transaction(
     trades.map((t) => {
-      const next = { ...(t.dynamic ?? {}) };
+      const next = { ...sanitizeDynamic(t.dynamic) };
       delete next[columnName];
       return prisma.trade.update({
         where: { id: t.id },
@@ -234,13 +264,16 @@ export async function renameCustomColumn(userId, accountId, oldName, newName) {
   if (!newName || !newName.trim()) {
     throw new HttpError(400, 'newName is required');
   }
+  if (RESERVED.has(newName)) {
+    throw new HttpError(400, `"${newName}" is a reserved column name`);
+  }
   const trades = await prisma.trade.findMany({
     where: { accountId },
     select: { id: true, dynamic: true },
   });
   await prisma.$transaction(
     trades.map((t) => {
-      const next = { ...(t.dynamic ?? {}) };
+      const next = { ...sanitizeDynamic(t.dynamic) };
       if (oldName in next) {
         next[newName] = next[oldName];
         delete next[oldName];

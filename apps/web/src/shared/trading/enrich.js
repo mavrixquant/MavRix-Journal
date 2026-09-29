@@ -18,6 +18,11 @@ function computeDurationMinutes(entryStr, exitStr) {
 }
 
 // Reserved keys — never treated as user-defined "dynamic" columns.
+//
+// NOTE: `notes` MUST be here. If it isn't, enrichTradesFromDB() treats it as
+// a custom column, and the trade table renders a duplicate "Notes" column.
+// `notes` is a first-class reserved field on the backend (see
+// apps/api/src/services/trades.service.js — RESERVED set).
 const STANDARD_KEYS = new Set([
   'accountId',
   'tradeId',
@@ -31,6 +36,7 @@ const STANDARD_KEYS = new Set([
   'pnl',
   'slPoints',
   'contracts',
+  'notes',              // ← ADDED: reserved, not a dynamic column
   'commission',
   'netPnl',
   'durationMinutes',
