@@ -220,6 +220,22 @@ const CSS = `
     background: #10151D;
   }
 
+  /* ---------- Right-sticky column (actions) ---------- */
+  .dt-th.sticky-right {
+    box-shadow: -10px 0 14px -10px rgba(0,0,0,.7);
+  }
+  .dt-td.sticky-right {
+    position: sticky;
+    right: 0;
+    background: #0D1117;
+    z-index: 3;
+    overflow: visible;
+    box-shadow: -10px 0 14px -10px rgba(0,0,0,.7);
+  }
+  .dt-row:hover .dt-td.sticky-right {
+    background: #10151D;
+  }
+
   /* Cell type styling */
   .dt-cell-num { text-align: right; }
   .dt-cell-pos { color: #35C4A1; font-weight: 700; }
@@ -262,7 +278,6 @@ function ColumnPicker({ table }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
 
-  // Close on outside click
   const onBlurRef = (el) => {
     if (!el) return;
     const handler = (e) => {
@@ -272,7 +287,6 @@ function ColumnPicker({ table }) {
     el._cleanup = () => document.removeEventListener('mousedown', handler);
   };
 
-  // Cleanup on unmount
   const cleanupRef = useRef(null);
   if (!cleanupRef.current) {
     cleanupRef.current = () => {
@@ -328,9 +342,9 @@ export default function DataTable({
   maxHeight = 560,
   emptyMessage = 'No data',
   stickyFirstColumn = true,
+  stickyLastColumn = false,
   showToolbar = true,
 }) {
-  // Deferred search — smooth typing on large datasets
   const [searchInput, setSearchInput] = useState('');
   const search = useDeferredValue(searchInput);
 
@@ -368,7 +382,6 @@ export default function DataTable({
 
   const { rows } = table.getRowModel();
 
-  // Virtualizer
   const scrollRef = useRef(null);
   const virtualizer = useVirtualizer({
     count: rows.length,
@@ -383,10 +396,9 @@ export default function DataTable({
   const paddingBottom =
     items.length > 0 ? totalSize - items[items.length - 1].end : 0;
 
-  // Visible leaf columns for rendering
   const visibleCols = table.getVisibleLeafColumns();
+  const lastColIndex = visibleCols.length - 1;
 
-  // Width computation: sum of visible column widths, minimum 100%
   const totalWidth = useMemo(
     () => visibleCols.reduce((sum, c) => sum + c.getSize(), 0),
     [visibleCols, columnSizing]
@@ -444,20 +456,29 @@ export default function DataTable({
                 {hg.headers.map((header, idx) => {
                   const canSort = header.column.getCanSort();
                   const sortDir = header.column.getIsSorted();
-                  const isSticky = stickyFirstColumn && idx === 0;
+                  const isStickyLeft = stickyFirstColumn && idx === 0;
+                  const isStickyRight = stickyLastColumn && idx === hg.headers.length - 1;
+
+                  const cls = [
+                    'dt-th',
+                    canSort ? 'sortable' : '',
+                    isStickyLeft ? 'sticky-left' : '',
+                    isStickyRight ? 'sticky-right' : '',
+                  ].filter(Boolean).join(' ');
+
+                  const inlineSticky = isStickyRight
+                    ? { position: 'sticky', right: 0, zIndex: 7, background: '#151A26' }
+                    : isStickyLeft
+                      ? { position: 'sticky', left: 0, zIndex: 6, background: '#151A26' }
+                      : {};
 
                   return (
                     <th
                       key={header.id}
-                      className={`dt-th ${canSort ? 'sortable' : ''} ${
-                        isSticky ? 'sticky-left' : ''
-                      }`}
+                      className={cls}
                       style={{
                         width: header.getSize(),
-                        position: isSticky ? 'sticky' : undefined,
-                        left: isSticky ? 0 : undefined,
-                        zIndex: isSticky ? 6 : 5,
-                        background: '#151A26',
+                        ...inlineSticky,
                       }}
                       onClick={
                         canSort
@@ -524,11 +545,19 @@ export default function DataTable({
                   return (
                     <tr key={row.id} className="dt-row" style={{ height: estimateRowHeight }}>
                       {row.getVisibleCells().map((cell, idx) => {
-                        const isSticky = stickyFirstColumn && idx === 0;
+                        const isStickyLeft = stickyFirstColumn && idx === 0;
+                        const isStickyRight = stickyLastColumn && idx === lastColIndex;
+
+                        const cls = [
+                          'dt-td',
+                          isStickyLeft ? 'sticky-left' : '',
+                          isStickyRight ? 'sticky-right' : '',
+                        ].filter(Boolean).join(' ');
+
                         return (
                           <td
                             key={cell.id}
-                            className={`dt-td ${isSticky ? 'sticky-left' : ''}`}
+                            className={cls}
                             style={{
                               width: cell.column.getSize(),
                             }}

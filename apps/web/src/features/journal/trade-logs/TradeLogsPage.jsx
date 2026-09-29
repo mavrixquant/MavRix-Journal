@@ -1,21 +1,31 @@
 // apps/web/src/features/journal/trade-logs/TradeLogsPage.jsx
-import { useState, useMemo, useEffect } from 'react';
-import { FaFileUpload, FaFolderOpen } from 'react-icons/fa';
+import { useState, useMemo, useEffect, useCallback } from 'react';
+import {
+  FaFileUpload,
+  FaFolderOpen,
+  FaPlus,
+  FaDownload,
+  FaColumns,
+  FaEdit,
+  FaTrash,
+} from 'react-icons/fa';
+import { toast } from 'sonner';
 
 import { useAccounts } from '@/shared/api/accounts';
-import { useTrades } from '@/shared/api/trades';
+import { useTrades, useDeleteTrade } from '@/shared/api/trades';
 import { enrichTradesFromDB } from '@/shared/trading/enrich';
 import UploadModal from './UploadModal';
+import AddTradeModal from './AddTradeModal';
+import ColumnManagerModal from './ColumnManagerModal';
+import { downloadTradeTemplate } from './downloadTemplate';
 import DataTable from '@/shared/ui/data-table';
 import { PageSkeleton } from '@/shared/ui/page-skeleton';
+import Alert from '@/shared/components/Alert';
 
 import '@/shared/ui/page-header.css';
 
 /* ------------------------------------------------------------------ */
 /*  Page-local CSS.                                                    */
-/*  Header chrome comes from page-header.css (.ph / .ph-row / ...).    */
-/*  This block only styles the KPI strip, the account <select>, the    */
-/*  Upload button, the table wrapper, and the empty state.             */
 /* ------------------------------------------------------------------ */
 const CSS = `
   .jm-root {
@@ -43,7 +53,7 @@ const CSS = `
     -webkit-font-smoothing: antialiased;
   }
 
-  /* ---------- Account selector (kept in header actions slot) ---------- */
+  /* ---------- Account selector ---------- */
   .jm-select {
     appearance: none;
     -webkit-appearance: none;
@@ -69,7 +79,7 @@ const CSS = `
     box-shadow: 0 0 0 3px rgba(245,158,11,.15);
   }
 
-  /* ---------- Upload button ---------- */
+  /* ---------- Primary CTA ---------- */
   .jm-btn-primary {
     position: relative;
     display: inline-flex;
@@ -99,6 +109,77 @@ const CSS = `
   .jm-btn-primary:disabled {
     opacity: .5;
     cursor: not-allowed;
+  }
+
+  /* ---------- Secondary icon button ---------- */
+  .jm-icon-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 9px 12px;
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,.1);
+    background: rgba(255,255,255,.03);
+    color: var(--ink-2);
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .02em;
+    cursor: pointer;
+    transition: all .22s cubic-bezier(.2,.8,.25,1);
+    white-space: nowrap;
+  }
+  .jm-icon-btn:hover:not(:disabled) {
+    color: var(--accent);
+    background: rgba(245,158,11,.06);
+    border-color: var(--accent-soft2);
+    transform: translateY(-1px);
+  }
+  .jm-icon-btn:disabled { opacity: .4; cursor: not-allowed; }
+  @media (max-width: 900px) {
+    .jm-icon-btn span { display: none; }
+  }
+
+  /* ---------- Row actions (inside sticky-right cell) ---------- */
+  .jm-row-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px;
+  }
+  .jm-row-btn {
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 7px;
+    border: 1px solid rgba(255,255,255,.09);
+    background: rgba(255,255,255,.025);
+    color: var(--ink-2);
+    cursor: pointer;
+    transition: all .18s cubic-bezier(.2,.8,.25,1);
+    flex-shrink: 0;
+  }
+  .jm-row-btn:hover {
+    color: var(--accent);
+    background: rgba(245,158,11,.10);
+    border-color: var(--accent-soft2);
+    transform: translateY(-1px);
+  }
+  .jm-row-btn:active { transform: translateY(0) scale(.94); }
+  .jm-row-btn.is-danger:hover {
+    color: #f87171;
+    background: rgba(239,68,68,.10);
+    border-color: rgba(239,68,68,.42);
+  }
+  .jm-row-btn:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(245,158,11,.22);
+  }
+  .jm-row-btn.is-danger:focus-visible {
+    box-shadow: 0 0 0 3px rgba(239,68,68,.22);
   }
 
   /* ---------- KPI strip ---------- */
@@ -133,7 +214,7 @@ const CSS = `
   .jm-kpi-value.pos { color: var(--win); }
   .jm-kpi-value.neg { color: var(--loss); }
 
-  /* ---------- Table card (this stays a card — it wraps a data grid) ---------- */
+  /* ---------- Table card ---------- */
   .jm-card {
     position: relative;
     border-radius: 18px;
@@ -229,7 +310,7 @@ function DirText({ value }) {
 /* ------------------------------------------------------------------ */
 /*  Columns                                                            */
 /* ------------------------------------------------------------------ */
-function buildColumns(dynamicKeys, currency) {
+function buildColumns(dynamicKeys, currency, { onEdit, onDelete }) {
   const base = [
     {
       id: 'date',
@@ -318,7 +399,43 @@ function buildColumns(dynamicKeys, currency) {
     cell: (ctx) => String(ctx.getValue() ?? '—'),
   }));
 
-  return [...base, ...dynamicCols];
+  /* ---- Sticky actions column (last) ---- */
+  const actionsCol = {
+    id: '__actions',
+    header: '',
+    meta: { label: 'Actions' },
+    size: 92,
+    enableSorting: false,
+    enableResizing: false,
+    enableHiding: false,
+    cell: (ctx) => {
+      const row = ctx.row.original;
+      return (
+        <div className="jm-row-actions">
+          <button
+            type="button"
+            className="jm-row-btn"
+            onClick={() => onEdit(row)}
+            title="Edit trade"
+            aria-label="Edit trade"
+          >
+            <FaEdit size={11} />
+          </button>
+          <button
+            type="button"
+            className="jm-row-btn is-danger"
+            onClick={() => onDelete(row)}
+            title="Delete trade"
+            aria-label="Delete trade"
+          >
+            <FaTrash size={11} />
+          </button>
+        </div>
+      );
+    },
+  };
+
+  return [...base, ...dynamicCols, actionsCol];
 }
 
 /* ------------------------------------------------------------------ */
@@ -327,7 +444,16 @@ function buildColumns(dynamicKeys, currency) {
 export default function TradeLogsPage() {
   const { data: accounts = [], isLoading: accountsLoading } = useAccounts();
   const [selectedAccountId, setSelectedAccountId] = useState(null);
+
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [addTradeOpen, setAddTradeOpen] = useState(false);
+  const [columnsOpen, setColumnsOpen] = useState(false);
+
+  // Edit / delete state
+  const [editingTrade, setEditingTrade] = useState(null);
+  const [deletingTrade, setDeletingTrade] = useState(null);
+
+  const deleteTrade = useDeleteTrade();
 
   useEffect(() => {
     if (accounts.length > 0 && !selectedAccountId) {
@@ -351,9 +477,40 @@ export default function TradeLogsPage() {
 
   const currency = selectedAccount?.currency || 'USD';
 
+  /* ---- Row action handlers ---- */
+  const handleEdit = useCallback((row) => {
+    setEditingTrade(row);
+    setAddTradeOpen(true);
+  }, []);
+
+  const handleDeleteRequest = useCallback((row) => {
+    setDeletingTrade(row);
+  }, []);
+
+  const handleDeleteConfirm = useCallback(async () => {
+    const trade = deletingTrade;
+    if (!trade) return;
+    setDeletingTrade(null);
+    try {
+      await deleteTrade.mutateAsync(trade.id);
+      toast.success('Trade deleted');
+    } catch (err) {
+      toast.error(err?.message || 'Could not delete trade');
+    }
+  }, [deletingTrade, deleteTrade]);
+
+  const handleAddModalClose = useCallback(() => {
+    setAddTradeOpen(false);
+    setEditingTrade(null);
+  }, []);
+
   const columns = useMemo(
-    () => buildColumns(dynamicKeys, currency),
-    [dynamicKeys, currency]
+    () =>
+      buildColumns(dynamicKeys, currency, {
+        onEdit: handleEdit,
+        onDelete: handleDeleteRequest,
+      }),
+    [dynamicKeys, currency, handleEdit, handleDeleteRequest]
   );
 
   const kpis = useMemo(() => {
@@ -446,11 +603,46 @@ export default function TradeLogsPage() {
 
               <button
                 type="button"
-                className="jm-btn-primary"
+                className="jm-icon-btn"
+                onClick={() =>
+                  downloadTradeTemplate({
+                    account: selectedAccount,
+                    dynamicKeys,
+                  })
+                }
+                disabled={!selectedAccount}
+                title="Download .xlsx template"
+              >
+                <FaDownload size={11} /> <span>Template</span>
+              </button>
+
+              <button
+                type="button"
+                className="jm-icon-btn"
+                onClick={() => setColumnsOpen(true)}
+                disabled={!selectedAccount}
+                title="Manage custom columns"
+              >
+                <FaColumns size={11} /> <span>Columns</span>
+              </button>
+
+              <button
+                type="button"
+                className="jm-icon-btn"
                 onClick={() => setUploadOpen(true)}
                 disabled={!selectedAccount}
+                title="Bulk-upload trades from Excel"
               >
-                <FaFileUpload size={11} /> Upload Trades
+                <FaFileUpload size={11} /> <span>Upload Trades</span>
+              </button>
+
+              <button
+                type="button"
+                className="jm-btn-primary"
+                onClick={() => setAddTradeOpen(true)}
+                disabled={!selectedAccount}
+              >
+                <FaPlus size={11} /> Add Trade
               </button>
             </div>
           </div>
@@ -489,17 +681,32 @@ export default function TradeLogsPage() {
               </div>
               <h3>No trades yet</h3>
               <p>
-                Upload an .xlsx trade log to populate this account. You can
-                add custom columns and change their types during upload.
+                Add your first trade manually, or bulk-import an .xlsx log.
+                You can also define custom columns to capture more context.
               </p>
-              <button
-                type="button"
-                className="jm-btn-primary"
-                onClick={() => setUploadOpen(true)}
-                style={{ margin: '0 auto' }}
+              <div
+                style={{
+                  display: 'flex',
+                  gap: 10,
+                  justifyContent: 'center',
+                  flexWrap: 'wrap',
+                }}
               >
-                <FaFileUpload size={11} /> Upload Trades
-              </button>
+                <button
+                  type="button"
+                  className="jm-btn-primary"
+                  onClick={() => setAddTradeOpen(true)}
+                >
+                  <FaPlus size={11} /> Add Trade
+                </button>
+                <button
+                  type="button"
+                  className="jm-icon-btn"
+                  onClick={() => setUploadOpen(true)}
+                >
+                  <FaFileUpload size={11} /> <span>Upload Trades</span>
+                </button>
+              </div>
             </div>
           ) : (
             <DataTable
@@ -514,6 +721,8 @@ export default function TradeLogsPage() {
               estimateRowHeight={36}
               maxHeight={620}
               emptyMessage="No trades match your search."
+              stickyFirstColumn={false}
+              stickyLastColumn={true}
             />
           )}
         </div>
@@ -525,12 +734,44 @@ export default function TradeLogsPage() {
             onClose={() => setUploadOpen(false)}
             account={selectedAccount}
             existingTrades={rawTrades}
-            onSuccess={() => {
-              // React Query hooks re-fetch automatically (SSE + invalidation).
-              setUploadOpen(false);
-            }}
+            onSuccess={() => setUploadOpen(false)}
           />
         )}
+
+        {/* ---------- Add / Edit Trade modal ---------- */}
+        {selectedAccount && (
+          <AddTradeModal
+            isOpen={addTradeOpen}
+            onClose={handleAddModalClose}
+            account={selectedAccount}
+            trade={editingTrade}
+          />
+        )}
+
+        {/* ---------- Column manager modal ---------- */}
+        {selectedAccount && (
+          <ColumnManagerModal
+            isOpen={columnsOpen}
+            onClose={() => setColumnsOpen(false)}
+            account={selectedAccount}
+          />
+        )}
+
+        {/* ---------- Delete confirmation ---------- */}
+        <Alert
+          isOpen={!!deletingTrade}
+          type="confirm"
+          title="Delete trade?"
+          message={
+            deletingTrade
+              ? `Delete the ${deletingTrade.dir || ''} ${deletingTrade.symbol || ''} trade from ${deletingTrade.date} at ${deletingTrade.entry || ''}? This cannot be undone.`
+              : ''
+          }
+          confirmText="Delete"
+          cancelText="Cancel"
+          onConfirm={handleDeleteConfirm}
+          onCancel={() => setDeletingTrade(null)}
+        />
       </div>
     </>
   );
