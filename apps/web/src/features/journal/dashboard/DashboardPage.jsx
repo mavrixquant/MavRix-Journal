@@ -2,7 +2,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Responsive, WidthProvider } from 'react-grid-layout/legacy';
-import DashboardHeader from './components/DashboardHeader';
+import JournalDashboardHeader from './JournalDashboardHeader';
 import DashboardFooter from '@/features/dashboard/components/DashboardFooter';
 import {
   GRID_COLS,
@@ -446,7 +446,6 @@ export default function DashboardPage() {
   const { user } = useAuth();
   const { stats } = useStats();
 
-
   // Committed state (from server)
   const [layouts, setLayouts] = useState([]);
   const [activeId, setActiveId] = useState(null);
@@ -711,7 +710,7 @@ export default function DashboardPage() {
     <div className="dash-root">
       <style>{CSS}</style>
 
-      {!editMode && <DashboardHeader onCustomize={enterEdit} />}
+      {!editMode && <JournalDashboardHeader onCustomize={enterEdit} />}
 
       {!hasData ? (
         <div className="dash-empty-wrap">
@@ -728,8 +727,8 @@ export default function DashboardPage() {
             </div>
             <h3>No Trading Data Available</h3>
             <p>
-              Log trades in your journal or adjust your active account filters to
-              populate performance statistics and analytics.
+              Upload trades to a Live or Demo account to populate performance
+              statistics and analytics.
             </p>
             <button
               type="button"

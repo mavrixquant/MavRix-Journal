@@ -1,4 +1,12 @@
-// apps/web/src/features/journal/dashboard/components/DashboardHeader.jsx
+// apps/web/src/features/journal/dashboard/JournalDashboardHeader.jsx
+//
+// Journal-dashboard header.
+//
+// Live/Demo accounts only. No R:R tabs, no Optimize button, no
+// isBacktest branches — those are Backtester concerns. Everything
+// else (dynamic filters, session/time, limits, reset, customize,
+// account badge) mirrors the original unified header.
+
 import { useState, useEffect, useMemo } from 'react';
 import { useAppContext } from '@/app/providers/AppProvider';
 import { useTrades } from '@/shared/api/trades';
@@ -7,11 +15,9 @@ import { useFilterUrlSync } from '@/features/dashboard/hooks/useFilterUrlSync';
 import { enrichTradesFromDB } from '@/shared/trading/enrich';
 import { FaSlidersH } from 'react-icons/fa';
 
-import RRTabs from '@/features/dashboard/components/filters/RRTabs';
 import DynamicFilters from '@/features/dashboard/components/filters/DynamicFilters';
 import SessionTimeModal from '@/features/dashboard/components/filters/SessionTimeModal';
 import LimitsModal from '@/features/dashboard/components/filters/LimitsModal';
-import OptimizeModal from '@/features/dashboard/components/optimize/OptimizeModal';
 
 import '@/shared/ui/page-header.css';
 
@@ -130,15 +136,6 @@ const HDR_CSS = `
     gap: 12px;
     flex-wrap: wrap;
   }
-  .hdr-rr-label {
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    font-size: 10.5px;
-    font-weight: 700;
-    letter-spacing: .14em;
-    text-transform: uppercase;
-    color: var(--ink-3);
-    white-space: nowrap;
-  }
   .hdr-actions {
     display: flex;
     flex-wrap: wrap;
@@ -173,18 +170,6 @@ const HDR_CSS = `
   }
   .hdr-btn:active { transform: translateY(0) scale(.98); }
   .hdr-btn svg { flex-shrink: 0; }
-
-  .hdr-btn.is-optimize {
-    border-color: var(--accent-soft2);
-    background: rgba(245,158,11,.06);
-    color: var(--accent);
-  }
-  .hdr-btn.is-optimize:hover {
-    background: rgba(245,158,11,.12);
-    border-color: var(--accent);
-    color: var(--accent-2);
-    box-shadow: 0 0 20px -6px rgba(245,158,11,.5);
-  }
 
   .hdr-btn-reset {
     display: inline-flex;
@@ -222,7 +207,7 @@ const HDR_CSS = `
   }
 `;
 
-export default function DashboardHeader({ onCustomize }) {
+export default function JournalDashboardHeader({ onCustomize }) {
   const { state, dispatch } = useAppContext();
   const { resetAllFilters } = useFilters();
   // Mirror filter state to the URL for shareable / back-button support.
@@ -230,7 +215,6 @@ export default function DashboardHeader({ onCustomize }) {
 
   const [showSessionModal, setShowSessionModal] = useState(false);
   const [showLimitsModal, setShowLimitsModal] = useState(false);
-  const [showOptimizeModal, setShowOptimizeModal] = useState(false);
 
   // Toolbar expand/collapse — default OPEN.
   const [toolbarOpen, setToolbarOpen] = useState(true);
@@ -255,7 +239,9 @@ export default function DashboardHeader({ onCustomize }) {
 
   const selectedAccount =
     state.accounts.find((acc) => acc.id === state.selectedAccountId) || null;
-  const isBacktest = selectedAccount?.type === 'Backtest';
+
+  const badgeClass =
+    selectedAccount?.type === 'Demo' ? 'is-demo' : 'is-live';
 
   return (
     <>
@@ -288,11 +274,7 @@ export default function DashboardHeader({ onCustomize }) {
 
               <h1 className="ph-title">Dashboard</h1>
               {selectedAccount && (
-                <span
-                  className={`ph-badge ${
-                    isBacktest ? 'is-backtest' : 'is-live'
-                  }`}
-                >
+                <span className={`ph-badge ${badgeClass}`}>
                   {selectedAccount.type}
                 </span>
               )}
@@ -316,13 +298,6 @@ export default function DashboardHeader({ onCustomize }) {
         <div className={`hdr-toolbar-wrap ${toolbarOpen ? '' : 'is-closed'}`}>
           <div className="hdr-toolbar-inner">
             <div className="hdr-toolbar" id="hdr-toolbar">
-              {isBacktest && (
-                <div className="hdr-toolbar-section">
-                  <span className="hdr-rr-label">Target R:R</span>
-                  <RRTabs />
-                </div>
-              )}
-
               <div className="hdr-toolbar-section hdr-actions">
                 <DynamicFilters />
 
@@ -349,22 +324,6 @@ export default function DashboardHeader({ onCustomize }) {
                   </svg>
                   <span>Limits</span>
                 </button>
-
-                {isBacktest && (
-                  <button
-                    type="button"
-                    className="hdr-btn is-optimize"
-                    onClick={() => setShowOptimizeModal(true)}
-                  >
-                    <svg className="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <circle cx="11" cy="11" r="8" />
-                      <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                      <line x1="11" y1="8" x2="11" y2="14" />
-                      <line x1="8" y1="11" x2="14" y2="11" />
-                    </svg>
-                    <span>Optimize</span>
-                  </button>
-                )}
 
                 <button
                   type="button"
@@ -393,12 +352,6 @@ export default function DashboardHeader({ onCustomize }) {
         <LimitsModal
           isOpen={showLimitsModal}
           onClose={() => setShowLimitsModal(false)}
-        />
-      )}
-      {showOptimizeModal && (
-        <OptimizeModal
-          isOpen={showOptimizeModal}
-          onClose={() => setShowOptimizeModal(false)}
         />
       )}
     </>
