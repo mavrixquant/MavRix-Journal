@@ -1,4 +1,4 @@
-// apps/web/src/features/dashboard/components/DashboardHeader.jsx
+// apps/web/src/features/journal/dashboard/components/DashboardHeader.jsx
 import { useState, useEffect, useMemo } from 'react';
 import { useAppContext } from '@/app/providers/AppProvider';
 import { useTrades } from '@/shared/api/trades';
@@ -13,8 +13,13 @@ import SessionTimeModal from '@/features/journal/dashboard/components/filters/Se
 import LimitsModal from '@/features/journal/dashboard/components/filters/LimitsModal';
 import OptimizeModal from '@/features/journal/dashboard/components/optimize/OptimizeModal';
 
+import '@/shared/ui/page-header.css';
+
 /* ------------------------------------------------------------------ */
-/*  Scoped CSS — matches the dashboard's panel language                */
+/*  Header-local CSS.                                                  */
+/*  Shell chrome (bottom rule, spacing, eyebrow/title/badge) comes     */
+/*  from page-header.css. This block only styles the collapse toggle,  */
+/*  the Customize button, and the tool row of filter buttons.          */
 /* ------------------------------------------------------------------ */
 const HDR_CSS = `
   .hdr-root {
@@ -27,81 +32,6 @@ const HDR_CSS = `
     --ink-1: #E7E9EE;
     --ink-2: #8892A3;
     --ink-3: #545E6E;
-
-    position: sticky;
-    top: 0;
-    z-index: 40;
-    margin: 0 0 20px;
-    padding: 16px 20px 14px;
-    border-radius: 18px;
-    background: linear-gradient(180deg, rgba(15,18,25,.78), rgba(15,18,25,.58));
-    backdrop-filter: blur(18px) saturate(140%);
-    -webkit-backdrop-filter: blur(18px) saturate(140%);
-    border: 1px solid var(--line);
-    box-shadow:
-      0 20px 50px -30px rgba(0,0,0,.9),
-      inset 0 1px 0 rgba(255,255,255,.03);
-    font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
-    color: var(--ink-1);
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-  .hdr-root::before {
-    content: '';
-    position: absolute;
-    left: 0; right: 0; top: 0; height: 2px;
-    background: linear-gradient(90deg, transparent, var(--accent), var(--accent-2), var(--accent), transparent);
-    background-size: 200% 100%;
-    animation: hdrGrad 4s linear infinite;
-    pointer-events: none;
-  }
-
-  /* ---------- Top row ---------- */
-  .hdr-main {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 20px;
-    flex-wrap: wrap;
-  }
-  .hdr-title-group {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    min-width: 0;
-  }
-  .hdr-title {
-    margin: 0;
-    font-size: 22px;
-    font-weight: 700;
-    letter-spacing: -.02em;
-    color: var(--ink-1);
-    font-family: Inter, ui-sans-serif, system-ui, sans-serif;
-    line-height: 1.1;
-  }
-  .hdr-badge {
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: .1em;
-    text-transform: uppercase;
-    padding: 4px 10px;
-    border-radius: 99px;
-    border: 1px solid rgba(255,255,255,.1);
-    background: rgba(255,255,255,.03);
-    color: var(--ink-2);
-    white-space: nowrap;
-  }
-  .hdr-badge.is-backtest {
-    color: #38bdf8;
-    border-color: rgba(56,189,248,.35);
-    background: rgba(56,189,248,.08);
-  }
-  .hdr-badge.is-live {
-    color: #4ade80;
-    border-color: rgba(74,222,128,.35);
-    background: rgba(74,222,128,.08);
   }
 
   /* ---------- Collapse chevron ---------- */
@@ -124,7 +54,7 @@ const HDR_CSS = `
     width: 14px;
     height: 14px;
     transition: transform .38s cubic-bezier(.2,.8,.25,1);
-    transform: rotate(0deg);   /* chevron up  = toolbar open */
+    transform: rotate(0deg);   /* chevron up   = toolbar open */
   }
   .hdr-collapse.is-closed svg {
     transform: rotate(180deg); /* chevron down = toolbar hidden */
@@ -140,13 +70,6 @@ const HDR_CSS = `
     outline: none;
     border-color: var(--accent);
     box-shadow: 0 0 0 3px rgba(245,158,11,.18);
-  }
-
-  .hdr-right {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    flex-wrap: wrap;
   }
 
   /* ---------- Customize button ---------- */
@@ -179,26 +102,18 @@ const HDR_CSS = `
   .hdr-toolbar-wrap {
     display: grid;
     grid-template-rows: 1fr;
-    margin-top: 14px;
     opacity: 1;
     transition:
       grid-template-rows .38s cubic-bezier(.2,.8,.25,1),
-      margin-top .3s cubic-bezier(.2,.8,.25,1),
       opacity .28s ease;
   }
   .hdr-toolbar-wrap.is-closed {
     grid-template-rows: 0fr;
-    margin-top: 0;
     opacity: 0;
     pointer-events: none;
   }
-  .hdr-toolbar-inner {
-    min-height: 0;
-  }
-
-  .hdr-toolbar-wrap.is-closed .hdr-toolbar-inner {
-    overflow: hidden;
-  }
+  .hdr-toolbar-inner { min-height: 0; }
+  .hdr-toolbar-wrap.is-closed .hdr-toolbar-inner { overflow: hidden; }
 
   /* ---------- Toolbar row ---------- */
   .hdr-toolbar {
@@ -207,8 +122,7 @@ const HDR_CSS = `
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    padding-top: 14px;
-    border-top: 1px solid var(--line-soft);
+    padding-top: 4px;
   }
   .hdr-toolbar-section {
     display: flex;
@@ -296,24 +210,15 @@ const HDR_CSS = `
     transform: translateY(-1px);
   }
 
-  @keyframes hdrGrad {
-    0%   { background-position: 0% 50%; }
-    100% { background-position: 200% 50%; }
-  }
-
   @media (prefers-reduced-motion: reduce) {
-    .hdr-root::before { animation: none !important; }
     .hdr-btn, .hdr-btn-reset, .hdr-customize,
     .hdr-collapse, .hdr-collapse svg,
     .hdr-toolbar-wrap { transition: none !important; }
   }
 
   @media (max-width: 768px) {
-    .hdr-root { padding: 14px 16px; }
-    .hdr-main { flex-direction: column; align-items: stretch; }
-    .hdr-right { width: 100%; }
     .hdr-toolbar { flex-direction: column; align-items: stretch; }
-    .hdr-actions { width: 100%; }
+    .hdr-actions { width: 100%; margin-left: 0; }
   }
 `;
 
@@ -327,7 +232,7 @@ export default function DashboardHeader({ onCustomize }) {
   const [showLimitsModal, setShowLimitsModal] = useState(false);
   const [showOptimizeModal, setShowOptimizeModal] = useState(false);
 
-  // Toolbar expand/collapse — default OPEN (chevron up)
+  // Toolbar expand/collapse — default OPEN.
   const [toolbarOpen, setToolbarOpen] = useState(true);
 
   // ---------- React Query reads ----------
@@ -335,7 +240,7 @@ export default function DashboardHeader({ onCustomize }) {
   // Here we only need the trades for the currently selected account.
   const { data: rawTrades = [] } = useTrades(state.selectedAccountId);
 
-  // Enrich once per (rawTrades, accountId) pair — no re-run on dispatch
+  // Enrich once per (rawTrades, accountId) pair — no re-run on dispatch.
   const enriched = useMemo(() => {
     if (!state.selectedAccountId || rawTrades.length === 0) {
       return { enrichedTrades: [], dynamicKeys: [] };
@@ -355,40 +260,46 @@ export default function DashboardHeader({ onCustomize }) {
   return (
     <>
       <style>{HDR_CSS}</style>
-      <div className="hdr-root">
-        {/* Top row */}
-        <div className="hdr-main">
-          <div className="hdr-title-group">
-            <button
-              type="button"
-              className={`hdr-collapse ${toolbarOpen ? 'is-open' : 'is-closed'}`}
-              onClick={() => setToolbarOpen((v) => !v)}
-              aria-expanded={toolbarOpen}
-              aria-controls="hdr-toolbar"
-              title={toolbarOpen ? 'Hide filters' : 'Show filters'}
-            >
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.4"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
+      <div className="hdr-root ph">
+        {/* ---------- Title row ---------- */}
+        <div className="ph-row">
+          <div className="ph-left">
+            <div className="ph-title-row">
+              <button
+                type="button"
+                className={`hdr-collapse ${toolbarOpen ? '' : 'is-closed'}`}
+                onClick={() => setToolbarOpen((v) => !v)}
+                aria-expanded={toolbarOpen}
+                aria-controls="hdr-toolbar"
+                title={toolbarOpen ? 'Hide filters' : 'Show filters'}
               >
-                <polyline points="6 15 12 9 18 15" />
-              </svg>
-            </button>
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.4"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <polyline points="6 15 12 9 18 15" />
+                </svg>
+              </button>
 
-            <h1 className="hdr-title">Dashboard</h1>
-            {selectedAccount && (
-              <span className={`hdr-badge ${isBacktest ? 'is-backtest' : 'is-live'}`}>
-                {selectedAccount.type}
-              </span>
-            )}
+              <h1 className="ph-title">Dashboard</h1>
+              {selectedAccount && (
+                <span
+                  className={`ph-badge ${
+                    isBacktest ? 'is-backtest' : 'is-live'
+                  }`}
+                >
+                  {selectedAccount.type}
+                </span>
+              )}
+            </div>
           </div>
 
-          <div className="hdr-right">
+          <div className="ph-right">
             <button
               type="button"
               className="hdr-customize"
@@ -401,7 +312,7 @@ export default function DashboardHeader({ onCustomize }) {
           </div>
         </div>
 
-        {/* Collapsible toolbar */}
+        {/* ---------- Collapsible toolbar ---------- */}
         <div className={`hdr-toolbar-wrap ${toolbarOpen ? '' : 'is-closed'}`}>
           <div className="hdr-toolbar-inner">
             <div className="hdr-toolbar" id="hdr-toolbar">
@@ -473,13 +384,22 @@ export default function DashboardHeader({ onCustomize }) {
       </div>
 
       {showSessionModal && (
-        <SessionTimeModal isOpen={showSessionModal} onClose={() => setShowSessionModal(false)} />
+        <SessionTimeModal
+          isOpen={showSessionModal}
+          onClose={() => setShowSessionModal(false)}
+        />
       )}
       {showLimitsModal && (
-        <LimitsModal isOpen={showLimitsModal} onClose={() => setShowLimitsModal(false)} />
+        <LimitsModal
+          isOpen={showLimitsModal}
+          onClose={() => setShowLimitsModal(false)}
+        />
       )}
       {showOptimizeModal && (
-        <OptimizeModal isOpen={showOptimizeModal} onClose={() => setShowOptimizeModal(false)} />
+        <OptimizeModal
+          isOpen={showOptimizeModal}
+          onClose={() => setShowOptimizeModal(false)}
+        />
       )}
     </>
   );
