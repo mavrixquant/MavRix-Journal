@@ -19,6 +19,8 @@ import { defineConfig, globalIgnores } from 'eslint/config'
                    filters, hooks, layout). Consumed by journal
                    and backtester only. Leaf — imports nothing
                    from other feature groups.
+     charts      — TradingView market-chart feature. Leaf —
+                   imports nothing from other feature groups.
      journal     — trade-log side of the app. MAY import dashboard.
      backtester  — Monte Carlo side of the app. MAY import dashboard.
      manage      — accounts, strategies
@@ -68,6 +70,7 @@ const FIREBASE_SDK_PATTERN = {
 const FEATURE_GROUPS = [
   'auth',
   'dashboard',
+  'charts',
   'journal',
   'backtester',
   'manage',

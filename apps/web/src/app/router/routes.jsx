@@ -31,8 +31,8 @@ const BacktesterDashboardPage = lazy(() =>
 );
 const TestLogsPage = lazy(() => import('@/features/backtester/test-logs/TestLogsPage'));
 const SimulatorPage = lazy(() => import('@/features/backtester/simulator/SimulatorPage'));
-const BacktesterChartPage = lazy(() =>
-  import('@/features/backtester/chart/BacktesterChartPage')
+const MarketChartPage = lazy(() =>
+  import('@/features/charts/MarketChartPage')
 );
 
 /* ---- Manage ---- */
@@ -123,7 +123,7 @@ export function AppRoutes() {
         <Route path="/backtester" element={<BacktesterDashboardPage />} />
         <Route path="/backtester/logs" element={<TestLogsPage />} />
         <Route path="/backtester/simulator" element={<SimulatorPage />} />
-        <Route path="/backtester/chart" element={<BacktesterChartPage />} />
+        <Route path="/backtester/chart" element={<MarketChartPage />} />
 
         {/* ---- Manage ---- */}
         <Route path="/manage/accounts" element={<AccountsPage />} />
