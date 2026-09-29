@@ -95,3 +95,51 @@ model UserLayout {
   @@index([userId])
   @@map("user_layouts")
 }
+
+// ---------------------------------------------------------------------------
+// Economic Calendar — cached from Biquote (https://biquote.io)
+//
+// Design notes:
+//   - externalId is Biquote's `id` field (e.g. "mql5:900001"). Unique.
+//   - eventId is Biquote's `eventId` (e.g. "mql5:840") — the recurring series
+//     identifier. Not unique; many rows share one eventId.
+//   - actual / forecast / previous / revisedPrevious are stored as String?
+//     because Biquote returns null when unpublished and numbers otherwise.
+//     String preserves both the null signal and the raw value for display.
+//   - multiplier is stored separately from unit so the frontend can decide
+//     how to render (e.g. 152000 + "thousands" → "152,000K").
+// ---------------------------------------------------------------------------
+model EconomicEvent {
+  id              String   @id @default(cuid())
+  externalId      String   @unique
+  eventId         String?
+  date            String   // YYYY-MM-DD derived from timeUtc
+  timeUtc         String   // HH:mm derived from timeUtc
+  dateTimeUtc     DateTime // full UTC timestamp — primary sort/index key
+  period          DateTime? // Biquote's `period` field
+  countryCode     String   // ISO alpha-2: US, EU, GB, JP, TR, ...
+  currency        String   // USD, EUR, GBP, JPY, TRY, ...
+  event           String   // event name: "Nonfarm Payrolls"
+  impact          String   // high | medium | low
+  eventType       String?  // indicator | holiday | speech | auction
+  sector          String?  // jobs | inflation | ...
+  unit            String?  // percent | currency | job | barrel | ...
+  multiplier      String?  // thousands | millions | null
+  digits          Int?
+  actual          String?
+  forecast        String?
+  previous        String?
+  revisedPrevious String?
+  revision        Int?
+  timeMode        String?  // exact | date | notime | tentative
+  sourceUrl       String?
+  source          String   // mql5 | (second feed)
+  fetchedAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([dateTimeUtc])
+  @@index([currency, date])
+  @@index([impact, date])
+  @@index([eventId])
+  @@map("economic_events")
+}
