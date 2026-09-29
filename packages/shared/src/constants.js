@@ -1,4 +1,10 @@
+// packages/shared/src/constants.js
+//
 // Values shared by the API and the web app.
+
+/* ------------------------------------------------------------------ */
+/*  Trading sessions                                                   */
+/* ------------------------------------------------------------------ */
 
 export const SESSION_RANGES = [
   { name: 'Asia',          start: 1080, end: 120  },
@@ -12,9 +18,16 @@ export const SESSION_RANGES = [
 
 export const DOW_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-export const RR_LEVELS = [1, 2, 3, 4, 5, 6, 7, 8];
+/* ------------------------------------------------------------------ */
+/*  Trade scoring                                                      */
+/* ------------------------------------------------------------------ */
 
+export const RR_LEVELS = [1, 2, 3, 4, 5, 6, 7, 8];
 export const TICKS_PER_POINT = 4;
+
+/* ------------------------------------------------------------------ */
+/*  Accounts                                                           */
+/* ------------------------------------------------------------------ */
 
 export const ACCOUNT_TYPES = ['Backtest', 'Live', 'Demo'];
 export const CURRENCIES = ['USD', 'EUR', 'INR', 'GBP'];
@@ -23,5 +36,16 @@ export const RISK_UNITS = ['percent', 'amount'];
 export const SL_UNITS = ['ticks', 'points'];
 export const COMMISSION_MODES = ['none', 'flat', 'per_contract'];
 export const DIRECTIONS = ['Long', 'Short'];
+
+/* ------------------------------------------------------------------ */
+/*  Dashboard layouts                                                  */
+/* ------------------------------------------------------------------ */
+
 export const MAX_LAYOUTS = 3;
 export const MAX_DROPDOWN_UNIQUES = 10;
+
+/* ------------------------------------------------------------------ */
+/*  Economic Calendar                                                  */
+/* ------------------------------------------------------------------ */
+
+export * from './calendar.js';

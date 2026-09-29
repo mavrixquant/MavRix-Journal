@@ -1,10 +1,15 @@
+// packages/shared/src/validators.js
 import { z } from 'zod';
 import {
   ACCOUNT_TYPES, CURRENCIES, RISK_TYPES, RISK_UNITS,
   SL_UNITS, COMMISSION_MODES, DIRECTIONS,
 } from './constants.js';
+import { IMPACT_LEVELS, MAX_CALENDAR_EVENTS_PER_REQUEST } from './calendar.js';
 
-// ---------- Auth ----------
+/* ------------------------------------------------------------------ */
+/*  Auth                                                               */
+/* ------------------------------------------------------------------ */
+
 export const signupSchema = z.object({
   email: z.string().trim().toLowerCase().email(),
   password: z.string().min(6).max(128),
@@ -17,7 +22,10 @@ export const loginSchema = z.object({
   password: z.string().min(1).max(128),
 });
 
-// ---------- Account ----------
+/* ------------------------------------------------------------------ */
+/*  Account                                                            */
+/* ------------------------------------------------------------------ */
+
 const decimal = z.number().finite();
 
 export const accountSchema = z.object({
@@ -35,7 +43,10 @@ export const accountSchema = z.object({
   columnConfigs: z.record(z.enum(['text', 'dropdown', 'number'])).default({}),
 });
 
-// ---------- Trade ----------
+/* ------------------------------------------------------------------ */
+/*  Trade                                                              */
+/* ------------------------------------------------------------------ */
+
 export const tradeSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   entryTime: z.string().regex(/^\d{2}:\d{2}$/),
@@ -56,7 +67,10 @@ export const tradeBatchSchema = z.object({
   columnConfigs: z.record(z.enum(['text', 'dropdown', 'number'])).optional(),
 });
 
-// ---------- User layout ----------
+/* ------------------------------------------------------------------ */
+/*  User layout                                                        */
+/* ------------------------------------------------------------------ */
+
 export const layoutItemSchema = z.object({
   i: z.string(),
   x: z.number().int(),
@@ -72,4 +86,48 @@ export const layoutSchema = z.object({
   id: z.string(),
   name: z.string().trim().min(1).max(24),
   layout: z.array(layoutItemSchema),
+});
+
+/* ------------------------------------------------------------------ */
+/*  Economic Calendar                                                  */
+/* ------------------------------------------------------------------ */
+
+// Express puts query params on req.query as either a string or an array
+// (arrays happen when the same key is repeated: ?currency=USD&currency=EUR).
+// Our web client always sends CSV, but Postman / curl users may send either.
+// This helper normalizes both forms into a clean array of trimmed strings.
+const csvToArray = (v) => {
+  if (v === undefined || v === null || v === '') return [];
+  if (Array.isArray(v)) return v.map((s) => String(s).trim()).filter(Boolean);
+  return String(v).split(',').map((s) => s.trim()).filter(Boolean);
+};
+
+// GET /api/calendar query contract.
+//
+//   from     — required, YYYY-MM-DD
+//   to       — required, YYYY-MM-DD
+//   currency — optional, CSV or array; uppercase ISO codes
+//   impact   — optional, CSV or array; must be one of IMPACT_LEVELS
+//   limit    — optional, integer 1..MAX_CALENDAR_EVENTS_PER_REQUEST
+//
+// After parsing, `currency` and `impact` are always arrays (possibly empty),
+// and `limit` is always a number. Callers never need to re-check undefined.
+export const calendarQuerySchema = z.object({
+  from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'from must be YYYY-MM-DD'),
+  to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'to must be YYYY-MM-DD'),
+  currency: z.preprocess(
+    csvToArray,
+    z.array(z.string().min(1).max(8))
+  ),
+  impact: z.preprocess(
+    csvToArray,
+    z.array(z.enum(IMPACT_LEVELS))
+  ),
+  limit: z.preprocess(
+    (v) =>
+      v === undefined || v === null || v === ''
+        ? MAX_CALENDAR_EVENTS_PER_REQUEST
+        : Number(v),
+    z.number().int().positive().max(MAX_CALENDAR_EVENTS_PER_REQUEST)
+  ),
 });
