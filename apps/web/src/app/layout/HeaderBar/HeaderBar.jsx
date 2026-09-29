@@ -1,4 +1,4 @@
-// apps/web/src/app/shell/HeaderBar.jsx
+// apps/web/src/app/layout/HeaderBar/HeaderBar.jsx
 import { useEffect, useMemo } from 'react';
 import {
   Menu as MenuIcon,
@@ -10,6 +10,7 @@ import {
 
 import { useAuth } from '@/app/providers/AuthProvider';
 import { useAppContext } from '@/app/providers/AppProvider';
+import { useDashboardAccount } from '@/app/providers/useDashboardAccount';
 import { useAccounts } from '@/shared/api/accounts';
 import { AccountSelect } from './AccountSelect';
 import { IconButton, HBTooltip } from './IconButton';
@@ -24,10 +25,26 @@ export default function HeaderBar({
   onAccountClick,
   onLogout,
 }) {
-  const { state, dispatch } = useAppContext();
+  const { dispatch } = useAppContext();
   const { user } = useAuth();
   const { data: accountsData } = useAccounts();
-  const accounts = accountsData ?? [];
+
+  // Stable reference even when accountsData is undefined — silences
+  // the pre-existing react-hooks/exhaustive-deps warning here.
+  const accounts = useMemo(() => accountsData ?? [], [accountsData]);
+
+  // Route-aware account selection.
+  //   dashboardType     — 'journal' | 'backtester' | 'other'
+  //   allowedTypes      — ['Live','Demo'] | ['Backtest'] | null
+  //   showAccountSelect — false on /manage/*, /personal/*
+  //   accountId         — currently selected account for this dashboard
+  //   setAccountId      — dispatches to the correct per-dashboard slot
+  const {
+    allowedTypes,
+    showAccountSelect,
+    accountId,
+    setAccountId,
+  } = useDashboardAccount();
 
   /* ---- Bridge accounts into AppProvider ---- */
   useEffect(() => {
@@ -36,12 +53,31 @@ export default function HeaderBar({
     }
   }, [accountsData, dispatch]);
 
-  /* ---- Auto-select first account if none selected ---- */
+  /* ---- Accounts filtered by dashboard type ---- */
+  const filteredAccounts = useMemo(() => {
+    if (!allowedTypes) return accounts;
+    return accounts.filter((a) => allowedTypes.includes(a.type || 'Backtest'));
+  }, [accounts, allowedTypes]);
+
+  /* ---- Auto-select first valid account; clear the slot if none ---- */
   useEffect(() => {
-    if (accounts.length > 0 && !state.selectedAccountId) {
-      dispatch({ type: 'SET_SELECTED_ACCOUNT_ID', payload: accounts[0].id });
+    if (!showAccountSelect) return;
+
+    // No accounts of the required type → clear the mirror so the
+    // dashboard renders its empty state instead of leaking a
+    // wrong-type account into useStats / useFilters.
+    if (filteredAccounts.length === 0) {
+      if (accountId !== null) {
+        setAccountId(null);
+      }
+      return;
     }
-  }, [accounts, state.selectedAccountId, dispatch]);
+
+    const currentValid = filteredAccounts.some((a) => a.id === accountId);
+    if (!currentValid) {
+      setAccountId(filteredAccounts[0].id);
+    }
+  }, [filteredAccounts, accountId, showAccountSelect, setAccountId]);
 
   /* ---- Derived display name + initials ---- */
   const displayName = useMemo(() => {
@@ -67,7 +103,7 @@ export default function HeaderBar({
   const titleHidden = collapsed === false;
 
   const handleAccountChange = (id) => {
-    dispatch({ type: 'SET_SELECTED_ACCOUNT_ID', payload: id });
+    setAccountId(id);
   };
 
   return (
@@ -87,14 +123,16 @@ export default function HeaderBar({
         MavRix Journal
       </h1>
 
-      {/* Account selector */}
-      <div className="hb-account-root">
-        <AccountSelect
-          accounts={accounts}
-          value={state.selectedAccountId}
-          onChange={handleAccountChange}
-        />
-      </div>
+      {/* Account selector — only rendered on /journal/* and /backtester/* */}
+      {showAccountSelect && (
+        <div className="hb-account-root">
+          <AccountSelect
+            accounts={filteredAccounts}
+            value={accountId}
+            onChange={handleAccountChange}
+          />
+        </div>
+      )}
 
       <div className="hb-spacer" />
 

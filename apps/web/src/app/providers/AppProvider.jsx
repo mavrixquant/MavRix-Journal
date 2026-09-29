@@ -1,3 +1,4 @@
+// apps/web/src/app/providers/AppProvider.jsx
 import { createContext, useContext, useReducer, useMemo } from 'react';
 
 const initialState = {
@@ -18,13 +19,24 @@ const initialState = {
   isUploadGateVisible: true,
   fileStatus: 'no file loaded',
   subtitleText: 'Waiting for a trade log to be loaded…',
-  // NEW: accounts state
+
+  // --- Accounts ---
   accounts: [],
+
+  // Legacy alias — mirrors whichever dashboard slot is active.
+  // Kept for backwards compatibility with existing consumers
+  // (useStats, useFilters, DashboardHeader, DashboardFooter, …).
   selectedAccountId: null,
+
+  // Per-dashboard account slots. Fully independent so switching
+  // between /journal and /backtester preserves each side's choice.
+  journalAccountId: null,      // Live + Demo
+  backtesterAccountId: null,   // Backtest
+
   optimize: {
     columnEnabled: {},
     columnValues: {},
-    rrSelected: [1,2,3,4,5,6,7,8],
+    rrSelected: [1, 2, 3, 4, 5, 6, 7, 8],
     results: [],
     currentPage: 1,
     isRunning: false,
@@ -50,7 +62,14 @@ const ACTION_TYPES = {
   SET_OPTIMIZE: 'SET_OPTIMIZE',
   RESET_OPTIMIZE: 'RESET_OPTIMIZE',
   SET_ACCOUNTS: 'SET_ACCOUNTS',
+
+  // Legacy: sets selectedAccountId directly. Still supported for
+  // non-dashboard routes that may want to override the mirror.
   SET_SELECTED_ACCOUNT_ID: 'SET_SELECTED_ACCOUNT_ID',
+
+  // Route-aware: sets the per-dashboard slot AND mirrors
+  // selectedAccountId so legacy consumers stay in sync.
+  SET_DASHBOARD_ACCOUNT_ID: 'SET_DASHBOARD_ACCOUNT_ID',
 };
 
 // ---------- Reducer ----------
@@ -98,7 +117,7 @@ function appReducer(state, action) {
         optimize: {
           columnEnabled: {},
           columnValues: {},
-          rrSelected: [1,2,3,4,5,6,7,8],
+          rrSelected: [1, 2, 3, 4, 5, 6, 7, 8],
           results: [],
           currentPage: 1,
           isRunning: false,
@@ -112,6 +131,16 @@ function appReducer(state, action) {
       return { ...state, accounts: action.payload };
     case ACTION_TYPES.SET_SELECTED_ACCOUNT_ID:
       return { ...state, selectedAccountId: action.payload };
+    case ACTION_TYPES.SET_DASHBOARD_ACCOUNT_ID: {
+      const { dashboardType, accountId } = action.payload;
+      return {
+        ...state,
+        ...(dashboardType === 'journal' && { journalAccountId: accountId }),
+        ...(dashboardType === 'backtester' && { backtesterAccountId: accountId }),
+        // Mirror into the legacy alias.
+        selectedAccountId: accountId,
+      };
+    }
     default:
       return state;
   }
