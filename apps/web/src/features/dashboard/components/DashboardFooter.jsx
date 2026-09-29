@@ -1,5 +1,6 @@
 // src/components/dashboard/DashboardFooter.jsx
 import { useAppContext } from '@/app/providers/AppProvider';
+import { useDashboardAccount } from '@/app/providers/useDashboardAccount';
 
 const SESSIONS_TEXT =
   'Sessions (ET): Asia 18:00–02:00 · London 02:00–05:00 · NY Pre-Market 05:00–08:30 · NY AM 08:30–11:00 · NY Lunch 11:00–13:30 · NY PM 13:30–16:00 · After Hours 16:00–18:00.';
@@ -49,7 +50,10 @@ function buildMoneyRule(account) {
 
 export default function DashboardFooter() {
   const { state } = useAppContext();
-  const account = state.accounts.find((a) => a.id === state.selectedAccountId) || null;
+  const { accountId } = useDashboardAccount();
+
+  // Route-aware: follows the CURRENT dashboard's account slot.
+  const account = state.accounts.find((a) => a.id === accountId) || null;
   const isBacktest = account?.type === 'Backtest';
 
   return (

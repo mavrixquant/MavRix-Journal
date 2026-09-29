@@ -1,10 +1,12 @@
-// src/hooks/useOptimization.js
+// apps/web/src/features/dashboard/hooks/useOptimization.js
 import { useState, useCallback } from 'react';
 import { useAppContext, actions } from '@/app/providers/AppProvider';
+import { useDashboardAccount } from '@/app/providers/useDashboardAccount';
 import { runOptimization } from '@/shared/trading/optimization';
 
 export function useOptimization() {
   const { state, dispatch } = useAppContext();
+  const { accountId } = useDashboardAccount();
   const [isRunning, setIsRunning] = useState(false);
   const [progress, setProgress] = useState(0);
   const [status, setStatus] = useState('Idle');
@@ -48,7 +50,7 @@ export function useOptimization() {
   }, [dispatch]);
 
   const runOptimizationAsync = useCallback(async (selectedRRs) => {
-    const selectedAccount = state.accounts.find(a => a.id === state.selectedAccountId);
+    const selectedAccount = state.accounts.find(a => a.id === accountId);
 
     // Optimize is Backtest-only (R-multiple sweep is meaningless without per-trade SL)
     if (!selectedAccount || selectedAccount.type !== 'Backtest') {
@@ -110,7 +112,7 @@ export function useOptimization() {
     state.filterParams,
     state.currentR,
     state.accounts,
-    state.selectedAccountId,
+    accountId,
     updateOptimizeState,
   ]);
 

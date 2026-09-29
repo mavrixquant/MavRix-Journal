@@ -1,6 +1,6 @@
 // apps/web/src/app/layout/AppLayout.jsx
 import { useState, useEffect, Suspense } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 
 import { useAuth } from '@/app/providers/AuthProvider';
 import Sidebar, {
@@ -21,6 +21,7 @@ const STORAGE_KEY = 'mavrix:sidebar:collapsed';
 
 export default function AppLayout() {
   const { user, logout } = useAuth();
+  const location = useLocation();
 
   const [collapsed, setCollapsed] = useState(() => {
     if (typeof window === 'undefined') return false;
@@ -87,7 +88,16 @@ export default function AppLayout() {
         />
 
         <main className="box-border w-full px-4 py-5 lg:px-7 lg:py-6">
-          <Suspense fallback={<PageSkeleton />}>
+          {/*
+            The `key` forces a clean remount of the outlet subtree on every
+            pathname change. React Router v7 wraps navigations in
+            startTransition — if a lazy child's promise stalls, React keeps
+            the previous subtree visible. A stable key gives React an
+            unambiguous signal: "this is a different page, throw the old
+            one away." Query-string-only changes (e.g. filter URL sync)
+            do NOT remount, because they don't change the pathname.
+          */}
+          <Suspense key={location.pathname} fallback={<PageSkeleton />}>
             <Outlet />
           </Suspense>
         </main>

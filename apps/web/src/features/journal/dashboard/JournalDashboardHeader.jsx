@@ -9,6 +9,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useAppContext } from '@/app/providers/AppProvider';
+import { useDashboardAccount } from '@/app/providers/useDashboardAccount';
 import { useTrades } from '@/shared/api/trades';
 import { useFilters } from '@/features/dashboard/hooks/useFilters';
 import { useFilterUrlSync } from '@/features/dashboard/hooks/useFilterUrlSync';
@@ -22,10 +23,23 @@ import LimitsModal from '@/features/dashboard/components/filters/LimitsModal';
 import '@/shared/ui/page-header.css';
 
 /* ------------------------------------------------------------------ */
+/*  Frozen empty payload.                                              */
+/*                                                                     */
+/*  The dispatch effect below must NOT fire in a loop. It only refires */
+/*  when `enriched` changes reference. If we return a fresh `{ ... }`  */
+/*  object from the memo every time React Query's `data` is undefined, */
+/*  the memo invalidates on every render and the effect spams the      */
+/*  reducer — which is exactly the "Maximum update depth exceeded"     */
+/*  crash we were seeing. A module-level frozen constant gives the     */
+/*  memo a stable return value for the empty case.                     */
+/* ------------------------------------------------------------------ */
+const EMPTY_ENRICHED = Object.freeze({
+  enrichedTrades: [],
+  dynamicKeys: [],
+});
+
+/* ------------------------------------------------------------------ */
 /*  Header-local CSS.                                                  */
-/*  Shell chrome (bottom rule, spacing, eyebrow/title/badge) comes     */
-/*  from page-header.css. This block only styles the collapse toggle,  */
-/*  the Customize button, and the tool row of filter buttons.          */
 /* ------------------------------------------------------------------ */
 const HDR_CSS = `
   .hdr-root {
@@ -209,6 +223,7 @@ const HDR_CSS = `
 
 export default function JournalDashboardHeader({ onCustomize }) {
   const { state, dispatch } = useAppContext();
+  const { accountId } = useDashboardAccount();
   const { resetAllFilters } = useFilters();
   // Mirror filter state to the URL for shareable / back-button support.
   useFilterUrlSync();
@@ -220,17 +235,23 @@ export default function JournalDashboardHeader({ onCustomize }) {
   const [toolbarOpen, setToolbarOpen] = useState(true);
 
   // ---------- React Query reads ----------
-  // Accounts are bridged into AppProvider by HeaderBar (single owner).
-  // Here we only need the trades for the currently selected account.
-  const { data: rawTrades = [] } = useTrades(state.selectedAccountId);
+  // Note: `data` is undefined while the query is disabled or loading.
+  // We deliberately do NOT use the `= []` destructure default here,
+  // because that produces a fresh array on every render and would
+  // invalidate the `enriched` memo below. The memo handles the
+  // undefined case via EMPTY_ENRICHED.
+  const { data: rawTrades } = useTrades(accountId);
 
-  // Enrich once per (rawTrades, accountId) pair — no re-run on dispatch.
+  // Enrich once per (rawTrades, accountId) pair.
+  // Returns the frozen EMPTY_ENRICHED constant when there is nothing
+  // to enrich — so `enriched` is stable across renders and the dispatch
+  // effect below cannot enter a self-sustaining loop.
   const enriched = useMemo(() => {
-    if (!state.selectedAccountId || rawTrades.length === 0) {
-      return { enrichedTrades: [], dynamicKeys: [] };
+    if (!accountId || !rawTrades || rawTrades.length === 0) {
+      return EMPTY_ENRICHED;
     }
     return enrichTradesFromDB(rawTrades);
-  }, [rawTrades, state.selectedAccountId]);
+  }, [rawTrades, accountId]);
 
   useEffect(() => {
     dispatch({ type: 'SET_TRADES', payload: enriched.enrichedTrades });
@@ -238,7 +259,7 @@ export default function JournalDashboardHeader({ onCustomize }) {
   }, [enriched, dispatch]);
 
   const selectedAccount =
-    state.accounts.find((acc) => acc.id === state.selectedAccountId) || null;
+    state.accounts.find((acc) => acc.id === accountId) || null;
 
   const badgeClass =
     selectedAccount?.type === 'Demo' ? 'is-demo' : 'is-live';

@@ -1,6 +1,7 @@
 // apps/web/src/features/backtester/simulator/SimulatorPage.jsx
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useAppContext } from '@/app/providers/AppProvider';
+import { useDashboardAccount } from '@/app/providers/useDashboardAccount';
 import { useTrades } from '@/shared/api/trades';
 import { useAccounts } from '@/shared/api/accounts';
 import { enrichTradesFromDB } from '@/shared/trading/enrich';
@@ -177,6 +178,7 @@ const SIM_CSS = `
 
 export default function SimulatorPage() {
   const { state } = useAppContext();
+  const { accountId } = useDashboardAccount();
 
   // ──────────────────────────────────────────────────────────────
   //  Data layer — React Query hooks
@@ -188,11 +190,11 @@ export default function SimulatorPage() {
 
   useEffect(() => {
     if (!initialized && accounts.length > 0) {
-      const preferred = state.selectedAccountId || accounts[0].id;
+      const preferred = accountId || accounts[0].id;
       setSimAccountId(preferred);
       setInitialized(true);
     }
-  }, [accounts, state.selectedAccountId, initialized]);
+  }, [accounts, accountId, initialized]);
 
   const { data: rawSimTrades = [], isLoading: loadingTrades } =
     useTrades(simAccountId);

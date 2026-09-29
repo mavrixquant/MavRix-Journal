@@ -1,6 +1,7 @@
-// src/hooks/useStats.js
+// apps/web/src/features/dashboard/hooks/useStats.js
 import { useMemo } from 'react';
 import { useAppContext } from '@/app/providers/AppProvider';
+import { useDashboardAccount } from '@/app/providers/useDashboardAccount';
 import { useFilters } from './useFilters';
 import { computeStats, groupAgg } from '@/shared/trading/stats';
 import { getMetricMode, resolveSL } from '@/shared/trading/sl';
@@ -14,14 +15,21 @@ import {
 export function useStats() {
   const { state } = useAppContext();
   const { getFilteredTrades } = useFilters();
+  const { accountId } = useDashboardAccount();
 
+  // Route-aware: the account slot for the CURRENT dashboard, not the
+  // legacy mirror. When null, every downstream series collapses to
+  // empty — that's what prevents Journal from showing Backtest
+  // content when only a Backtest account exists.
   const selectedAccount = useMemo(
-    () => state.accounts.find(a => a.id === state.selectedAccountId) || null,
-    [state.accounts, state.selectedAccountId]
+    () => state.accounts.find(a => a.id === accountId) || null,
+    [state.accounts, accountId]
   );
 
   const filteredTrades = useMemo(() => {
+    if (!selectedAccount) return [];
     return getFilteredTrades();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     state.trades,
     state.filterSelections,
@@ -31,8 +39,9 @@ export function useStats() {
     state.activeFilterType,
     state.filterParams,
     state.currentR,
-    state.selectedAccountId,
+    accountId,
     state.accounts,
+    selectedAccount,
   ]);
 
   const stats = useMemo(() => {

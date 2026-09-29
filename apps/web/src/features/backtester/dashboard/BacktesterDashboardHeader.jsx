@@ -10,6 +10,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useAppContext } from '@/app/providers/AppProvider';
+import { useDashboardAccount } from '@/app/providers/useDashboardAccount';
 import { useTrades } from '@/shared/api/trades';
 import { useFilters } from '@/features/dashboard/hooks/useFilters';
 import { useFilterUrlSync } from '@/features/dashboard/hooks/useFilterUrlSync';
@@ -23,6 +24,14 @@ import LimitsModal from '@/features/dashboard/components/filters/LimitsModal';
 import OptimizeModal from '@/features/dashboard/components/optimize/OptimizeModal';
 
 import '@/shared/ui/page-header.css';
+
+/* ------------------------------------------------------------------ */
+/*  Frozen empty payload — same rationale as JournalDashboardHeader.   */
+/* ------------------------------------------------------------------ */
+const EMPTY_ENRICHED = Object.freeze({
+  enrichedTrades: [],
+  dynamicKeys: [],
+});
 
 /* ------------------------------------------------------------------ */
 /*  Header-local CSS — identical to JournalDashboardHeader.            */
@@ -230,6 +239,7 @@ const HDR_CSS = `
 
 export default function BacktesterDashboardHeader({ onCustomize }) {
   const { state, dispatch } = useAppContext();
+  const { accountId } = useDashboardAccount();
   const { resetAllFilters } = useFilters();
   // Mirror filter state to the URL for shareable / back-button support.
   useFilterUrlSync();
@@ -242,14 +252,15 @@ export default function BacktesterDashboardHeader({ onCustomize }) {
   const [toolbarOpen, setToolbarOpen] = useState(true);
 
   // ---------- React Query reads ----------
-  const { data: rawTrades = [] } = useTrades(state.selectedAccountId);
+  // See JournalDashboardHeader for the EMPTY_ENRICHED rationale.
+  const { data: rawTrades } = useTrades(accountId);
 
   const enriched = useMemo(() => {
-    if (!state.selectedAccountId || rawTrades.length === 0) {
-      return { enrichedTrades: [], dynamicKeys: [] };
+    if (!accountId || !rawTrades || rawTrades.length === 0) {
+      return EMPTY_ENRICHED;
     }
     return enrichTradesFromDB(rawTrades);
-  }, [rawTrades, state.selectedAccountId]);
+  }, [rawTrades, accountId]);
 
   useEffect(() => {
     dispatch({ type: 'SET_TRADES', payload: enriched.enrichedTrades });
@@ -257,7 +268,7 @@ export default function BacktesterDashboardHeader({ onCustomize }) {
   }, [enriched, dispatch]);
 
   const selectedAccount =
-    state.accounts.find((acc) => acc.id === state.selectedAccountId) || null;
+    state.accounts.find((acc) => acc.id === accountId) || null;
 
   // Backtester is Backtest-only. Badge is always `is-backtest`.
   const badgeClass = 'is-backtest';
