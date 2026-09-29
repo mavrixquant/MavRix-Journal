@@ -1,4 +1,4 @@
-// apps/web/src/features/simulator/components/SimulatorPage.jsx
+// apps/web/src/features/backtester/simulator/SimulatorPage.jsx
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useAppContext } from '@/app/providers/AppProvider';
 import { useTrades } from '@/shared/api/trades';
@@ -10,6 +10,8 @@ import { summarizeMC } from '@/shared/trading/monteCarlo';
 import { useMonteCarloWorker } from '@/features/backtester/simulator/hooks/useMonteCarloWorker';
 import SimulatorControls from './components/SimulatorControls';
 import SimulatorPanels from './components/SimulatorPanels';
+
+import '@/shared/ui/page-header.css';
 
 const randomSeed = () => Math.floor(Math.random() * 1e9);
 
@@ -29,6 +31,12 @@ const simulationConfigsEqual = (a, b) => {
   );
 };
 
+/* ------------------------------------------------------------------ */
+/*  Page-local CSS.                                                    */
+/*  Header chrome comes from page-header.css. This block covers the    */
+/*  page container, the account-context selector, empty/loading        */
+/*  states, and the info placeholder.                                  */
+/* ------------------------------------------------------------------ */
 const SIM_CSS = `
   .sim-page {
     --accent: #F59E0B; --accent-2: #FDE68A;
@@ -44,6 +52,8 @@ const SIM_CSS = `
     font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
     -webkit-font-smoothing: antialiased;
   }
+
+  /* Content cards (SimulatorControls / Panels also use this). */
   .sim-card {
     position: relative; border-radius: 18px;
     background: linear-gradient(180deg, rgba(15,18,25,.72), rgba(15,18,25,.55));
@@ -53,42 +63,8 @@ const SIM_CSS = `
     box-shadow: 0 20px 50px -30px rgba(0,0,0,.9), inset 0 1px 0 rgba(255,255,255,.03);
     overflow: hidden;
   }
-  .sim-head {
-    padding: 18px 22px 16px; display: flex; flex-wrap: wrap;
-    align-items: center; justify-content: space-between; gap: 18px;
-  }
-  .sim-head::before {
-    content: ''; position: absolute; left: 0; right: 0; top: 0; height: 2px;
-    border-radius: 18px 18px 0 0;
-    background: linear-gradient(90deg, transparent, var(--accent), var(--accent-2), var(--accent), transparent);
-    background-size: 200% 100%; animation: simGrad 4s linear infinite;
-    pointer-events: none;
-  }
-  .sim-head-left { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-  .sim-eyebrow {
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    font-size: 10px; font-weight: 700;
-    letter-spacing: .14em; text-transform: uppercase; color: var(--ink-3);
-  }
-  .sim-title-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-  .sim-title {
-    margin: 0; font-size: 22px; font-weight: 700;
-    letter-spacing: -.02em; color: var(--ink-1); line-height: 1.1;
-  }
-  .sim-badge {
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    font-size: 10px; font-weight: 700; letter-spacing: .1em;
-    text-transform: uppercase; padding: 3px 10px;
-    border-radius: 99px; border: 1px solid; white-space: nowrap;
-  }
-  .sim-badge.is-live { color: #4ade80; background: rgba(74,222,128,.10); border-color: rgba(74,222,128,.35); }
-  .sim-badge.is-demo { color: var(--accent); background: rgba(245,158,11,.10); border-color: var(--accent-soft2); }
-  .sim-badge.is-backtest { color: #60a5fa; background: rgba(96,165,250,.10); border-color: rgba(96,165,250,.32); }
-  .sim-sub {
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    font-size: 12px; color: var(--ink-2); letter-spacing: .01em;
-  }
-  .sim-sub b { color: var(--ink-1); font-weight: 700; }
+
+  /* Account context selector (rendered in the header actions slot). */
   .sim-ctx {
     display: inline-flex; align-items: center; gap: 10px;
     padding: 6px 6px 6px 14px; background: rgba(0,0,0,.22);
@@ -113,6 +89,8 @@ const SIM_CSS = `
   }
   .sim-ctx-select:hover { border-color: rgba(255,255,255,.2); }
   .sim-ctx-select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(245,158,11,.15); }
+
+  /* Empty / info states. */
   .sim-empty-wrap {
     min-height: calc(100vh - 160px); display: flex;
     align-items: center; justify-content: center; padding: 40px 16px;
@@ -150,6 +128,7 @@ const SIM_CSS = `
     font-family: 'IBM Plex Mono', ui-monospace, monospace; letter-spacing: .01em;
   }
   .sim-empty p b { color: var(--accent); font-weight: 700; }
+
   .sim-loading {
     padding: 60px 20px; text-align: center;
     display: flex; flex-direction: column; align-items: center; gap: 14px;
@@ -182,15 +161,15 @@ const SIM_CSS = `
     font-family: 'IBM Plex Mono', ui-monospace, monospace; letter-spacing: .01em;
   }
   .sim-info-desc b { color: var(--ink-1); }
-  @keyframes simGrad { 0% { background-position: 0% 50%; } 100% { background-position: 200% 50%; } }
+
   @keyframes simFloat { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-12px); } }
   @keyframes simSpin { to { transform: rotate(360deg); } }
+
   @media (prefers-reduced-motion: reduce) {
-    .sim-head::before, .sim-empty::before, .sim-spinner { animation: none !important; }
+    .sim-empty::before, .sim-spinner { animation: none !important; }
   }
   @media (max-width: 640px) {
     .sim-page { padding: 16px; }
-    .sim-head { padding: 16px 18px; }
     .sim-ctx-select { min-width: 0; width: 100%; }
     .sim-ctx { width: 100%; }
   }
@@ -200,18 +179,13 @@ export default function SimulatorPage() {
   const { state } = useAppContext();
 
   // ──────────────────────────────────────────────────────────────
-  //  Data layer — React Query hooks (Phase 5)
+  //  Data layer — React Query hooks
   // ──────────────────────────────────────────────────────────────
-
-  // Accounts come from the shared query cache (no more reading state.accounts
-  // which depended on DashboardHeader having run first).
   const { data: accounts = [] } = useAccounts();
 
   const [simAccountId, setSimAccountId] = useState('');
   const [initialized, setInitialized] = useState(false);
 
-  // Auto-select an account on first load. Prefers whatever the dashboard
-  // already selected, otherwise falls back to the first account.
   useEffect(() => {
     if (!initialized && accounts.length > 0) {
       const preferred = state.selectedAccountId || accounts[0].id;
@@ -220,10 +194,9 @@ export default function SimulatorPage() {
     }
   }, [accounts, state.selectedAccountId, initialized]);
 
-  // Trades come straight from React Query — cached, deduped, auto-refreshing.
-  const { data: rawSimTrades = [], isLoading: loadingTrades } = useTrades(simAccountId);
+  const { data: rawSimTrades = [], isLoading: loadingTrades } =
+    useTrades(simAccountId);
 
-  // Enrichment is pure — memo on the raw array reference.
   const simTrades = useMemo(() => {
     if (!rawSimTrades || rawSimTrades.length === 0) return [];
     return enrichTradesFromDB(rawSimTrades).enrichedTrades;
@@ -236,10 +209,6 @@ export default function SimulatorPage() {
 
   const metric = useMemo(() => getMetricMode(simAccount), [simAccount]);
   const isMoney = metric === '$';
-
-  // Explicit simulation unit mode.
-  // 'money' = scores/equity are account currency.
-  // 'R'     = scores/equity are R-multiples.
   const unitMode = isMoney ? 'money' : 'R';
 
   const stats = useMemo(
@@ -250,16 +219,11 @@ export default function SimulatorPage() {
   // ──────────────────────────────────────────────────────────────
   //  Simulation state
   // ──────────────────────────────────────────────────────────────
-
   const [method, setMethod] = useState('permutation');
   const [runs, setRuns] = useState(10000);
   const [blockSize, setBlockSize] = useState(5);
   const [seed, setSeed] = useState(randomSeed);
 
-  // Current account balance is the default starting point,
-  // but Monte Carlo uses its own explicit starting-capital value.
-  // This prevents future/live balance changes from silently redefining
-  // the historical simulation starting capital.
   const accountBalance = useMemo(() => {
     const bal = Number(simAccount?.balance);
     return Number.isFinite(bal) && bal > 0 ? bal : 0;
@@ -267,18 +231,12 @@ export default function SimulatorPage() {
 
   const [initialCapital, setInitialCapital] = useState(0);
 
-  // Reset simulation starting capital whenever the selected account changes.
-  // The current account balance is only the default; the user can override it.
   useEffect(() => {
     setInitialCapital(accountBalance);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [simAccountId]);
 
-  // Best-effort $/R conversion: if the account exposes per-trade risk we use it.
-  // Otherwise fall back to a 1% risk assumption only if the account suggests a %
-  // risk model; otherwise leave at 0 so the UI hides the % row.
   const dollarsPerR = useMemo(() => {
-    // Money mode has no R conversion.
     if (unitMode === 'money') return 0;
 
     const perTradeRisk = Number(simAccount?.riskPerTrade);
@@ -294,7 +252,6 @@ export default function SimulatorPage() {
     return 0;
   }, [simAccount, unitMode, initialCapital]);
 
-  // Threshold is a DRAWDOWN DEPTH now, always stored as a negative magnitude.
   const defaultRuin = useMemo(
     () =>
       unitMode === 'money'
@@ -311,7 +268,6 @@ export default function SimulatorPage() {
   const [result, setResult] = useState(null);
   const [tab, setTab] = useState('overview');
 
-  // Web Worker — offloads the Monte Carlo loop so the UI stays responsive.
   const {
     run: runWorker,
     cancel: cancelWorker,
@@ -320,12 +276,8 @@ export default function SimulatorPage() {
   } = useMonteCarloWorker();
 
   useEffect(() => {
-    // A different account means a different trade population/account context.
-    // Any previous Monte Carlo result must be discarded.
     cancelWorker();
     setResult(null);
-
-    // Account/mode changes restore the default DD threshold.
     setThresholdCustomized(false);
     setRuinThreshold(defaultRuin);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -434,7 +386,6 @@ export default function SimulatorPage() {
   // ──────────────────────────────────────────────────────────────
   //  Export handlers
   // ──────────────────────────────────────────────────────────────
-
   const handleExport = () => {
     if (!result || !summary || resultIsStale) return;
 
@@ -463,7 +414,12 @@ export default function SimulatorPage() {
       rows.push([label, value, extra]);
     };
 
-    const rows = [['Monte Carlo Export'], ['Generated', new Date().toISOString()], [], ['Simulation Configuration']];
+    const rows = [
+      ['Monte Carlo Export'],
+      ['Generated', new Date().toISOString()],
+      [],
+      ['Simulation Configuration'],
+    ];
 
     addRow(rows, 'Account', result.account ?? '');
     addRow(rows, 'Account Type', result.accountType ?? '');
@@ -540,12 +496,19 @@ export default function SimulatorPage() {
       rows.push(
         [],
         ['Permutation Note'],
-        ['Explanation', 'Total P&L is invariant across permutation runs; only trade ordering and path shape change.']
+        [
+          'Explanation',
+          'Total P&L is invariant across permutation runs; only trade ordering and path shape change.',
+        ]
       );
     }
 
     if (result.infinitePfCount != null) {
-      rows.push([], ['Profit Factor Note'], ['Runs with infinite Profit Factor', result.infinitePfCount]);
+      rows.push(
+        [],
+        ['Profit Factor Note'],
+        ['Runs with infinite Profit Factor', result.infinitePfCount]
+      );
     }
 
     const csv = rows.map((row) => row.map(csvEscape).join(',')).join('\r\n');
@@ -663,9 +626,9 @@ export default function SimulatorPage() {
     </div>
   );
 
-  // ──────────────────────────────────────────────────────────────
-  //  Early returns
-  // ──────────────────────────────────────────────────────────────
+  /* ---------------------------------------------------------------- */
+  /*  Early returns                                                    */
+  /* ---------------------------------------------------------------- */
 
   if (accounts.length === 0) {
     return (
@@ -711,18 +674,19 @@ export default function SimulatorPage() {
       <>
         <style>{SIM_CSS}</style>
         <div className="sim-page">
-          <div className="sim-card sim-head">
-            <div className="sim-head-left">
-              <span className="sim-eyebrow">Analysis</span>
-              <div className="sim-title-row">
-                <h1 className="sim-title">Monte Carlo Simulator</h1>
+          <header className="ph">
+            <div className="ph-row">
+              <div className="ph-left">
+                <span className="ph-eyebrow">Backtester</span>
+                <h1 className="ph-title">Monte Carlo Simulator</h1>
+                <p className="ph-sub">
+                  Simulate sequence variations without mutating active session states.
+                </p>
               </div>
-              <span className="sim-sub">
-                Simulate sequence variations without mutating active session states.
-              </span>
+              <div className="ph-right">{renderAccountSelector()}</div>
             </div>
-            {renderAccountSelector()}
-          </div>
+          </header>
+
           <div className="sim-info">
             <div className="sim-info-icon">📊</div>
             <div className="sim-info-title">
@@ -749,32 +713,36 @@ export default function SimulatorPage() {
     <>
       <style>{SIM_CSS}</style>
       <div className="sim-page">
-        <div className="sim-card sim-head">
-          <div className="sim-head-left">
-            <span className="sim-eyebrow">Analysis</span>
-            <div className="sim-title-row">
-              <h1 className="sim-title">Monte Carlo Simulator</h1>
-              {simAccount && (
-                <span className={`sim-badge ${badgeClass}`}>{simAccount.type}</span>
-              )}
+
+        {/* ---------- Header ---------- */}
+        <header className="ph">
+          <div className="ph-row">
+            <div className="ph-left">
+              <span className="ph-eyebrow">Backtester</span>
+              <div className="ph-title-row">
+                <h1 className="ph-title">Monte Carlo Simulator</h1>
+                {simAccount && (
+                  <span className={`ph-badge ${badgeClass}`}>{simAccount.type}</span>
+                )}
+              </div>
+              <p className="ph-sub">
+                <b>{stats.n}</b> executions loaded · Model Mode:{' '}
+                <b>{unitMode === 'money' ? 'Net Cash P&L' : 'R-Multiple Shift'}</b>
+                {initialCapital > 0 && !isMoney && (
+                  <>
+                    {' '}· Starting Capital: <b>${initialCapital.toLocaleString()}</b>
+                    {dollarsPerR > 0 && (
+                      <>
+                        {' '}· 1R ≈ <b>${dollarsPerR.toFixed(2)}</b>
+                      </>
+                    )}
+                  </>
+                )}
+              </p>
             </div>
-            <span className="sim-sub">
-              <b>{stats.n}</b> executions loaded · Model Mode:{' '}
-              <b>{unitMode === 'money' ? 'Net Cash P&L' : 'R-Multiple Shift'}</b>
-              {initialCapital > 0 && !isMoney && (
-                <>
-                  {' '}· Starting Capital: <b>${initialCapital.toLocaleString()}</b>
-                  {dollarsPerR > 0 && (
-                    <>
-                      {' '}· 1R ≈ <b>${dollarsPerR.toFixed(2)}</b>
-                    </>
-                  )}
-                </>
-              )}
-            </span>
+            <div className="ph-right">{renderAccountSelector()}</div>
           </div>
-          {renderAccountSelector()}
-        </div>
+        </header>
 
         <SimulatorControls
           method={method}

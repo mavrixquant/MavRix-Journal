@@ -1,6 +1,10 @@
-/* apps/web/src/features/accounts/components/AccountsMain.css
-   Page-level styles. Shared button styles (.acc-btn / .acc-btn-primary /
-   .acc-icon-btn) live here and are reused by AccountFormModal. */
+/* apps/web/src/features/manage/accounts/AccountsPage.css
+   Page-level styles for the Portfolio Accounts page.
+
+   Header chrome is provided by '@/shared/ui/page-header.css' (.ph / .ph-row /
+   .ph-left / .ph-title / .ph-sub / .ph-right). This file only styles the
+   content below: the KPI strip, the accounts grid, the account cards, the
+   type-tab control, the buttons, and the empty state. */
 
 /* ---------- Root ---------- */
 .acc-root {
@@ -31,7 +35,7 @@
   -webkit-font-smoothing: antialiased;
 }
 
-/* ---------- Generic glass card ---------- */
+/* ---------- Generic glass card (used by account cards) ---------- */
 .acc-card {
   position: relative;
   border-radius: 18px;
@@ -45,55 +49,7 @@
   overflow: hidden;
 }
 
-/* ---------- Header ---------- */
-.acc-header {
-  padding: 18px 22px 16px;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 18px;
-}
-.acc-header::before {
-  content: '';
-  position: absolute;
-  left: 0; right: 0; top: 0; height: 2px;
-  border-radius: 18px 18px 0 0;
-  background: linear-gradient(90deg, transparent, var(--accent), var(--accent-2), var(--accent), transparent);
-  background-size: 200% 100%;
-  animation: accGrad 4s linear infinite;
-  pointer-events: none;
-}
-.acc-header-left {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  flex-wrap: wrap;
-  min-width: 0;
-}
-.acc-title {
-  margin: 0;
-  font-size: 22px;
-  font-weight: 700;
-  letter-spacing: -.02em;
-  color: var(--ink-1);
-  line-height: 1.1;
-}
-.acc-subtitle {
-  margin: 5px 0 0;
-  font-size: 12.5px;
-  color: var(--ink-2);
-  font-family: 'IBM Plex Mono', ui-monospace, monospace;
-  letter-spacing: .01em;
-}
-.acc-header-right {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-/* ---------- Type tabs (segmented filter) ---------- */
+/* ---------- Type tabs (segmented filter, in header actions slot) ---------- */
 .acc-type-tabs {
   display: inline-flex;
   align-items: center;
@@ -541,22 +497,16 @@
 }
 
 /* ---------- Animations ---------- */
-@keyframes accGrad {
-  0%   { background-position: 0% 50%; }
-  100% { background-position: 200% 50%; }
-}
 @keyframes accShine {
   0%,100% { transform: translateX(-130%) skewX(-18deg); }
   55%     { transform: translateX(230%) skewX(-18deg); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .acc-header::before,
   .acc-btn-primary::after { animation: none !important; }
   .acc-btn, .acc-btn-primary, .acc-icon-btn, .acc-kpi, .acc-account { transition: none !important; }
 }
 
 @media (max-width: 640px) {
   .acc-root { padding: 16px; }
-  .acc-header { padding: 16px 18px; }
 }

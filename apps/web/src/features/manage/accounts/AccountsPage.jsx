@@ -1,4 +1,4 @@
-// apps/web/src/features/accounts/components/AccountsMain.jsx
+// apps/web/src/features/manage/accounts/AccountsPage.jsx
 import { useState } from 'react';
 import {
   FaPlus,
@@ -31,6 +31,7 @@ import { queryClient } from '@/shared/api/queryClient';
 
 import AccountFormModal from './AccountFormModal';
 import './AccountsPage.css';
+import '@/shared/ui/page-header.css';
 
 const ACCOUNT_TYPES = ['Backtest', 'Live', 'Demo'];
 
@@ -91,25 +92,26 @@ function formatCommission(account) {
 /* ------------------------------------------------------------------ */
 /*  Page                                                               */
 /* ------------------------------------------------------------------ */
-export default function AccountsMain() {
+export default function AccountsPage() {
   const { data: accounts = [], isLoading: loading } = useAccounts();
 
-  // Filter state defaulting to 'Live'
   const [selectedType, setSelectedType] = useState('Live');
 
-  // Modal state — { open, account } where account is null for create
   const [modalState, setModalState] = useState({ open: false, account: null });
   const openCreate = () => setModalState({ open: true, account: null });
   const openEdit = (account) => setModalState({ open: true, account });
   const closeModal = () => setModalState({ open: false, account: null });
 
-  // Delete confirm + alerts
-  const [deleteAlert, setDeleteAlert] = useState({ show: false, accountId: null, accountName: '', tradesCount: 0 });
+  const [deleteAlert, setDeleteAlert] = useState({
+    show: false,
+    accountId: null,
+    accountName: '',
+    tradesCount: 0,
+  });
   const [loadingDelete, setLoadingDelete] = useState(false);
   const [successAlert, setSuccessAlert] = useState({ show: false, message: '' });
   const [errorAlert, setErrorAlert] = useState({ show: false, message: '' });
 
-  // Per-account P&L roll-up for the KPI strip + cards
   const pnlMap = useQueries({
     queries: accounts.map((acc) => ({
       queryKey: tradesKeys.byAccount(acc.id),
@@ -141,7 +143,10 @@ export default function AccountsMain() {
       });
     } catch (error) {
       console.error('Error fetching trades count:', error);
-      setErrorAlert({ show: true, message: 'Failed to fetch trades count. Please try again.' });
+      setErrorAlert({
+        show: true,
+        message: 'Failed to fetch trades count. Please try again.',
+      });
     }
   };
 
@@ -154,25 +159,43 @@ export default function AccountsMain() {
       await deleteAccount(accountId);
       queryClient.invalidateQueries({ queryKey: ['accounts'] });
       queryClient.invalidateQueries({ queryKey: ['trades'] });
-      setDeleteAlert({ show: false, accountId: null, accountName: '', tradesCount: 0 });
+      setDeleteAlert({
+        show: false,
+        accountId: null,
+        accountName: '',
+        tradesCount: 0,
+      });
       setSuccessAlert({
         show: true,
         message: `Account "${accountName}" and ${tradesCount} trade(s) deleted successfully.`,
       });
     } catch (error) {
       console.error('Error deleting account and trades:', error);
-      setDeleteAlert({ show: false, accountId: null, accountName: '', tradesCount: 0 });
-      setErrorAlert({ show: true, message: 'Failed to delete account and trades. Please try again.' });
+      setDeleteAlert({
+        show: false,
+        accountId: null,
+        accountName: '',
+        tradesCount: 0,
+      });
+      setErrorAlert({
+        show: true,
+        message: 'Failed to delete account and trades. Please try again.',
+      });
     } finally {
       setLoadingDelete(false);
     }
   };
 
   const cancelDelete = () => {
-    setDeleteAlert({ show: false, accountId: null, accountName: '', tradesCount: 0 });
+    setDeleteAlert({
+      show: false,
+      accountId: null,
+      accountName: '',
+      tradesCount: 0,
+    });
   };
 
-  const filteredAccounts = accounts.filter(acc => {
+  const filteredAccounts = accounts.filter((acc) => {
     if (selectedType === 'All') return true;
     return (acc.type || 'Backtest') === selectedType;
   });
@@ -205,39 +228,44 @@ export default function AccountsMain() {
       <div className="acc-root">
 
         {/* ---------- Header ---------- */}
-        <div className="acc-card acc-header">
-          <div className="acc-header-left">
-            <div>
-              <h2 className="acc-title">Portfolio Accounts</h2>
-              <p className="acc-subtitle">
+        <header className="ph">
+          <div className="ph-row">
+            <div className="ph-left">
+              <span className="ph-eyebrow">Manage</span>
+              <h1 className="ph-title">Portfolio Accounts</h1>
+              <p className="ph-sub">
                 Monitor account capital, risk parameters, and aggregate net return
               </p>
             </div>
-          </div>
 
-          <div className="acc-header-right">
-            <div className="acc-type-tabs">
-              <span className="acc-type-label">
-                <FaFilter size={9} />
-                Type
-              </span>
-              {ACCOUNT_TYPES.map((type) => (
-                <button
-                  key={type}
-                  type="button"
-                  className={`acc-type-tab ${selectedType === type ? 'active' : ''}`}
-                  onClick={() => setSelectedType(type)}
-                >
-                  {type}
-                </button>
-              ))}
+            <div className="ph-right">
+              <div className="acc-type-tabs">
+                <span className="acc-type-label">
+                  <FaFilter size={9} />
+                  Type
+                </span>
+                {ACCOUNT_TYPES.map((type) => (
+                  <button
+                    key={type}
+                    type="button"
+                    className={`acc-type-tab ${selectedType === type ? 'active' : ''}`}
+                    onClick={() => setSelectedType(type)}
+                  >
+                    {type}
+                  </button>
+                ))}
+              </div>
+
+              <button
+                type="button"
+                className="acc-btn-primary"
+                onClick={openCreate}
+              >
+                <FaPlus size={11} /> New Account
+              </button>
             </div>
-
-            <button type="button" className="acc-btn-primary" onClick={openCreate}>
-              <FaPlus size={11} /> New Account
-            </button>
           </div>
-        </div>
+        </header>
 
         {/* ---------- KPI summary ---------- */}
         <div className="acc-kpi-grid">
