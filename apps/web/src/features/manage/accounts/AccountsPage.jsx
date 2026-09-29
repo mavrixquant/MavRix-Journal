@@ -228,7 +228,7 @@ export default function AccountsPage() {
       <div className="acc-root">
 
         {/* ---------- Header ---------- */}
-        <header className="ph">
+        <div className="ph">
           <div className="ph-row">
             <div className="ph-left">
               <span className="ph-eyebrow">Manage</span>
@@ -265,7 +265,7 @@ export default function AccountsPage() {
               </button>
             </div>
           </div>
-        </header>
+        </div>
 
         {/* ---------- KPI summary ---------- */}
         <div className="acc-kpi-grid">

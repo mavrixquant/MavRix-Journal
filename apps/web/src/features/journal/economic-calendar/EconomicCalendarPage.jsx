@@ -45,7 +45,6 @@ const CSS = `
     --ink-1: #E7E9EE;
     --ink-2: #8892A3;
     --ink-3: #545E6E;
-    padding: 24px;
     width: 100%;
     max-width: 1400px;
     margin: 0 auto;
@@ -182,7 +181,7 @@ export default function EconomicCalendarPage() {
       <div className="ec-root">
 
         {/* ---------- Header ---------- */}
-        <header className="ph">
+        <div className="ph">
           <div className="ph-row">
             <div className="ph-left">
               <span className="ph-eyebrow">Journal</span>
@@ -217,7 +216,7 @@ export default function EconomicCalendarPage() {
               </div>
             </div>
           </div>
-        </header>
+        </div>
 
         {/* ---------- Filters card ---------- */}
         <div className="ec-card" style={{ padding: '18px 22px' }}>

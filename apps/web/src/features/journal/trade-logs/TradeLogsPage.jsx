@@ -31,7 +31,6 @@ const CSS = `
     --win: #22c55e;
     --loss: #ef4444;
 
-    padding: 24px;
     width: 100%;
     max-width: 1440px;
     margin: 0 auto;
@@ -388,7 +387,7 @@ export default function TradeLogsPage() {
       <>
         <style>{CSS}</style>
         <div className="jm-root">
-          <header className="ph">
+          <div className="ph">
             <div className="ph-row">
               <div className="ph-left">
                 <span className="ph-eyebrow">Journal</span>
@@ -398,7 +397,7 @@ export default function TradeLogsPage() {
                 </p>
               </div>
             </div>
-          </header>
+          </div>
 
           <div className="jm-empty">
             <div className="jm-empty-icon">
@@ -421,7 +420,7 @@ export default function TradeLogsPage() {
       <div className="jm-root">
 
         {/* ---------- Header ---------- */}
-        <header className="ph">
+        <div className="ph">
           <div className="ph-row">
             <div className="ph-left">
               <span className="ph-eyebrow">Journal</span>
@@ -455,7 +454,7 @@ export default function TradeLogsPage() {
               </button>
             </div>
           </div>
-        </header>
+        </div>
 
         {/* ---------- KPI strip ---------- */}
         <div className="jm-kpis">

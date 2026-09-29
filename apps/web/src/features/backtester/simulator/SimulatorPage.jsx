@@ -46,7 +46,7 @@ const SIM_CSS = `
     --line-soft: rgba(255,255,255,.05);
     --ink-1: #E7E9EE; --ink-2: #8892A3; --ink-3: #545E6E;
     --win: #22c55e; --loss: #ef4444;
-    padding: 24px; width: 100%; max-width: 1560px; margin: 0 auto;
+    width: 100%; max-width: 1560px; margin: 0 auto;
     box-sizing: border-box; display: flex; flex-direction: column; gap: 22px;
     color: var(--ink-1);
     font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
@@ -674,7 +674,7 @@ export default function SimulatorPage() {
       <>
         <style>{SIM_CSS}</style>
         <div className="sim-page">
-          <header className="ph">
+          <div className="ph">
             <div className="ph-row">
               <div className="ph-left">
                 <span className="ph-eyebrow">Backtester</span>
@@ -685,7 +685,7 @@ export default function SimulatorPage() {
               </div>
               <div className="ph-right">{renderAccountSelector()}</div>
             </div>
-          </header>
+          </div>
 
           <div className="sim-info">
             <div className="sim-info-icon">📊</div>
@@ -715,7 +715,7 @@ export default function SimulatorPage() {
       <div className="sim-page">
 
         {/* ---------- Header ---------- */}
-        <header className="ph">
+        <div className="ph">
           <div className="ph-row">
             <div className="ph-left">
               <span className="ph-eyebrow">Backtester</span>
@@ -742,7 +742,7 @@ export default function SimulatorPage() {
             </div>
             <div className="ph-right">{renderAccountSelector()}</div>
           </div>
-        </header>
+        </div>
 
         <SimulatorControls
           method={method}
