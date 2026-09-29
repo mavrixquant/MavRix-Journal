@@ -1,30 +1,26 @@
-/* apps/web/src/app/layout/TopStrip.css */
+/* apps/web/src/app/layout/TopStrip.css
+   Static 1px accent rule pinned to the top of the viewport.
+   No animation — the previous scrolling gradient has been removed. */
 
 .app-top-strip {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
-  height: 2px;
+  height: 1px;
   z-index: 100;
   pointer-events: none;
   background: linear-gradient(
     90deg,
-    transparent,
-    #F59E0B,
-    #FDE68A,
-    #F59E0B,
-    transparent
+    transparent 0%,
+    rgba(245,158,11,.55) 30%,
+    rgba(253,230,138,.75) 50%,
+    rgba(245,158,11,.55) 70%,
+    transparent 100%
   );
-  background-size: 200% 100%;
-  animation: appTopStripGrad 4s linear infinite;
-}
-
-@keyframes appTopStripGrad {
-  0%   { background-position: 0% 50%; }
-  100% { background-position: 200% 50%; }
 }
 
 @media (prefers-reduced-motion: reduce) {
+  /* No animations to disable — kept as a guard for future additions. */
   .app-top-strip { animation: none !important; }
 }
