@@ -1,4 +1,3 @@
-
 // apps/web/src/shared/trade-logs/UploadModal.jsx
 //
 // Bulk-import from Excel. The required/expected column set depends on the
@@ -14,21 +13,52 @@
 //
 // (* = mandatory)
 //
-// The template ships a trailing "Custom Columns" placeholder header as a
-// hint. When that header has no values in any data row, the parser skips it
-// silently (see parseFile()). If a user actually fills values under that
-// header, it becomes a normal custom column named "Custom Columns".
+// CUSTOM COLUMN EDITOR
+// --------------------
+// After parsing, each detected custom column is presented as an editable
+// draft. The user can:
+//   - Rename the column (inline input, validated for collisions)
+//   - Delete the column (removes its data from every trade in the batch)
+//   - Choose type (Text / Dropdown / Number) — or accept an inferred lock
+//   - When type is Dropdown: edit the option list (remove chips, add new)
+//
+// On upload, a single transform pass applies all renames, deletions, and
+// dropdown-option filters to parseResult.trades, and the account's
+// columnConfigs is persisted in the v2 shape:
+//   { "Setup": { "type": "dropdown", "options": ["A", "B"] } }
+//
+// The v1→v2 upgrade path is handled by normalizeColumnConfigs() from
+// @mavrix/shared (Phase 6).
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import * as XLSX from 'xlsx';
-import { FaFileUpload, FaTimes, FaCheckCircle, FaExclamationTriangle } from 'react-icons/fa';
+import {
+  FaFileUpload,
+  FaTimes,
+  FaCheckCircle,
+  FaExclamationTriangle,
+  FaEdit,
+  FaTrash,
+  FaPlus,
+  FaCheck,
+} from 'react-icons/fa';
 import Portal from '@/shared/components/Portal';
 import { createTrades, generateTradeId } from '@/shared/api/trades';
 import { updateAccountColumnConfigs } from '@/shared/api/accounts';
 import { queryClient } from '@/shared/api/queryClient';
+import { normalizeColumnConfigs } from '@mavrix/shared';
 
 const TICKS_PER_POINT = 4;
 const MAX_DROPDOWN_UNIQUES = 10;
+
+// Reserved names that can't be used as custom column names.
+// Mirrors the API's RESERVED set in apps/api/src/services/trades.service.js.
+const RESERVED_NAMES = new Set([
+  'date', 'entryTime', 'exitTime', 'direction', 'symbol',
+  'mae', 'mfe', 'slPoints',
+  'entryPrice', 'takeProfit', 'stopLoss',
+  'pnl', 'quantity', 'notes',
+]);
 
 /* ---------- Header → key maps, one per account type ---------- */
 
@@ -146,16 +176,13 @@ function parseFile(workbook, account, existingTrades) {
     const trimmed = h.trim();
 
     // Silently skip the template's "Custom Columns" placeholder header when
-    // it has no values in any data row. It exists in the template purely as
-    // a hint that users may append their own columns to the right.
+    // it has no values in any data row.
     if (trimmed === 'Custom Columns') {
       const hasAnyValueInFile = rows.some((r) => {
         const v = r[h];
         return v !== '' && v !== null && v !== undefined;
       });
-      if (!hasAnyValueInFile) return; // skip; not a real column
-      // If it DOES have values, fall through and treat it as a normal
-      // custom column named "Custom Columns".
+      if (!hasAnyValueInFile) return;
     }
 
     const mapped = RESERVED_MAP[trimmed];
@@ -227,12 +254,10 @@ function parseFile(workbook, account, existingTrades) {
       trade.slPoints = slPoints;
       delete trade.sl;
 
-      // Strip journal-only keys if they leaked in
       delete trade.entryPrice;
       delete trade.takeProfit;
       delete trade.stopLoss;
     } else {
-      // Journal (Live/Demo)
       if (trade.pnl === undefined || trade.pnl === '' || isNaN(parseFloat(trade.pnl))) {
         invalidPnlRows.push(excelRowNum);
       }
@@ -245,7 +270,6 @@ function parseFile(workbook, account, existingTrades) {
       trade.takeProfit = Number.isFinite(tp) ? tp : null;
       trade.stopLoss = Number.isFinite(sl) ? sl : null;
 
-      // Strip backtester-only keys if they leaked in
       delete trade.mae;
       delete trade.mfe;
       delete trade.slPoints;
@@ -316,27 +340,97 @@ function parseFile(workbook, account, existingTrades) {
     const unionVals = [...fileVals, ...existingVals].filter(hasAnyValue);
 
     if (unionVals.length === 0) {
-      return { name: col, type: 'text', locked: true, reason: 'No data — defaults to Text', uniqueCount: 0, sampleValues: [] };
+      return { name: col, type: 'text', locked: true, reason: 'No data — defaults to Text', uniqueCount: 0, sampleValues: [], options: [] };
     }
 
     const allNumeric = unionVals.every(isNumericValue);
     if (allNumeric) {
-      return { name: col, type: 'number', locked: true, reason: 'All values numeric', uniqueCount: new Set(unionVals.map((v) => String(v).trim())).size, sampleValues: [] };
+      return { name: col, type: 'number', locked: true, reason: 'All values numeric', uniqueCount: new Set(unionVals.map((v) => String(v).trim())).size, sampleValues: [], options: [] };
     }
 
     const uniqueSet = new Set(unionVals.map((v) => String(v).trim()));
     const uniqueCount = uniqueSet.size;
 
     if (uniqueCount > MAX_DROPDOWN_UNIQUES) {
-      return { name: col, type: 'text', locked: true, reason: `${uniqueCount} unique values (over ${MAX_DROPDOWN_UNIQUES}) — Text required`, uniqueCount, sampleValues: [...uniqueSet].slice(0, 5) };
+      return { name: col, type: 'text', locked: true, reason: `${uniqueCount} unique values (over ${MAX_DROPDOWN_UNIQUES}) — Text required`, uniqueCount, sampleValues: [...uniqueSet].slice(0, 5), options: [] };
     }
 
     const stored = storedConfigs[col];
-    const initial = (stored === 'text' || stored === 'dropdown') ? stored : 'dropdown';
-    return { name: col, type: initial, locked: false, reason: `${uniqueCount} unique value${uniqueCount === 1 ? '' : 's'}`, uniqueCount, sampleValues: [...uniqueSet].slice(0, 5) };
+    // stored may be legacy string or v2 object — check both
+    const storedType =
+      typeof stored === 'string' ? stored :
+      stored && typeof stored === 'object' ? stored.type :
+      null;
+
+    const initial = (storedType === 'text' || storedType === 'dropdown') ? storedType : 'dropdown';
+    const sortedValues = [...uniqueSet].sort();
+
+    return {
+      name: col,
+      type: initial,
+      locked: false,
+      reason: `${uniqueCount} unique value${uniqueCount === 1 ? '' : 's'}`,
+      uniqueCount,
+      sampleValues: sortedValues.slice(0, 5),
+      options: sortedValues,
+    };
   });
 
   return { trades: tradesData, customColumns, errors, hasSLColumn, tradesCount: tradesData.length };
+}
+
+/* ---------- Build drafts from parsed result ---------- */
+
+function buildDrafts(customColumns) {
+  return customColumns.map((col) => ({
+    originalName: col.name,
+    name: col.name,
+    type: col.type,
+    locked: col.locked,
+    reason: col.reason,
+    uniqueCount: col.uniqueCount,
+    sampleValues: col.sampleValues || [],
+    options: col.options || [],
+  }));
+}
+
+/* ---------- Apply drafts to parsed trades (rename / delete / filter) ---------- */
+
+function applyDraftsToTrades(trades, drafts, deletedOriginalNames) {
+  const deletedSet = new Set(deletedOriginalNames);
+
+  return trades.map((trade) => {
+    const next = { ...trade };
+
+    // Rename pass
+    for (const d of drafts) {
+      if (d.originalName !== d.name) {
+        if (d.originalName in next) {
+          next[d.name] = next[d.originalName];
+          delete next[d.originalName];
+        }
+      }
+    }
+
+    // Dropdown option filter — if a trade's value isn't in the (possibly
+    // edited) options list, blank it out so AddTradeModal's <select>
+    // always shows a valid value.
+    for (const d of drafts) {
+      if (d.type === 'dropdown') {
+        const v = next[d.name];
+        if (hasAnyValue(v) && !d.options.includes(String(v).trim())) {
+          next[d.name] = '';
+        }
+      }
+    }
+
+    // Deletion pass
+    for (const origName of deletedSet) {
+      delete next[origName];
+    }
+
+    return next;
+  });
 }
 
 /* ------------------------------------------------------------------ */
@@ -370,7 +464,7 @@ const UPL_CSS = `
     --loss: #ef4444;
 
     width: 100%;
-    max-width: 620px;
+    max-width: 720px;
     max-height: 90vh;
     display: flex;
     flex-direction: column;
@@ -606,10 +700,11 @@ const UPL_CSS = `
     font-weight: 600;
   }
 
+  /* ---------- Custom column card ---------- */
   .upl-col-list {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 12px;
   }
   .upl-col-row {
     padding: 12px 14px;
@@ -619,23 +714,101 @@ const UPL_CSS = `
     transition: border-color .2s;
   }
   .upl-col-row:hover { border-color: rgba(255,255,255,.12); }
+  .upl-col-row.is-renaming {
+    border-color: var(--accent-soft2);
+    background: rgba(245,158,11,.04);
+  }
+
   .upl-col-head {
     display: flex;
     justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .upl-col-name-wrap {
+    display: flex;
     align-items: baseline;
     gap: 8px;
+    min-width: 0;
+    flex: 1;
     flex-wrap: wrap;
   }
   .upl-col-name {
     font-size: 13px;
     font-weight: 600;
     color: var(--ink-1);
+    word-break: break-word;
   }
   .upl-col-reason {
     font-family: 'IBM Plex Mono', ui-monospace, monospace;
     font-size: 10.5px;
     color: var(--ink-2);
   }
+  .upl-col-actions {
+    display: flex;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+  .upl-col-action {
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 7px;
+    border: 1px solid rgba(255,255,255,.09);
+    background: rgba(255,255,255,.025);
+    color: var(--ink-2);
+    cursor: pointer;
+    transition: all .18s cubic-bezier(.2,.8,.25,1);
+  }
+  .upl-col-action:hover {
+    color: var(--accent);
+    background: rgba(245,158,11,.10);
+    border-color: var(--accent-soft2);
+  }
+  .upl-col-action.is-danger:hover {
+    color: #f87171;
+    background: rgba(239,68,68,.10);
+    border-color: rgba(239,68,68,.42);
+  }
+  .upl-col-action.is-ok {
+    color: #4ade80;
+    background: rgba(34,197,94,.08);
+    border-color: rgba(34,197,94,.35);
+  }
+  .upl-col-action.is-ok:hover {
+    color: #86efac;
+    background: rgba(34,197,94,.14);
+    border-color: rgba(34,197,94,.55);
+  }
+
+  .upl-rename-input {
+    flex: 1;
+    min-width: 120px;
+    padding: 6px 10px;
+    background: rgba(10,13,19,.7);
+    border: 1px solid rgba(255,255,255,.14);
+    border-radius: 8px;
+    color: var(--ink-1);
+    font-size: 13px;
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    outline: none;
+  }
+  .upl-rename-input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(245,158,11,.15);
+  }
+  .upl-rename-error {
+    margin-top: 6px;
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 10.5px;
+    color: #f87171;
+    letter-spacing: .01em;
+  }
+
   .upl-col-sample {
     font-family: 'IBM Plex Mono', ui-monospace, monospace;
     font-size: 10.5px;
@@ -652,6 +825,7 @@ const UPL_CSS = `
     font-size: 12px;
     color: #cbd5e1;
     font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    flex-wrap: wrap;
   }
   .upl-col-types label {
     display: inline-flex;
@@ -670,6 +844,125 @@ const UPL_CSS = `
     background: rgba(255,255,255,.05);
     border: 1px solid var(--line);
     color: var(--ink-2);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  /* ---------- Dropdown option chips editor ---------- */
+  .upl-options {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px dashed var(--line-soft);
+  }
+  .upl-options-label {
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 9.5px;
+    font-weight: 700;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin-bottom: 8px;
+    display: block;
+  }
+  .upl-options-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+  .upl-opt-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 4px 4px 10px;
+    border-radius: 99px;
+    background: var(--accent-soft);
+    border: 1px solid var(--accent-soft2);
+    color: var(--accent);
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .01em;
+    max-width: 240px;
+  }
+  .upl-opt-chip-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .upl-opt-chip-remove {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(245,158,11,.18);
+    color: inherit;
+    cursor: pointer;
+    padding: 0;
+    flex-shrink: 0;
+    transition: all .15s;
+  }
+  .upl-opt-chip-remove:hover {
+    background: rgba(245,158,11,.38);
+    color: #fff;
+  }
+  .upl-options-empty {
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 10.5px;
+    color: var(--ink-3);
+    padding: 6px 0 10px;
+    font-style: italic;
+  }
+  .upl-options-add {
+    display: flex;
+    gap: 6px;
+    align-items: stretch;
+  }
+  .upl-options-add input {
+    flex: 1;
+    padding: 7px 10px;
+    background: rgba(10,13,19,.7);
+    border: 1px solid rgba(255,255,255,.1);
+    border-radius: 8px;
+    color: var(--ink-1);
+    font-size: 12px;
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    outline: none;
+    transition: border-color .15s;
+  }
+  .upl-options-add input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(245,158,11,.15);
+  }
+  .upl-options-add button {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 7px 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,.1);
+    background: rgba(255,255,255,.03);
+    color: var(--ink-2);
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .02em;
+    cursor: pointer;
+    transition: all .15s;
+    white-space: nowrap;
+  }
+  .upl-options-add button:hover:not(:disabled) {
+    color: var(--accent);
+    background: rgba(245,158,11,.08);
+    border-color: var(--accent-soft2);
+  }
+  .upl-options-add button:disabled {
+    opacity: .35;
+    cursor: not-allowed;
   }
 
   .upl-ready {
@@ -799,13 +1092,271 @@ const UPL_CSS = `
     .upl-head::before,
     .upl-btn-primary::after,
     .upl-spinner { animation: none !important; }
-    .upl-btn, .upl-btn-primary, .upl-drop, .upl-drop-icon { transition: none !important; }
+    .upl-btn, .upl-btn-primary, .upl-drop, .upl-drop-icon,
+    .upl-col-action, .upl-opt-chip-remove, .upl-options-add button {
+      transition: none !important;
+    }
   }
 `;
 
+/* ------------------------------------------------------------------ */
+/*  Per-column card component                                          */
+/* ------------------------------------------------------------------ */
+
+function ColumnCard({
+  draft,
+  index,
+  allDrafts,
+  disabled,
+  onRename,
+  onDelete,
+  onTypeChange,
+  onOptionRemove,
+  onOptionAdd,
+}) {
+  const [renaming, setRenaming] = useState(false);
+  const [renameDraft, setRenameDraft] = useState(draft.name);
+  const [renameError, setRenameError] = useState('');
+  const [newOption, setNewOption] = useState('');
+
+  // Reset internal state if the underlying draft changes identity
+  useEffect(() => {
+    if (!renaming) setRenameDraft(draft.name);
+  }, [draft.name, renaming]);
+
+  const startRename = () => {
+    setRenameDraft(draft.name);
+    setRenameError('');
+    setRenaming(true);
+  };
+
+  const cancelRename = () => {
+    setRenameDraft(draft.name);
+    setRenameError('');
+    setRenaming(false);
+  };
+
+  const commitRename = () => {
+    const next = renameDraft.trim();
+    if (!next) {
+      setRenameError('Name cannot be empty.');
+      return;
+    }
+    if (next.length > 40) {
+      setRenameError('Name must be 40 chars or fewer.');
+      return;
+    }
+    if (RESERVED_NAMES.has(next)) {
+      setRenameError(`"${next}" is a reserved column name.`);
+      return;
+    }
+    // Collision check against other drafts (by their CURRENT names)
+    const collision = allDrafts.some(
+      (d, i) => i !== index && d.name === next
+    );
+    if (collision) {
+      setRenameError(`"${next}" is already used by another column.`);
+      return;
+    }
+    onRename(next);
+    setRenameError('');
+    setRenaming(false);
+  };
+
+  const handleAddOption = () => {
+    const val = newOption.trim();
+    if (!val) return;
+    if (draft.options.includes(val)) {
+      setNewOption('');
+      return;
+    }
+    onOptionAdd(val);
+    setNewOption('');
+  };
+
+  const isDropdown = draft.type === 'dropdown';
+  const canEdit = !disabled;
+
+  return (
+    <div className={`upl-col-row ${renaming ? 'is-renaming' : ''}`}>
+      {/* ---------- Header row: name + actions ---------- */}
+      <div className="upl-col-head">
+        {renaming ? (
+          <>
+            <input
+              type="text"
+              className="upl-rename-input"
+              value={renameDraft}
+              maxLength={40}
+              autoFocus
+              disabled={disabled}
+              onChange={(e) => { setRenameDraft(e.target.value); setRenameError(''); }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') { e.preventDefault(); commitRename(); }
+                else if (e.key === 'Escape') { e.preventDefault(); cancelRename(); }
+              }}
+            />
+            <div className="upl-col-actions">
+              <button
+                type="button"
+                className="upl-col-action is-ok"
+                onClick={commitRename}
+                disabled={disabled}
+                title="Save name"
+                aria-label="Save name"
+              >
+                <FaCheck size={11} />
+              </button>
+              <button
+                type="button"
+                className="upl-col-action"
+                onClick={cancelRename}
+                disabled={disabled}
+                title="Cancel"
+                aria-label="Cancel rename"
+              >
+                <FaTimes size={11} />
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="upl-col-name-wrap">
+              <span className="upl-col-name">{draft.name}</span>
+              <span className="upl-col-reason">{draft.reason}</span>
+            </div>
+            <div className="upl-col-actions">
+              <button
+                type="button"
+                className="upl-col-action"
+                onClick={startRename}
+                disabled={!canEdit}
+                title="Rename column"
+                aria-label="Rename column"
+              >
+                <FaEdit size={11} />
+              </button>
+              <button
+                type="button"
+                className="upl-col-action is-danger"
+                onClick={onDelete}
+                disabled={!canEdit}
+                title="Remove this column from the import"
+                aria-label="Delete column"
+              >
+                <FaTrash size={11} />
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+
+      {renameError && <div className="upl-rename-error">{renameError}</div>}
+
+      {/* ---------- Sample values ---------- */}
+      {!renaming && draft.sampleValues?.length > 0 && (
+        <div className="upl-col-sample">
+          Sample: {draft.sampleValues.join(', ')}
+        </div>
+      )}
+
+      {/* ---------- Type selector ---------- */}
+      <div className="upl-col-types">
+        {draft.locked ? (
+          <span className="upl-locked-pill">
+            🔒 {draft.type === 'number' ? 'Number' : draft.type === 'dropdown' ? 'Dropdown' : 'Text'} (locked)
+          </span>
+        ) : (
+          <>
+            <label>
+              <input
+                type="radio"
+                name={`col-type-${index}`}
+                checked={draft.type === 'text'}
+                disabled={disabled}
+                onChange={() => onTypeChange('text')}
+              />
+              Text
+            </label>
+            <label>
+              <input
+                type="radio"
+                name={`col-type-${index}`}
+                checked={draft.type === 'dropdown'}
+                disabled={disabled}
+                onChange={() => onTypeChange('dropdown')}
+              />
+              Dropdown
+            </label>
+          </>
+        )}
+      </div>
+
+      {/* ---------- Dropdown options editor ---------- */}
+      {isDropdown && (
+        <div className="upl-options">
+          <span className="upl-options-label">
+            Dropdown options ({draft.options.length})
+          </span>
+
+          {draft.options.length > 0 ? (
+            <div className="upl-options-chips">
+              {draft.options.map((opt) => (
+                <span key={opt} className="upl-opt-chip">
+                  <span className="upl-opt-chip-text" title={opt}>{opt}</span>
+                  <button
+                    type="button"
+                    className="upl-opt-chip-remove"
+                    onClick={() => onOptionRemove(opt)}
+                    disabled={disabled}
+                    aria-label={`Remove option ${opt}`}
+                    title={`Remove "${opt}"`}
+                  >
+                    <FaTimes size={8} />
+                  </button>
+                </span>
+              ))}
+            </div>
+          ) : (
+            <div className="upl-options-empty">
+              No options yet. Add at least one, or switch to Text.
+            </div>
+          )}
+
+          <div className="upl-options-add">
+            <input
+              type="text"
+              placeholder="Add new option…"
+              value={newOption}
+              maxLength={60}
+              disabled={disabled}
+              onChange={(e) => setNewOption(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') { e.preventDefault(); handleAddOption(); }
+              }}
+            />
+            <button
+              type="button"
+              onClick={handleAddOption}
+              disabled={disabled || !newOption.trim() || draft.options.includes(newOption.trim())}
+            >
+              <FaPlus size={9} /> Add
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Main component                                                     */
+/* ------------------------------------------------------------------ */
+
 export default function UploadModal({ isOpen, onClose, account, existingTrades, onSuccess }) {
   const [parseResult, setParseResult] = useState(null);
-  const [columnTypes, setColumnTypes] = useState({});
+  const [drafts, setDrafts] = useState([]);
+  const [deletedOriginalNames, setDeletedOriginalNames] = useState([]);
   const [fileName, setFileName] = useState('');
   const [isParsing, setIsParsing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -815,7 +1366,8 @@ export default function UploadModal({ isOpen, onClose, account, existingTrades, 
 
   const reset = useCallback(() => {
     setParseResult(null);
-    setColumnTypes({});
+    setDrafts([]);
+    setDeletedOriginalNames([]);
     setFileName('');
     setIsParsing(false);
     setIsSaving(false);
@@ -834,6 +1386,8 @@ export default function UploadModal({ isOpen, onClose, account, existingTrades, 
     setFileName(file.name);
     setIsParsing(true);
     setParseResult(null);
+    setDrafts([]);
+    setDeletedOriginalNames([]);
 
     const reader = new FileReader();
     reader.onload = (evt) => {
@@ -841,9 +1395,7 @@ export default function UploadModal({ isOpen, onClose, account, existingTrades, 
         const wb = XLSX.read(evt.target.result, { type: 'array' });
         const result = parseFile(wb, account, existingTrades);
         setParseResult(result);
-        const types = {};
-        (result.customColumns || []).forEach((col) => { types[col.name] = col.type; });
-        setColumnTypes(types);
+        setDrafts(buildDrafts(result.customColumns || []));
       } catch (err) {
         setParseResult({ errors: ['Error parsing file: ' + err.message] });
       } finally { setIsParsing(false); }
@@ -852,19 +1404,101 @@ export default function UploadModal({ isOpen, onClose, account, existingTrades, 
     reader.readAsArrayBuffer(file);
   };
 
-  const handleTypeChange = (colName, type) => setColumnTypes((prev) => ({ ...prev, [colName]: type }));
+  /* ---------- Draft mutations ---------- */
+
+  const handleRename = (index, newName) => {
+    setDrafts((prev) =>
+      prev.map((d, i) => (i === index ? { ...d, name: newName } : d))
+    );
+  };
+
+  const handleDelete = (index) => {
+    setDrafts((prev) => {
+      const target = prev[index];
+      if (target) {
+        setDeletedOriginalNames((names) =>
+          names.includes(target.originalName) ? names : [...names, target.originalName]
+        );
+      }
+      return prev.filter((_, i) => i !== index);
+    });
+  };
+
+  const handleTypeChange = (index, type) => {
+    setDrafts((prev) =>
+      prev.map((d, i) => (i === index ? { ...d, type } : d))
+    );
+  };
+
+  const handleOptionRemove = (index, option) => {
+    setDrafts((prev) =>
+      prev.map((d, i) =>
+        i === index
+          ? { ...d, options: d.options.filter((o) => o !== option) }
+          : d
+      )
+    );
+  };
+
+  const handleOptionAdd = (index, option) => {
+    setDrafts((prev) =>
+      prev.map((d, i) =>
+        i === index
+          ? { ...d, options: [...d.options, option] }
+          : d
+      )
+    );
+  };
+
+  /* ---------- Upload ---------- */
 
   const handleUpload = async () => {
     if (!parseResult || (parseResult.errors && parseResult.errors.length > 0)) return;
+
+    // Safety: every unlocked dropdown must have at least one option.
+    const emptyDropdowns = drafts.filter(
+      (d) => d.type === 'dropdown' && d.options.length === 0 && !d.locked
+    );
+    if (emptyDropdowns.length > 0) {
+      setParseResult((prev) => ({
+        ...prev,
+        errors: [
+          ...(prev?.errors || []),
+          `Dropdown column${emptyDropdowns.length > 1 ? 's' : ''} ` +
+          emptyDropdowns.map((d) => `"${d.name}"`).join(', ') +
+          ' need at least one option (or switch to Text).',
+        ],
+      }));
+      return;
+    }
+
     setIsSaving(true);
     try {
-      const newConfigs = { ...(account.columnConfigs || {}), ...columnTypes };
-      await createTrades(account.id, parseResult.trades);
-      queryClient.invalidateQueries({
-        queryKey: ['trades', account.id],
-      });
-      await updateAccountColumnConfigs(account.id, newConfigs);
-      if (onSuccess) onSuccess(parseResult.trades.length);
+      // Build the transformed trades array
+      const finalTrades = applyDraftsToTrades(
+        parseResult.trades,
+        drafts,
+        deletedOriginalNames
+      );
+
+      // Build the v2 columnConfigs — start from normalized existing config,
+      // then remove deleted columns and add/update surviving ones.
+      const baseConfigs = normalizeColumnConfigs(account.columnConfigs || {});
+      for (const origName of deletedOriginalNames) {
+        delete baseConfigs[origName];
+      }
+      for (const d of drafts) {
+        baseConfigs[d.name] =
+          d.type === 'dropdown'
+            ? { type: 'dropdown', options: [...d.options] }
+            : { type: d.type };
+      }
+
+      await createTrades(account.id, finalTrades);
+      queryClient.invalidateQueries({ queryKey: ['trades', account.id] });
+      await updateAccountColumnConfigs(account.id, baseConfigs);
+
+      if (onSuccess) onSuccess(finalTrades.length);
       reset();
       onClose();
     } catch (err) {
@@ -889,7 +1523,9 @@ export default function UploadModal({ isOpen, onClose, account, existingTrades, 
               <h2 className="upl-title">
                 Upload {isBacktest ? 'Test Logs' : 'Trades'}
               </h2>
-              <p className="upl-sub">Import records from your Excel file</p>
+              <p className="upl-sub">
+                Import records from your Excel file, then adjust the custom columns below
+              </p>
             </div>
             <button className="upl-close" onClick={handleClose} disabled={isSaving} aria-label="Close">
               <FaTimes />
@@ -991,62 +1627,33 @@ export default function UploadModal({ isOpen, onClose, account, existingTrades, 
                 )}
 
                 {/* Custom columns */}
-                {!hasErrors && parseResult.customColumns?.length > 0 && (
+                {!hasErrors && drafts.length > 0 && (
                   <div>
                     <div className="upl-section-title">
                       Custom Columns
-                      <span className="upl-section-count">
-                        ({parseResult.customColumns.length})
-                      </span>
+                      <span className="upl-section-count">({drafts.length})</span>
                     </div>
                     <div className="upl-col-list">
-                      {parseResult.customColumns.map((col) => (
-                        <div key={col.name} className="upl-col-row">
-                          <div className="upl-col-head">
-                            <span className="upl-col-name">{col.name}</span>
-                            <span className="upl-col-reason">{col.reason}</span>
-                          </div>
-                          {col.sampleValues?.length > 0 && (
-                            <div className="upl-col-sample">
-                              Sample: {col.sampleValues.join(', ')}
-                            </div>
-                          )}
-                          <div className="upl-col-types">
-                            {col.locked ? (
-                              <span className="upl-locked-pill">
-                                {col.type === 'number' ? 'Number' : col.type === 'dropdown' ? 'Dropdown' : 'Text'} (locked)
-                              </span>
-                            ) : (
-                              <>
-                                <label>
-                                  <input
-                                    type="radio"
-                                    name={`col-type-${col.name}`}
-                                    checked={columnTypes[col.name] === 'text'}
-                                    onChange={() => handleTypeChange(col.name, 'text')}
-                                  />
-                                  Text
-                                </label>
-                                <label>
-                                  <input
-                                    type="radio"
-                                    name={`col-type-${col.name}`}
-                                    checked={columnTypes[col.name] === 'dropdown'}
-                                    onChange={() => handleTypeChange(col.name, 'dropdown')}
-                                  />
-                                  Dropdown
-                                </label>
-                              </>
-                            )}
-                          </div>
-                        </div>
+                      {drafts.map((draft, i) => (
+                        <ColumnCard
+                          key={draft.originalName}
+                          draft={draft}
+                          index={i}
+                          allDrafts={drafts}
+                          disabled={isSaving}
+                          onRename={(name) => handleRename(i, name)}
+                          onDelete={() => handleDelete(i)}
+                          onTypeChange={(type) => handleTypeChange(i, type)}
+                          onOptionRemove={(opt) => handleOptionRemove(i, opt)}
+                          onOptionAdd={(opt) => handleOptionAdd(i, opt)}
+                        />
                       ))}
                     </div>
                   </div>
                 )}
 
                 {/* No custom columns */}
-                {!hasErrors && (!parseResult.customColumns || parseResult.customColumns.length === 0) && (
+                {!hasErrors && drafts.length === 0 && (
                   <div className="upl-ready">
                     <FaCheckCircle />
                     No custom columns to configure — ready to upload.
