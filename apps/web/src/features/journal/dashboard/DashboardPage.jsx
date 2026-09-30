@@ -1,6 +1,5 @@
 // apps/web/src/features/journal/dashboard/DashboardPage.jsx
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Responsive, WidthProvider } from 'react-grid-layout/legacy';
 import JournalDashboardHeader from './JournalDashboardHeader';
 import DashboardFooter from '@/features/dashboard/components/DashboardFooter';
@@ -412,7 +411,7 @@ const CSS = `
     color: #E7E9EE;
   }
   .dash-empty p {
-    margin: 0 0 26px;
+    margin: 0;
     font-size: 13.5px;
     color: rgba(255,255,255,.58);
     line-height: 1.65;
@@ -442,7 +441,6 @@ const CSS = `
 /*  Main                                                               */
 /* ------------------------------------------------------------------ */
 export default function DashboardPage() {
-  const navigate = useNavigate();
   const { user } = useAuth();
   const { stats } = useStats();
 
@@ -730,13 +728,6 @@ export default function DashboardPage() {
               Upload trades to a Live or Demo account to populate performance
               statistics and analytics.
             </p>
-            <button
-              type="button"
-              className="dash-tb-primary"
-              onClick={() => navigate('/journal/logs')}
-            >
-              Add Your First Trade →
-            </button>
           </div>
         </div>
       ) : (

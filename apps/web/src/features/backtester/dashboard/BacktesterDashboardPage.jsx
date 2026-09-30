@@ -1,6 +1,5 @@
 // apps/web/src/features/backtester/dashboard/BacktesterDashboardPage.jsx
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Responsive, WidthProvider } from 'react-grid-layout/legacy';
 import BacktesterDashboardHeader from './BacktesterDashboardHeader';
 import DashboardFooter from '@/features/dashboard/components/DashboardFooter';
@@ -412,7 +411,7 @@ const CSS = `
     color: #E7E9EE;
   }
   .dash-empty p {
-    margin: 0 0 26px;
+    margin: 0;
     font-size: 13.5px;
     color: rgba(255,255,255,.58);
     line-height: 1.65;
@@ -442,7 +441,6 @@ const CSS = `
 /*  Main                                                               */
 /* ------------------------------------------------------------------ */
 export default function BacktesterDashboardPage() {
-  const navigate = useNavigate();
   const { user } = useAuth();
   const { stats } = useStats();
 
@@ -711,13 +709,6 @@ export default function BacktesterDashboardPage() {
               Upload trades to a Backtest account to populate performance
               statistics and run R:R optimizations.
             </p>
-            <button
-              type="button"
-              className="dash-tb-primary"
-              onClick={() => navigate('/backtester/logs')}
-            >
-              Add Backtest Trades →
-            </button>
           </div>
         </div>
       ) : (
