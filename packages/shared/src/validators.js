@@ -1,3 +1,4 @@
+
 // packages/shared/src/validators.js
 import { z } from 'zod';
 import {
@@ -45,19 +46,42 @@ export const accountSchema = z.object({
 
 /* ------------------------------------------------------------------ */
 /*  Trade                                                              */
+/*                                                                     */
+/*  A single Trade shape serves BOTH dashboards, but each side uses a  */
+/*  non-overlapping field set:                                         */
+/*                                                                     */
+/*    Live / Demo : date, entryTime, exitTime, direction, symbol,      */
+/*                  entryPrice, takeProfit, stopLoss, pnl, quantity,   */
+/*                  notes                                              */
+/*                                                                     */
+/*    Backtest    : date, entryTime, exitTime, direction, symbol,      */
+/*                  mae, mfe, slPoints, pnl, quantity, notes           */
+/*                                                                     */
+/*  Fields belonging to the other dashboard's shape are accepted as    */
+/*  null / undefined and simply stored as NULL in Postgres.            */
 /* ------------------------------------------------------------------ */
 
 export const tradeSchema = z.object({
+  // Always required
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   entryTime: z.string().regex(/^\d{2}:\d{2}$/),
   exitTime: z.string().regex(/^\d{2}:\d{2}$/),
   direction: z.enum(DIRECTIONS),
   symbol: z.string().trim().max(30).optional().default(''),
-  mae: z.number().finite().nonnegative(),
-  mfe: z.number().finite().nonnegative(),
-  pnl: z.number().finite().default(0),
+
+  // Backtester-only — nullable (Live/Demo trades store null here)
+  mae: z.number().finite().nonnegative().nullable().optional(),
+  mfe: z.number().finite().nonnegative().nullable().optional(),
   slPoints: z.number().finite().nonnegative().nullable().optional(),
-  contracts: z.number().int().positive().nullable().optional(),
+
+  // Journal-only — nullable (Backtest trades store null here)
+  entryPrice: z.number().finite().nullable().optional(),
+  takeProfit: z.number().finite().nullable().optional(),
+  stopLoss: z.number().finite().nullable().optional(),
+
+  // Common
+  pnl: z.number().finite().default(0),
+  quantity: z.number().finite().positive().nullable().optional(),
   notes: z.string().max(2000).optional().default(''),
 }).passthrough(); // allow arbitrary dynamic column keys at top level
 

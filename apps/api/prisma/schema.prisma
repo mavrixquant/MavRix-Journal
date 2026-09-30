@@ -1,3 +1,4 @@
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -54,6 +55,26 @@ model Account {
   @@map("accounts")
 }
 
+// ---------------------------------------------------------------------------
+// Trade
+//
+// A single Trade model serves BOTH dashboards, but the two dashboards use
+// different, non-overlapping field sets:
+//
+//   Live / Demo (Journal trade logs):
+//     date, entryTime, exitTime, direction, symbol,
+//     entryPrice, takeProfit, stopLoss, pnl, quantity, notes
+//
+//   Backtest (Backtester test logs):
+//     date, entryTime, exitTime, direction, symbol,
+//     mae, mfe, slPoints, pnl, quantity, notes
+//
+// Fields that belong to the "other" dashboard's shape are stored as NULL.
+// This avoids a polymorphic model and keeps a single trade-list endpoint.
+//
+// slPoints is the resolved stop-loss distance in POINTS. The UI may capture
+// it in ticks (account.slUnit === 'ticks'), but the API always stores points.
+// ---------------------------------------------------------------------------
 model Trade {
   id         String   @id @default(cuid())
   accountId  String
@@ -63,11 +84,20 @@ model Trade {
   exitTime   String
   direction  String
   symbol     String   @default("")
-  mae        Float    @default(0)
-  mfe        Float    @default(0)
-  pnl        Float    @default(0)
+
+  // --- Backtester-only (nullable on Live/Demo trades) ---
+  mae        Float?
+  mfe        Float?
   slPoints   Float?
-  contracts  Int?
+
+  // --- Journal-only (nullable on Backtest trades) ---
+  entryPrice Float?
+  takeProfit Float?
+  stopLoss   Float?
+
+  // --- Common ---
+  pnl        Float    @default(0)
+  quantity   Float?
   notes      String   @default("")
   dynamic    Json     @default("{}")
   createdAt  DateTime @default(now())

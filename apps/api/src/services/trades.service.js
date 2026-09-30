@@ -1,12 +1,41 @@
-﻿// apps/api/src/services/trades.service.js
+
+// apps/api/src/services/trades.service.js
 import { prisma } from '../lib/prisma.js';
 import { HttpError } from '../middleware/error.js';
 import { generateTradeId } from '@mavrix/shared';
 import { broadcastToUser } from '../lib/broadcaster.js';
 
+// Every column that lives in a dedicated Trade column — NOT in `dynamic`.
+// A single source of truth for both `splitTradePayload` and `sanitizeDynamic`.
+//
+// Journal (Live/Demo) shape:  date, entryTime, exitTime, direction, symbol,
+//                             entryPrice, takeProfit, stopLoss, pnl,
+//                             quantity, notes
+// Backtester shape:           date, entryTime, exitTime, direction, symbol,
+//                             mae, mfe, slPoints, pnl, quantity, notes
+//
+// Any payload key NOT in this set is written to the `dynamic` JSON blob.
 const RESERVED = new Set([
-  'date', 'entryTime', 'exitTime', 'direction', 'symbol',
-  'mae', 'mfe', 'pnl', 'slPoints', 'contracts', 'notes',
+  'date',
+  'entryTime',
+  'exitTime',
+  'direction',
+  'symbol',
+
+  // Backtester-only
+  'mae',
+  'mfe',
+  'slPoints',
+
+  // Journal-only
+  'entryPrice',
+  'takeProfit',
+  'stopLoss',
+
+  // Common
+  'pnl',
+  'quantity',
+  'notes',
 ]);
 
 function splitTradePayload(payload) {
@@ -44,11 +73,20 @@ function serialize(t) {
     exitTime: t.exitTime,
     direction: t.direction,
     symbol: t.symbol,
+
+    // Backtester-only fields — null on Live/Demo trades.
     mae: t.mae,
     mfe: t.mfe,
-    pnl: t.pnl,
     slPoints: t.slPoints,
-    contracts: t.contracts,
+
+    // Journal-only fields — null on Backtest trades.
+    entryPrice: t.entryPrice,
+    takeProfit: t.takeProfit,
+    stopLoss: t.stopLoss,
+
+    // Common
+    pnl: t.pnl,
+    quantity: t.quantity,
     notes: t.notes,
 
     // Dynamic columns come AFTER reserved so a stale `dynamic.notes`
