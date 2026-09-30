@@ -45,6 +45,109 @@ export const MAX_LAYOUTS = 3;
 export const MAX_DROPDOWN_UNIQUES = 10;
 
 /* ------------------------------------------------------------------ */
+/*  Custom column configs                                              */
+/*                                                                     */
+/*  A columnConfigs JSON blob can be in one of two shapes:             */
+/*                                                                     */
+/*    LEGACY (v1):                                                     */
+/*      { "Setup": "dropdown", "Notes": "text", "R": "number" }        */
+/*                                                                     */
+/*    CURRENT (v2):                                                    */
+/*      {                                                              */
+/*        "Setup": { "type": "dropdown", "options": ["A", "B", "C"] }, */
+/*        "Notes": { "type": "text" },                                 */
+/*        "R":     { "type": "number" }                                */
+/*      }                                                              */
+/*                                                                     */
+/*  The v2 shape lets us persist the option list for dropdown columns  */
+/*  so the AddTradeModal can render a real <select> and the Column     */
+/*  Manager can edit the options. Every reader should call             */
+/*  normalizeColumnConfig() before touching a value — it transparently */
+/*  upgrades v1 entries to v2 on the fly.                              */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Normalize a single column config entry.
+ *
+ * Accepts either:
+ *   - a legacy string ("text" | "dropdown" | "number")
+ *   - a v2 object ({ type, options? })
+ *
+ * Returns a v2 object: { type, ...(options if dropdown) }.
+ *
+ * Never throws — falls back to { type: 'text' } for anything unparseable.
+ */
+export function normalizeColumnConfig(raw) {
+  // Legacy string form
+  if (typeof raw === 'string') {
+    if (raw === 'text' || raw === 'dropdown' || raw === 'number') {
+      return raw === 'dropdown'
+        ? { type: 'dropdown', options: [] }
+        : { type: raw };
+    }
+    return { type: 'text' };
+  }
+
+  // Already an object
+  if (raw && typeof raw === 'object') {
+    const type =
+      raw.type === 'text' || raw.type === 'dropdown' || raw.type === 'number'
+        ? raw.type
+        : 'text';
+
+    if (type === 'dropdown') {
+      const options = Array.isArray(raw.options)
+        ? raw.options
+            .map((o) => (o == null ? '' : String(o).trim()))
+            .filter(Boolean)
+        : [];
+      // De-dupe while preserving first-seen order
+      const seen = new Set();
+      const unique = [];
+      for (const o of options) {
+        if (!seen.has(o)) {
+          seen.add(o);
+          unique.push(o);
+        }
+      }
+      return { type: 'dropdown', options: unique };
+    }
+
+    return { type };
+  }
+
+  // Anything else — null, undefined, number, boolean, etc.
+  return { type: 'text' };
+}
+
+/**
+ * Normalize an entire columnConfigs JSON blob.
+ *
+ * Input:  any object map of { [columnName]: legacyOrV2Value }
+ * Output: a fresh object map of { [columnName]: v2Config }
+ *
+ * Skips entries whose key isn't a non-empty string. Never mutates input.
+ */
+export function normalizeColumnConfigs(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+  const out = {};
+  for (const [key, value] of Object.entries(raw)) {
+    const name = String(key).trim();
+    if (!name) continue;
+    out[name] = normalizeColumnConfig(value);
+  }
+  return out;
+}
+
+/**
+ * Extract just the type from a raw config entry. Convenience wrapper used
+ * where callers only need the type and don't care about options.
+ */
+export function getColumnType(raw) {
+  return normalizeColumnConfig(raw).type;
+}
+
+/* ------------------------------------------------------------------ */
 /*  Economic Calendar                                                  */
 /* ------------------------------------------------------------------ */
 

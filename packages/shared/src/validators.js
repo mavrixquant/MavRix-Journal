@@ -1,4 +1,3 @@
-
 // packages/shared/src/validators.js
 import { z } from 'zod';
 import {
@@ -24,6 +23,29 @@ export const loginSchema = z.object({
 });
 
 /* ------------------------------------------------------------------ */
+/*  Column configs                                                     */
+/*                                                                     */
+/*  Accepts BOTH shapes so legacy accounts (flat string values) and    */
+/*  new accounts (v2 objects with dropdown options) validate cleanly.  */
+/* ------------------------------------------------------------------ */
+
+// A single entry — either a legacy string or a v2 object.
+const columnTypeEnum = z.enum(['text', 'dropdown', 'number']);
+
+const columnConfigEntrySchema = z.union([
+  // Legacy: { "Setup": "dropdown" }
+  columnTypeEnum,
+  // v2: { "Setup": { type: "dropdown", options: [...] } }
+  z.object({
+    type: columnTypeEnum,
+    options: z.array(z.string().trim().min(1)).max(200).optional(),
+  }),
+]);
+
+// The full columnConfigs map — arbitrary keys, each holding an entry.
+const columnConfigsSchema = z.record(columnConfigEntrySchema).default({});
+
+/* ------------------------------------------------------------------ */
 /*  Account                                                            */
 /* ------------------------------------------------------------------ */
 
@@ -41,24 +63,11 @@ export const accountSchema = z.object({
   slUnit: z.enum(SL_UNITS).nullable().optional(),
   commissionMode: z.enum(COMMISSION_MODES).default('none'),
   commissionValue: decimal.nonnegative().nullable().optional(),
-  columnConfigs: z.record(z.enum(['text', 'dropdown', 'number'])).default({}),
+  columnConfigs: columnConfigsSchema,
 });
 
 /* ------------------------------------------------------------------ */
 /*  Trade                                                              */
-/*                                                                     */
-/*  A single Trade shape serves BOTH dashboards, but each side uses a  */
-/*  non-overlapping field set:                                         */
-/*                                                                     */
-/*    Live / Demo : date, entryTime, exitTime, direction, symbol,      */
-/*                  entryPrice, takeProfit, stopLoss, pnl, quantity,   */
-/*                  notes                                              */
-/*                                                                     */
-/*    Backtest    : date, entryTime, exitTime, direction, symbol,      */
-/*                  mae, mfe, slPoints, pnl, quantity, notes           */
-/*                                                                     */
-/*  Fields belonging to the other dashboard's shape are accepted as    */
-/*  null / undefined and simply stored as NULL in Postgres.            */
 /* ------------------------------------------------------------------ */
 
 export const tradeSchema = z.object({
@@ -88,7 +97,7 @@ export const tradeSchema = z.object({
 export const tradeBatchSchema = z.object({
   accountId: z.string().min(1),
   trades: z.array(tradeSchema).min(1).max(5000),
-  columnConfigs: z.record(z.enum(['text', 'dropdown', 'number'])).optional(),
+  columnConfigs: columnConfigsSchema.optional(),
 });
 
 /* ------------------------------------------------------------------ */
