@@ -30,7 +30,7 @@
 // The v1→v2 upgrade path is handled by normalizeColumnConfigs() from
 // @mavrix/shared (Phase 6).
 
-import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import * as XLSX from 'xlsx';
 import {
   FaFileUpload,

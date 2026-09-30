@@ -38,10 +38,7 @@ import {
   useRenameCustomColumn,
   useDeleteCustomColumn,
 } from '@/shared/api/trades';
-import {
-  normalizeColumnConfig,
-  normalizeColumnConfigs,
-} from '@mavrix/shared';
+import { normalizeColumnConfigs } from '@mavrix/shared';
 
 const TYPES = [
   { value: 'text',     label: 'Text' },
@@ -838,8 +835,6 @@ export default function ColumnManagerModal({ isOpen, onClose, account, trades = 
     setDeleteTarget(null);
   }, [isOpen, account]);
 
-  if (!isOpen || !account) return null;
-
   const columnNames = useMemo(
     () => Object.keys(configs).sort((a, b) => a.localeCompare(b)),
     [configs]
@@ -853,6 +848,8 @@ export default function ColumnManagerModal({ isOpen, onClose, account, trades = 
     }
     return map;
   }, [columnNames, trades]);
+
+  if (!isOpen || !account) return null;
 
   /* ---------------------------------------------------------------- */
   /*  Add                                                              */
