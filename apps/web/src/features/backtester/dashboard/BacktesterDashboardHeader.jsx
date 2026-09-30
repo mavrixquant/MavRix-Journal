@@ -2,20 +2,25 @@
 //
 // Backtester-dashboard header.
 //
-// Backtest accounts only. R:R tabs are ALWAYS visible, Optimize
-// button is ALWAYS visible (no isBacktest gate — this dashboard is
-// Backtest-only by construction). Everything else (dynamic filters,
-// session/time, limits, reset, customize, account badge) mirrors the
-// Journal header.
+// Unlike the Journal header, the Backtester header KEEPS its full filter
+// toolbar (R:R tabs, DynamicFilters, Session/Time, Limits, Optimize, Reset).
+// The Analyse-page revamp only stripped filters from the Journal dashboard.
+//
+// Changes in this revision:
+//   - Uses the shared useEnrichedTrades hook (extracted from this file's
+//     previous inline enrichment logic) so both dashboards share one code
+//     path for loading + dispatching trades.
+//   - The Customize button is now disabled when the Backtest account has
+//     no trades.
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState } from 'react';
+import { FaSlidersH } from 'react-icons/fa';
+
 import { useAppContext } from '@/app/providers/AppProvider';
 import { useDashboardAccount } from '@/app/providers/useDashboardAccount';
-import { useTrades } from '@/shared/api/trades';
+import { useEnrichedTrades } from '@/features/dashboard/hooks/useEnrichedTrades';
 import { useFilters } from '@/features/dashboard/hooks/useFilters';
 import { useFilterUrlSync } from '@/features/dashboard/hooks/useFilterUrlSync';
-import { enrichTradesFromDB } from '@/shared/trading/enrich';
-import { FaSlidersH } from 'react-icons/fa';
 
 import RRTabs from '@/features/dashboard/components/filters/RRTabs';
 import DynamicFilters from '@/features/dashboard/components/filters/DynamicFilters';
@@ -26,15 +31,8 @@ import OptimizeModal from '@/features/dashboard/components/optimize/OptimizeModa
 import '@/shared/ui/page-header.css';
 
 /* ------------------------------------------------------------------ */
-/*  Frozen empty payload — same rationale as JournalDashboardHeader.   */
-/* ------------------------------------------------------------------ */
-const EMPTY_ENRICHED = Object.freeze({
-  enrichedTrades: [],
-  dynamicKeys: [],
-});
-
-/* ------------------------------------------------------------------ */
-/*  Header-local CSS — identical to JournalDashboardHeader.            */
+/*  Header-local CSS. Identical to the previous version — the visual   */
+/*  language is unchanged; only the data source + button gating moved. */
 /* ------------------------------------------------------------------ */
 const HDR_CSS = `
   .hdr-root {
@@ -105,12 +103,23 @@ const HDR_CSS = `
     transition: all .22s cubic-bezier(.2,.8,.25,1);
     white-space: nowrap;
   }
-  .hdr-customize:hover {
+  .hdr-customize:hover:not(:disabled) {
     color: var(--accent);
     border-color: var(--accent-soft2);
     background: rgba(245,158,11,.06);
     box-shadow: 0 0 20px -6px rgba(245,158,11,.4);
     transform: translateY(-1px);
+  }
+  .hdr-customize:disabled {
+    opacity: .4;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+  .hdr-customize:focus-visible {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(245,158,11,.18);
   }
 
   /* ---------- Collapsible toolbar wrapper ---------- */
@@ -238,11 +247,15 @@ const HDR_CSS = `
 `;
 
 export default function BacktesterDashboardHeader({ onCustomize }) {
-  const { state, dispatch } = useAppContext();
+  const { state } = useAppContext();
   const { accountId } = useDashboardAccount();
   const { resetAllFilters } = useFilters();
   // Mirror filter state to the URL for shareable / back-button support.
   useFilterUrlSync();
+
+  // Enrich + dispatch trades for this Backtest account. The returned payload
+  // is used only to gate the Customize button on data availability.
+  const enriched = useEnrichedTrades(accountId);
 
   const [showSessionModal, setShowSessionModal] = useState(false);
   const [showLimitsModal, setShowLimitsModal] = useState(false);
@@ -251,24 +264,10 @@ export default function BacktesterDashboardHeader({ onCustomize }) {
   // Toolbar expand/collapse — default OPEN.
   const [toolbarOpen, setToolbarOpen] = useState(true);
 
-  // ---------- React Query reads ----------
-  // See JournalDashboardHeader for the EMPTY_ENRICHED rationale.
-  const { data: rawTrades } = useTrades(accountId);
-
-  const enriched = useMemo(() => {
-    if (!accountId || !rawTrades || rawTrades.length === 0) {
-      return EMPTY_ENRICHED;
-    }
-    return enrichTradesFromDB(rawTrades);
-  }, [rawTrades, accountId]);
-
-  useEffect(() => {
-    dispatch({ type: 'SET_TRADES', payload: enriched.enrichedTrades });
-    dispatch({ type: 'SET_DYNAMIC_FILTER_KEYS', payload: enriched.dynamicKeys });
-  }, [enriched, dispatch]);
-
   const selectedAccount =
     state.accounts.find((acc) => acc.id === accountId) || null;
+
+  const hasData = enriched.enrichedTrades.length > 0;
 
   // Backtester is Backtest-only. Badge is always `is-backtest`.
   const badgeClass = 'is-backtest';
@@ -316,7 +315,12 @@ export default function BacktesterDashboardHeader({ onCustomize }) {
               type="button"
               className="hdr-customize"
               onClick={onCustomize}
-              title="Customize dashboard"
+              disabled={!hasData}
+              title={
+                hasData
+                  ? 'Customize dashboard'
+                  : 'Add trades to this account first to customize the layout'
+              }
             >
               <FaSlidersH size={12} />
               Customize

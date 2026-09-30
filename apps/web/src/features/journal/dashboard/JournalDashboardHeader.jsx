@@ -2,94 +2,39 @@
 //
 // Journal-dashboard header.
 //
-// Live/Demo accounts only. No R:R tabs, no Optimize button, no
-// isBacktest branches — those are Backtester concerns. Everything
-// else (dynamic filters, session/time, limits, reset, customize,
-// account badge) mirrors the original unified header.
+// As of the Analyse-page revamp, this header is intentionally minimal:
+//   - Title + account badge
+//   - A single "Customize" button (disabled when there are no trades)
+//
+// All filter UI (DynamicFilters, Session/Time, Limits, Reset) has been
+// moved to the /journal/analyse route, where deep-dive analysis actually
+// needs it. The journal dashboard itself stays focused on the visual
+// overview — panels, layout, customization.
+//
+// Trade enrichment still happens HERE (via useEnrichedTrades) so the
+// dashboard panels have data on first paint. The Analyse page uses the
+// same hook, so both routes share one source of truth.
 
-import { useState, useEffect, useMemo } from 'react';
-import { useAppContext } from '@/app/providers/AppProvider';
-import { useDashboardAccount } from '@/app/providers/useDashboardAccount';
-import { useTrades } from '@/shared/api/trades';
-import { useFilters } from '@/features/dashboard/hooks/useFilters';
-import { useFilterUrlSync } from '@/features/dashboard/hooks/useFilterUrlSync';
-import { enrichTradesFromDB } from '@/shared/trading/enrich';
 import { FaSlidersH } from 'react-icons/fa';
 
-import DynamicFilters from '@/features/dashboard/components/filters/DynamicFilters';
-import SessionTimeModal from '@/features/dashboard/components/filters/SessionTimeModal';
-import LimitsModal from '@/features/dashboard/components/filters/LimitsModal';
+import { useAppContext } from '@/app/providers/AppProvider';
+import { useDashboardAccount } from '@/app/providers/useDashboardAccount';
+import { useEnrichedTrades } from '@/features/dashboard/hooks/useEnrichedTrades';
 
 import '@/shared/ui/page-header.css';
 
 /* ------------------------------------------------------------------ */
-/*  Frozen empty payload.                                              */
-/*                                                                     */
-/*  The dispatch effect below must NOT fire in a loop. It only refires */
-/*  when `enriched` changes reference. If we return a fresh `{ ... }`  */
-/*  object from the memo every time React Query's `data` is undefined, */
-/*  the memo invalidates on every render and the effect spams the      */
-/*  reducer — which is exactly the "Maximum update depth exceeded"     */
-/*  crash we were seeing. A module-level frozen constant gives the     */
-/*  memo a stable return value for the empty case.                     */
-/* ------------------------------------------------------------------ */
-const EMPTY_ENRICHED = Object.freeze({
-  enrichedTrades: [],
-  dynamicKeys: [],
-});
-
-/* ------------------------------------------------------------------ */
 /*  Header-local CSS.                                                  */
+/*  Much leaner than before — the toolbar, collapse chevron, and all   */
+/*  filter-button styling now live on the Analyse page instead.        */
 /* ------------------------------------------------------------------ */
 const HDR_CSS = `
   .hdr-root {
     --accent: #F59E0B;
     --accent-2: #FDE68A;
-    --accent-soft: rgba(245,158,11,.10);
     --accent-soft2: rgba(245,158,11,.28);
-    --line: rgba(255,255,255,.085);
-    --line-soft: rgba(255,255,255,.05);
     --ink-1: #E7E9EE;
     --ink-2: #8892A3;
-    --ink-3: #545E6E;
-  }
-
-  /* ---------- Collapse chevron ---------- */
-  .hdr-collapse {
-    width: 26px;
-    height: 26px;
-    border-radius: 8px;
-    border: 1px solid rgba(255,255,255,.1);
-    background: rgba(255,255,255,.03);
-    color: var(--ink-2);
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    padding: 0;
-    transition: all .22s cubic-bezier(.2,.8,.25,1);
-  }
-  .hdr-collapse svg {
-    width: 14px;
-    height: 14px;
-    transition: transform .38s cubic-bezier(.2,.8,.25,1);
-    transform: rotate(0deg);   /* chevron up   = toolbar open */
-  }
-  .hdr-collapse.is-closed svg {
-    transform: rotate(180deg); /* chevron down = toolbar hidden */
-  }
-  .hdr-collapse:hover {
-    color: var(--accent);
-    border-color: var(--accent-soft2);
-    background: rgba(245,158,11,.06);
-    box-shadow: 0 0 16px -6px rgba(245,158,11,.45);
-  }
-  .hdr-collapse:active { transform: scale(.94); }
-  .hdr-collapse:focus-visible {
-    outline: none;
-    border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(245,158,11,.18);
   }
 
   /* ---------- Customize button ---------- */
@@ -110,153 +55,37 @@ const HDR_CSS = `
     transition: all .22s cubic-bezier(.2,.8,.25,1);
     white-space: nowrap;
   }
-  .hdr-customize:hover {
+  .hdr-customize:hover:not(:disabled) {
     color: var(--accent);
     border-color: var(--accent-soft2);
     background: rgba(245,158,11,.06);
     box-shadow: 0 0 20px -6px rgba(245,158,11,.4);
     transform: translateY(-1px);
   }
-
-  /* ---------- Collapsible toolbar wrapper ---------- */
-  .hdr-toolbar-wrap {
-    display: grid;
-    grid-template-rows: 1fr;
-    opacity: 1;
-    transition:
-      grid-template-rows .38s cubic-bezier(.2,.8,.25,1),
-      opacity .28s ease;
+  .hdr-customize:disabled {
+    opacity: .4;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
   }
-  .hdr-toolbar-wrap.is-closed {
-    grid-template-rows: 0fr;
-    opacity: 0;
-    pointer-events: none;
-  }
-  .hdr-toolbar-inner { min-height: 0; }
-  .hdr-toolbar-wrap.is-closed .hdr-toolbar-inner { overflow: hidden; }
-
-  /* ---------- Toolbar row ---------- */
-  .hdr-toolbar {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    padding-top: 4px;
-  }
-  .hdr-toolbar-section {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex-wrap: wrap;
-  }
-  .hdr-actions {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 8px;
-    margin-left: auto;
-  }
-
-  /* ---------- Toolbar buttons ---------- */
-  .hdr-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    padding: 8px 14px;
-    border-radius: 10px;
-    border: 1px solid rgba(255,255,255,.1);
-    background: rgba(255,255,255,.03);
-    color: var(--ink-2);
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    font-size: 11.5px;
-    font-weight: 600;
-    letter-spacing: .02em;
-    cursor: pointer;
-    transition: all .22s cubic-bezier(.2,.8,.25,1);
-    white-space: nowrap;
-  }
-  .hdr-btn:hover {
-    color: var(--ink-1);
-    background: rgba(255,255,255,.06);
-    border-color: rgba(255,255,255,.2);
-    transform: translateY(-1px);
-  }
-  .hdr-btn:active { transform: translateY(0) scale(.98); }
-  .hdr-btn svg { flex-shrink: 0; }
-
-  .hdr-btn-reset {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 8px 14px;
-    border-radius: 10px;
-    border: 1px solid rgba(239,68,68,.28);
-    background: rgba(239,68,68,.05);
-    color: #f87171;
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    font-size: 11.5px;
-    font-weight: 600;
-    letter-spacing: .02em;
-    cursor: pointer;
-    transition: all .22s cubic-bezier(.2,.8,.25,1);
-    white-space: nowrap;
-  }
-  .hdr-btn-reset:hover {
-    background: rgba(239,68,68,.12);
-    border-color: rgba(239,68,68,.55);
-    color: #fca5a5;
-    transform: translateY(-1px);
+  .hdr-customize:focus-visible {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(245,158,11,.18);
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .hdr-btn, .hdr-btn-reset, .hdr-customize,
-    .hdr-collapse, .hdr-collapse svg,
-    .hdr-toolbar-wrap { transition: none !important; }
-  }
-
-  @media (max-width: 768px) {
-    .hdr-toolbar { flex-direction: column; align-items: stretch; }
-    .hdr-actions { width: 100%; margin-left: 0; }
+    .hdr-customize { transition: none !important; }
   }
 `;
 
 export default function JournalDashboardHeader({ onCustomize }) {
-  const { state, dispatch } = useAppContext();
+  const { state } = useAppContext();
   const { accountId } = useDashboardAccount();
-  const { resetAllFilters } = useFilters();
-  // Mirror filter state to the URL for shareable / back-button support.
-  useFilterUrlSync();
 
-  const [showSessionModal, setShowSessionModal] = useState(false);
-  const [showLimitsModal, setShowLimitsModal] = useState(false);
-
-  // Toolbar expand/collapse — default OPEN.
-  const [toolbarOpen, setToolbarOpen] = useState(true);
-
-  // ---------- React Query reads ----------
-  // Note: `data` is undefined while the query is disabled or loading.
-  // We deliberately do NOT use the `= []` destructure default here,
-  // because that produces a fresh array on every render and would
-  // invalidate the `enriched` memo below. The memo handles the
-  // undefined case via EMPTY_ENRICHED.
-  const { data: rawTrades } = useTrades(accountId);
-
-  // Enrich once per (rawTrades, accountId) pair.
-  // Returns the frozen EMPTY_ENRICHED constant when there is nothing
-  // to enrich — so `enriched` is stable across renders and the dispatch
-  // effect below cannot enter a self-sustaining loop.
-  const enriched = useMemo(() => {
-    if (!accountId || !rawTrades || rawTrades.length === 0) {
-      return EMPTY_ENRICHED;
-    }
-    return enrichTradesFromDB(rawTrades);
-  }, [rawTrades, accountId]);
-
-  useEffect(() => {
-    dispatch({ type: 'SET_TRADES', payload: enriched.enrichedTrades });
-    dispatch({ type: 'SET_DYNAMIC_FILTER_KEYS', payload: enriched.dynamicKeys });
-  }, [enriched, dispatch]);
+  // Enrich + dispatch on mount / account change. Returns the enriched payload
+  // so we can gate the Customize button on "does this account have any trades".
+  const enriched = useEnrichedTrades(accountId);
 
   const selectedAccount =
     state.accounts.find((acc) => acc.id === accountId) || null;
@@ -264,35 +93,15 @@ export default function JournalDashboardHeader({ onCustomize }) {
   const badgeClass =
     selectedAccount?.type === 'Demo' ? 'is-demo' : 'is-live';
 
+  const hasData = enriched.enrichedTrades.length > 0;
+
   return (
     <>
       <style>{HDR_CSS}</style>
       <div className="hdr-root ph">
-        {/* ---------- Title row ---------- */}
         <div className="ph-row">
           <div className="ph-left">
             <div className="ph-title-row">
-              <button
-                type="button"
-                className={`hdr-collapse ${toolbarOpen ? '' : 'is-closed'}`}
-                onClick={() => setToolbarOpen((v) => !v)}
-                aria-expanded={toolbarOpen}
-                aria-controls="hdr-toolbar"
-                title={toolbarOpen ? 'Hide filters' : 'Show filters'}
-              >
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.4"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
-                >
-                  <polyline points="6 15 12 9 18 15" />
-                </svg>
-              </button>
-
               <h1 className="ph-title">Dashboard</h1>
               {selectedAccount && (
                 <span className={`ph-badge ${badgeClass}`}>
@@ -307,74 +116,19 @@ export default function JournalDashboardHeader({ onCustomize }) {
               type="button"
               className="hdr-customize"
               onClick={onCustomize}
-              title="Customize dashboard"
+              disabled={!hasData}
+              title={
+                hasData
+                  ? 'Customize dashboard'
+                  : 'Add trades to this account first to customize the layout'
+              }
             >
               <FaSlidersH size={12} />
               Customize
             </button>
           </div>
         </div>
-
-        {/* ---------- Collapsible toolbar ---------- */}
-        <div className={`hdr-toolbar-wrap ${toolbarOpen ? '' : 'is-closed'}`}>
-          <div className="hdr-toolbar-inner">
-            <div className="hdr-toolbar" id="hdr-toolbar">
-              <div className="hdr-toolbar-section hdr-actions">
-                <DynamicFilters />
-
-                <button
-                  type="button"
-                  className="hdr-btn"
-                  onClick={() => setShowSessionModal(true)}
-                >
-                  <svg className="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <circle cx="12" cy="12" r="10" />
-                    <polyline points="12 6 12 12 16 14" />
-                  </svg>
-                  <span>Session / Time</span>
-                </button>
-
-                <button
-                  type="button"
-                  className="hdr-btn"
-                  onClick={() => setShowLimitsModal(true)}
-                >
-                  <svg className="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <circle cx="12" cy="12" r="3" />
-                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
-                  </svg>
-                  <span>Limits</span>
-                </button>
-
-                <button
-                  type="button"
-                  className="hdr-btn-reset"
-                  onClick={resetAllFilters}
-                >
-                  <svg className="btn-icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <line x1="18" y1="6" x2="6" y2="18" />
-                    <line x1="6" y1="6" x2="18" y2="18" />
-                  </svg>
-                  <span>Reset filters</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
-
-      {showSessionModal && (
-        <SessionTimeModal
-          isOpen={showSessionModal}
-          onClose={() => setShowSessionModal(false)}
-        />
-      )}
-      {showLimitsModal && (
-        <LimitsModal
-          isOpen={showLimitsModal}
-          onClose={() => setShowLimitsModal(false)}
-        />
-      )}
     </>
   );
 }
