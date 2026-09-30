@@ -2,17 +2,24 @@
 // apps/web/src/features/backtester/test-logs/TestLogsPage.jsx
 //
 // Backtester Test Logs — Backtest accounts only.
-// Shares the entire trade-logs UI with Journal Trade Logs via
-// @/shared/trade-logs/TradeLogsView.
+//
+// The account selector lives in the HeaderBar. We read the currently-
+// selected account for THIS dashboard (the /backtester slot) via
+// useDashboardAccount() and pass it down to the shared view.
 
 import TradeLogsView from '@/shared/trade-logs/TradeLogsView';
+import { useDashboardAccount } from '@/app/providers/useDashboardAccount';
 
-// Module-level constant — stable reference across renders.
+// Informational — used for the empty-state message only. Actual
+// type-based gating is performed by the HeaderBar.
 const ALLOWED_TYPES = Object.freeze(['Backtest']);
 
 export default function TestLogsPage() {
+  const { accountId } = useDashboardAccount();
+
   return (
     <TradeLogsView
+      accountId={accountId}
       allowedTypes={ALLOWED_TYPES}
       eyebrow="Backtester"
       title="Test Logs"

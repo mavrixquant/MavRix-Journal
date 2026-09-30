@@ -4,11 +4,19 @@
 //   - features/journal/trade-logs/TradeLogsPage.jsx   (Live + Demo accounts)
 //   - features/backtester/test-logs/TestLogsPage.jsx  (Backtest accounts)
 //
-// The `allowedTypes` prop gates which accounts appear in the selector.
-// Everything else (KPI strip, table, upload/add/columns modals, edit &
-// delete) is account-type-agnostic.
+// ACCOUNT SELECTION
+// -----------------
+// This view no longer owns an account selector. The currently-selected
+// account is passed in as the `accountId` prop, sourced from the HeaderBar's
+// per-dashboard slot via useDashboardAccount() in the calling feature page.
+//
+// Why: shared/** is forbidden (by ESLint) from importing @/app/*, so the
+// useDashboardAccount() hook must be called one level up, in the feature page.
+//
+// `allowedTypes` is kept purely for the empty-state message text. All
+// type-based account gating already happens inside the HeaderBar.
 
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import {
   FaFileUpload,
   FaFolderOpen,
@@ -60,32 +68,6 @@ const CSS = `
     color: var(--ink-1);
     font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
     -webkit-font-smoothing: antialiased;
-  }
-
-  /* ---------- Account selector ---------- */
-  .jm-select {
-    appearance: none;
-    -webkit-appearance: none;
-    background: rgba(10,13,19,.6);
-    color: var(--ink-1);
-    border: 1px solid rgba(255,255,255,.1);
-    border-radius: 10px;
-    padding: 9px 34px 9px 14px;
-    font-size: 12.5px;
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    font-weight: 600;
-    cursor: pointer;
-    outline: none;
-    min-width: 220px;
-    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 20 20' fill='%23545E6E'><path d='M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z'/></svg>");
-    background-repeat: no-repeat;
-    background-position: right 10px center;
-    transition: all .2s;
-  }
-  .jm-select:hover { border-color: rgba(255,255,255,.22); }
-  .jm-select:focus {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(245,158,11,.15);
   }
 
   /* ---------- Primary CTA ---------- */
@@ -278,7 +260,6 @@ const CSS = `
 
   @media (max-width: 640px) {
     .jm-root { padding: 16px; }
-    .jm-select { min-width: 0; width: 100%; }
   }
 `;
 
@@ -451,8 +432,13 @@ function buildColumns(dynamicKeys, currency, { onEdit, onDelete }) {
 /*  Component                                                          */
 /* ------------------------------------------------------------------ */
 export default function TradeLogsView({
-  // Array of account types to surface, e.g. ['Live','Demo'] or ['Backtest'].
-  allowedTypes,
+  // Currently-selected account id, sourced from the HeaderBar's
+  // per-dashboard slot via useDashboardAccount() in the caller.
+  accountId,
+
+  // Informational — used only for the empty-state message text.
+  // Account-type gating happens inside the HeaderBar.
+  allowedTypes = [],
 
   // Header text.
   eyebrow,
@@ -464,7 +450,6 @@ export default function TradeLogsView({
   noAccountsMessage,
 }) {
   const { data: accounts = [], isLoading: accountsLoading } = useAccounts();
-  const [selectedAccountId, setSelectedAccountId] = useState(null);
 
   const [uploadOpen, setUploadOpen] = useState(false);
   const [addTradeOpen, setAddTradeOpen] = useState(false);
@@ -476,35 +461,16 @@ export default function TradeLogsView({
 
   const deleteTrade = useDeleteTrade();
 
-  // ---- Accounts visible to this view (gated by allowedTypes) ----
-  const filteredAccounts = useMemo(
-    () =>
-      accounts.filter((a) => allowedTypes.includes(a.type || 'Backtest')),
-    [accounts, allowedTypes]
-  );
-
-  // ---- Auto-select first valid account; reset if current is invalid ----
-  useEffect(() => {
-    if (filteredAccounts.length === 0) {
-      if (selectedAccountId !== null) setSelectedAccountId(null);
-      return;
-    }
-    const currentValid = filteredAccounts.some(
-      (a) => a.id === selectedAccountId
-    );
-    if (!currentValid) {
-      setSelectedAccountId(filteredAccounts[0].id);
-    }
-  }, [filteredAccounts, selectedAccountId]);
-
+  // Resolve the account object from the id. If the id is null OR the
+  // account isn't in the list, selectedAccount is null → empty state.
   const selectedAccount = useMemo(
-    () => filteredAccounts.find((a) => a.id === selectedAccountId) || null,
-    [filteredAccounts, selectedAccountId]
+    () => accounts.find((a) => a.id === accountId) || null,
+    [accounts, accountId]
   );
 
-  const { data: rawTrades = [], isLoading: tradesLoading } = useTrades(
-    selectedAccountId
-  );
+  // useTrades is enabled only when accountId is truthy, so no wasted fetch
+  // on the empty state.
+  const { data: rawTrades = [], isLoading: tradesLoading } = useTrades(accountId);
 
   const { enrichedTrades, dynamicKeys } = useMemo(
     () => enrichTradesFromDB(rawTrades),
@@ -565,18 +531,28 @@ export default function TradeLogsView({
     return { total: enrichedTrades.length, wins, losses, netPnl };
   }, [enrichedTrades]);
 
-  const loading = accountsLoading || (selectedAccountId && tradesLoading);
+  const loading = accountsLoading || (accountId && tradesLoading);
 
   const searchableIds = useMemo(
     () => ['date', 'entry', 'exit', 'dir', 'symbol', 'notes', ...dynamicKeys],
     [dynamicKeys]
   );
 
+  /* ---------------------------------------------------------------- */
+  /*  Render: loading skeleton                                         */
+  /* ---------------------------------------------------------------- */
   if (loading) return <PageSkeleton />;
 
-  /* ---- No matching accounts ---- */
-  if (filteredAccounts.length === 0) {
-    const typesLabel = allowedTypes.join(' or ');
+  /* ---------------------------------------------------------------- */
+  /*  Render: no matching account                                      */
+  /*                                                                   */
+  /*  accountId is null when the HeaderBar finds zero accounts of      */
+  /*  the required type for this dashboard — that IS the signal.       */
+  /* ---------------------------------------------------------------- */
+  if (!selectedAccount) {
+    const typesLabel = allowedTypes.length > 0
+      ? allowedTypes.join(' or ')
+      : 'matching';
     return (
       <>
         <style>{CSS}</style>
@@ -606,6 +582,9 @@ export default function TradeLogsView({
     );
   }
 
+  /* ---------------------------------------------------------------- */
+  /*  Render: full view                                                */
+  /* ---------------------------------------------------------------- */
   return (
     <>
       <style>{CSS}</style>
@@ -620,20 +599,8 @@ export default function TradeLogsView({
               <p className="ph-sub">{subtitle}</p>
             </div>
 
+            {/* No account selector here — the HeaderBar owns it. */}
             <div className="ph-right">
-              <select
-                className="jm-select"
-                value={selectedAccountId || ''}
-                onChange={(e) => setSelectedAccountId(e.target.value)}
-                aria-label="Select account"
-              >
-                {filteredAccounts.map((acc) => (
-                  <option key={acc.id} value={acc.id}>
-                    {acc.name} ({acc.type})
-                  </option>
-                ))}
-              </select>
-
               <button
                 type="button"
                 className="jm-icon-btn"
@@ -643,7 +610,6 @@ export default function TradeLogsView({
                     dynamicKeys,
                   })
                 }
-                disabled={!selectedAccount}
                 title="Download .xlsx template"
               >
                 <FaDownload size={11} /> <span>Template</span>
@@ -653,7 +619,6 @@ export default function TradeLogsView({
                 type="button"
                 className="jm-icon-btn"
                 onClick={() => setColumnsOpen(true)}
-                disabled={!selectedAccount}
                 title="Manage custom columns"
               >
                 <FaColumns size={11} /> <span>Columns</span>
@@ -663,7 +628,6 @@ export default function TradeLogsView({
                 type="button"
                 className="jm-icon-btn"
                 onClick={() => setUploadOpen(true)}
-                disabled={!selectedAccount}
                 title="Bulk-upload trades from Excel"
               >
                 <FaFileUpload size={11} /> <span>Upload Trades</span>
@@ -673,7 +637,6 @@ export default function TradeLogsView({
                 type="button"
                 className="jm-btn-primary"
                 onClick={() => setAddTradeOpen(true)}
-                disabled={!selectedAccount}
               >
                 <FaPlus size={11} /> Add Trade
               </button>
@@ -761,34 +724,28 @@ export default function TradeLogsView({
         </div>
 
         {/* ---------- Upload modal ---------- */}
-        {selectedAccount && (
-          <UploadModal
-            isOpen={uploadOpen}
-            onClose={() => setUploadOpen(false)}
-            account={selectedAccount}
-            existingTrades={rawTrades}
-            onSuccess={() => setUploadOpen(false)}
-          />
-        )}
+        <UploadModal
+          isOpen={uploadOpen}
+          onClose={() => setUploadOpen(false)}
+          account={selectedAccount}
+          existingTrades={rawTrades}
+          onSuccess={() => setUploadOpen(false)}
+        />
 
         {/* ---------- Add / Edit Trade modal ---------- */}
-        {selectedAccount && (
-          <AddTradeModal
-            isOpen={addTradeOpen}
-            onClose={handleAddModalClose}
-            account={selectedAccount}
-            trade={editingTrade}
-          />
-        )}
+        <AddTradeModal
+          isOpen={addTradeOpen}
+          onClose={handleAddModalClose}
+          account={selectedAccount}
+          trade={editingTrade}
+        />
 
         {/* ---------- Column manager modal ---------- */}
-        {selectedAccount && (
-          <ColumnManagerModal
-            isOpen={columnsOpen}
-            onClose={() => setColumnsOpen(false)}
-            account={selectedAccount}
-          />
-        )}
+        <ColumnManagerModal
+          isOpen={columnsOpen}
+          onClose={() => setColumnsOpen(false)}
+          account={selectedAccount}
+        />
 
         {/* ---------- Delete confirmation ---------- */}
         <Alert

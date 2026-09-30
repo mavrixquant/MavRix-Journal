@@ -2,16 +2,24 @@
 // apps/web/src/features/journal/trade-logs/TradeLogsPage.jsx
 //
 // Journal Trade Logs — Live & Demo accounts only.
-// All rendering logic lives in the shared TradeLogsView.
+//
+// The account selector lives in the HeaderBar. We read the currently-
+// selected account for THIS dashboard (the /journal slot) via
+// useDashboardAccount() and pass it down to the shared view.
 
 import TradeLogsView from '@/shared/trade-logs/TradeLogsView';
+import { useDashboardAccount } from '@/app/providers/useDashboardAccount';
 
-// Module-level constant — stable reference across renders.
+// Informational — used for the empty-state message only. Actual
+// type-based gating is performed by the HeaderBar.
 const ALLOWED_TYPES = Object.freeze(['Live', 'Demo']);
 
 export default function TradeLogsPage() {
+  const { accountId } = useDashboardAccount();
+
   return (
     <TradeLogsView
+      accountId={accountId}
       allowedTypes={ALLOWED_TYPES}
       eyebrow="Journal"
       title="Trade Logs"
