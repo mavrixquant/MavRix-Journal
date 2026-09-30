@@ -10,11 +10,16 @@
 // account is passed in as the `accountId` prop, sourced from the HeaderBar's
 // per-dashboard slot via useDashboardAccount() in the calling feature page.
 //
-// Why: shared/** is forbidden (by ESLint) from importing @/app/*, so the
-// useDashboardAccount() hook must be called one level up, in the feature page.
+// FIELD SETS
+// ----------
+// The visible columns depend on `account.type`:
 //
-// `allowedTypes` is kept purely for the empty-state message text. All
-// type-based account gating already happens inside the HeaderBar.
+//   Live / Demo : Date | Entry | Exit | Dir | Symbol | Entry Price |
+//                 Take Profit | Stop Loss | P&L | Quantity | Notes |
+//                 [dynamic] | [actions]
+//
+//   Backtest    : Date | Entry | Exit | Dir | Symbol | MAE | MFE | SL |
+//                 P&L | Quantity | Notes | [dynamic] | [actions]
 
 import { useState, useMemo, useCallback } from 'react';
 import {
@@ -176,7 +181,7 @@ const CSS = `
   /* ---------- KPI strip ---------- */
   .jm-kpis {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
     gap: 12px;
   }
   .jm-kpi {
@@ -204,6 +209,7 @@ const CSS = `
   }
   .jm-kpi-value.pos { color: var(--win); }
   .jm-kpi-value.neg { color: var(--loss); }
+  .jm-kpi-value.amber { color: var(--accent); }
 
   /* ---------- Table card ---------- */
   .jm-card {
@@ -256,7 +262,6 @@ const CSS = `
     color: var(--ink-2);
     font-family: 'IBM Plex Mono', ui-monospace, monospace;
   }
-  .jm-empty-full { grid-column: 1 / -1; }
 
   @media (max-width: 640px) {
     .jm-root { padding: 16px; }
@@ -291,6 +296,11 @@ function formatMoney(v, currency = 'USD') {
   }
 }
 
+function formatNum(v, decimals = 2) {
+  if (v == null || Number.isNaN(Number(v))) return '—';
+  return Number(v).toFixed(decimals);
+}
+
 function DirText({ value }) {
   if (!value) return '—';
   const color = value === 'Long' ? '#35C4A1' : '#FF5C5C';
@@ -298,10 +308,10 @@ function DirText({ value }) {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Columns                                                            */
+/*  Columns — mode-aware                                               */
 /* ------------------------------------------------------------------ */
-function buildColumns(dynamicKeys, currency, { onEdit, onDelete }) {
-  const base = [
+function buildColumns(dynamicKeys, currency, isBacktest, { onEdit, onDelete }) {
+  const common = [
     {
       id: 'date',
       accessorKey: 'date',
@@ -342,22 +352,72 @@ function buildColumns(dynamicKeys, currency, { onEdit, onDelete }) {
       size: 90,
       cell: (ctx) => ctx.getValue() || '—',
     },
-    {
-      id: 'mae',
-      accessorKey: 'mae',
-      header: 'MAE',
-      meta: { label: 'MAE' },
-      size: 70,
-      cell: (ctx) => Number(ctx.getValue() ?? 0).toFixed(2),
-    },
-    {
-      id: 'mfe',
-      accessorKey: 'mfe',
-      header: 'MFE',
-      meta: { label: 'MFE' },
-      size: 70,
-      cell: (ctx) => Number(ctx.getValue() ?? 0).toFixed(2),
-    },
+  ];
+
+  const modeSpecific = isBacktest
+    ? [
+        {
+          id: 'mae',
+          accessorKey: 'mae',
+          header: 'MAE',
+          meta: { label: 'MAE' },
+          size: 70,
+          cell: (ctx) => formatNum(ctx.getValue()),
+        },
+        {
+          id: 'mfe',
+          accessorKey: 'mfe',
+          header: 'MFE',
+          meta: { label: 'MFE' },
+          size: 70,
+          cell: (ctx) => formatNum(ctx.getValue()),
+        },
+        {
+          id: 'slPoints',
+          accessorKey: 'slPoints',
+          header: 'SL',
+          meta: { label: 'SL (points)' },
+          size: 80,
+          cell: (ctx) => formatNum(ctx.getValue()),
+        },
+      ]
+    : [
+        {
+          id: 'entryPrice',
+          accessorKey: 'entryPrice',
+          header: 'Entry Price',
+          meta: { label: 'Entry Price' },
+          size: 110,
+          cell: (ctx) => {
+            const v = ctx.getValue();
+            return v == null ? '—' : Number(v).toLocaleString('en-US', { maximumFractionDigits: 6 });
+          },
+        },
+        {
+          id: 'takeProfit',
+          accessorKey: 'takeProfit',
+          header: 'Take Profit',
+          meta: { label: 'Take Profit' },
+          size: 110,
+          cell: (ctx) => {
+            const v = ctx.getValue();
+            return v == null ? '—' : Number(v).toLocaleString('en-US', { maximumFractionDigits: 6 });
+          },
+        },
+        {
+          id: 'stopLoss',
+          accessorKey: 'stopLoss',
+          header: 'Stop Loss',
+          meta: { label: 'Stop Loss' },
+          size: 110,
+          cell: (ctx) => {
+            const v = ctx.getValue();
+            return v == null ? '—' : Number(v).toLocaleString('en-US', { maximumFractionDigits: 6 });
+          },
+        },
+      ];
+
+  const common2 = [
     {
       id: 'pnl',
       accessorKey: 'pnl',
@@ -368,6 +428,17 @@ function buildColumns(dynamicKeys, currency, { onEdit, onDelete }) {
         const v = Number(ctx.getValue() ?? 0);
         const cls = v >= 0 ? 'dt-cell-pos' : 'dt-cell-neg';
         return <span className={cls}>{formatMoney(v, currency)}</span>;
+      },
+    },
+    {
+      id: 'quantity',
+      accessorKey: 'quantity',
+      header: 'Qty',
+      meta: { label: 'Quantity' },
+      size: 70,
+      cell: (ctx) => {
+        const v = ctx.getValue();
+        return v == null ? '—' : String(v);
       },
     },
     {
@@ -406,8 +477,8 @@ function buildColumns(dynamicKeys, currency, { onEdit, onDelete }) {
             type="button"
             className="jm-row-btn"
             onClick={() => onEdit(row)}
-            title="Edit trade"
-            aria-label="Edit trade"
+            title="Edit"
+            aria-label="Edit"
           >
             <FaEdit size={11} />
           </button>
@@ -415,8 +486,8 @@ function buildColumns(dynamicKeys, currency, { onEdit, onDelete }) {
             type="button"
             className="jm-row-btn is-danger"
             onClick={() => onDelete(row)}
-            title="Delete trade"
-            aria-label="Delete trade"
+            title="Delete"
+            aria-label="Delete"
           >
             <FaTrash size={11} />
           </button>
@@ -425,7 +496,7 @@ function buildColumns(dynamicKeys, currency, { onEdit, onDelete }) {
     },
   };
 
-  return [...base, ...dynamicCols, actionsCol];
+  return [...common, ...modeSpecific, ...common2, ...dynamicCols, actionsCol];
 }
 
 /* ------------------------------------------------------------------ */
@@ -437,7 +508,6 @@ export default function TradeLogsView({
   accountId,
 
   // Informational — used only for the empty-state message text.
-  // Account-type gating happens inside the HeaderBar.
   allowedTypes = [],
 
   // Header text.
@@ -467,6 +537,8 @@ export default function TradeLogsView({
     () => accounts.find((a) => a.id === accountId) || null,
     [accounts, accountId]
   );
+
+  const isBacktest = selectedAccount?.type === 'Backtest';
 
   // useTrades is enabled only when accountId is truthy, so no wasted fetch
   // on the empty state.
@@ -508,16 +580,16 @@ export default function TradeLogsView({
 
   const columns = useMemo(
     () =>
-      buildColumns(dynamicKeys, currency, {
+      buildColumns(dynamicKeys, currency, isBacktest, {
         onEdit: handleEdit,
         onDelete: handleDeleteRequest,
       }),
-    [dynamicKeys, currency, handleEdit, handleDeleteRequest]
+    [dynamicKeys, currency, isBacktest, handleEdit, handleDeleteRequest]
   );
 
   const kpis = useMemo(() => {
     if (enrichedTrades.length === 0) {
-      return { total: 0, wins: 0, losses: 0, netPnl: 0 };
+      return { total: 0, winRate: 0, wins: 0, losses: 0, netPnl: 0 };
     }
     let wins = 0;
     let losses = 0;
@@ -528,7 +600,9 @@ export default function TradeLogsView({
       if (pnl > 0) wins++;
       else if (pnl < 0) losses++;
     }
-    return { total: enrichedTrades.length, wins, losses, netPnl };
+    const decided = wins + losses;
+    const winRate = decided > 0 ? (wins / decided) * 100 : 0;
+    return { total: enrichedTrades.length, winRate, wins, losses, netPnl };
   }, [enrichedTrades]);
 
   const loading = accountsLoading || (accountId && tradesLoading);
@@ -545,9 +619,6 @@ export default function TradeLogsView({
 
   /* ---------------------------------------------------------------- */
   /*  Render: no matching account                                      */
-  /*                                                                   */
-  /*  accountId is null when the HeaderBar finds zero accounts of      */
-  /*  the required type for this dashboard — that IS the signal.       */
   /* ---------------------------------------------------------------- */
   if (!selectedAccount) {
     const typesLabel = allowedTypes.length > 0
@@ -599,7 +670,6 @@ export default function TradeLogsView({
               <p className="ph-sub">{subtitle}</p>
             </div>
 
-            {/* No account selector here — the HeaderBar owns it. */}
             <div className="ph-right">
               <button
                 type="button"
@@ -628,9 +698,9 @@ export default function TradeLogsView({
                 type="button"
                 className="jm-icon-btn"
                 onClick={() => setUploadOpen(true)}
-                title="Bulk-upload trades from Excel"
+                title="Bulk-upload from Excel"
               >
-                <FaFileUpload size={11} /> <span>Upload Trades</span>
+                <FaFileUpload size={11} /> <span>Upload</span>
               </button>
 
               <button
@@ -638,7 +708,7 @@ export default function TradeLogsView({
                 className="jm-btn-primary"
                 onClick={() => setAddTradeOpen(true)}
               >
-                <FaPlus size={11} /> Add Trade
+                <FaPlus size={11} /> Add {isBacktest ? 'Test' : 'Trade'}
               </button>
             </div>
           </div>
@@ -649,6 +719,20 @@ export default function TradeLogsView({
           <div className="jm-kpi">
             <span className="jm-kpi-label">Total Trades</span>
             <span className="jm-kpi-value">{kpis.total}</span>
+          </div>
+          <div className="jm-kpi">
+            <span className="jm-kpi-label">Win Rate</span>
+            <span
+              className={`jm-kpi-value ${
+                kpis.total === 0
+                  ? ''
+                  : kpis.winRate >= 50
+                    ? 'pos'
+                    : 'neg'
+              }`}
+            >
+              {kpis.winRate.toFixed(1)}%
+            </span>
           </div>
           <div className="jm-kpi">
             <span className="jm-kpi-label">Wins</span>
@@ -675,10 +759,11 @@ export default function TradeLogsView({
               <div className="jm-empty-icon">
                 <FaFileUpload />
               </div>
-              <h3>No trades yet</h3>
+              <h3>No {isBacktest ? 'tests' : 'trades'} yet</h3>
               <p>
-                Add your first trade manually, or bulk-import an .xlsx log.
-                You can also define custom columns to capture more context.
+                Add your first {isBacktest ? 'test' : 'trade'} manually, or
+                bulk-import an .xlsx log. You can also define custom columns
+                to capture more context.
               </p>
               <div
                 style={{
@@ -693,14 +778,14 @@ export default function TradeLogsView({
                   className="jm-btn-primary"
                   onClick={() => setAddTradeOpen(true)}
                 >
-                  <FaPlus size={11} /> Add Trade
+                  <FaPlus size={11} /> Add {isBacktest ? 'Test' : 'Trade'}
                 </button>
                 <button
                   type="button"
                   className="jm-icon-btn"
                   onClick={() => setUploadOpen(true)}
                 >
-                  <FaFileUpload size={11} /> <span>Upload Trades</span>
+                  <FaFileUpload size={11} /> <span>Upload</span>
                 </button>
               </div>
             </div>
@@ -711,12 +796,12 @@ export default function TradeLogsView({
               getRowId={(row, idx) =>
                 row.id ?? `${row.date}-${row.entry}-${idx}`
               }
-              searchPlaceholder="Search trades…"
+              searchPlaceholder={`Search ${isBacktest ? 'tests' : 'trades'}…`}
               searchableColumnIds={searchableIds}
               initialSort={[{ id: 'date', desc: true }]}
               estimateRowHeight={36}
               maxHeight={620}
-              emptyMessage="No trades match your search."
+              emptyMessage="No records match your search."
               stickyFirstColumn={false}
               stickyLastColumn={true}
             />
@@ -732,7 +817,7 @@ export default function TradeLogsView({
           onSuccess={() => setUploadOpen(false)}
         />
 
-        {/* ---------- Add / Edit Trade modal ---------- */}
+        {/* ---------- Add / Edit modal ---------- */}
         <AddTradeModal
           isOpen={addTradeOpen}
           onClose={handleAddModalClose}

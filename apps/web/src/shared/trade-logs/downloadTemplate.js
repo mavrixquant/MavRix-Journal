@@ -1,25 +1,29 @@
-// apps/web/src/features/journal/trade-logs/downloadTemplate.js
+
+// apps/web/src/shared/trade-logs/downloadTemplate.js
 //
-// Builds and downloads an .xlsx template pre-populated with:
-//   - required core columns (Date, Entry Time, Exit Time, Direction, MAE, MFE)
-//   - Symbol, P&L, Notes
-//   - Contracts  → only when the account uses per-contract commission
-//   - SL         → only for Backtest accounts
-//   - every existing custom column on the account
+// Builds and downloads an .xlsx template whose column set depends on the
+// account type:
+//
+//   Live / Demo  →  Date | Entry Time | Exit Time | Direction | Symbol |
+//                   Entry Price | Take Profit | Stop Loss | P&L | Quantity |
+//                   Notes | [custom columns]
+//
+//   Backtest     →  Date | Entry Time | Exit Time | Direction | Symbol |
+//                   MAE | MFE | SL | P&L | Quantity |
+//                   Notes | [custom columns]
 //
 // A single sample row is included so users know the expected format.
+// Quantity is always required now (previously only for per-contract
+// commission accounts).
 
 import * as XLSX from 'xlsx';
 
-const SAMPLE_DATE = '2025-01-15';
+const SAMPLE_DATE  = '2025-01-15';
 const SAMPLE_ENTRY = '09:35';
 const SAMPLE_EXIT  = '10:15';
 
-export function downloadTradeTemplate({ account, dynamicKeys = [] }) {
-  const isBacktest = account?.type === 'Backtest';
-  const perContract = account?.commissionMode === 'per_contract';
-
-  const headers = [
+function buildBacktestHeaders() {
+  return [
     'Date',
     'Entry Time',
     'Exit Time',
@@ -27,17 +31,15 @@ export function downloadTradeTemplate({ account, dynamicKeys = [] }) {
     'Symbol',
     'MAE',
     'MFE',
+    'SL',
     'P&L',
+    'Quantity',
+    'Notes',
   ];
+}
 
-  if (perContract) headers.push('Contracts');
-  if (isBacktest)  headers.push('SL');
-  headers.push('Notes');
-
-  // Append every existing custom column
-  dynamicKeys.forEach((k) => headers.push(k));
-
-  const sampleRow = [
+function buildBacktestSampleRow(account) {
+  return [
     SAMPLE_DATE,
     SAMPLE_ENTRY,
     SAMPLE_EXIT,
@@ -45,11 +47,55 @@ export function downloadTradeTemplate({ account, dynamicKeys = [] }) {
     'NQ',
     8.2,
     15.4,
+    account?.slValue ?? 12.5,
     125.5,
+    2,
+    'Breakout above VWAP',
   ];
-  if (perContract) sampleRow.push(2);
-  if (isBacktest)  sampleRow.push(account?.slValue ?? 12.5);
-  sampleRow.push('Breakout above VWAP');
+}
+
+function buildJournalHeaders() {
+  return [
+    'Date',
+    'Entry Time',
+    'Exit Time',
+    'Direction',
+    'Symbol',
+    'Entry Price',
+    'Take Profit',
+    'Stop Loss',
+    'P&L',
+    'Quantity',
+    'Notes',
+  ];
+}
+
+function buildJournalSampleRow() {
+  return [
+    SAMPLE_DATE,
+    SAMPLE_ENTRY,
+    SAMPLE_EXIT,
+    'Long',
+    'NQ',
+    20150.25,
+    20200.0,
+    20120.0,
+    125.5,
+    2,
+    'Breakout above VWAP',
+  ];
+}
+
+export function downloadTradeTemplate({ account, dynamicKeys = [] }) {
+  const isBacktest = account?.type === 'Backtest';
+
+  const headers = isBacktest ? buildBacktestHeaders() : buildJournalHeaders();
+  const sampleRow = isBacktest
+    ? buildBacktestSampleRow(account)
+    : buildJournalSampleRow();
+
+  // Append every existing custom column
+  dynamicKeys.forEach((k) => headers.push(k));
   dynamicKeys.forEach(() => sampleRow.push(''));
 
   const ws = XLSX.utils.aoa_to_sheet([headers, sampleRow]);
@@ -64,6 +110,7 @@ export function downloadTradeTemplate({ account, dynamicKeys = [] }) {
   const safeName = (account?.name || 'account')
     .replace(/[^a-z0-9-_]+/gi, '_')
     .slice(0, 40);
+  const kind = isBacktest ? 'test' : 'trade';
 
-  XLSX.writeFile(wb, `trade-template-${safeName}-${date}.xlsx`);
+  XLSX.writeFile(wb, `${kind}-template-${safeName}-${date}.xlsx`);
 }

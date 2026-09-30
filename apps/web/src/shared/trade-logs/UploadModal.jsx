@@ -1,4 +1,18 @@
-// src/components/journal/UploadModal.jsx
+// apps/web/src/shared/trade-logs/UploadModal.jsx
+//
+// Bulk-import from Excel. The required/expected column set depends on the
+// account type:
+//
+//   Live / Demo : Date*, Entry Time*, Exit Time*, Direction*, Symbol*,
+//                 Entry Price, Take Profit, Stop Loss, P&L*, Quantity*,
+//                 Notes, [custom columns]
+//
+//   Backtest    : Date*, Entry Time*, Exit Time*, Direction*, Symbol*,
+//                 MAE*, MFE*, SL* (or fall back to account default),
+//                 P&L, Quantity*, Notes, [custom columns]
+//
+// (* = mandatory)
+
 import { useState, useRef, useEffect, useCallback } from 'react';
 import * as XLSX from 'xlsx';
 import { FaFileUpload, FaTimes, FaCheckCircle, FaExclamationTriangle } from 'react-icons/fa';
@@ -10,22 +24,59 @@ import { queryClient } from '@/shared/api/queryClient';
 const TICKS_PER_POINT = 4;
 const MAX_DROPDOWN_UNIQUES = 10;
 
+/* ---------- Header → key maps, one per account type ---------- */
+
+const RESERVED_MAP_BACKTEST = {
+  'Date': 'date',
+  'Entry Time': 'entryTime',
+  'Exit Time': 'exitTime',
+  'Direction': 'direction',
+  'Symbol': 'symbol',
+  'MAE': 'mae',
+  'MFE': 'mfe',
+  'SL': 'sl',
+  'Stop Loss': 'sl',    // accept either
+  'P&L': 'pnl',
+  'Quantity': 'quantity',
+  'Notes': 'notes',
+};
+
+const RESERVED_MAP_JOURNAL = {
+  'Date': 'date',
+  'Entry Time': 'entryTime',
+  'Exit Time': 'exitTime',
+  'Direction': 'direction',
+  'Symbol': 'symbol',
+  'Entry Price': 'entryPrice',
+  'Take Profit': 'takeProfit',
+  'Stop Loss': 'stopLoss',
+  'P&L': 'pnl',
+  'Quantity': 'quantity',
+  'Notes': 'notes',
+};
+
+function getReservedMap(account) {
+  return account?.type === 'Backtest' ? RESERVED_MAP_BACKTEST : RESERVED_MAP_JOURNAL;
+}
+
+/* ---------- SL conversion (Backtest only) ---------- */
+
 function resolveSLPoints(rawSl, account) {
   const raw = (rawSl === '' || rawSl === undefined || rawSl === null) ? null : Number(rawSl);
   const hasRaw = raw !== null && !isNaN(raw) && raw > 0;
-  if (account?.type === 'Backtest') {
-    const acctDefault = (account.slValue !== null && account.slValue !== undefined && Number(account.slValue) > 0)
-      ? Number(account.slValue)
-      : null;
-    const effective = hasRaw ? raw : acctDefault;
-    if (effective === null) return { points: null };
-    const pts = account.slUnit === 'ticks' ? effective / TICKS_PER_POINT : effective;
-    return { points: +pts.toFixed(4) };
-  }
-  if (hasRaw) return { points: raw };
-  return { points: null };
+
+  const acctDefault = (account.slValue !== null && account.slValue !== undefined && Number(account.slValue) > 0)
+    ? Number(account.slValue)
+    : null;
+
+  const effective = hasRaw ? raw : acctDefault;
+  if (effective === null) return null;
+
+  const pts = account.slUnit === 'ticks' ? effective / TICKS_PER_POINT : effective;
+  return +pts.toFixed(4);
 }
 
+/* ---------- Excel cell formatters (unchanged) ---------- */
 
 function formatExcelDate(value) {
   if (!value) return '';
@@ -69,28 +120,12 @@ function hasAnyValue(v) {
   return v !== '' && v !== null && v !== undefined;
 }
 
-const RESERVED_MAP = {
-  'Date': 'date',
-  'Entry Time': 'entryTime',
-  'Exit Time': 'exitTime',
-  'Direction': 'direction',
-  'Symbol': 'symbol',
-  'MAE': 'mae',
-  'MFE': 'mfe',
-  'P&L': 'pnl',
-  'Notes': 'notes',
-  'Contracts': 'contracts',
-};
-
-function classifyHeader(trimmed) {
-  if (RESERVED_MAP[trimmed]) return { key: RESERVED_MAP[trimmed], reserved: true };
-  if (/^sl$/i.test(trimmed) || /^stop\s*loss$/i.test(trimmed) || /^stop$/i.test(trimmed)) {
-    return { key: 'sl', reserved: true };
-  }
-  return { key: trimmed, reserved: false };
-}
+/* ---------- Parse ---------- */
 
 function parseFile(workbook, account, existingTrades) {
+  const isBacktest = account.type === 'Backtest';
+  const RESERVED_MAP = getReservedMap(account);
+
   const ws = workbook.Sheets[workbook.SheetNames[0]];
   const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
 
@@ -100,26 +135,24 @@ function parseFile(workbook, account, existingTrades) {
   const headerMap = {};
   const customHeaderNames = [];
   let hasSLColumn = false;
-  let hasContractsColumn = false;
 
   originalHeaders.forEach((h) => {
     const trimmed = h.trim();
-    const cls = classifyHeader(trimmed);
-    headerMap[trimmed] = cls.key;
-    if (cls.reserved) {
-      if (cls.key === 'sl') hasSLColumn = true;
-      if (cls.key === 'contracts') hasContractsColumn = true;
+    const mapped = RESERVED_MAP[trimmed];
+
+    if (mapped) {
+      headerMap[trimmed] = mapped;
+      if (mapped === 'sl') hasSLColumn = true;
     } else {
+      headerMap[trimmed] = trimmed;
       customHeaderNames.push(trimmed);
     }
   });
 
-  if (account.commissionMode === 'per_contract' && !hasContractsColumn) {
-    return { errors: ['This account uses per-contract commission but your Excel has no Contracts column.'] };
-  }
-
-  const missingSLRows = [];
-  const missingContractsRows = [];
+  const missingSlRows = [];
+  const invalidQuantityRows = [];
+  const invalidMaeMfeRows = [];
+  const invalidPnlRows = [];
   const tradesData = [];
 
   rows.forEach((row, idx) => {
@@ -131,34 +164,74 @@ function parseFile(workbook, account, existingTrades) {
       const trimmed = origKey.trim();
       const mappedKey = headerMap[trimmed] || trimmed;
       let value = row[origKey];
+
       if (mappedKey === 'date') value = formatExcelDate(value);
       else if (mappedKey === 'entryTime' || mappedKey === 'exitTime') value = formatExcelTime(value);
-      const cls = classifyHeader(trimmed);
-      if (!cls.reserved) rawCustomValues[mappedKey] = value;
+
+      const mapped = RESERVED_MAP[trimmed];
+      if (!mapped) rawCustomValues[mappedKey] = value;
       trade[mappedKey] = value;
     });
 
+    // Skip completely blank rows
+    if (!trade.date && !trade.entryTime && !trade.exitTime && !trade.direction) return;
+
+    // ---- Common required fields ----
     if (!trade.date || !trade.entryTime || !trade.exitTime) return;
 
-    trade.mae = parseFloat(trade.mae) || 0;
-    trade.mfe = parseFloat(trade.mfe) || 0;
-    trade.pnl = (trade.pnl !== undefined && trade.pnl !== '') ? (parseFloat(trade.pnl) || 0) : 0;
+    // ---- Quantity (required in both modes) ----
+    let quantityNum = null;
+    if (trade.quantity !== undefined && trade.quantity !== '' && trade.quantity !== null) {
+      const q = parseFloat(trade.quantity);
+      if (!isNaN(q) && q > 0) quantityNum = q;
+    }
+    if (quantityNum === null) {
+      invalidQuantityRows.push(excelRowNum);
+    }
+    trade.quantity = quantityNum;
+
+    // ---- Mode-specific validation ----
+    if (isBacktest) {
+      const maeNum = parseFloat(trade.mae);
+      const mfeNum = parseFloat(trade.mfe);
+      const maeOk = !isNaN(maeNum) && maeNum >= 0;
+      const mfeOk = !isNaN(mfeNum) && mfeNum >= 0;
+      if (!maeOk || !mfeOk) invalidMaeMfeRows.push(excelRowNum);
+
+      trade.mae = maeOk ? maeNum : null;
+      trade.mfe = mfeOk ? mfeNum : null;
+      trade.pnl = (trade.pnl !== undefined && trade.pnl !== '') ? (parseFloat(trade.pnl) || 0) : 0;
+
+      const slPoints = resolveSLPoints(trade.sl, account);
+      if (slPoints === null) missingSlRows.push(excelRowNum);
+      trade.slPoints = slPoints;
+      delete trade.sl;
+
+      // Strip journal-only keys if they leaked in
+      delete trade.entryPrice;
+      delete trade.takeProfit;
+      delete trade.stopLoss;
+    } else {
+      // Journal (Live/Demo)
+      if (trade.pnl === undefined || trade.pnl === '' || isNaN(parseFloat(trade.pnl))) {
+        invalidPnlRows.push(excelRowNum);
+      }
+      trade.pnl = (trade.pnl !== undefined && trade.pnl !== '') ? (parseFloat(trade.pnl) || 0) : 0;
+
+      const ep = trade.entryPrice === '' || trade.entryPrice == null ? null : Number(trade.entryPrice);
+      const tp = trade.takeProfit === '' || trade.takeProfit == null ? null : Number(trade.takeProfit);
+      const sl = trade.stopLoss === '' || trade.stopLoss == null ? null : Number(trade.stopLoss);
+      trade.entryPrice = Number.isFinite(ep) ? ep : null;
+      trade.takeProfit = Number.isFinite(tp) ? tp : null;
+      trade.stopLoss = Number.isFinite(sl) ? sl : null;
+
+      // Strip backtester-only keys if they leaked in
+      delete trade.mae;
+      delete trade.mfe;
+      delete trade.slPoints;
+    }
+
     trade.notes = trade.notes ? String(trade.notes).trim() : '';
-
-    const { points: slPoints } = resolveSLPoints(trade.sl, account);
-    if (account.type === 'Backtest' && slPoints === null) missingSLRows.push(excelRowNum);
-    trade.slPoints = slPoints;
-    delete trade.sl;
-
-    let contractsNum = null;
-    if (trade.contracts !== undefined && trade.contracts !== '' && trade.contracts !== null) {
-      const c = parseFloat(trade.contracts);
-      if (!isNaN(c) && c > 0) contractsNum = c;
-    }
-    if (account.commissionMode === 'per_contract' && contractsNum === null) {
-      missingContractsRows.push(excelRowNum);
-    }
-    trade.contracts = contractsNum;
 
     customHeaderNames.forEach((col) => {
       const raw = rawCustomValues[col];
@@ -173,19 +246,32 @@ function parseFile(workbook, account, existingTrades) {
   });
 
   if (tradesData.length === 0) {
-    return { errors: ['No valid trades found. Ensure columns: Date, Entry Time, Exit Time, Direction, MAE, MFE'] };
+    const requiredCommon = 'Date, Entry Time, Exit Time, Direction, Symbol, Quantity';
+    const requiredMode = isBacktest ? ', MAE, MFE' : ', P&L';
+    return { errors: [`No valid trades found. Ensure columns: ${requiredCommon}${requiredMode}`] };
   }
 
   const errors = [];
-  if (missingSLRows.length > 0) {
-    const list = missingSLRows.slice(0, 10).join(', ');
-    const extra = missingSLRows.length > 10 ? ` and ${missingSLRows.length - 10} more` : '';
+
+  if (isBacktest && missingSlRows.length > 0) {
+    const list = missingSlRows.slice(0, 10).join(', ');
+    const extra = missingSlRows.length > 10 ? ` and ${missingSlRows.length - 10} more` : '';
     errors.push(`Rows ${list}${extra} have no SL value and the account has no default SL set.`);
   }
-  if (missingContractsRows.length > 0) {
-    const list = missingContractsRows.slice(0, 10).join(', ');
-    const extra = missingContractsRows.length > 10 ? ` and ${missingContractsRows.length - 10} more` : '';
-    errors.push(`Rows ${list}${extra} have no Contracts value. Every row must have a contract count.`);
+  if (invalidQuantityRows.length > 0) {
+    const list = invalidQuantityRows.slice(0, 10).join(', ');
+    const extra = invalidQuantityRows.length > 10 ? ` and ${invalidQuantityRows.length - 10} more` : '';
+    errors.push(`Rows ${list}${extra} have a missing or non-positive Quantity.`);
+  }
+  if (isBacktest && invalidMaeMfeRows.length > 0) {
+    const list = invalidMaeMfeRows.slice(0, 10).join(', ');
+    const extra = invalidMaeMfeRows.length > 10 ? ` and ${invalidMaeMfeRows.length - 10} more` : '';
+    errors.push(`Rows ${list}${extra} have an invalid MAE or MFE value.`);
+  }
+  if (!isBacktest && invalidPnlRows.length > 0) {
+    const list = invalidPnlRows.slice(0, 10).join(', ');
+    const extra = invalidPnlRows.length > 10 ? ` and ${invalidPnlRows.length - 10} more` : '';
+    errors.push(`Rows ${list}${extra} have a missing or invalid P&L value.`);
   }
 
   const existingIds = new Set(existingTrades.map((t) => t.tradeId));
@@ -230,11 +316,11 @@ function parseFile(workbook, account, existingTrades) {
     return { name: col, type: initial, locked: false, reason: `${uniqueCount} unique value${uniqueCount === 1 ? '' : 's'}`, uniqueCount, sampleValues: [...uniqueSet].slice(0, 5) };
   });
 
-  return { trades: tradesData, customColumns, errors, hasSLColumn, hasContractsColumn, tradesCount: tradesData.length };
+  return { trades: tradesData, customColumns, errors, hasSLColumn, tradesCount: tradesData.length };
 }
 
 /* ------------------------------------------------------------------ */
-/*  Scoped CSS — matches JournalMain / DashboardHeader                 */
+/*  Scoped CSS                                                        */
 /* ------------------------------------------------------------------ */
 const UPL_CSS = `
   .upl-overlay {
@@ -278,7 +364,6 @@ const UPL_CSS = `
     animation: uplModalIn .28s cubic-bezier(.2,.8,.25,1);
   }
 
-  /* ---------- Header ---------- */
   .upl-head {
     padding: 18px 22px 14px;
     border-bottom: 1px solid var(--line-soft);
@@ -320,7 +405,6 @@ const UPL_CSS = `
   .upl-close:hover { color: var(--accent); background: rgba(245,158,11,.08); }
   .upl-close:disabled { opacity: .4; cursor: not-allowed; }
 
-  /* ---------- Body ---------- */
   .upl-body {
     padding: 20px 22px;
     overflow-y: auto;
@@ -335,7 +419,6 @@ const UPL_CSS = `
     border-radius: 99px;
   }
 
-  /* ---------- Dropzone ---------- */
   .upl-drop {
     display: flex;
     flex-direction: column;
@@ -396,7 +479,6 @@ const UPL_CSS = `
     margin: 1px 2px;
   }
 
-  /* ---------- Parsing ---------- */
   .upl-parsing {
     padding: 48px 20px;
     text-align: center;
@@ -417,7 +499,6 @@ const UPL_CSS = `
     animation: uplSpin .8s linear infinite;
   }
 
-  /* ---------- File summary card ---------- */
   .upl-summary {
     padding: 12px 14px;
     border-radius: 12px;
@@ -461,7 +542,6 @@ const UPL_CSS = `
   }
   .upl-chip svg { font-size: 10px; }
 
-  /* ---------- Error block ---------- */
   .upl-error {
     padding: 12px 14px;
     border-radius: 12px;
@@ -489,7 +569,6 @@ const UPL_CSS = `
     font-family: 'IBM Plex Mono', ui-monospace, monospace;
   }
 
-  /* ---------- Section header ---------- */
   .upl-section-title {
     font-family: 'IBM Plex Mono', ui-monospace, monospace;
     font-size: 10px;
@@ -507,7 +586,6 @@ const UPL_CSS = `
     font-weight: 600;
   }
 
-  /* ---------- Custom column rows ---------- */
   .upl-col-list {
     display: flex;
     flex-direction: column;
@@ -574,7 +652,6 @@ const UPL_CSS = `
     color: var(--ink-2);
   }
 
-  /* ---------- Ready block ---------- */
   .upl-ready {
     padding: 14px;
     border-radius: 12px;
@@ -591,7 +668,6 @@ const UPL_CSS = `
     gap: 8px;
   }
 
-  /* ---------- Footer ---------- */
   .upl-foot {
     padding: 14px 22px;
     border-top: 1px solid var(--line-soft);
@@ -715,6 +791,8 @@ export default function UploadModal({ isOpen, onClose, account, existingTrades, 
   const [isSaving, setIsSaving] = useState(false);
   const fileInputRef = useRef(null);
 
+  const isBacktest = account?.type === 'Backtest';
+
   const reset = useCallback(() => {
     setParseResult(null);
     setColumnTypes({});
@@ -788,8 +866,10 @@ export default function UploadModal({ isOpen, onClose, account, existingTrades, 
           {/* Header */}
           <div className="upl-head">
             <div>
-              <h2 className="upl-title">Upload Trades</h2>
-              <p className="upl-sub">Import trades from your Excel file</p>
+              <h2 className="upl-title">
+                Upload {isBacktest ? 'Test Logs' : 'Trades'}
+              </h2>
+              <p className="upl-sub">Import records from your Excel file</p>
             </div>
             <button className="upl-close" onClick={handleClose} disabled={isSaving} aria-label="Close">
               <FaTimes />
@@ -814,21 +894,31 @@ export default function UploadModal({ isOpen, onClose, account, existingTrades, 
                   <span className="req-list">Entry Time</span>
                   <span className="req-list">Exit Time</span>
                   <span className="req-list">Direction</span>
-                  <span className="req-list">MAE</span>
-                  <span className="req-list">MFE</span>
-                  <br />
-                  {account?.type === 'Backtest' && (
+                  <span className="req-list">Symbol</span>
+                  <span className="req-list">Quantity</span>
+                  {isBacktest && (
                     <>
+                      <span className="req-list">MAE</span>
+                      <span className="req-list">MFE</span>
                       <span className="req-list">SL</span>
-                      {account?.slValue ? 'or use account default' : 'column required'}
-                      <br />
                     </>
                   )}
-                  {account?.commissionMode === 'per_contract' && (
+                  {!isBacktest && (
+                    <span className="req-list">P&amp;L</span>
+                  )}
+                  <br />
+                  Optional:
+                  {!isBacktest && (
                     <>
-                      <span className="req-list">Contracts</span> column required
+                      <span className="req-list">Entry Price</span>
+                      <span className="req-list">Take Profit</span>
+                      <span className="req-list">Stop Loss</span>
                     </>
                   )}
+                  {isBacktest && (
+                    <span className="req-list">P&amp;L</span>
+                  )}
+                  <span className="req-list">Notes</span>
                 </div>
                 <input
                   id="upload-modal-file"
@@ -858,16 +948,11 @@ export default function UploadModal({ isOpen, onClose, account, existingTrades, 
                   <div className="upl-chips">
                     <span className={`upl-chip ${hasErrors ? 'warn' : 'ok'}`}>
                       {hasErrors ? <FaExclamationTriangle /> : <FaCheckCircle />}
-                      {parseResult.tradesCount ?? 0} trades detected
+                      {parseResult.tradesCount ?? 0} {isBacktest ? 'tests' : 'trades'} detected
                     </span>
-                    {parseResult.hasSLColumn && (
+                    {isBacktest && parseResult.hasSLColumn && (
                       <span className="upl-chip ok">
                         <FaCheckCircle /> SL column found
-                      </span>
-                    )}
-                    {parseResult.hasContractsColumn && (
-                      <span className="upl-chip ok">
-                        <FaCheckCircle /> Contracts column found
                       </span>
                     )}
                   </div>
@@ -975,7 +1060,7 @@ export default function UploadModal({ isOpen, onClose, account, existingTrades, 
                   onClick={handleUpload}
                   disabled={!canUpload}
                 >
-                  {isSaving ? 'Uploading…' : `Upload ${parseResult.tradesCount || 0} Trades`}
+                  {isSaving ? 'Uploading…' : `Upload ${parseResult.tradesCount || 0} ${isBacktest ? 'Tests' : 'Trades'}`}
                 </button>
               </>
             )}

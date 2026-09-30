@@ -1,4 +1,17 @@
-// apps/web/src/features/journal/trade-logs/AddTradeModal.jsx
+// apps/web/src/shared/trade-logs/AddTradeModal.jsx
+//
+// Single trade entry form. The field set depends on the account type:
+//
+//   Live / Demo : date*, entryTime*, exitTime*, direction*, symbol*,
+//                 entryPrice, takeProfit, stopLoss, pnl*, quantity*, notes,
+//                 then custom columns.
+//
+//   Backtest    : date*, entryTime*, exitTime*, direction*, symbol*,
+//                 mae*, mfe*, sl* (ticks/points from account), pnl,
+//                 quantity*, notes, then custom columns.
+//
+// (* = mandatory)
+
 import { useEffect, useMemo, useState } from 'react';
 import { FaTimes, FaPlus, FaCheck } from 'react-icons/fa';
 
@@ -8,31 +21,32 @@ import { useCreateTrade, useUpdateTrade } from '@/shared/api/trades';
 const TICKS_PER_POINT = 4;
 
 /* ---------- helpers ---------- */
+
+// Backtest: convert the SL value the user typed (in the account's native unit)
+// into points for storage. Falls back to the account's default SL when blank.
 function resolveSlPoints(rawSl, account) {
   const raw = rawSl === '' || rawSl == null ? null : Number(rawSl);
   const hasRaw = raw != null && !Number.isNaN(raw) && raw > 0;
 
-  if (account?.type === 'Backtest') {
-    const acctDefault =
-      account.slValue != null && Number(account.slValue) > 0
-        ? Number(account.slValue)
-        : null;
-    const effective = hasRaw ? raw : acctDefault;
-    if (effective == null) return null;
-    const pts =
-      account.slUnit === 'ticks' ? effective / TICKS_PER_POINT : effective;
-    return +pts.toFixed(4);
-  }
-  return hasRaw ? raw : null;
+  const acctDefault =
+    account?.slValue != null && Number(account.slValue) > 0
+      ? Number(account.slValue)
+      : null;
+
+  const effective = hasRaw ? raw : acctDefault;
+  if (effective == null) return null;
+
+  const pts =
+    account?.slUnit === 'ticks' ? effective / TICKS_PER_POINT : effective;
+  return +pts.toFixed(4);
 }
 
-// Convert a stored points value back into the user-facing unit for prefill.
+// Prefill: convert stored points back into the account's native unit.
 function slPointsToDisplay(slPoints, account) {
   if (slPoints == null) return '';
-  if (account?.type !== 'Backtest') return '';
   const n = Number(slPoints);
   if (!Number.isFinite(n)) return '';
-  return account.slUnit === 'ticks'
+  return account?.slUnit === 'ticks'
     ? String(+(n * TICKS_PER_POINT).toFixed(4))
     : String(n);
 }
@@ -43,14 +57,23 @@ const EMPTY = {
   exitTime: '',
   direction: 'Long',
   symbol: '',
+  // Backtest-only
   mae: '',
   mfe: '',
-  pnl: '',
   sl: '',
-  contracts: '',
+  // Journal-only
+  entryPrice: '',
+  takeProfit: '',
+  stopLoss: '',
+  // Common
+  pnl: '',
+  quantity: '',
   notes: '',
 };
 
+/* ------------------------------------------------------------------ */
+/*  Scoped CSS                                                        */
+/* ------------------------------------------------------------------ */
 const CSS = `
   .at-overlay {
     position: fixed; inset: 0;
@@ -119,6 +142,7 @@ const CSS = `
     font-size: 10px; font-weight: 700; letter-spacing: .14em;
     text-transform: uppercase; color: var(--ink-3);
   }
+  .at-label .req { color: var(--accent); margin-left: 3px; }
   .at-input, .at-select, .at-textarea {
     width: 100%; padding: 9px 12px;
     background: rgba(10,13,19,.6);
@@ -260,6 +284,7 @@ const CSS = `
 
 export default function AddTradeModal({ isOpen, onClose, account, trade = null }) {
   const isEdit = !!trade;
+  const isBacktest = account?.type === 'Backtest';
 
   const [form, setForm] = useState(EMPTY);
   const [custom, setCustom] = useState({});
@@ -268,10 +293,6 @@ export default function AddTradeModal({ isOpen, onClose, account, trade = null }
   const createTrade = useCreateTrade();
   const updateTrade = useUpdateTrade();
   const saving = createTrade.isPending || updateTrade.isPending;
-
-  const isBacktest = account?.type === 'Backtest';
-  const perContract = account?.commissionMode === 'per_contract';
-  const showPnl = !isBacktest || account?.commissionMode !== 'none';
 
   const customKeys = useMemo(() => {
     const cfgKeys = Object.keys(account?.columnConfigs || {});
@@ -292,11 +313,17 @@ export default function AddTradeModal({ isOpen, onClose, account, trade = null }
         exitTime: trade.exit || '',
         direction: trade.dir || 'Long',
         symbol: trade.symbol || '',
+        // Backtest
         mae: trade.mae != null ? String(trade.mae) : '',
         mfe: trade.mfe != null ? String(trade.mfe) : '',
+        sl: isBacktest ? slPointsToDisplay(trade.slPoints, account) : '',
+        // Journal
+        entryPrice: trade.entryPrice != null ? String(trade.entryPrice) : '',
+        takeProfit: trade.takeProfit != null ? String(trade.takeProfit) : '',
+        stopLoss: trade.stopLoss != null ? String(trade.stopLoss) : '',
+        // Common
         pnl: trade.pnl != null ? String(trade.pnl) : '',
-        sl: slPointsToDisplay(trade.slPoints, account),
-        contracts: trade.contracts != null ? String(trade.contracts) : '',
+        quantity: trade.quantity != null ? String(trade.quantity) : '',
         notes: trade.notes || '',
       });
 
@@ -309,7 +336,7 @@ export default function AddTradeModal({ isOpen, onClose, account, trade = null }
     } else {
       setForm({
         ...EMPTY,
-        sl: account?.slValue != null ? String(account.slValue) : '',
+        sl: isBacktest && account?.slValue != null ? String(account.slValue) : '',
       });
       const initialCustom = {};
       customKeys.forEach((k) => { initialCustom[k] = ''; });
@@ -317,7 +344,7 @@ export default function AddTradeModal({ isOpen, onClose, account, trade = null }
     }
 
     setError('');
-  }, [isOpen, isEdit, trade, account, customKeys]);
+  }, [isOpen, isEdit, trade, account, customKeys, isBacktest]);
 
   if (!isOpen || !account) return null;
 
@@ -331,17 +358,24 @@ export default function AddTradeModal({ isOpen, onClose, account, trade = null }
     if (!/^\d{4}-\d{2}-\d{2}$/.test(form.date)) return 'Date must be YYYY-MM-DD.';
     if (!/^\d{2}:\d{2}$/.test(form.entryTime)) return 'Entry Time must be HH:MM.';
     if (!/^\d{2}:\d{2}$/.test(form.exitTime))  return 'Exit Time must be HH:MM.';
-    if (form.mae === '' || Number.isNaN(Number(form.mae))) return 'MAE is required.';
-    if (form.mfe === '' || Number.isNaN(Number(form.mfe))) return 'MFE is required.';
+
+    // Quantity is required for both modes.
+    const q = Number(form.quantity);
+    if (form.quantity === '' || !Number.isFinite(q) || q <= 0) {
+      return 'Quantity must be a positive number.';
+    }
+
     if (isBacktest) {
+      if (form.mae === '' || Number.isNaN(Number(form.mae))) return 'MAE is required.';
+      if (form.mfe === '' || Number.isNaN(Number(form.mfe))) return 'MFE is required.';
       const pts = resolveSlPoints(form.sl, account);
       if (pts == null) {
         return 'This Backtest account needs an SL value (or set a default in the account).';
       }
-    }
-    if (perContract) {
-      if (form.contracts === '' || Number(form.contracts) <= 0) {
-        return 'Contracts is required for per-contract commission.';
+    } else {
+      // Journal: P&L is required.
+      if (form.pnl === '' || Number.isNaN(Number(form.pnl))) {
+        return 'P&L is required.';
       }
     }
     return null;
@@ -354,24 +388,30 @@ export default function AddTradeModal({ isOpen, onClose, account, trade = null }
     const v = validate();
     if (v) { setError(v); return; }
 
-    const slPoints = isBacktest ? resolveSlPoints(form.sl, account) : null;
-
-    const payload = {
+    const base = {
       date: form.date,
       entryTime: form.entryTime,
       exitTime: form.exitTime,
       direction: form.direction,
       symbol: form.symbol.trim(),
-      mae: Number(form.mae) || 0,
-      mfe: Number(form.mfe) || 0,
       pnl: form.pnl === '' ? 0 : Number(form.pnl) || 0,
+      quantity: Number(form.quantity),
       notes: form.notes.trim(),
-      slPoints,
-      contracts:
-        perContract && form.contracts !== ''
-          ? Number(form.contracts)
-          : null,
     };
+
+    const payload = isBacktest
+      ? {
+          ...base,
+          mae: Number(form.mae),
+          mfe: Number(form.mfe),
+          slPoints: resolveSlPoints(form.sl, account),
+        }
+      : {
+          ...base,
+          entryPrice: form.entryPrice === '' ? null : Number(form.entryPrice),
+          takeProfit: form.takeProfit === '' ? null : Number(form.takeProfit),
+          stopLoss: form.stopLoss === '' ? null : Number(form.stopLoss),
+        };
 
     Object.entries(custom).forEach(([k, v]) => {
       payload[k] = v == null ? '' : String(v);
@@ -388,6 +428,8 @@ export default function AddTradeModal({ isOpen, onClose, account, trade = null }
       setError(err?.message || `Could not ${isEdit ? 'update' : 'save'} trade.`);
     }
   };
+
+  const slUnitLabel = account?.slUnit === 'ticks' ? 'ticks' : 'points';
 
   return (
     <Portal>
@@ -406,7 +448,7 @@ export default function AddTradeModal({ isOpen, onClose, account, trade = null }
                 {isEdit ? (
                   <>Editing a trade on <b>{account.name}</b></>
                 ) : (
-                  <>Manually log a single trade to <b>{account.name}</b></>
+                  <>Manually log a single {isBacktest ? 'test' : 'trade'} to <b>{account.name}</b></>
                 )}
               </p>
             </div>
@@ -425,12 +467,13 @@ export default function AddTradeModal({ isOpen, onClose, account, trade = null }
 
               {error && <div className="at-error">{error}</div>}
 
+              {/* ---------------- Execution ---------------- */}
               <div className="at-section">
                 <span className="at-section-title">Execution</span>
 
                 <div className="at-grid-3">
                   <div>
-                    <label className="at-label">Date</label>
+                    <label className="at-label">Date<span className="req">*</span></label>
                     <input
                       type="date"
                       className="at-input"
@@ -441,7 +484,7 @@ export default function AddTradeModal({ isOpen, onClose, account, trade = null }
                     />
                   </div>
                   <div>
-                    <label className="at-label">Entry Time</label>
+                    <label className="at-label">Entry Time<span className="req">*</span></label>
                     <input
                       type="time"
                       className="at-input"
@@ -452,7 +495,7 @@ export default function AddTradeModal({ isOpen, onClose, account, trade = null }
                     />
                   </div>
                   <div>
-                    <label className="at-label">Exit Time</label>
+                    <label className="at-label">Exit Time<span className="req">*</span></label>
                     <input
                       type="time"
                       className="at-input"
@@ -466,7 +509,7 @@ export default function AddTradeModal({ isOpen, onClose, account, trade = null }
 
                 <div className="at-grid-2">
                   <div>
-                    <label className="at-label">Direction</label>
+                    <label className="at-label">Direction<span className="req">*</span></label>
                     <select
                       className="at-select"
                       value={form.direction}
@@ -478,7 +521,7 @@ export default function AddTradeModal({ isOpen, onClose, account, trade = null }
                     </select>
                   </div>
                   <div>
-                    <label className="at-label">Symbol</label>
+                    <label className="at-label">Symbol<span className="req">*</span></label>
                     <input
                       type="text"
                       className="at-input"
@@ -486,66 +529,49 @@ export default function AddTradeModal({ isOpen, onClose, account, trade = null }
                       value={form.symbol}
                       onChange={(e) => set('symbol', e.target.value)}
                       disabled={saving}
+                      required
                     />
                   </div>
                 </div>
               </div>
 
+              {/* ---------------- Outcomes ---------------- */}
               <div className="at-section">
                 <span className="at-section-title">Outcome</span>
 
-                <div className="at-grid-3">
-                  <div>
-                    <label className="at-label">MAE</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      className="at-input"
-                      placeholder="0.00"
-                      value={form.mae}
-                      onChange={(e) => set('mae', e.target.value)}
-                      disabled={saving}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="at-label">MFE</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      className="at-input"
-                      placeholder="0.00"
-                      value={form.mfe}
-                      onChange={(e) => set('mfe', e.target.value)}
-                      disabled={saving}
-                      required
-                    />
-                  </div>
-                  {showPnl && (
-                    <div>
-                      <label className="at-label">P&amp;L</label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        className="at-input"
-                        placeholder="0.00"
-                        value={form.pnl}
-                        onChange={(e) => set('pnl', e.target.value)}
-                        disabled={saving}
-                      />
-                    </div>
-                  )}
-                </div>
-
-                {(isBacktest || perContract) && (
-                  <div className="at-grid-2">
-                    {isBacktest && (
+                {isBacktest ? (
+                  <>
+                    <div className="at-grid-3">
                       <div>
-                        <label className="at-label">
-                          SL ({account.slUnit === 'ticks' ? 'ticks' : 'points'})
-                        </label>
+                        <label className="at-label">MAE<span className="req">*</span></label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          className="at-input"
+                          placeholder="0.00"
+                          value={form.mae}
+                          onChange={(e) => set('mae', e.target.value)}
+                          disabled={saving}
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="at-label">MFE<span className="req">*</span></label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          className="at-input"
+                          placeholder="0.00"
+                          value={form.mfe}
+                          onChange={(e) => set('mfe', e.target.value)}
+                          disabled={saving}
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="at-label">SL ({slUnitLabel})<span className="req">*</span></label>
                         <input
                           type="number"
                           step="0.01"
@@ -561,23 +587,108 @@ export default function AddTradeModal({ isOpen, onClose, account, trade = null }
                           disabled={saving}
                         />
                       </div>
-                    )}
-                    {perContract && (
+                    </div>
+
+                    <div className="at-grid-2">
                       <div>
-                        <label className="at-label">Contracts</label>
+                        <label className="at-label">Quantity<span className="req">*</span></label>
                         <input
                           type="number"
-                          step="1"
-                          min="1"
+                          step="any"
+                          min="0"
                           className="at-input"
                           placeholder="1"
-                          value={form.contracts}
-                          onChange={(e) => set('contracts', e.target.value)}
+                          value={form.quantity}
+                          onChange={(e) => set('quantity', e.target.value)}
+                          disabled={saving}
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="at-label">P&amp;L</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          className="at-input"
+                          placeholder="0.00"
+                          value={form.pnl}
+                          onChange={(e) => set('pnl', e.target.value)}
                           disabled={saving}
                         />
                       </div>
-                    )}
-                  </div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="at-grid-3">
+                      <div>
+                        <label className="at-label">Entry Price</label>
+                        <input
+                          type="number"
+                          step="any"
+                          className="at-input"
+                          placeholder="0.00"
+                          value={form.entryPrice}
+                          onChange={(e) => set('entryPrice', e.target.value)}
+                          disabled={saving}
+                        />
+                      </div>
+                      <div>
+                        <label className="at-label">Take Profit</label>
+                        <input
+                          type="number"
+                          step="any"
+                          className="at-input"
+                          placeholder="0.00"
+                          value={form.takeProfit}
+                          onChange={(e) => set('takeProfit', e.target.value)}
+                          disabled={saving}
+                        />
+                      </div>
+                      <div>
+                        <label className="at-label">Stop Loss</label>
+                        <input
+                          type="number"
+                          step="any"
+                          className="at-input"
+                          placeholder="0.00"
+                          value={form.stopLoss}
+                          onChange={(e) => set('stopLoss', e.target.value)}
+                          disabled={saving}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="at-grid-2">
+                      <div>
+                        <label className="at-label">P&amp;L<span className="req">*</span></label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          className="at-input"
+                          placeholder="0.00"
+                          value={form.pnl}
+                          onChange={(e) => set('pnl', e.target.value)}
+                          disabled={saving}
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="at-label">Quantity<span className="req">*</span></label>
+                        <input
+                          type="number"
+                          step="any"
+                          min="0"
+                          className="at-input"
+                          placeholder="1"
+                          value={form.quantity}
+                          onChange={(e) => set('quantity', e.target.value)}
+                          disabled={saving}
+                          required
+                        />
+                      </div>
+                    </div>
+                  </>
                 )}
               </div>
 
