@@ -461,7 +461,6 @@ function buildColumns(dynamicKeys, currency, isBacktest, { onEdit, onDelete }) {
     cell: (ctx) => String(ctx.getValue() ?? '—'),
   }));
 
-  /* ---- Sticky actions column (last) ---- */
   const actionsCol = {
     id: '__actions',
     header: '',
@@ -504,19 +503,11 @@ function buildColumns(dynamicKeys, currency, isBacktest, { onEdit, onDelete }) {
 /*  Component                                                          */
 /* ------------------------------------------------------------------ */
 export default function TradeLogsView({
-  // Currently-selected account id, sourced from the HeaderBar's
-  // per-dashboard slot via useDashboardAccount() in the caller.
   accountId,
-
-  // Informational — used only for the empty-state message text.
   allowedTypes = [],
-
-  // Header text.
   eyebrow,
   title,
   subtitle,
-
-  // Optional overrides for the "no matching accounts" empty state.
   noAccountsTitle,
   noAccountsMessage,
 }) {
@@ -526,14 +517,11 @@ export default function TradeLogsView({
   const [addTradeOpen, setAddTradeOpen] = useState(false);
   const [columnsOpen, setColumnsOpen] = useState(false);
 
-  // Edit / delete state
   const [editingTrade, setEditingTrade] = useState(null);
   const [deletingTrade, setDeletingTrade] = useState(null);
 
   const deleteTrade = useDeleteTrade();
 
-  // Resolve the account object from the id. If the id is null OR the
-  // account isn't in the list, selectedAccount is null → empty state.
   const selectedAccount = useMemo(
     () => accounts.find((a) => a.id === accountId) || null,
     [accounts, accountId]
@@ -541,8 +529,6 @@ export default function TradeLogsView({
 
   const isBacktest = selectedAccount?.type === 'Backtest';
 
-  // useTrades is enabled only when accountId is truthy, so no wasted fetch
-  // on the empty state.
   const { data: rawTrades = [], isLoading: tradesLoading } = useTrades(accountId);
 
   const { enrichedTrades, dynamicKeys } = useMemo(
@@ -552,7 +538,6 @@ export default function TradeLogsView({
 
   const currency = selectedAccount?.currency || 'USD';
 
-  /* ---- Row action handlers ---- */
   const handleEdit = useCallback((row) => {
     setEditingTrade(row);
     setAddTradeOpen(true);
@@ -613,14 +598,8 @@ export default function TradeLogsView({
     [dynamicKeys]
   );
 
-  /* ---------------------------------------------------------------- */
-  /*  Render: loading skeleton                                         */
-  /* ---------------------------------------------------------------- */
   if (loading) return <PageSkeleton />;
 
-  /* ---------------------------------------------------------------- */
-  /*  Render: no matching account                                      */
-  /* ---------------------------------------------------------------- */
   if (!selectedAccount) {
     const typesLabel = allowedTypes.length > 0
       ? allowedTypes.join(' or ')
@@ -654,15 +633,11 @@ export default function TradeLogsView({
     );
   }
 
-  /* ---------------------------------------------------------------- */
-  /*  Render: full view                                                */
-  /* ---------------------------------------------------------------- */
   return (
     <>
       <style>{CSS}</style>
       <div className="jm-root">
 
-        {/* ---------- Header ---------- */}
         <div className="ph">
           <div className="ph-row">
             <div className="ph-left">
@@ -710,7 +685,6 @@ export default function TradeLogsView({
           </div>
         </div>
 
-        {/* ---------- KPI strip ---------- */}
         <div className="jm-kpis">
           <div className="jm-kpi">
             <span className="jm-kpi-label">Total Trades</span>
@@ -748,7 +722,6 @@ export default function TradeLogsView({
           </div>
         </div>
 
-        {/* ---------- Table ---------- */}
         <div className="jm-card jm-body">
           {enrichedTrades.length === 0 ? (
             <div className="jm-empty">
@@ -804,7 +777,6 @@ export default function TradeLogsView({
           )}
         </div>
 
-        {/* ---------- Upload modal ---------- */}
         <UploadModal
           isOpen={uploadOpen}
           onClose={() => setUploadOpen(false)}
@@ -813,7 +785,6 @@ export default function TradeLogsView({
           onSuccess={() => setUploadOpen(false)}
         />
 
-        {/* ---------- Add / Edit modal ---------- */}
         <AddTradeModal
           isOpen={addTradeOpen}
           onClose={handleAddModalClose}
@@ -821,14 +792,14 @@ export default function TradeLogsView({
           trade={editingTrade}
         />
 
-        {/* ---------- Column manager modal ---------- */}
+        {/* Phase 8: pass trades so the modal can infer locks + uniques */}
         <ColumnManagerModal
           isOpen={columnsOpen}
           onClose={() => setColumnsOpen(false)}
           account={selectedAccount}
+          trades={rawTrades}
         />
 
-        {/* ---------- Delete confirmation ---------- */}
         <Alert
           isOpen={!!deletingTrade}
           type="confirm"
