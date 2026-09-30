@@ -1,3 +1,4 @@
+
 // apps/web/src/shared/trading/sl.js
 // Trade-level metric resolver: SL (in points) for Backtest R-mode,
 // net PnL (in account currency) for Live/Demo money-mode.
@@ -47,6 +48,10 @@ export function getTradeSL(trade, accountOrSL) {
 }
 
 // Commission for a single trade ($), from account config.
+//
+// The `per_contract` mode multiplies the configured rate by the trade's
+// `quantity` (renamed from `contracts` — see migration
+// 20260930120000_trade_log_fields_redesign).
 export function getTradeCommission(trade, accountOrSL) {
   const acc = normalizeAccount(accountOrSL);
   const mode = acc?.commissionMode || 'none';
@@ -55,9 +60,9 @@ export function getTradeCommission(trade, accountOrSL) {
   if (value <= 0) return 0;
   if (mode === 'flat') return value;
   if (mode === 'per_contract') {
-    const c = Number(trade?.contracts);
-    if (!c || c <= 0) return 0;
-    return value * c;
+    const q = Number(trade?.quantity);
+    if (!q || q <= 0) return 0;
+    return value * q;
   }
   return 0;
 }

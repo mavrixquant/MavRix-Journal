@@ -1,3 +1,4 @@
+
 // apps/web/src/shared/trading/enrich.js
 import { getSession, get30MinBucket, DOW_NAMES } from './time.js';
 
@@ -19,10 +20,11 @@ function computeDurationMinutes(entryStr, exitStr) {
 
 // Reserved keys — never treated as user-defined "dynamic" columns.
 //
+// This mirrors the API's RESERVED set in
+// apps/api/src/services/trades.service.js. Keep both in sync.
+//
 // NOTE: `notes` MUST be here. If it isn't, enrichTradesFromDB() treats it as
 // a custom column, and the trade table renders a duplicate "Notes" column.
-// `notes` is a first-class reserved field on the backend (see
-// apps/api/src/services/trades.service.js — RESERVED set).
 const STANDARD_KEYS = new Set([
   'accountId',
   'tradeId',
@@ -31,12 +33,23 @@ const STANDARD_KEYS = new Set([
   'exitTime',
   'direction',
   'symbol',
+
+  // Backtester-only
   'mae',
   'mfe',
-  'pnl',
   'slPoints',
-  'contracts',
-  'notes',              // ← ADDED: reserved, not a dynamic column
+
+  // Journal-only
+  'entryPrice',
+  'takeProfit',
+  'stopLoss',
+
+  // Common
+  'pnl',
+  'quantity',
+  'notes',
+
+  // Derived / internal
   'commission',
   'netPnl',
   'durationMinutes',
@@ -71,14 +84,28 @@ export function enrichTradesFromDB(rawTrades) {
     const exitStr = trade.exitTime || entryStr;
     const entryMinutes = parseTimeToMinutes(entryStr);
     const durationMinutes = computeDurationMinutes(entryStr, exitStr);
-    const mae = Number(trade.mae) || 0;
-    const mfe = Number(trade.mfe) || 0;
+
+    // mae / mfe are nullable on the model. For Live/Demo trades they arrive
+    // as null; we normalize to 0 so downstream R-mode math never sees NaN.
+    const mae = trade.mae == null ? 0 : Number(trade.mae) || 0;
+    const mfe = trade.mfe == null ? 0 : Number(trade.mfe) || 0;
 
     const slPoints = trade.slPoints !== undefined && trade.slPoints !== null
       ? Number(trade.slPoints)
       : null;
-    const contracts = trade.contracts !== undefined && trade.contracts !== null
-      ? Number(trade.contracts)
+    const quantity = trade.quantity !== undefined && trade.quantity !== null
+      ? Number(trade.quantity)
+      : null;
+
+    // Journal-only fields — null on Backtest trades.
+    const entryPrice = trade.entryPrice !== undefined && trade.entryPrice !== null
+      ? Number(trade.entryPrice)
+      : null;
+    const takeProfit = trade.takeProfit !== undefined && trade.takeProfit !== null
+      ? Number(trade.takeProfit)
+      : null;
+    const stopLoss = trade.stopLoss !== undefined && trade.stopLoss !== null
+      ? Number(trade.stopLoss)
       : null;
 
     const dynamic = {};
@@ -102,16 +129,26 @@ export function enrichTradesFromDB(rawTrades) {
       notes: trade.notes || '',
       symbol: trade.symbol || '—',
       pnl: trade.pnl !== undefined ? Number(trade.pnl) : 0,
+
+      // Backtester-only
+      mae,
+      mfe,
       slPoints,
-      contracts,
+
+      // Journal-only
+      entryPrice,
+      takeProfit,
+      stopLoss,
+
+      // Common
+      quantity,
+
       dow: dateObj.getDay(),
       dowName: DOW_NAMES[dateObj.getDay()],
       session: getSession(entryMinutes),
       bucket: get30MinBucket(entryMinutes),
       entryMinutes,
       durationMinutes,
-      mae,
-      mfe,
       dynamic,
     };
   });
