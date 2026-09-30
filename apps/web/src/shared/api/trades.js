@@ -80,6 +80,28 @@ export async function renameCustomColumn(accountId, oldName, newName) {
   );
 }
 
+// ---------- Value-level operations ----------
+
+export async function renameColumnValue(accountId, columnName, { oldValue, newValue }) {
+  return apiJson(
+    `/api/trades/by-account/${accountId}/columns/${encodeURIComponent(columnName)}/rename-value`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ oldValue, newValue }),
+    }
+  );
+}
+
+export async function clearColumnValue(accountId, columnName, { value }) {
+  return apiJson(
+    `/api/trades/by-account/${accountId}/columns/${encodeURIComponent(columnName)}/clear-value`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ value }),
+    }
+  );
+}
+
 // ---------- Hooks ----------
 
 /**
@@ -183,6 +205,30 @@ export function useRenameCustomColumn() {
       renameCustomColumn(accountId, oldName, newName),
     onSuccess: (_r, { accountId }) => {
       qc.invalidateQueries({ queryKey: tradesKeys.byAccount(accountId) });
+    },
+  });
+}
+
+export function useRenameColumnValue() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ accountId, columnName, oldValue, newValue }) =>
+      renameColumnValue(accountId, columnName, { oldValue, newValue }),
+    onSuccess: (_r, { accountId }) => {
+      qc.invalidateQueries({ queryKey: tradesKeys.byAccount(accountId) });
+      qc.invalidateQueries({ queryKey: accountsKeys.all });
+    },
+  });
+}
+
+export function useClearColumnValue() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ accountId, columnName, value }) =>
+      clearColumnValue(accountId, columnName, { value }),
+    onSuccess: (_r, { accountId }) => {
+      qc.invalidateQueries({ queryKey: tradesKeys.byAccount(accountId) });
+      qc.invalidateQueries({ queryKey: accountsKeys.all });
     },
   });
 }

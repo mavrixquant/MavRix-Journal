@@ -11,12 +11,25 @@
 //                 quantity*, notes, then custom columns.
 //
 // (* = mandatory)
+//
+// CUSTOM COLUMN RENDERING
+// -----------------------
+// Each custom column's UI depends on its type in `account.columnConfigs`:
+//
+//   - type === 'dropdown' AND options.length > 0
+//       → <select> populated from options, with an empty "—" first option
+//   - anything else (text, number, dropdown with no options yet)
+//       → <input type="text">
+//
+// The v1→v2 columnConfigs upgrade is handled by normalizeColumnConfigs()
+// from @mavrix/shared.
 
 import { useEffect, useMemo, useState } from 'react';
 import { FaTimes, FaPlus, FaCheck } from 'react-icons/fa';
 
 import Portal from '@/shared/components/Portal';
 import { useCreateTrade, useUpdateTrade } from '@/shared/api/trades';
+import { normalizeColumnConfigs } from '@mavrix/shared';
 
 const TICKS_PER_POINT = 4;
 
@@ -282,6 +295,54 @@ const CSS = `
   }
 `;
 
+/* ------------------------------------------------------------------ */
+/*  Custom column field — renders <select> when the column is a        */
+/*  dropdown with options, else <input type="text">.                   */
+/* ------------------------------------------------------------------ */
+
+function CustomColumnField({ name, config, value, onChange, disabled }) {
+  const isDropdown =
+    config?.type === 'dropdown' &&
+    Array.isArray(config.options) &&
+    config.options.length > 0;
+
+  if (isDropdown) {
+    return (
+      <select
+        className="at-select"
+        value={value ?? ''}
+        disabled={disabled}
+        aria-label={name}
+        onChange={(e) => onChange(e.target.value)}
+      >
+        <option value="">—</option>
+        {config.options.map((opt) => (
+          <option key={opt} value={opt}>{opt}</option>
+        ))}
+        {/* Preserve the existing value if it's not in options (legacy data) */}
+        {value && !config.options.includes(value) && (
+          <option value={value}>{value} (legacy)</option>
+        )}
+      </select>
+    );
+  }
+
+  return (
+    <input
+      type="text"
+      className="at-input"
+      value={value ?? ''}
+      disabled={disabled}
+      aria-label={name}
+      onChange={(e) => onChange(e.target.value)}
+    />
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Main modal                                                        */
+/* ------------------------------------------------------------------ */
+
 export default function AddTradeModal({ isOpen, onClose, account, trade = null }) {
   const isEdit = !!trade;
   const isBacktest = account?.type === 'Backtest';
@@ -294,13 +355,19 @@ export default function AddTradeModal({ isOpen, onClose, account, trade = null }
   const updateTrade = useUpdateTrade();
   const saving = createTrade.isPending || updateTrade.isPending;
 
+  // Normalized columnConfigs — always v2 shape { type, options? }.
+  const columnConfigs = useMemo(
+    () => normalizeColumnConfigs(account?.columnConfigs || {}),
+    [account]
+  );
+
   const customKeys = useMemo(() => {
-    const cfgKeys = Object.keys(account?.columnConfigs || {});
+    const cfgKeys = Object.keys(columnConfigs);
     const tradeKeys = isEdit ? Object.keys(trade?.dynamic || {}) : [];
     // Union of both, so nothing is dropped when a trade has keys not yet in config
     const union = new Set([...cfgKeys, ...tradeKeys]);
     return [...union].sort();
-  }, [account, isEdit, trade]);
+  }, [columnConfigs, isEdit, trade]);
 
   // Prefill / reset whenever the modal opens or the target trade changes
   useEffect(() => {
@@ -710,11 +777,11 @@ export default function AddTradeModal({ isOpen, onClose, account, trade = null }
                     {customKeys.map((k) => (
                       <div key={k}>
                         <label className="at-label">{k}</label>
-                        <input
-                          type="text"
-                          className="at-input"
+                        <CustomColumnField
+                          name={k}
+                          config={columnConfigs[k]}
                           value={custom[k] ?? ''}
-                          onChange={(e) => setC(k, e.target.value)}
+                          onChange={(v) => setC(k, v)}
                           disabled={saving}
                         />
                       </div>

@@ -1,4 +1,4 @@
-﻿import * as tradesService from '../services/trades.service.js';
+import * as tradesService from '../services/trades.service.js';
 
 export async function list(req, res, next) {
   try {
@@ -70,6 +70,32 @@ export async function renameColumn(req, res, next) {
       req.params.accountId,
       req.params.name,
       req.body.newName
+    );
+    res.json(result);
+  } catch (e) { next(e); }
+}
+
+// ---------- Value-level operations ----------
+
+export async function renameColumnValue(req, res, next) {
+  try {
+    const result = await tradesService.renameColumnValue(
+      req.userId,
+      req.params.accountId,
+      req.params.name,
+      req.body
+    );
+    res.json(result);
+  } catch (e) { next(e); }
+}
+
+export async function clearColumnValue(req, res, next) {
+  try {
+    const result = await tradesService.clearColumnValue(
+      req.userId,
+      req.params.accountId,
+      req.params.name,
+      req.body
     );
     res.json(result);
   } catch (e) { next(e); }

@@ -2,19 +2,11 @@
 // apps/api/src/services/trades.service.js
 import { prisma } from '../lib/prisma.js';
 import { HttpError } from '../middleware/error.js';
-import { generateTradeId } from '@mavrix/shared';
+import { generateTradeId, normalizeColumnConfigs } from '@mavrix/shared';
 import { broadcastToUser } from '../lib/broadcaster.js';
 
 // Every column that lives in a dedicated Trade column — NOT in `dynamic`.
 // A single source of truth for both `splitTradePayload` and `sanitizeDynamic`.
-//
-// Journal (Live/Demo) shape:  date, entryTime, exitTime, direction, symbol,
-//                             entryPrice, takeProfit, stopLoss, pnl,
-//                             quantity, notes
-// Backtester shape:           date, entryTime, exitTime, direction, symbol,
-//                             mae, mfe, slPoints, pnl, quantity, notes
-//
-// Any payload key NOT in this set is written to the `dynamic` JSON blob.
 const RESERVED = new Set([
   'date',
   'entryTime',
@@ -73,27 +65,16 @@ function serialize(t) {
     exitTime: t.exitTime,
     direction: t.direction,
     symbol: t.symbol,
-
-    // Backtester-only fields — null on Live/Demo trades.
     mae: t.mae,
     mfe: t.mfe,
     slPoints: t.slPoints,
-
-    // Journal-only fields — null on Backtest trades.
     entryPrice: t.entryPrice,
     takeProfit: t.takeProfit,
     stopLoss: t.stopLoss,
-
-    // Common
     pnl: t.pnl,
     quantity: t.quantity,
     notes: t.notes,
-
-    // Dynamic columns come AFTER reserved so a stale `dynamic.notes`
-    // (from a legacy row) can never shadow the real value.
-    // sanitizeDynamic() already strips reserved keys, this is belt-and-braces.
     ...dyn,
-
     createdAt: t.createdAt,
     updatedAt: t.updatedAt,
   };
@@ -212,10 +193,6 @@ export async function updateTrade(userId, id, payload) {
   };
   const tradeId = generateTradeId(merged);
 
-  // Purge any legacy reserved keys from the *existing* dynamic blob,
-  // then merge in the new dynamic values. This permanently cleans up
-  // rows that still carry a stale `dynamic.notes` (or similar) from
-  // the era before `notes` was added to RESERVED on the client.
   const baseDynamic = sanitizeDynamic(existing.dynamic);
   const nextDynamic = { ...baseDynamic, ...dynamic };
 
@@ -324,4 +301,195 @@ export async function renameCustomColumn(userId, accountId, oldName, newName) {
   );
   notify(userId, [['trades', accountId]]);
   return { updated: trades.length };
+}
+
+// ---------- Value-level operations on a custom column ----------
+//
+// These mutate the *content* of a single dynamic column across every trade
+// in the account. They also keep `columnConfigs[columnName].options` in
+// sync when the column is a dropdown.
+
+/**
+ * Rename every occurrence of `oldValue` → `newValue` in `dynamic[columnName]`.
+ *
+ * If the column is a dropdown and `oldValue` was listed in its options, the
+ * options list is rewritten in the same transaction (with dedupe, in case
+ * `newValue` was already an option — the frontend confirms merges before
+ * calling this, but the backend stays idempotent).
+ *
+ * Returns { tradesUpdated, optionsUpdated }.
+ */
+export async function renameColumnValue(
+  userId,
+  accountId,
+  columnName,
+  { oldValue, newValue }
+) {
+  await assertAccountOwnership(userId, accountId);
+
+  if (!columnName || !String(columnName).trim()) {
+    throw new HttpError(400, 'columnName is required');
+  }
+  if (RESERVED.has(columnName)) {
+    throw new HttpError(400, `"${columnName}" is a reserved column name`);
+  }
+  if (typeof oldValue !== 'string' || !oldValue.trim()) {
+    throw new HttpError(400, 'oldValue is required and must be a non-empty string');
+  }
+  if (typeof newValue !== 'string' || !newValue.trim()) {
+    throw new HttpError(400, 'newValue is required and must be a non-empty string');
+  }
+  if (oldValue === newValue) {
+    return { tradesUpdated: 0, optionsUpdated: false };
+  }
+
+  // Fetch trades + account config in parallel — one round trip each.
+  const [trades, account] = await Promise.all([
+    prisma.trade.findMany({
+      where: { accountId },
+      select: { id: true, dynamic: true },
+    }),
+    prisma.account.findUnique({
+      where: { id: accountId },
+      select: { columnConfigs: true },
+    }),
+  ]);
+
+  // Build the update batch. Only touch trades whose value matches exactly.
+  const updates = [];
+  for (const t of trades) {
+    const dyn = sanitizeDynamic(t.dynamic);
+    if (dyn[columnName] === oldValue) {
+      dyn[columnName] = newValue;
+      updates.push(
+        prisma.trade.update({
+          where: { id: t.id },
+          data: { dynamic: dyn },
+        })
+      );
+    }
+  }
+
+  // Keep dropdown options in sync.
+  const configs = normalizeColumnConfigs(account?.columnConfigs || {});
+  let optionsUpdated = false;
+  const cfg = configs[columnName];
+  if (cfg?.type === 'dropdown') {
+    const opts = Array.isArray(cfg.options) ? cfg.options : [];
+    if (opts.includes(oldValue)) {
+      const nextOpts = opts.map((o) => (o === oldValue ? newValue : o));
+      // De-dupe, preserving first-seen order.
+      const seen = new Set();
+      const deduped = [];
+      for (const o of nextOpts) {
+        if (!seen.has(o)) {
+          seen.add(o);
+          deduped.push(o);
+        }
+      }
+      configs[columnName] = { type: 'dropdown', options: deduped };
+      optionsUpdated = true;
+    }
+  }
+
+  const ops = [...updates];
+  if (optionsUpdated) {
+    ops.push(
+      prisma.account.update({
+        where: { id: accountId },
+        data: { columnConfigs: configs },
+      })
+    );
+  }
+
+  if (ops.length > 0) {
+    // Neon can be slow on large batches — 30 s timeout.
+    await prisma.$transaction(ops, { timeout: 30000 });
+  }
+
+  notify(userId, [['trades', accountId], ['accounts']]);
+  return { tradesUpdated: updates.length, optionsUpdated };
+}
+
+/**
+ * Clear every occurrence of `value` in `dynamic[columnName]` (sets to `''`).
+ *
+ * If the column is a dropdown and `value` was listed in its options, the
+ * option is removed in the same transaction.
+ *
+ * Returns { tradesUpdated, optionsUpdated }.
+ */
+export async function clearColumnValue(
+  userId,
+  accountId,
+  columnName,
+  { value }
+) {
+  await assertAccountOwnership(userId, accountId);
+
+  if (!columnName || !String(columnName).trim()) {
+    throw new HttpError(400, 'columnName is required');
+  }
+  if (RESERVED.has(columnName)) {
+    throw new HttpError(400, `"${columnName}" is a reserved column name`);
+  }
+  if (typeof value !== 'string' || !value.trim()) {
+    throw new HttpError(400, 'value is required and must be a non-empty string');
+  }
+
+  const [trades, account] = await Promise.all([
+    prisma.trade.findMany({
+      where: { accountId },
+      select: { id: true, dynamic: true },
+    }),
+    prisma.account.findUnique({
+      where: { id: accountId },
+      select: { columnConfigs: true },
+    }),
+  ]);
+
+  const updates = [];
+  for (const t of trades) {
+    const dyn = sanitizeDynamic(t.dynamic);
+    if (dyn[columnName] === value) {
+      dyn[columnName] = '';
+      updates.push(
+        prisma.trade.update({
+          where: { id: t.id },
+          data: { dynamic: dyn },
+        })
+      );
+    }
+  }
+
+  const configs = normalizeColumnConfigs(account?.columnConfigs || {});
+  let optionsUpdated = false;
+  const cfg = configs[columnName];
+  if (cfg?.type === 'dropdown') {
+    const opts = Array.isArray(cfg.options) ? cfg.options : [];
+    if (opts.includes(value)) {
+      configs[columnName] = {
+        type: 'dropdown',
+        options: opts.filter((o) => o !== value),
+      };
+      optionsUpdated = true;
+    }
+  }
+
+  const ops = [...updates];
+  if (optionsUpdated) {
+    ops.push(
+      prisma.account.update({
+        where: { id: accountId },
+        data: { columnConfigs: configs },
+      })
+    );
+  }
+
+  if (ops.length > 0) {
+    await prisma.$transaction(ops, { timeout: 30000 });
+  }
+
+  notify(userId, [['trades', accountId], ['accounts']]);
+  return { tradesUpdated: updates.length, optionsUpdated };
 }

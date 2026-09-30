@@ -1,11 +1,11 @@
-
 // apps/web/src/shared/trade-logs/ColumnManagerModal.jsx
 //
 // Column manager modal — full CRUD on an account's custom columns.
 //
 // A "custom column" is any column name that appears in a trade's `dynamic`
 // JSON blob, or in the account's `columnConfigs`. This modal lets the user
-// add / rename / delete columns, and edit the type + dropdown options.
+// add / rename / delete columns, edit the type, edit dropdown options, and
+// rename or clear individual VALUES across every trade in the account.
 //
 // TYPE INFERENCE + LOCKING
 // ------------------------
@@ -15,11 +15,18 @@
 //
 //   - No values anywhere        → LOCKED text
 //   - All values numeric        → LOCKED number
-//   - >10 unique values         → LOCKED text (dropdowns must be small enums)
+//   - >10 unique values         → LOCKED text
 //   - 1–10 unique, mixed types  → UNLOCKED (user picks text / dropdown)
 //
-// Locking stops the user from silently breaking the data contract — e.g.
-// turning a numeric column into a dropdown of strings.
+// VALUES-IN-TRADES
+// ----------------
+// For dropdown columns the modal ALSO shows a per-value list:
+//   - Rename a value (updates every trade using it, with merge confirmation
+//     if the new name already exists)
+//   - Clear a value (sets every trade's value to empty)
+//
+// The whole options + values block is collapsible and hidden by default so
+// the card stays compact.
 
 import { useEffect, useMemo, useState } from 'react';
 import {
@@ -28,6 +35,8 @@ import {
   FaTrash,
   FaEdit,
   FaCheck,
+  FaChevronDown,
+  FaChevronUp,
 } from 'react-icons/fa';
 
 import Portal from '@/shared/components/Portal';
@@ -37,6 +46,8 @@ import {
   useAddCustomColumn,
   useRenameCustomColumn,
   useDeleteCustomColumn,
+  useRenameColumnValue,
+  useClearColumnValue,
 } from '@/shared/api/trades';
 import { normalizeColumnConfigs } from '@mavrix/shared';
 
@@ -48,9 +59,6 @@ const TYPES = [
 
 const MAX_DROPDOWN_UNIQUES = 10;
 
-// Reserved column names — cannot be used as custom column names.
-// Kept in sync with the API's RESERVED set in
-// apps/api/src/services/trades.service.js.
 const RESERVED = new Set([
   'date', 'entryTime', 'exitTime', 'direction', 'symbol',
   'mae', 'mfe', 'slPoints',
@@ -79,10 +87,10 @@ function hasAnyValue(v) {
 
 /**
  * Compute inferred type + lock + unique values for a column name.
+ * `trades` is the raw trades array (top-level dynamic fields).
  *
- * `trades` is the raw trades array (from useTrades — NOT enriched).
- * Values are read from `trade[name]` because custom column values live
- * at the top level of the raw DB payload, not under a nested key.
+ * `unique` is ALWAYS populated when there are values — even for locked
+ * columns — so the value-list UI has data regardless of lock state.
  */
 function inferColumnMeta(name, trades) {
   const values = [];
@@ -90,6 +98,9 @@ function inferColumnMeta(name, trades) {
     const v = t?.[name];
     if (hasAnyValue(v)) values.push(String(v));
   }
+
+  const uniqueSet = new Set(values.map((v) => v.trim()).filter(Boolean));
+  const unique = [...uniqueSet].sort();
 
   if (values.length === 0) {
     return {
@@ -100,18 +111,14 @@ function inferColumnMeta(name, trades) {
     };
   }
 
-  const allNumeric = values.every(isNumericValue);
-  if (allNumeric) {
+  if (values.every(isNumericValue)) {
     return {
       lockedType: 'number',
       locked: true,
       reason: 'All values numeric',
-      unique: [],
+      unique,
     };
   }
-
-  const uniqueSet = new Set(values.map((v) => v.trim()).filter(Boolean));
-  const unique = [...uniqueSet].sort();
 
   if (unique.length > MAX_DROPDOWN_UNIQUES) {
     return {
@@ -123,11 +130,19 @@ function inferColumnMeta(name, trades) {
   }
 
   return {
-    lockedType: null,           // user picks
+    lockedType: null,
     locked: false,
     reason: `${unique.length} unique value${unique.length === 1 ? '' : 's'}`,
     unique,
   };
+}
+
+function countTradesWithValue(trades, columnName, value) {
+  let n = 0;
+  for (const t of trades) {
+    if (t?.[columnName] === value) n++;
+  }
+  return n;
 }
 
 /* ------------------------------------------------------------------ */
@@ -173,6 +188,7 @@ const CSS = `
     color: var(--ink-1);
     font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
     overflow: hidden;
+    position: relative;
     animation: cmModalIn .28s cubic-bezier(.2,.8,.25,1);
   }
   .cm-head {
@@ -257,7 +273,6 @@ const CSS = `
     background-repeat: no-repeat; background-position: right 10px center;
     padding-right: 32px; cursor: pointer;
   }
-  .cm-select:disabled { cursor: not-allowed; }
   .cm-addbtn {
     padding: 0 16px; border-radius: 10px; border: none;
     background: linear-gradient(135deg, var(--accent), var(--accent-2));
@@ -384,13 +399,46 @@ const CSS = `
     display: inline-flex; align-items: center; gap: 6px;
   }
 
-  /* ---------- Dropdown options editor ---------- */
-  .cm-options {
+  /* ---------- Collapsible details (options + values) ---------- */
+  .cm-details-toggle {
+    margin-top: 10px;
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 5px 10px 5px 8px;
+    border-radius: 8px;
+    background: transparent;
+    border: 1px dashed rgba(255,255,255,.12);
+    color: var(--ink-2);
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 10.5px; font-weight: 600; letter-spacing: .04em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all .18s;
+  }
+  .cm-details-toggle:hover:not(:disabled) {
+    color: var(--accent);
+    border-color: var(--accent-soft2);
+    background: rgba(245,158,11,.05);
+  }
+  .cm-details-toggle:disabled {
+    opacity: .5; cursor: not-allowed;
+  }
+  .cm-details-toggle svg { flex-shrink: 0; }
+  .cm-details-counts {
+    color: var(--ink-3);
+    font-weight: 500;
+    letter-spacing: .02em;
+    text-transform: none;
+    margin-left: 2px;
+  }
+
+  /* ---------- Options chip editor ---------- */
+  .cm-details-body {
     margin-top: 12px;
     padding-top: 12px;
     border-top: 1px dashed var(--line-soft);
+    display: flex; flex-direction: column; gap: 16px;
   }
-  .cm-options-label {
+  .cm-block-label {
     font-family: 'IBM Plex Mono', ui-monospace, monospace;
     font-size: 9.5px;
     font-weight: 700;
@@ -400,6 +448,7 @@ const CSS = `
     margin-bottom: 8px;
     display: block;
   }
+
   .cm-options-chips {
     display: flex; flex-wrap: wrap; gap: 6px;
     margin-bottom: 10px;
@@ -485,6 +534,137 @@ const CSS = `
     opacity: .35; cursor: not-allowed;
   }
 
+  /* ---------- Values list ---------- */
+  .cm-values-list {
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .cm-value-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 7px 10px;
+    border-radius: 8px;
+    background: rgba(255,255,255,.015);
+    border: 1px solid transparent;
+    transition: all .15s;
+  }
+  .cm-value-row:hover {
+    background: rgba(255,255,255,.035);
+    border-color: rgba(255,255,255,.08);
+  }
+  .cm-value-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 8px rgba(245,158,11,.5);
+    flex-shrink: 0;
+  }
+  .cm-value-text {
+    flex: 1;
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 12px;
+    color: var(--ink-1);
+    letter-spacing: .01em;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .cm-value-actions {
+    display: flex; gap: 4px;
+    opacity: .45;
+    transition: opacity .15s;
+  }
+  .cm-value-row:hover .cm-value-actions {
+    opacity: 1;
+  }
+  .cm-value-btn {
+    width: 24px; height: 24px; padding: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+    border-radius: 6px;
+    border: 1px solid rgba(255,255,255,.08);
+    background: rgba(255,255,255,.025);
+    color: var(--ink-2);
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .cm-value-btn:hover:not(:disabled) {
+    color: var(--accent);
+    background: rgba(245,158,11,.10);
+    border-color: var(--accent-soft2);
+  }
+  .cm-value-btn.is-danger:hover:not(:disabled) {
+    color: #f87171;
+    background: rgba(239,68,68,.10);
+    border-color: rgba(239,68,68,.42);
+  }
+  .cm-value-btn:disabled {
+    opacity: .4; cursor: not-allowed;
+  }
+
+  /* ---------- Rename value modal ---------- */
+  .cm-merge-warn {
+    margin-top: 10px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: rgba(245,158,11,.08);
+    border: 1px solid var(--accent-soft2);
+    color: #FDE68A;
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 11.5px;
+    line-height: 1.6;
+  }
+  .cm-merge-warn b { color: var(--accent); }
+
+  .cm-merge-confirm-body {
+    display: flex; flex-direction: column; gap: 10px;
+    padding: 4px 2px;
+  }
+  .cm-merge-lead {
+    margin: 0;
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 13px;
+    color: var(--ink-1);
+    line-height: 1.6;
+  }
+  .cm-merge-lead b { color: var(--accent); }
+  .cm-merge-sub {
+    margin: 0;
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 12px;
+    color: var(--ink-2);
+    line-height: 1.6;
+  }
+  .cm-merge-sub b { color: var(--ink-1); }
+  .cm-merge-warning {
+    margin: 6px 0 0;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: rgba(239,68,68,.06);
+    border: 1px solid rgba(239,68,68,.22);
+    color: #fca5a5;
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 11.5px;
+    line-height: 1.55;
+  }
+
+  /* ---------- Loading overlay ---------- */
+  .cm-loading-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 20;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 14px;
+    background: rgba(6, 8, 12, .72);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    animation: cmFade .2s ease;
+    border-radius: 18px;
+    pointer-events: all;
+  }
+  .cm-loading-text {
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 12px;
+    color: var(--ink-1);
+    letter-spacing: .02em;
+  }
+
   .cm-empty {
     padding: 40px 20px; text-align: center;
     color: var(--ink-3);
@@ -507,6 +687,7 @@ const CSS = `
     margin: 0; font-family: 'IBM Plex Mono', ui-monospace, monospace;
     font-size: 10.5px; line-height: 1.6; color: var(--ink-2);
   }
+  .cm-hint b { color: var(--ink-1); font-weight: 700; }
   .cm-foot {
     padding: 14px 22px; border-top: 1px solid var(--line-soft);
     display: flex; gap: 10px; align-items: center;
@@ -526,6 +707,21 @@ const CSS = `
     border-color: rgba(255,255,255,.2);
   }
   .cm-btn:disabled { opacity: .5; cursor: not-allowed; }
+
+  .cm-btn-primary {
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    color: #0D1117;
+    border: none;
+    font-weight: 700;
+    box-shadow:
+      0 10px 30px -8px rgba(245,158,11,.55),
+      inset 0 1px 0 rgba(255,255,255,.4);
+  }
+  .cm-btn-primary:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 16px 42px -10px rgba(245,158,11,.7),
+                inset 0 1px 0 rgba(255,255,255,.5);
+  }
 
   /* ---------- spinner ---------- */
   .cm-spinner {
@@ -555,9 +751,8 @@ const CSS = `
   @media (prefers-reduced-motion: reduce) {
     .cm-head::before { animation: none !important; }
     .cm-spinner { animation-duration: 1.6s; }
-    .cm-btn, .cm-icon-btn, .cm-opt-chip-remove, .cm-options-add button {
-      transition: none !important;
-    }
+    .cm-btn, .cm-icon-btn, .cm-opt-chip-remove, .cm-options-add button,
+    .cm-value-btn, .cm-details-toggle { transition: none !important; }
   }
 `;
 
@@ -575,11 +770,14 @@ function ColumnRow({
   onDeleteRequest,
   onTypeChange,
   onOptionsChange,
+  onEditValue,
+  onDeleteValue,
 }) {
   const [renaming, setRenaming] = useState(false);
   const [renameDraft, setRenameDraft] = useState(name);
   const [renameError, setRenameError] = useState('');
   const [newOption, setNewOption] = useState('');
+  const [showDetails, setShowDetails] = useState(false);
 
   useEffect(() => {
     if (!renaming) setRenameDraft(name);
@@ -625,21 +823,22 @@ function ColumnRow({
   const lockedType = meta.lockedType;
   const isDropdown = type === 'dropdown';
 
+  const options = Array.isArray(config.options) ? config.options : [];
+  const values = Array.isArray(meta.unique) ? meta.unique : [];
+
   const handleAddOption = () => {
     const val = newOption.trim();
     if (!val) return;
-    if (config.options?.includes(val)) {
+    if (options.includes(val)) {
       setNewOption('');
       return;
     }
-    const nextOptions = [...(config.options || []), val];
-    onOptionsChange(nextOptions);
+    onOptionsChange([...options, val]);
     setNewOption('');
   };
 
   const handleRemoveOption = (opt) => {
-    const nextOptions = (config.options || []).filter((o) => o !== opt);
-    onOptionsChange(nextOptions);
+    onOptionsChange(options.filter((o) => o !== opt));
   };
 
   return (
@@ -694,7 +893,7 @@ function ColumnRow({
                 className="cm-icon-btn"
                 onClick={startRename}
                 disabled={disabled}
-                title="Rename"
+                title="Rename column"
               >
                 <FaEdit size={11} />
               </button>
@@ -739,64 +938,307 @@ function ColumnRow({
         </div>
       )}
 
-      {/* ---------- Dropdown options editor ---------- */}
+      {/* ---------- Collapsible: options + values ---------- */}
       {!renaming && isDropdown && (
-        <div className="cm-options">
-          <span className="cm-options-label">
-            Options ({config.options?.length || 0})
-          </span>
+        <>
+          <button
+            type="button"
+            className="cm-details-toggle"
+            onClick={() => setShowDetails((v) => !v)}
+            disabled={disabled}
+          >
+            {showDetails ? <FaChevronUp size={8} /> : <FaChevronDown size={8} />}
+            <span>{showDetails ? 'Hide options & values' : 'Show options & values'}</span>
+            <span className="cm-details-counts">
+              ({options.length} option{options.length === 1 ? '' : 's'} ·{' '}
+              {values.length} value{values.length === 1 ? '' : 's'})
+            </span>
+          </button>
 
-          {(config.options?.length || 0) > 0 ? (
-            <div className="cm-options-chips">
-              {config.options.map((opt) => (
-                <span key={opt} className="cm-opt-chip">
-                  <span className="cm-opt-chip-text" title={opt}>{opt}</span>
+          {showDetails && (
+            <div className="cm-details-body">
+              {/* --- Options --- */}
+              <div>
+                <span className="cm-block-label">
+                  Dropdown options ({options.length})
+                </span>
+
+                {options.length > 0 ? (
+                  <div className="cm-options-chips">
+                    {options.map((opt) => (
+                      <span key={opt} className="cm-opt-chip">
+                        <span className="cm-opt-chip-text" title={opt}>{opt}</span>
+                        <button
+                          type="button"
+                          className="cm-opt-chip-remove"
+                          onClick={() => handleRemoveOption(opt)}
+                          disabled={disabled}
+                          aria-label={`Remove option ${opt}`}
+                          title={`Remove "${opt}" from dropdown`}
+                        >
+                          <FaTimes size={8} />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="cm-options-empty">
+                    No options yet. Add at least one.
+                  </div>
+                )}
+
+                <div className="cm-options-add">
+                  <input
+                    type="text"
+                    placeholder="Add new option…"
+                    value={newOption}
+                    maxLength={60}
+                    disabled={disabled}
+                    onChange={(e) => setNewOption(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') { e.preventDefault(); handleAddOption(); }
+                    }}
+                  />
                   <button
                     type="button"
-                    className="cm-opt-chip-remove"
-                    onClick={() => handleRemoveOption(opt)}
-                    disabled={disabled}
-                    aria-label={`Remove option ${opt}`}
-                    title={`Remove "${opt}"`}
+                    onClick={handleAddOption}
+                    disabled={disabled || !newOption.trim() || options.includes(newOption.trim())}
                   >
-                    <FaTimes size={8} />
+                    <FaPlus size={9} /> Add
                   </button>
+                </div>
+              </div>
+
+              {/* --- Values in trades --- */}
+              <div>
+                <span className="cm-block-label">
+                  Values in trades ({values.length})
                 </span>
-              ))}
-            </div>
-          ) : (
-            <div className="cm-options-empty">
-              No options yet. Add at least one.
+
+                {values.length > 0 ? (
+                  <div className="cm-values-list">
+                    {values.map((v) => (
+                      <div key={v} className="cm-value-row">
+                        <span className="cm-value-dot" aria-hidden />
+                        <span className="cm-value-text" title={v}>{v}</span>
+                        <div className="cm-value-actions">
+                          <button
+                            type="button"
+                            className="cm-value-btn"
+                            onClick={() => onEditValue(v)}
+                            disabled={disabled}
+                            title={`Rename "${v}" in all trades`}
+                            aria-label={`Rename value ${v}`}
+                          >
+                            <FaEdit size={10} />
+                          </button>
+                          <button
+                            type="button"
+                            className="cm-value-btn is-danger"
+                            onClick={() => onDeleteValue(v)}
+                            disabled={disabled}
+                            title={`Clear "${v}" from all trades`}
+                            aria-label={`Clear value ${v}`}
+                          >
+                            <FaTrash size={10} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="cm-options-empty">
+                    No values found in any trade yet.
+                  </div>
+                )}
+              </div>
             </div>
           )}
-
-          <div className="cm-options-add">
-            <input
-              type="text"
-              placeholder="Add new option…"
-              value={newOption}
-              maxLength={60}
-              disabled={disabled}
-              onChange={(e) => setNewOption(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') { e.preventDefault(); handleAddOption(); }
-              }}
-            />
-            <button
-              type="button"
-              onClick={handleAddOption}
-              disabled={
-                disabled ||
-                !newOption.trim() ||
-                (config.options || []).includes(newOption.trim())
-              }
-            >
-              <FaPlus size={9} /> Add
-            </button>
-          </div>
-        </div>
+        </>
       )}
     </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Rename-value modal (nested inside the column-manager Portal)       */
+/* ------------------------------------------------------------------ */
+
+function RenameValueModal({
+  isOpen,
+  columnName,
+  oldValue,
+  trades,
+  existingValues,
+  onClose,
+  onConfirm,
+}) {
+  const [newValue, setNewValue] = useState('');
+  const [stage, setStage] = useState('edit'); // 'edit' | 'merge-confirm'
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (isOpen) {
+      setNewValue(oldValue || '');
+      setStage('edit');
+      setError('');
+    }
+  }, [isOpen, oldValue]);
+
+  const trimmed = newValue.trim();
+  const otherValues = (existingValues || []).filter((v) => v !== oldValue);
+  const collision = !!trimmed && otherValues.includes(trimmed);
+
+  const matchCount = useMemo(
+    () => (isOpen && columnName && oldValue ? countTradesWithValue(trades, columnName, oldValue) : 0),
+    [trades, columnName, oldValue, isOpen]
+  );
+
+  const collisionCount = useMemo(
+    () => (isOpen && collision ? countTradesWithValue(trades, columnName, trimmed) : 0),
+    [trades, columnName, trimmed, collision, isOpen]
+  );
+
+  if (!isOpen) return null;
+
+  const handleNext = () => {
+    setError('');
+    if (!trimmed) {
+      setError('Value is required.');
+      return;
+    }
+    if (trimmed === oldValue) {
+      onClose();
+      return;
+    }
+    if (collision) {
+      setStage('merge-confirm');
+      return;
+    }
+    onConfirm(trimmed);
+  };
+
+  return (
+    <Portal>
+      <style>{CSS}</style>
+      <div
+        className="cm-overlay"
+        onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      >
+        <div className="cm-modal" style={{ maxWidth: 500 }}>
+          <div className="cm-head">
+            <div>
+              <h2 className="cm-title">
+                {stage === 'edit' ? 'Rename value' : 'Confirm merge'}
+              </h2>
+              <p className="cm-sub">
+                {stage === 'edit'
+                  ? <>Column <b>{columnName}</b></>
+                  : <>Values will be merged</>}
+              </p>
+            </div>
+            <button
+              type="button"
+              className="cm-close"
+              onClick={onClose}
+              aria-label="Close"
+            >
+              <FaTimes />
+            </button>
+          </div>
+
+          <div className="cm-body">
+            {error && <div className="cm-error">{error}</div>}
+
+            {stage === 'edit' ? (
+              <>
+                <div>
+                  <label className="cm-label">Current value</label>
+                  <input
+                    type="text"
+                    className="cm-input"
+                    value={oldValue || ''}
+                    disabled
+                    readOnly
+                  />
+                </div>
+
+                <div>
+                  <label className="cm-label">New value</label>
+                  <input
+                    type="text"
+                    className="cm-input"
+                    value={newValue}
+                    autoFocus
+                    onChange={(e) => { setNewValue(e.target.value); setError(''); }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') { e.preventDefault(); handleNext(); }
+                      else if (e.key === 'Escape') { e.preventDefault(); onClose(); }
+                    }}
+                  />
+                  <p className="cm-hint" style={{ marginTop: 8 }}>
+                    <b>{matchCount}</b> trade{matchCount === 1 ? '' : 's'} currently use
+                    {' '}"{oldValue}". They will be updated to the new value.
+                  </p>
+
+                  {collision && (
+                    <div className="cm-merge-warn">
+                      <b>{collisionCount}</b> trade{collisionCount === 1 ? '' : 's'} already use
+                      {' '}"{trimmed}". Renaming will merge them.
+                    </div>
+                  )}
+                </div>
+              </>
+            ) : (
+              <div className="cm-merge-confirm-body">
+                <p className="cm-merge-lead">
+                  <b>{collisionCount}</b> trade{collisionCount === 1 ? '' : 's'} already use
+                  {' '}"<b>{trimmed}</b>".
+                </p>
+                <p className="cm-merge-sub">
+                  Your <b>{matchCount}</b> trade{matchCount === 1 ? '' : 's'} with
+                  {' '}"{oldValue}" will also become "{trimmed}".
+                </p>
+                <p className="cm-merge-warning">
+                  This merges the two values into one. This cannot be undone.
+                </p>
+              </div>
+            )}
+          </div>
+
+          <div className="cm-foot">
+            <button
+              type="button"
+              className="cm-btn"
+              onClick={onClose}
+            >
+              Cancel
+            </button>
+            <div style={{ flex: 1 }} />
+            {stage === 'edit' ? (
+              <button
+                type="button"
+                className="cm-btn cm-btn-primary"
+                onClick={handleNext}
+                disabled={!trimmed || trimmed === oldValue}
+              >
+                <FaCheck size={10} />
+                {collision ? 'Next' : 'Rename value'}
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="cm-btn cm-btn-primary"
+                onClick={() => onConfirm(trimmed)}
+              >
+                <FaCheck size={10} />
+                Merge anyway
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </Portal>
   );
 }
 
@@ -810,19 +1252,36 @@ export default function ColumnManagerModal({ isOpen, onClose, account, trades = 
   const [error, setError] = useState('');
   const [pending, setPending] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
-
-  // Local draft of the account's columnConfigs — edited inline, persisted
-  // on each change via updateCfg.mutateAsync().
   const [configs, setConfigs] = useState({});
+
+  // Value-rename / value-clear state
+  const [editValue, setEditValue] = useState(null);        // { columnName, oldValue }
+  const [deleteValueTarget, setDeleteValueTarget] = useState(null); // { columnName, value }
 
   const addCol    = useAddCustomColumn();
   const renameCol = useRenameCustomColumn();
   const deleteCol = useDeleteCustomColumn();
   const updateCfg = useUpdateColumnConfigs();
+  const renameVal = useRenameColumnValue();
+  const clearVal  = useClearColumnValue();
 
   const busy = pending !== null;
   const isPending = (op, key) =>
     pending?.op === op && (key === undefined || pending?.key === key);
+
+  const pendingLabel = useMemo(() => {
+    if (!pending) return '';
+    switch (pending.op) {
+      case 'add':          return 'Adding column…';
+      case 'rename':       return 'Renaming column…';
+      case 'type':         return 'Updating column type…';
+      case 'options':      return 'Updating options…';
+      case 'delete':       return 'Deleting column…';
+      case 'value-rename': return 'Renaming value across trades…';
+      case 'value-clear':  return 'Clearing value from trades…';
+      default:             return 'Working…';
+    }
+  }, [pending]);
 
   // Sync from account whenever the modal opens or the account changes.
   useEffect(() => {
@@ -833,6 +1292,8 @@ export default function ColumnManagerModal({ isOpen, onClose, account, trades = 
     setError('');
     setPending(null);
     setDeleteTarget(null);
+    setEditValue(null);
+    setDeleteValueTarget(null);
   }, [isOpen, account]);
 
   const columnNames = useMemo(
@@ -840,7 +1301,6 @@ export default function ColumnManagerModal({ isOpen, onClose, account, trades = 
     [configs]
   );
 
-  // Infer lock + unique values per column, memoized on (names, trades).
   const columnMeta = useMemo(() => {
     const map = {};
     for (const name of columnNames) {
@@ -883,9 +1343,9 @@ export default function ColumnManagerModal({ isOpen, onClose, account, trades = 
   };
 
   /* ---------------------------------------------------------------- */
-  /*  Rename                                                           */
+  /*  Rename column                                                    */
   /* ---------------------------------------------------------------- */
-  const handleRename = async (oldName, newNameStr) => {
+  const handleRenameColumn = async (oldName, newNameStr) => {
     if (!newNameStr || newNameStr === oldName) return;
 
     setPending({ op: 'rename', key: oldName });
@@ -950,7 +1410,7 @@ export default function ColumnManagerModal({ isOpen, onClose, account, trades = 
   };
 
   /* ---------------------------------------------------------------- */
-  /*  Delete                                                           */
+  /*  Delete column                                                    */
   /* ---------------------------------------------------------------- */
   const requestDelete = (name) => {
     setDeleteTarget(name);
@@ -975,137 +1435,198 @@ export default function ColumnManagerModal({ isOpen, onClose, account, trades = 
     }
   };
 
+  /* ---------------------------------------------------------------- */
+  /*  Value-level operations                                           */
+  /* ---------------------------------------------------------------- */
+  const requestEditValue = (columnName, value) => {
+    setEditValue({ columnName, oldValue: value });
+    setError('');
+  };
+
+  const handleRenameValue = async (columnName, oldValue, newValue) => {
+    setPending({ op: 'value-rename', key: columnName });
+    try {
+      await renameVal.mutateAsync({
+        accountId: account.id,
+        columnName,
+        oldValue,
+        newValue,
+      });
+      setEditValue(null);
+    } catch (err) {
+      setError(err?.message || 'Could not rename value.');
+    } finally {
+      setPending(null);
+    }
+  };
+
+  const requestDeleteValue = (columnName, value) => {
+    setDeleteValueTarget({ columnName, value });
+    setError('');
+  };
+
+  const confirmDeleteValue = async () => {
+    const target = deleteValueTarget;
+    if (!target) return;
+    setDeleteValueTarget(null);
+    setPending({ op: 'value-clear', key: target.columnName });
+    try {
+      await clearVal.mutateAsync({
+        accountId: account.id,
+        columnName: target.columnName,
+        value: target.value,
+      });
+    } catch (err) {
+      setError(err?.message || 'Could not clear value.');
+    } finally {
+      setPending(null);
+    }
+  };
+
   return (
-    <Portal>
-      <style>{CSS}</style>
-      <div
-        className="cm-overlay"
-        onClick={(e) => {
-          if (e.target === e.currentTarget && !busy) onClose();
-        }}
-      >
-        <div className={`cm-modal ${busy ? 'is-busy' : ''}`}>
-          <div className="cm-head">
-            <div>
-              <h2 className="cm-title">Custom Columns</h2>
-              <p className="cm-sub">
-                Manage extra fields on <b>{account.name}</b>
-              </p>
+    <>
+      <Portal>
+        <style>{CSS}</style>
+        <div
+          className="cm-overlay"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !busy) onClose();
+          }}
+        >
+          <div className={`cm-modal ${busy ? 'is-busy' : ''}`}>
+
+            {/* ---------- Loading overlay ---------- */}
+            {busy && (
+              <div className="cm-loading-overlay" role="status" aria-live="polite">
+                <Spinner size={22} variant="light" />
+                <span className="cm-loading-text">{pendingLabel}</span>
+              </div>
+            )}
+
+            <div className="cm-head">
+              <div>
+                <h2 className="cm-title">Custom Columns</h2>
+                <p className="cm-sub">
+                  Manage extra fields on <b>{account.name}</b>
+                </p>
+              </div>
+              <button
+                className="cm-close"
+                onClick={onClose}
+                disabled={busy}
+                aria-label="Close"
+              >
+                <FaTimes />
+              </button>
             </div>
-            <button
-              className="cm-close"
-              onClick={onClose}
-              disabled={busy}
-              aria-label="Close"
-            >
-              <FaTimes />
-            </button>
-          </div>
 
-          <div className="cm-body">
-            {error && <div className="cm-error">{error}</div>}
+            <div className="cm-body">
+              {error && <div className="cm-error">{error}</div>}
 
-            {/* ---- Add new ---- */}
-            <div>
-              <span className="cm-section-title">Add a column</span>
-              <div style={{ marginTop: 10 }} className="cm-addrow">
-                <input
-                  type="text"
-                  className="cm-input"
-                  placeholder="e.g. Setup, Confidence, Session"
-                  value={newName}
-                  maxLength={40}
-                  disabled={busy}
-                  onChange={(e) => setNewName(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      handleAdd();
-                    }
-                  }}
-                />
-                <select
-                  className="cm-select"
-                  value={newType}
-                  disabled={busy}
-                  onChange={(e) => setNewType(e.target.value)}
-                >
-                  {TYPES.map((t) => (
-                    <option key={t.value} value={t.value}>{t.label}</option>
-                  ))}
-                </select>
-                <button
-                  type="button"
-                  className="cm-addbtn"
-                  onClick={handleAdd}
-                  disabled={busy || !newName.trim()}
-                >
-                  {isPending('add') ? (
-                    <>
-                      <Spinner size={11} />
-                      <span>Adding…</span>
-                    </>
+              {/* ---- Add new ---- */}
+              <div>
+                <span className="cm-section-title">Add a column</span>
+                <div style={{ marginTop: 10 }} className="cm-addrow">
+                  <input
+                    type="text"
+                    className="cm-input"
+                    placeholder="e.g. Setup, Confidence, Session"
+                    value={newName}
+                    maxLength={40}
+                    disabled={busy}
+                    onChange={(e) => setNewName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleAdd();
+                      }
+                    }}
+                  />
+                  <select
+                    className="cm-select"
+                    value={newType}
+                    disabled={busy}
+                    onChange={(e) => setNewType(e.target.value)}
+                  >
+                    {TYPES.map((t) => (
+                      <option key={t.value} value={t.value}>{t.label}</option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    className="cm-addbtn"
+                    onClick={handleAdd}
+                    disabled={busy || !newName.trim()}
+                  >
+                    {isPending('add') ? (
+                      <>
+                        <Spinner size={11} />
+                        <span>Adding…</span>
+                      </>
+                    ) : (
+                      <>
+                        <FaPlus size={10} />
+                        <span>Add</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+                <p className="cm-hint" style={{ marginTop: 8 }}>
+                  The column is added to every existing trade as an empty cell.
+                </p>
+              </div>
+
+              {/* ---- Existing ---- */}
+              <div>
+                <span className="cm-section-title">
+                  Existing columns
+                  <span className="cm-count">({columnNames.length})</span>
+                </span>
+
+                <div style={{ marginTop: 10 }} className="cm-list">
+                  {columnNames.length === 0 ? (
+                    <div className="cm-empty">
+                      No custom columns yet. Add one above — it will appear as an
+                      extra column on <b>Trade Logs</b>.
+                    </div>
                   ) : (
-                    <>
-                      <FaPlus size={10} />
-                      <span>Add</span>
-                    </>
+                    columnNames.map((name) => (
+                      <ColumnRow
+                        key={name}
+                        name={name}
+                        config={configs[name]}
+                        meta={columnMeta[name] || { locked: false, reason: '', unique: [] }}
+                        allNames={columnNames}
+                        disabled={busy}
+                        onRename={(next) => handleRenameColumn(name, next)}
+                        onDeleteRequest={() => requestDelete(name)}
+                        onTypeChange={(type) => handleTypeChange(name, type)}
+                        onOptionsChange={(opts) => handleOptionsChange(name, opts)}
+                        onEditValue={(v) => requestEditValue(name, v)}
+                        onDeleteValue={(v) => requestDeleteValue(name, v)}
+                      />
+                    ))
                   )}
-                </button>
-              </div>
-              <p className="cm-hint" style={{ marginTop: 8 }}>
-                The column is added to every existing trade as an empty cell.
-              </p>
-            </div>
-
-            {/* ---- Existing ---- */}
-            <div>
-              <span className="cm-section-title">
-                Existing columns
-                <span className="cm-count">({columnNames.length})</span>
-              </span>
-
-              <div style={{ marginTop: 10 }} className="cm-list">
-                {columnNames.length === 0 ? (
-                  <div className="cm-empty">
-                    No custom columns yet. Add one above — it will appear as an
-                    extra column on <b>Trade Logs</b>.
-                  </div>
-                ) : (
-                  columnNames.map((name) => (
-                    <ColumnRow
-                      key={name}
-                      name={name}
-                      config={configs[name]}
-                      meta={columnMeta[name] || { locked: false, reason: '' }}
-                      allNames={columnNames}
-                      disabled={busy}
-                      onRename={(next) => handleRename(name, next)}
-                      onDeleteRequest={() => requestDelete(name)}
-                      onTypeChange={(type) => handleTypeChange(name, type)}
-                      onOptionsChange={(opts) => handleOptionsChange(name, opts)}
-                    />
-                  ))
-                )}
+                </div>
               </div>
             </div>
-          </div>
 
-          <div className="cm-foot">
-            <div style={{ flex: 1 }} />
-            <button
-              type="button"
-              className="cm-btn"
-              onClick={onClose}
-              disabled={busy}
-            >
-              Close
-            </button>
+            <div className="cm-foot">
+              <div style={{ flex: 1 }} />
+              <button
+                type="button"
+                className="cm-btn"
+                onClick={onClose}
+                disabled={busy}
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      </Portal>
 
-      {/* ---- Modern delete confirmation ---- */}
+      {/* ---- Delete column confirmation ---- */}
       <Alert
         isOpen={!!deleteTarget}
         type="confirm"
@@ -1116,6 +1637,37 @@ export default function ColumnManagerModal({ isOpen, onClose, account, trades = 
         onConfirm={confirmDelete}
         onCancel={() => setDeleteTarget(null)}
       />
-    </Portal>
+
+      {/* ---- Delete value confirmation ---- */}
+      <Alert
+        isOpen={!!deleteValueTarget}
+        type="confirm"
+        title="Clear this value from all trades?"
+        message={
+          deleteValueTarget
+            ? `Every trade with "${deleteValueTarget.value}" in column "${deleteValueTarget.columnName}" will be set to empty. This cannot be undone.`
+            : ''
+        }
+        confirmText="Clear value"
+        cancelText="Cancel"
+        onConfirm={confirmDeleteValue}
+        onCancel={() => setDeleteValueTarget(null)}
+      />
+
+      {/* ---- Rename value modal ---- */}
+      <RenameValueModal
+        isOpen={!!editValue}
+        columnName={editValue?.columnName}
+        oldValue={editValue?.oldValue}
+        trades={trades}
+        existingValues={
+          editValue ? (columnMeta[editValue.columnName]?.unique || []) : []
+        }
+        onClose={() => setEditValue(null)}
+        onConfirm={(newValue) =>
+          handleRenameValue(editValue.columnName, editValue.oldValue, newValue)
+        }
+      />
+    </>
   );
 }

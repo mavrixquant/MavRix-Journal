@@ -1,4 +1,4 @@
-﻿import { Router } from 'express';
+import { Router } from 'express';
 import { tradeBatchSchema } from '@mavrix/shared/validators';
 import { requireAuth } from '../middleware/auth.js';
 import * as tradesController from '../controllers/trades.controller.js';
@@ -24,6 +24,16 @@ tradesRoutes.delete('/by-account/:accountId', tradesController.removeByAccount);
 tradesRoutes.post('/by-account/:accountId/columns', tradesController.addColumn);
 tradesRoutes.delete('/by-account/:accountId/columns/:name', tradesController.deleteColumn);
 tradesRoutes.patch('/by-account/:accountId/columns/:name', tradesController.renameColumn);
+
+// Value-level operations on a single column
+tradesRoutes.post(
+  '/by-account/:accountId/columns/:name/rename-value',
+  tradesController.renameColumnValue
+);
+tradesRoutes.post(
+  '/by-account/:accountId/columns/:name/clear-value',
+  tradesController.clearColumnValue
+);
 
 // Single trade
 tradesRoutes.get('/:id', tradesController.get);
