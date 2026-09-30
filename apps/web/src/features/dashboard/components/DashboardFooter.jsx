@@ -37,7 +37,7 @@ function buildMoneyRule(account) {
   if (mode === 'flat' && val > 0) {
     commText = <>Flat commission of <b>{currency} {val.toFixed(2)}</b> per trade.</>;
   } else if (mode === 'per_contract' && val > 0) {
-    commText = <>Commission of <b>{currency} {val.toFixed(2)} per contract</b> (multiplied by each trade's Contracts).</>;
+    commText = <>Commission of <b>{currency} {val.toFixed(2)} per unit</b> (multiplied by each trade's Quantity).</>;
   }
 
   return (

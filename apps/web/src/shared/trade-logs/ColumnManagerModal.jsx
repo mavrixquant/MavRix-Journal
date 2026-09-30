@@ -17,9 +17,14 @@ const TYPES = [
   { value: 'number',   label: 'Number' },
 ];
 
+// Reserved column names — cannot be used as custom column names.
+// Kept in sync with the API's RESERVED set in
+// apps/api/src/services/trades.service.js.
 const RESERVED = new Set([
   'date', 'entryTime', 'exitTime', 'direction', 'symbol',
-  'mae', 'mfe', 'pnl', 'slPoints', 'contracts', 'notes',
+  'mae', 'mfe', 'slPoints',
+  'entryPrice', 'takeProfit', 'stopLoss',
+  'pnl', 'quantity', 'notes',
 ]);
 
 /* ------------------------------------------------------------------ */
