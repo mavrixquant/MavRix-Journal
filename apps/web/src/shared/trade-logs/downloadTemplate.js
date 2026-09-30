@@ -6,15 +6,19 @@
 //
 //   Live / Demo  →  Date | Entry Time | Exit Time | Direction | Symbol |
 //                   Entry Price | Take Profit | Stop Loss | P&L | Quantity |
-//                   Notes | [custom columns]
+//                   Notes | Custom Columns
 //
 //   Backtest     →  Date | Entry Time | Exit Time | Direction | Symbol |
 //                   MAE | MFE | SL | P&L | Quantity |
-//                   Notes | [custom columns]
+//                   Notes | Custom Columns
+//
+// The trailing "Custom Columns" header is a HINT, not a real column. It tells
+// the user they may append their own columns to the right of it. The upload
+// parser silently skips this header when it has no values (see
+// UploadModal.jsx → parseFile()).
 //
 // A single sample row is included so users know the expected format.
-// Quantity is always required now (previously only for per-contract
-// commission accounts).
+// Quantity is always required.
 
 import * as XLSX from 'xlsx';
 
@@ -86,7 +90,7 @@ function buildJournalSampleRow() {
   ];
 }
 
-export function downloadTradeTemplate({ account, dynamicKeys = [] }) {
+export function downloadTradeTemplate({ account }) {
   const isBacktest = account?.type === 'Backtest';
 
   const headers = isBacktest ? buildBacktestHeaders() : buildJournalHeaders();
@@ -94,9 +98,9 @@ export function downloadTradeTemplate({ account, dynamicKeys = [] }) {
     ? buildBacktestSampleRow(account)
     : buildJournalSampleRow();
 
-  // Append every existing custom column
-  dynamicKeys.forEach((k) => headers.push(k));
-  dynamicKeys.forEach(() => sampleRow.push(''));
+  // Trailing placeholder column — the parser skips this header when empty.
+  headers.push('Custom Columns');
+  sampleRow.push('');
 
   const ws = XLSX.utils.aoa_to_sheet([headers, sampleRow]);
   ws['!cols'] = headers.map((h) => ({

@@ -1,3 +1,4 @@
+
 // apps/web/src/shared/trade-logs/TradeLogsView.jsx
 //
 // Shared trade-logs page body. Consumed by BOTH:
@@ -674,12 +675,7 @@ export default function TradeLogsView({
               <button
                 type="button"
                 className="jm-icon-btn"
-                onClick={() =>
-                  downloadTradeTemplate({
-                    account: selectedAccount,
-                    dynamicKeys,
-                  })
-                }
+                onClick={() => downloadTradeTemplate({ account: selectedAccount })}
                 title="Download .xlsx template"
               >
                 <FaDownload size={11} /> <span>Template</span>

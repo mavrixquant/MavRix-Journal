@@ -1,3 +1,4 @@
+
 // apps/web/src/shared/trade-logs/UploadModal.jsx
 //
 // Bulk-import from Excel. The required/expected column set depends on the
@@ -12,6 +13,11 @@
 //                 P&L, Quantity*, Notes, [custom columns]
 //
 // (* = mandatory)
+//
+// The template ships a trailing "Custom Columns" placeholder header as a
+// hint. When that header has no values in any data row, the parser skips it
+// silently (see parseFile()). If a user actually fills values under that
+// header, it becomes a normal custom column named "Custom Columns".
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import * as XLSX from 'xlsx';
@@ -76,7 +82,7 @@ function resolveSLPoints(rawSl, account) {
   return +pts.toFixed(4);
 }
 
-/* ---------- Excel cell formatters (unchanged) ---------- */
+/* ---------- Excel cell formatters ---------- */
 
 function formatExcelDate(value) {
   if (!value) return '';
@@ -138,6 +144,20 @@ function parseFile(workbook, account, existingTrades) {
 
   originalHeaders.forEach((h) => {
     const trimmed = h.trim();
+
+    // Silently skip the template's "Custom Columns" placeholder header when
+    // it has no values in any data row. It exists in the template purely as
+    // a hint that users may append their own columns to the right.
+    if (trimmed === 'Custom Columns') {
+      const hasAnyValueInFile = rows.some((r) => {
+        const v = r[h];
+        return v !== '' && v !== null && v !== undefined;
+      });
+      if (!hasAnyValueInFile) return; // skip; not a real column
+      // If it DOES have values, fall through and treat it as a normal
+      // custom column named "Custom Columns".
+    }
+
     const mapped = RESERVED_MAP[trimmed];
 
     if (mapped) {
