@@ -13,3 +13,5 @@ apps/api/prisma/migrations/dev.db*
 ai-context
 *.ps1
 notes.*
+# GEX data backups (contains real data — never commit)
+apps/api/backups/
