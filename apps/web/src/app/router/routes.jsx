@@ -46,6 +46,10 @@ const AdminUsersPage = lazy(() => import('@/features/admin/pages/AdminUsersPage'
 const AdminUserDetailPage = lazy(() => import('@/features/admin/pages/AdminUserDetailPage'));
 const AdminAccountsPage = lazy(() => import('@/features/admin/pages/AdminAccountsPage'));
 const AdminTradesPage = lazy(() => import('@/features/admin/pages/AdminTradesPage'));
+const AdminAuditPage = lazy(() => import('@/features/admin/pages/AdminAuditPage'));
+const AdminSessionsPage = lazy(() => import('@/features/admin/pages/AdminSessionsPage'));
+const AdminSystemPage = lazy(() => import('@/features/admin/pages/AdminSystemPage'));
+const AdminCalendarPage = lazy(() => import('@/features/admin/pages/AdminCalendarPage'));
 
 function RootRedirect() {
   const { user } = useAuth();
@@ -83,6 +87,10 @@ export function AppRoutes() {
         <Route path="users/:id" element={<AdminUserDetailPage />} />
         <Route path="accounts"  element={<AdminAccountsPage />} />
         <Route path="trades"    element={<AdminTradesPage />} />
+        <Route path="audit"     element={<AdminAuditPage />} />
+        <Route path="sessions"  element={<AdminSessionsPage />} />
+        <Route path="system"    element={<AdminSystemPage />} />
+        <Route path="calendar"  element={<AdminCalendarPage />} />
       </Route>
 
       {/* ---------------- User app shell ---------------- */}
