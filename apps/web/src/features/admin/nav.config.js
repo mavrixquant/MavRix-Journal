@@ -25,14 +25,14 @@ export const ADMIN_NAV = [
     items: [
       { to: '/admin/calendar',  label: 'Calendar',  icon: Calendar },
       { to: '/admin/sessions',  label: 'Sessions',  icon: Radio },
-      { to: '/admin/broadcast', label: 'Broadcast', icon: MessageSquare, soon: true },
+      { to: '/admin/broadcast', label: 'Broadcast', icon: MessageSquare },
     ],
   },
   {
     section: 'System',
     items: [
       { to: '/admin/audit',    label: 'Audit log', icon: ScrollText },
-      { to: '/admin/settings', label: 'Settings',  icon: Settings, soon: true },
+      { to: '/admin/settings', label: 'Settings',  icon: Settings },
       { to: '/admin/system',   label: 'System',    icon: Activity },
     ],
   },

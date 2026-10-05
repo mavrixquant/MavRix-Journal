@@ -41,15 +41,17 @@ const ChatsPage = lazy(() => import('@/features/personal/chats/ChatsPage'));
 
 /* ---- Admin ---- */
 const AdminLayout = lazy(() => import('@/features/admin/layout/AdminLayout'));
-const AdminDashboardPage = lazy(() => import('@/features/admin/pages/AdminDashboardPage'));
-const AdminUsersPage = lazy(() => import('@/features/admin/pages/AdminUsersPage'));
+const AdminDashboardPage  = lazy(() => import('@/features/admin/pages/AdminDashboardPage'));
+const AdminUsersPage      = lazy(() => import('@/features/admin/pages/AdminUsersPage'));
 const AdminUserDetailPage = lazy(() => import('@/features/admin/pages/AdminUserDetailPage'));
-const AdminAccountsPage = lazy(() => import('@/features/admin/pages/AdminAccountsPage'));
-const AdminTradesPage = lazy(() => import('@/features/admin/pages/AdminTradesPage'));
-const AdminAuditPage = lazy(() => import('@/features/admin/pages/AdminAuditPage'));
-const AdminSessionsPage = lazy(() => import('@/features/admin/pages/AdminSessionsPage'));
-const AdminSystemPage = lazy(() => import('@/features/admin/pages/AdminSystemPage'));
-const AdminCalendarPage = lazy(() => import('@/features/admin/pages/AdminCalendarPage'));
+const AdminAccountsPage   = lazy(() => import('@/features/admin/pages/AdminAccountsPage'));
+const AdminTradesPage     = lazy(() => import('@/features/admin/pages/AdminTradesPage'));
+const AdminAuditPage      = lazy(() => import('@/features/admin/pages/AdminAuditPage'));
+const AdminSessionsPage   = lazy(() => import('@/features/admin/pages/AdminSessionsPage'));
+const AdminSystemPage     = lazy(() => import('@/features/admin/pages/AdminSystemPage'));
+const AdminCalendarPage   = lazy(() => import('@/features/admin/pages/AdminCalendarPage'));
+const AdminSettingsPage   = lazy(() => import('@/features/admin/pages/AdminSettingsPage'));
+const AdminBroadcastPage  = lazy(() => import('@/features/admin/pages/AdminBroadcastPage'));
 
 function RootRedirect() {
   const { user } = useAuth();
@@ -91,6 +93,8 @@ export function AppRoutes() {
         <Route path="sessions"  element={<AdminSessionsPage />} />
         <Route path="system"    element={<AdminSystemPage />} />
         <Route path="calendar"  element={<AdminCalendarPage />} />
+        <Route path="settings"  element={<AdminSettingsPage />} />
+        <Route path="broadcast" element={<AdminBroadcastPage />} />
       </Route>
 
       {/* ---------------- User app shell ---------------- */}
