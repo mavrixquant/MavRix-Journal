@@ -4,7 +4,7 @@
 // Click any row → /admin/users/:id
 
 import { useState, useMemo } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Search, ShieldCheck, Ban, CheckCircle2 } from 'lucide-react';
 
 import { useAdminUsers } from '../api';

@@ -4,7 +4,7 @@
 // recent manual sync logs.
 
 import { useState } from 'react';
-import { RefreshCw, Trash2, Calendar, Clock } from 'lucide-react';
+import { RefreshCw, Trash2, Calendar } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { useAuth } from '@/app/providers/AuthProvider';

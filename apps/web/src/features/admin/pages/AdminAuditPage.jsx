@@ -4,7 +4,7 @@
 // target type. Row expands to show metadata JSON.
 
 import { useState, useMemo, Fragment } from 'react';
-import { Search, ChevronDown, ChevronRight, ScrollText } from 'lucide-react';
+import { Search, ChevronDown, ChevronRight } from 'lucide-react';
 
 import { useAdminAuditLog } from '../api';
 import Pagination from '../components/Pagination';

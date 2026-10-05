@@ -15,7 +15,6 @@ import {
   UserX,
   Wallet,
   TrendingUp,
-  Activity,
 } from 'lucide-react';
 import { Bar } from 'react-chartjs-2';
 

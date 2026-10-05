@@ -209,13 +209,10 @@ export default function AdminSettingsPage() {
 
   const { data: server, isLoading } = useAdminSettings();
   const [form, setForm] = useState(null);
-  const [dirty, setDirty] = useState(false);
-
   // Hydrate form from server on load / after every successful save
   useEffect(() => {
     if (server) {
       setForm({ ...server });
-      setDirty(false);
     }
   }, [server]);
 
@@ -223,7 +220,6 @@ export default function AdminSettingsPage() {
 
   const setField = (key, value) => {
     setForm((f) => ({ ...f, [key]: value }));
-    setDirty(true);
   };
 
   // Compute a patch — only changed keys
@@ -245,14 +241,13 @@ export default function AdminSettingsPage() {
     try {
       await updateMutation.mutateAsync(patch);
       toast.success(`Saved ${Object.keys(patch).length} setting${Object.keys(patch).length === 1 ? '' : 's'}`);
-      setDirty(false);
     } catch (err) {
       toast.error(err?.message || 'Save failed');
     }
   };
 
   const handleReset = () => {
-    if (server) { setForm({ ...server }); setDirty(false); }
+    if (server) { setForm({ ...server }); }
   };
 
   if (isLoading || !form) {
