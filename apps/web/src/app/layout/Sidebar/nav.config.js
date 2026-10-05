@@ -1,4 +1,4 @@
-// apps/web/src/app/shell/nav.config.js
+// apps/web/src/app/layout/Sidebar/nav.config.js
 //
 // Single source of truth for the sidebar navigation tree.
 // Each top-level entry is a group; each `items` entry is a route.
@@ -17,6 +17,8 @@ import {
   FaWallet,
   FaBrain,
   FaCommentDots,
+  FaTools,
+  FaLayerGroup,
 } from 'react-icons/fa';
 
 export const SIDEBAR_GROUPS = [
@@ -49,6 +51,14 @@ export const SIDEBAR_GROUPS = [
     items: [
       { to: '/manage/accounts',   label: 'Accounts',   icon: FaWallet },
       { to: '/manage/strategies', label: 'Strategies', icon: FaBrain },
+    ],
+  },
+  {
+    id: 'utilities',
+    label: 'Utilities',
+    icon: FaTools,
+    items: [
+      { to: '/utilities/gex', label: 'GEX Levels', icon: FaLayerGroup },
     ],
   },
   {

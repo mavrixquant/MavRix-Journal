@@ -24,6 +24,8 @@ import { defineConfig, globalIgnores } from 'eslint/config'
      journal     — trade-log side of the app. MAY import dashboard.
      backtester  — Monte Carlo side of the app. MAY import dashboard.
      manage      — accounts, strategies
+     utilities   — GEX levels, calculators. Leaf — imports nothing
+                   from other feature groups.
      personal    — discussion, chats
 
    Rules:
@@ -74,6 +76,7 @@ const FEATURE_GROUPS = [
   'journal',
   'backtester',
   'manage',
+  'utilities',
   'personal',
 ];
 
