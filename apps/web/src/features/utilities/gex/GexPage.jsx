@@ -2,21 +2,15 @@
 //
 // /utilities/gex — user-facing GEX level viewer.
 //
-// Layout:
+// Layout (Phase 7 order — converted string ABOVE the chart):
 //   ┌──────────────┬──────────────────────────────────────┐
-//   │              │  Price Ladder (top card)             │
+//   │              │  Converted string (TOP)              │
 //   │  Date list   │  ─────────────────────────────       │
-//   │  (sticky,    │  Converted string (bottom card)      │
+//   │  (sticky,    │  Price ladder chart (BELOW)          │
 //   │   scrollable)│                                      │
 //   └──────────────┴──────────────────────────────────────┘
-//
-// Data flow:
-//   useGexDays()                → list metadata (date, counts)
-//   useGexDay(selectedDate)     → full payload for the active day
-//
-// The active date defaults to the newest entry as soon as the list loads.
 
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Layers, Clipboard, ClipboardCheck, CalendarDays } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -104,10 +98,7 @@ const CSS = `
     overflow: hidden;
   }
   @media (max-width: 1000px) {
-    .gxp-sidebar {
-      position: static;
-      max-height: 320px;
-    }
+    .gxp-sidebar { position: static; max-height: 320px; }
   }
 
   .gxp-sidebar-head {
@@ -206,12 +197,10 @@ const CSS = `
     letter-spacing: .02em;
     color: var(--ink-3);
   }
-  .gxp-date.is-active .gxp-date-meta {
-    color: rgba(245,158,11,.75);
-  }
+  .gxp-date.is-active .gxp-date-meta { color: rgba(245,158,11,.75); }
   .gxp-date-meta-sep { opacity: .5; }
   .gxp-date-meta-bl  { color: #F59E0B; }
-  .gxp-date-meta-gex { color: #60A5FA; }
+  .gxp-date-meta-gex { color: #378ADD; }
 
   /* ---------- Main column ---------- */
   .gxp-main {
@@ -238,6 +227,7 @@ const CSS = `
     align-items: center;
     gap: 10px;
     flex-shrink: 0;
+    flex-wrap: wrap;
   }
   .gxp-card-title {
     font-size: 13px;
@@ -250,110 +240,25 @@ const CSS = `
     font-family: 'IBM Plex Mono', ui-monospace, monospace;
     font-size: 10px;
     font-weight: 600;
-    letter-spacing: .06em;
+    letter-spacing: .05em;
     text-transform: uppercase;
     color: var(--accent);
-    opacity: .85;
+    opacity: .9;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
   }
+  .gxp-card-sub-sep { opacity: .4; font-weight: 400; }
+
   .gxp-card-body {
     padding: 16px 18px;
     display: flex;
     flex-direction: column;
     gap: 14px;
   }
-
-  /* ---------- Price ladder component ---------- */
-  .gxl-root { display: flex; flex-direction: column; gap: 14px; }
-
-  .gxl-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    font-size: 10.5px;
-    color: var(--ink-3);
-    padding-bottom: 10px;
-    border-bottom: 1px dashed var(--line-soft);
-  }
-  .gxl-head-label {
-    font-weight: 700;
-    letter-spacing: .14em;
-    text-transform: uppercase;
-  }
-  .gxl-head-range {
-    display: inline-flex;
-    align-items: baseline;
-    gap: 8px;
-    color: var(--ink-2);
-  }
-  .gxl-head-range b { color: var(--ink-1); font-weight: 700; }
-  .gxl-head-arrow { color: var(--ink-3); opacity: .6; }
-  .gxl-head-spread { color: var(--ink-3); font-weight: 500; }
-
-  .gxl-list {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-  }
-  .gxl-row {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 9px 4px;
-    border-bottom: 1px dashed rgba(255,255,255,.04);
-    transition: background-color .12s ease;
-  }
-  .gxl-row:last-child { border-bottom: none; }
-  .gxl-row:hover { background: rgba(255,255,255,.02); }
-
-  .gxl-price {
-    flex: 0 0 110px;
-    text-align: right;
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    font-size: 12.5px;
-    font-weight: 700;
-    color: var(--ink-1);
-    letter-spacing: -.005em;
-    font-variant-numeric: tabular-nums;
-  }
-  .gxl-chip {
-    flex: 0 0 auto;
-    min-width: 48px;
-    text-align: center;
-    padding: 3px 8px;
-    border-radius: 99px;
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: .04em;
-    border: 1px solid;
-    white-space: nowrap;
-  }
-  .gxl-label {
-    flex: 1 1 auto;
-    min-width: 0;
-    font-size: 12.5px;
-    color: var(--ink-1);
-    letter-spacing: -.005em;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .gxl-empty {
-    padding: 40px 20px;
-    text-align: center;
-    color: var(--ink-3);
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    font-size: 12px;
-  }
-
-  @media (max-width: 640px) {
-    .gxl-price { flex: 0 0 84px; font-size: 11.5px; }
-    .gxl-chip { min-width: 42px; padding: 2px 6px; font-size: 9px; }
-    .gxl-label { font-size: 11.5px; }
+  /* Tighter padding for the chart card so the SVG gets more room */
+  .gxp-card-body.is-chart {
+    padding: 12px 14px 16px;
   }
 
   /* ---------- Converted-string card ---------- */
@@ -478,7 +383,7 @@ const CSS = `
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .gxp-date, .gxl-row, .gxp-copy-btn { transition: none !important; }
+    .gxp-date, .gxp-copy-btn { transition: none !important; }
   }
 `;
 
@@ -491,9 +396,7 @@ export default function GexPage() {
   const [selectedDate, setSelectedDate] = useState(null);
   const [copied, setCopied] = useState(false);
 
-  // Auto-select the newest day the first time the list arrives.
-  // If the current selection drops off the list (admin deleted it),
-  // fall back to the new newest.
+  // Auto-select the newest day; recover if the current one is deleted.
   useEffect(() => {
     if (days.length === 0) {
       if (selectedDate !== null) setSelectedDate(null);
@@ -602,23 +505,7 @@ export default function GexPage() {
                 <div className="gxp-loading">Loading day…</div>
               ) : (
                 <>
-                  {/* Price ladder card */}
-                  <div className="gxp-card">
-                    <div className="gxp-card-head">
-                      <Layers size={14} style={{ color: '#F59E0B' }} />
-                      <span className="gxp-card-title">
-                        {formatDateLong(day.date)}
-                      </span>
-                      <span className="gxp-card-sub">
-                        {day.levelCount} {day.levelCount === 1 ? 'level' : 'levels'}
-                      </span>
-                    </div>
-                    <div className="gxp-card-body">
-                      <GexLevelChart levels={day.levels} />
-                    </div>
-                  </div>
-
-                  {/* Converted string card */}
+                  {/* ───────── 1. Converted string (TOP) ───────── */}
                   <div className="gxp-card">
                     <div className="gxp-card-head">
                       <span className="gxp-card-title">TradingView String</span>
@@ -643,6 +530,40 @@ export default function GexPage() {
                         </div>
                         <pre className="gxp-output-body">{day.converted}</pre>
                       </div>
+                    </div>
+                  </div>
+
+                  {/* ───────── 2. Price ladder (BELOW) ───────── */}
+                  <div className="gxp-card">
+                    <div className="gxp-card-head">
+                      <Layers size={14} style={{ color: '#F59E0B' }} />
+                      <span className="gxp-card-title">
+                        {formatDateLong(day.date)}
+                      </span>
+                      <span className="gxp-card-sub">
+                        <span>{day.levelCount} {day.levelCount === 1 ? 'level' : 'levels'}</span>
+                        {day.blCount > 0 && (
+                          <>
+                            <span className="gxp-card-sub-sep">·</span>
+                            <span style={{ color: '#F59E0B' }}>{day.blCount} BL</span>
+                          </>
+                        )}
+                        {day.gexCount > 0 && (
+                          <>
+                            <span className="gxp-card-sub-sep">·</span>
+                            <span style={{ color: '#378ADD' }}>{day.gexCount} GEX</span>
+                          </>
+                        )}
+                        {day.otherCount > 0 && (
+                          <>
+                            <span className="gxp-card-sub-sep">·</span>
+                            <span>{day.otherCount} other</span>
+                          </>
+                        )}
+                      </span>
+                    </div>
+                    <div className="gxp-card-body is-chart">
+                      <GexLevelChart levels={day.levels} />
                     </div>
                   </div>
                 </>
