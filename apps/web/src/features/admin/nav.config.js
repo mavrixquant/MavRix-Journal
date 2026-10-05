@@ -1,7 +1,7 @@
 // apps/web/src/features/admin/nav.config.js
 import {
   LayoutDashboard, Users, Wallet, TrendingUp,
-  Calendar, Radio, MessageSquare,
+  Calendar, Radio, MessageSquare, Layers,
   ScrollText, Settings, Activity,
 } from 'lucide-react';
 
@@ -23,9 +23,10 @@ export const ADMIN_NAV = [
   {
     section: 'Operations',
     items: [
-      { to: '/admin/calendar',  label: 'Calendar',  icon: Calendar },
-      { to: '/admin/sessions',  label: 'Sessions',  icon: Radio },
-      { to: '/admin/broadcast', label: 'Broadcast', icon: MessageSquare },
+      { to: '/admin/calendar',  label: 'Calendar',   icon: Calendar },
+      { to: '/admin/gex',       label: 'GEX Levels', icon: Layers },
+      { to: '/admin/sessions',  label: 'Sessions',   icon: Radio },
+      { to: '/admin/broadcast', label: 'Broadcast',  icon: MessageSquare },
     ],
   },
   {

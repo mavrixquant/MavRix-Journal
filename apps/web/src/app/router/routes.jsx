@@ -52,6 +52,7 @@ const AdminSystemPage     = lazy(() => import('@/features/admin/pages/AdminSyste
 const AdminCalendarPage   = lazy(() => import('@/features/admin/pages/AdminCalendarPage'));
 const AdminSettingsPage   = lazy(() => import('@/features/admin/pages/AdminSettingsPage'));
 const AdminBroadcastPage  = lazy(() => import('@/features/admin/pages/AdminBroadcastPage'));
+const AdminGexPage        = lazy(() => import('@/features/admin/pages/AdminGexPage'));
 
 function RootRedirect() {
   const { user } = useAuth();
@@ -93,6 +94,7 @@ export function AppRoutes() {
         <Route path="sessions"  element={<AdminSessionsPage />} />
         <Route path="system"    element={<AdminSystemPage />} />
         <Route path="calendar"  element={<AdminCalendarPage />} />
+        <Route path="gex"       element={<AdminGexPage />} />
         <Route path="settings"  element={<AdminSettingsPage />} />
         <Route path="broadcast" element={<AdminBroadcastPage />} />
       </Route>
