@@ -13,6 +13,9 @@ import { requireAuth } from '../middleware/auth.js';
 import { requireAdmin, requireSuperadmin } from '../middleware/admin.js';
 import { rateLimit } from '../lib/rateLimit.js';
 import * as ctrl from '../controllers/admin.controller.js';
+import * as accCtrl from '../controllers/adminAccounts.controller.js';
+import * as tradeCtrl from '../controllers/adminTrades.controller.js';
+import * as opsCtrl from '../controllers/adminOps.controller.js';
 
 export const adminRoutes = Router();
 
@@ -41,7 +44,31 @@ const banSchema = z.object({
 
 const settingsSchema = z.record(z.any());
 
-/* ---------------- Rate limiters for sensitive actions ---------------- */
+const accountUpdateSchema = z.object({
+  name: z.string().trim().min(1).max(120).optional(),
+  balance: z.number().finite().nonnegative().optional(),
+  currency: z.enum(['USD', 'EUR', 'INR', 'GBP']).optional(),
+  type: z.enum(['Backtest', 'Live', 'Demo']).optional(),
+  riskType: z.enum(['fixed', 'variable']).optional(),
+  riskValue: z.number().finite().nonnegative().nullable().optional(),
+  riskUnit: z.enum(['percent', 'amount']).nullable().optional(),
+  slValue: z.number().finite().nonnegative().nullable().optional(),
+  slUnit: z.enum(['ticks', 'points']).nullable().optional(),
+  commissionMode: z.enum(['none', 'flat', 'per_contract']).optional(),
+  commissionValue: z.number().finite().nonnegative().nullable().optional(),
+});
+
+const reassignSchema = z.object({
+  newUserId: z.string().min(1),
+});
+
+const broadcastSchema = z.object({
+  message: z.string().trim().min(1).max(2000),
+  level: z.enum(['info', 'warning', 'critical']).optional().default('info'),
+  sendEmail: z.boolean().optional().default(false),
+});
+
+/* ---------------- Rate limiters ---------------- */
 const sensitive = rateLimit({
   windowMs: 60_000,
   max: 20,
@@ -52,6 +79,12 @@ const broadcastLimiter = rateLimit({
   windowMs: 60_000,
   max: 5,
   message: 'Broadcast rate limit reached.',
+});
+
+const writeLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 60,
+  message: 'Too many write operations. Slow down.',
 });
 
 /* ---------------- Me / Stats / Health ---------------- */
@@ -72,17 +105,37 @@ adminRoutes.post('/users/:id/ban', sensitive, validate(banSchema), ctrl.ban);
 adminRoutes.post('/users/:id/unban', ctrl.unban);
 adminRoutes.post('/users/:id/force-logout', ctrl.forceLogout);
 
-// Hard delete is superadmin-only.
 adminRoutes.delete('/users/:id', requireSuperadmin, sensitive, ctrl.removeUser);
 
 /* ---------------- Sessions ---------------- */
 adminRoutes.get('/sessions', ctrl.sessions);
 adminRoutes.get('/sessions/:id', ctrl.userSessions);
+adminRoutes.post('/sessions/:id/disconnect', sensitive, opsCtrl.kickSession);
 
 /* ---------------- Settings ---------------- */
 adminRoutes.get('/settings', ctrl.getSettingsCtrl);
 adminRoutes.put('/settings', requireSuperadmin, validate(settingsSchema), ctrl.updateSettingsCtrl);
 
-/* ---------------- Placeholder mounts for Phase 3 ----------------
-   Accounts, trades, audit, broadcast, calendar endpoints will be added
-   in Phase 3. Route file already imports the shape they'll need. */
+/* ---------------- Accounts ---------------- */
+adminRoutes.get('/accounts', accCtrl.list);
+adminRoutes.get('/accounts/:id', accCtrl.get);
+adminRoutes.patch('/accounts/:id', writeLimiter, validate(accountUpdateSchema), accCtrl.update);
+adminRoutes.post('/accounts/:id/reassign', requireSuperadmin, sensitive, validate(reassignSchema), accCtrl.reassign);
+adminRoutes.delete('/accounts/:id', requireSuperadmin, sensitive, accCtrl.remove);
+
+/* ---------------- Trades ---------------- */
+adminRoutes.get('/trades', tradeCtrl.list);
+// Order matters: by-account before /:id
+adminRoutes.delete('/trades/by-account/:accountId', writeLimiter, tradeCtrl.removeByAccount);
+adminRoutes.delete('/trades/:id', writeLimiter, tradeCtrl.remove);
+
+/* ---------------- Audit ---------------- */
+adminRoutes.get('/audit', opsCtrl.audit);
+
+/* ---------------- Broadcast ---------------- */
+adminRoutes.post('/broadcast', broadcastLimiter, validate(broadcastSchema), opsCtrl.broadcast);
+
+/* ---------------- Calendar ---------------- */
+adminRoutes.post('/calendar/sync', sensitive, opsCtrl.calendarSync);
+adminRoutes.delete('/calendar/cache', requireSuperadmin, sensitive, opsCtrl.calendarWipe);
+adminRoutes.get('/calendar/logs', opsCtrl.calendarLogs);
