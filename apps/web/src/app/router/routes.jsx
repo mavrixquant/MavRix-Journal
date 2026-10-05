@@ -1,7 +1,4 @@
 // apps/web/src/app/router/routes.jsx
-//
-// The full route tree. Uses React.lazy for every page so each route is
-// code-split. Guards wrap the protected subtrees.
 
 import { lazy } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
@@ -45,10 +42,11 @@ const ChatsPage = lazy(() => import('@/features/personal/chats/ChatsPage'));
 /* ---- Admin ---- */
 const AdminLayout = lazy(() => import('@/features/admin/layout/AdminLayout'));
 const AdminDashboardPage = lazy(() => import('@/features/admin/pages/AdminDashboardPage'));
+const AdminUsersPage = lazy(() => import('@/features/admin/pages/AdminUsersPage'));
+const AdminUserDetailPage = lazy(() => import('@/features/admin/pages/AdminUserDetailPage'));
+const AdminAccountsPage = lazy(() => import('@/features/admin/pages/AdminAccountsPage'));
+const AdminTradesPage = lazy(() => import('@/features/admin/pages/AdminTradesPage'));
 
-/**
- * RootRedirect — sends visitors to the right place based on auth state.
- */
 function RootRedirect() {
   const { user } = useAuth();
   if (!user) return <Navigate to="/login" replace />;
@@ -62,16 +60,13 @@ function RootRedirect() {
 export function AppRoutes() {
   return (
     <Routes>
-      {/* Root → redirect based on auth state */}
       <Route path="/" element={<RootRedirect />} />
 
-      {/* Auth routes */}
       <Route path="/login" element={<RequireGuest><Login /></RequireGuest>} />
       <Route path="/signup" element={<RequireGuest><Signup /></RequireGuest>} />
       <Route path="/forgot-password" element={<RequireGuest><ForgotPassword /></RequireGuest>} />
       <Route path="/reset-password" element={<RequireGuest><ResetPassword /></RequireGuest>} />
 
-      {/* Verify email — requires login, but NOT verification */}
       <Route path="/verify-email" element={<RequireAuth><VerifyEmail /></RequireAuth>} />
 
       {/* ---------------- Admin subtree ---------------- */}
@@ -83,39 +78,32 @@ export function AppRoutes() {
           </RequireAdmin>
         }
       >
-        <Route index element={<AdminDashboardPage />} />
+        <Route index            element={<AdminDashboardPage />} />
+        <Route path="users"     element={<AdminUsersPage />} />
+        <Route path="users/:id" element={<AdminUserDetailPage />} />
+        <Route path="accounts"  element={<AdminAccountsPage />} />
+        <Route path="trades"    element={<AdminTradesPage />} />
       </Route>
 
       {/* ---------------- User app shell ---------------- */}
-      <Route
-        element={
-          <RequireVerified>
-            <AppLayout />
-          </RequireVerified>
-        }
-      >
-        {/* Journal */}
+      <Route element={<RequireVerified><AppLayout /></RequireVerified>}>
         <Route path="/journal" element={<DashboardPage />} />
         <Route path="/journal/analyse" element={<AnalysePage />} />
         <Route path="/journal/logs" element={<TradeLogsPage />} />
         <Route path="/journal/calendar" element={<EconomicCalendarPage />} />
 
-        {/* Backtester */}
         <Route path="/backtester" element={<BacktesterDashboardPage />} />
         <Route path="/backtester/logs" element={<TestLogsPage />} />
         <Route path="/backtester/simulator" element={<SimulatorPage />} />
         <Route path="/backtester/chart" element={<MarketChartPage />} />
 
-        {/* Manage */}
         <Route path="/manage/accounts" element={<AccountsPage />} />
         <Route path="/manage/strategies" element={<StrategiesPage />} />
 
-        {/* Personal */}
         <Route path="/personal/discussion" element={<DiscussionPage />} />
         <Route path="/personal/chats" element={<ChatsPage />} />
       </Route>
 
-      {/* Catch-all */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

@@ -1,7 +1,7 @@
 // apps/web/src/features/admin/nav.config.js
 //
 // Sidebar tree for the admin shell. Items marked `soon: true` are
-// placeholders that route to a "coming soon" page — they exist so the
+// placeholders that route to a "coming soon" state — they exist so the
 // navigation reflects the full planned surface, even before each page
 // is implemented.
 
@@ -29,8 +29,8 @@ export const ADMIN_NAV = [
     section: 'Manage',
     items: [
       { to: '/admin/users',    label: 'Users',    icon: Users },
-      { to: '/admin/accounts', label: 'Accounts', icon: Wallet,     soon: true },
-      { to: '/admin/trades',   label: 'Trades',   icon: TrendingUp, soon: true },
+      { to: '/admin/accounts', label: 'Accounts', icon: Wallet },
+      { to: '/admin/trades',   label: 'Trades',   icon: TrendingUp },
     ],
   },
   {

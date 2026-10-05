@@ -11,7 +11,7 @@ import {
 import { apiJson } from '@/shared/api/client';
 
 /* ------------------------------------------------------------------ */
-/*  Query keys — shared across pages                                  */
+/*  Query keys                                                        */
 /* ------------------------------------------------------------------ */
 export const adminKeys = {
   me:       ['admin', 'me'],
@@ -19,6 +19,9 @@ export const adminKeys = {
   health:   ['admin', 'health'],
   users:    (filters) => ['admin', 'users', filters],
   user:     (id) => ['admin', 'user', id],
+  accounts: (filters) => ['admin', 'accounts', filters],
+  account:  (id) => ['admin', 'account', id],
+  trades:   (filters) => ['admin', 'trades', filters],
   audit:    (filters) => ['admin', 'audit', filters],
   sessions: ['admin', 'sessions'],
   settings: ['admin', 'settings'],
@@ -49,7 +52,7 @@ export function useAdminHealth() {
   return useQuery({
     queryKey: adminKeys.health,
     queryFn: () => apiJson('/api/admin/health'),
-    refetchInterval: 30_000,     // live health pill
+    refetchInterval: 30_000,
   });
 }
 
@@ -57,19 +60,22 @@ export function useAdminHealth() {
 /*  Users                                                             */
 /* ------------------------------------------------------------------ */
 
-export function useAdminUsers(filters = {}) {
+function buildQS(filters) {
   const params = new URLSearchParams();
-  if (filters.q)              params.set('q', filters.q);
-  if (filters.role)           params.set('role', filters.role);
-  if (filters.banned != null) params.set('banned', String(filters.banned));
-  if (filters.page)           params.set('page', String(filters.page));
-  if (filters.limit)          params.set('limit', String(filters.limit));
-  const qs = params.toString();
+  for (const [k, v] of Object.entries(filters || {})) {
+    if (v === undefined || v === null || v === '') continue;
+    params.set(k, String(v));
+  }
+  const s = params.toString();
+  return s ? `?${s}` : '';
+}
 
+export function useAdminUsers(filters = {}) {
   return useQuery({
     queryKey: adminKeys.users(filters),
-    queryFn: () => apiJson(`/api/admin/users${qs ? `?${qs}` : ''}`),
+    queryFn: () => apiJson(`/api/admin/users${buildQS(filters)}`),
     staleTime: 15_000,
+    placeholderData: (prev) => prev,   // keep old page visible while new loads
   });
 }
 
@@ -80,10 +86,6 @@ export function useAdminUser(userId) {
     enabled: !!userId,
   });
 }
-
-/* ------------------------------------------------------------------ */
-/*  Mutations — invalidate everything that touches the affected user  */
-/* ------------------------------------------------------------------ */
 
 function useInvalidateAdminUser() {
   const qc = useQueryClient();
@@ -138,7 +140,7 @@ export function useAdminBanUser() {
     mutationFn: ({ userId, reason }) =>
       apiJson(`/api/admin/users/${userId}/ban`, {
         method: 'POST',
-        body: JSON.stringify({ reason }),
+        body: JSON.stringify({ reason: reason || null }),
       }),
     onSuccess: (_r, vars) => invalidate(vars.userId),
   });
@@ -154,11 +156,9 @@ export function useAdminUnbanUser() {
 }
 
 export function useAdminForceLogout() {
-  const invalidate = useInvalidateAdminUser();
   return useMutation({
     mutationFn: (userId) =>
       apiJson(`/api/admin/users/${userId}/force-logout`, { method: 'POST' }),
-    onSuccess: (_r, userId) => invalidate(userId),
   });
 }
 
@@ -170,6 +170,110 @@ export function useAdminDeleteUser() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin', 'users'] });
       qc.invalidateQueries({ queryKey: adminKeys.stats });
+      qc.invalidateQueries({ queryKey: ['admin', 'audit'] });
+    },
+  });
+}
+
+/* ------------------------------------------------------------------ */
+/*  Accounts                                                          */
+/* ------------------------------------------------------------------ */
+
+export function useAdminAccounts(filters = {}) {
+  return useQuery({
+    queryKey: adminKeys.accounts(filters),
+    queryFn: () => apiJson(`/api/admin/accounts${buildQS(filters)}`),
+    staleTime: 15_000,
+    placeholderData: (prev) => prev,
+  });
+}
+
+export function useAdminAccount(accountId) {
+  return useQuery({
+    queryKey: adminKeys.account(accountId),
+    queryFn: () => apiJson(`/api/admin/accounts/${accountId}`),
+    enabled: !!accountId,
+  });
+}
+
+export function useAdminUpdateAccount() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ accountId, patch }) =>
+      apiJson(`/api/admin/accounts/${accountId}`, {
+        method: 'PATCH',
+        body: JSON.stringify(patch),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'accounts'] });
+      qc.invalidateQueries({ queryKey: ['admin', 'audit'] });
+    },
+  });
+}
+
+export function useAdminReassignAccount() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ accountId, newUserId }) =>
+      apiJson(`/api/admin/accounts/${accountId}/reassign`, {
+        method: 'POST',
+        body: JSON.stringify({ newUserId }),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'accounts'] });
+      qc.invalidateQueries({ queryKey: ['admin', 'audit'] });
+    },
+  });
+}
+
+export function useAdminDeleteAccount() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (accountId) =>
+      apiJson(`/api/admin/accounts/${accountId}`, { method: 'DELETE' }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'accounts'] });
+      qc.invalidateQueries({ queryKey: adminKeys.stats });
+      qc.invalidateQueries({ queryKey: ['admin', 'audit'] });
+    },
+  });
+}
+
+/* ------------------------------------------------------------------ */
+/*  Trades                                                            */
+/* ------------------------------------------------------------------ */
+
+export function useAdminTrades(filters = {}) {
+  return useQuery({
+    queryKey: adminKeys.trades(filters),
+    queryFn: () => apiJson(`/api/admin/trades${buildQS(filters)}`),
+    staleTime: 15_000,
+    placeholderData: (prev) => prev,
+  });
+}
+
+export function useAdminDeleteTrade() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (tradeId) =>
+      apiJson(`/api/admin/trades/${tradeId}`, { method: 'DELETE' }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'trades'] });
+      qc.invalidateQueries({ queryKey: adminKeys.stats });
+      qc.invalidateQueries({ queryKey: ['admin', 'audit'] });
+    },
+  });
+}
+
+export function useAdminDeleteTradesByAccount() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (accountId) =>
+      apiJson(`/api/admin/trades/by-account/${accountId}`, { method: 'DELETE' }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'trades'] });
+      qc.invalidateQueries({ queryKey: adminKeys.stats });
+      qc.invalidateQueries({ queryKey: ['admin', 'audit'] });
     },
   });
 }
@@ -179,18 +283,11 @@ export function useAdminDeleteUser() {
 /* ------------------------------------------------------------------ */
 
 export function useAdminAuditLog(filters = {}) {
-  const params = new URLSearchParams();
-  if (filters.actionPrefix) params.set('actionPrefix', filters.actionPrefix);
-  if (filters.targetType)   params.set('targetType', filters.targetType);
-  if (filters.q)            params.set('q', filters.q);
-  if (filters.page)         params.set('page', String(filters.page));
-  if (filters.limit)        params.set('limit', String(filters.limit));
-  const qs = params.toString();
-
   return useQuery({
     queryKey: adminKeys.audit(filters),
-    queryFn: () => apiJson(`/api/admin/audit${qs ? `?${qs}` : ''}`),
+    queryFn: () => apiJson(`/api/admin/audit${buildQS(filters)}`),
     staleTime: 10_000,
+    placeholderData: (prev) => prev,
   });
 }
 
