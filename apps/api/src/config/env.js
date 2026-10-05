@@ -22,6 +22,19 @@ export const env = {
   isProd: (process.env.NODE_ENV || 'development') === 'production',
 
   // ---------------------------------------------------------------------------
+  // Admin panel — first-superadmin bootstrap.
+  //
+  // If no user with role='superadmin' exists at boot, the API will create
+  // (or promote) the user named by these two env vars. Once a superadmin
+  // exists, these values are ignored — remove them from .env after first
+  // successful boot to reduce blast radius.
+  // ---------------------------------------------------------------------------
+  admin: {
+    bootstrapEmail: process.env.ADMIN_BOOTSTRAP_EMAIL || '',
+    bootstrapPassword: process.env.ADMIN_BOOTSTRAP_PASSWORD || '',
+  },
+
+  // ---------------------------------------------------------------------------
   // Economic Calendar (Biquote — https://biquote.io)
   //
   // Biquote requires no API key. These controls govern the background sync loop

@@ -1,4 +1,3 @@
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -24,9 +23,35 @@ model User {
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
+  // -------------------------------------------------------------------------
+  // Admin panel — role, ban state, session invalidation
+  // -------------------------------------------------------------------------
+  // role: "user" | "admin" | "superadmin"
+  //   user       — default; normal app access
+  //   admin      — read + most mutations across all users
+  //   superadmin — everything, incl. role changes, hard deletes, settings
+  role String @default("user")
+
+  // Ban state. isBanned is the fast boolean the login / refresh path reads.
+  // bannedReason/At/By exist for the audit story — who did it and why.
+  isBanned     Boolean   @default(false)
+  bannedAt     DateTime?
+  bannedReason String?
+  bannedBy     String?
+
+  // Set on every successful login. Admin dashboard "Last seen" column.
+  lastLoginAt DateTime?
+
+  // Bumping this invalidates every issued access + refresh token for this
+  // user. Used by "force logout" and by password-reset. requireAuth compares
+  // the JWT's `sv` claim against this value.
+  tokenVersion Int @default(0)
+
   accounts Account[]
   layouts  UserLayout[]
 
+  @@index([role])
+  @@index([isBanned])
   @@map("users")
 }
 
@@ -76,19 +101,19 @@ model Account {
 // it in ticks (account.slUnit === 'ticks'), but the API always stores points.
 // ---------------------------------------------------------------------------
 model Trade {
-  id         String   @id @default(cuid())
-  accountId  String
-  tradeId    String
-  date       String
-  entryTime  String
-  exitTime   String
-  direction  String
-  symbol     String   @default("")
+  id        String @id @default(cuid())
+  accountId String
+  tradeId   String
+  date      String
+  entryTime String
+  exitTime  String
+  direction String
+  symbol    String @default("")
 
   // --- Backtester-only (nullable on Live/Demo trades) ---
-  mae        Float?
-  mfe        Float?
-  slPoints   Float?
+  mae      Float?
+  mfe      Float?
+  slPoints Float?
 
   // --- Journal-only (nullable on Backtest trades) ---
   entryPrice Float?
@@ -96,12 +121,12 @@ model Trade {
   stopLoss   Float?
 
   // --- Common ---
-  pnl        Float    @default(0)
-  quantity   Float?
-  notes      String   @default("")
-  dynamic    Json     @default("{}")
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  pnl       Float    @default(0)
+  quantity  Float?
+  notes     String   @default("")
+  dynamic   Json     @default("{}")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
@@ -140,36 +165,83 @@ model UserLayout {
 //     how to render (e.g. 152000 + "thousands" → "152,000K").
 // ---------------------------------------------------------------------------
 model EconomicEvent {
-  id              String   @id @default(cuid())
-  externalId      String   @unique
+  id              String    @id @default(cuid())
+  externalId      String    @unique
   eventId         String?
-  date            String   // YYYY-MM-DD derived from timeUtc
-  timeUtc         String   // HH:mm derived from timeUtc
+  date            String // YYYY-MM-DD derived from timeUtc
+  timeUtc         String // HH:mm derived from timeUtc
   dateTimeUtc     DateTime // full UTC timestamp — primary sort/index key
   period          DateTime? // Biquote's `period` field
-  countryCode     String   // ISO alpha-2: US, EU, GB, JP, TR, ...
-  currency        String   // USD, EUR, GBP, JPY, TRY, ...
-  event           String   // event name: "Nonfarm Payrolls"
-  impact          String   // high | medium | low
-  eventType       String?  // indicator | holiday | speech | auction
-  sector          String?  // jobs | inflation | ...
-  unit            String?  // percent | currency | job | barrel | ...
-  multiplier      String?  // thousands | millions | null
+  countryCode     String // ISO alpha-2: US, EU, GB, JP, TR, ...
+  currency        String // USD, EUR, GBP, JPY, TRY, ...
+  event           String // event name: "Nonfarm Payrolls"
+  impact          String // high | medium | low
+  eventType       String? // indicator | holiday | speech | auction
+  sector          String? // jobs | inflation | ...
+  unit            String? // percent | currency | job | barrel | ...
+  multiplier      String? // thousands | millions | null
   digits          Int?
   actual          String?
   forecast        String?
   previous        String?
   revisedPrevious String?
   revision        Int?
-  timeMode        String?  // exact | date | notime | tentative
+  timeMode        String? // exact | date | notime | tentative
   sourceUrl       String?
-  source          String   // mql5 | (second feed)
-  fetchedAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  source          String // mql5 | (second feed)
+  fetchedAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   @@index([dateTimeUtc])
   @@index([currency, date])
   @@index([impact, date])
   @@index([eventId])
   @@map("economic_events")
+}
+
+// ---------------------------------------------------------------------------
+// AdminAuditLog — append-only record of every admin mutation.
+//
+// Design notes:
+//   - actorId is a SOFT reference (String, not FK) on purpose, so a
+//     hard-deleted admin does not erase their action history. actorEmail
+//     is denormalized for the same reason.
+//   - targetType + targetId are also soft — deleting a user must not
+//     cascade-delete the audit trail of what was done to them.
+//   - metadata is a freeform Json blob for action-specific context
+//     (ban reason, settings diff, impersonation target, etc.).
+//   - No updatedAt — rows are immutable.
+// ---------------------------------------------------------------------------
+model AdminAuditLog {
+  id         String   @id @default(cuid())
+  actorId    String // soft ref → users.id (no FK on purpose)
+  actorEmail String
+  action     String // "user.ban", "settings.update", "user.impersonate", ...
+  targetType String? // "user" | "account" | "trade" | "setting" | "system"
+  targetId   String?
+  metadata   Json     @default("{}")
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  @@index([actorId])
+  @@index([action])
+  @@index([targetType, targetId])
+  @@index([createdAt])
+  @@map("admin_audit_logs")
+}
+
+// ---------------------------------------------------------------------------
+// SiteSetting — runtime-editable key/value config.
+//
+// Values are Json so a setting can be a bool, number, string, or object.
+// Small set of rows (one per key), read frequently, cached in-process.
+// ---------------------------------------------------------------------------
+model SiteSetting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  @@map("site_settings")
 }

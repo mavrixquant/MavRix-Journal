@@ -10,6 +10,7 @@ import { apiRouter } from './routes/index.js';
 import { eventsRoutes } from './routes/events.routes.js';
 import { errorHandler, notFound } from './middleware/error.js';
 import { startCalendarSync, stopCalendarSync } from './lib/calendarSync.js';
+import { ensureSuperadmin } from './lib/adminBootstrap.js';
 
 const app = express();
 
@@ -48,13 +49,22 @@ app.use(notFound);
 app.use(errorHandler);
 
 // ---------------------------------------------------------------------------
-// Boot: start the HTTP server, then kick off the calendar sync loop.
+// Boot: start the HTTP server, ensure a superadmin exists, then kick off the
+// calendar sync loop.
+//
 // Sync runs in-process — no external cron, no queue.
 // ---------------------------------------------------------------------------
-const server = app.listen(env.port, () => {
+const server = app.listen(env.port, async () => {
   console.log(
     `[api] listening on http://localhost:${env.port} (${env.nodeEnv})`
   );
+
+  // Idempotent — no-op once any superadmin exists.
+  try {
+    await ensureSuperadmin();
+  } catch (err) {
+    console.error('[admin] bootstrap failed:', err);
+  }
 
   if (env.calendar.syncEnabled) {
     startCalendarSync();

@@ -1,3 +1,4 @@
+// apps/api/src/services/auth.service.js
 import { prisma } from '../lib/prisma.js';
 import { hashPassword, verifyPassword } from '../lib/password.js';
 import {
@@ -6,10 +7,14 @@ import {
   verifyRefreshToken,
 } from '../lib/jwt.js';
 import { HttpError } from '../middleware/error.js';
-import { generateSecureToken, VERIFY_TTL_MS, RESET_TTL_MS } from '../lib/tokens.js';
+import {
+  generateSecureToken,
+  VERIFY_TTL_MS,
+  RESET_TTL_MS,
+} from '../lib/tokens.js';
 import { sendVerificationEmail, sendPasswordResetEmail } from '../lib/mailer.js';
 import { verifyGoogleAccessToken } from '../lib/google.js';
-
+import { invalidateSvCache } from '../lib/session.js';
 
 const publicUser = (u) => ({
   id: u.id,
@@ -19,15 +24,37 @@ const publicUser = (u) => ({
   emailVerified: u.emailVerified,
   photoUrl: u.photoUrl,
   hasGoogle: !!u.googleId,
+  role: u.role || 'user',
+  isBanned: !!u.isBanned,
 });
 
+// Tokens carry three role-aware claims:
+//   sub  — user id (unchanged)
+//   role — 'user' | 'admin' | 'superadmin' (read by requireAdmin)
+//   sv   — snapshot of user.tokenVersion (checked by requireAuth against DB)
 const issueTokens = (user) => {
-  const payload = { sub: user.id, email: user.email };
+  const payload = {
+    sub: user.id,
+    email: user.email,
+    role: user.role || 'user',
+    sv: user.tokenVersion ?? 0,
+  };
   return {
     accessToken: signAccessToken(payload),
     refreshToken: signRefreshToken(payload),
   };
 };
+
+function assertNotBanned(user) {
+  if (user.isBanned) {
+    const reason = user.bannedReason ? `: ${user.bannedReason}` : '';
+    throw new HttpError(403, `Account suspended${reason}`);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Signup / login / refresh / me
+// ---------------------------------------------------------------------------
 
 export async function signup({ email, password, firstName, lastName }) {
   const existing = await prisma.user.findUnique({ where: { email } });
@@ -38,7 +65,14 @@ export async function signup({ email, password, firstName, lastName }) {
   const verifyTokenExpiry = new Date(Date.now() + VERIFY_TTL_MS);
 
   const user = await prisma.user.create({
-    data: { email, passwordHash, firstName, lastName, verifyToken, verifyTokenExpiry },
+    data: {
+      email,
+      passwordHash,
+      firstName,
+      lastName,
+      verifyToken,
+      verifyTokenExpiry,
+    },
   });
 
   await sendVerificationEmail({ to: user.email, token: verifyToken });
@@ -48,12 +82,21 @@ export async function signup({ email, password, firstName, lastName }) {
 
 export async function login({ email, password }) {
   const user = await prisma.user.findUnique({ where: { email } });
-  if (!user || !user.passwordHash) throw new HttpError(401, 'Invalid email or password');
+  if (!user || !user.passwordHash) {
+    throw new HttpError(401, 'Invalid email or password');
+  }
+
+  assertNotBanned(user);
 
   const ok = await verifyPassword(password, user.passwordHash);
   if (!ok) throw new HttpError(401, 'Invalid email or password');
 
-  return { user: publicUser(user), ...issueTokens(user) };
+  const updated = await prisma.user.update({
+    where: { id: user.id },
+    data: { lastLoginAt: new Date() },
+  });
+
+  return { user: publicUser(updated), ...issueTokens(updated) };
 }
 
 export async function getMe(userId) {
@@ -107,6 +150,15 @@ export async function refresh(refreshToken) {
   const user = await prisma.user.findUnique({ where: { id: payload.sub } });
   if (!user) throw new HttpError(401, 'User no longer exists');
 
+  assertNotBanned(user);
+
+  // The refresh token's `sv` is a snapshot. If the DB value has moved on
+  // (force-logout, password reset, admin demotion), the token is dead.
+  const tokenSv = Number.isFinite(payload.sv) ? payload.sv : 0;
+  if (tokenSv !== user.tokenVersion) {
+    throw new HttpError(401, 'Session revoked');
+  }
+
   return { user: publicUser(user), ...issueTokens(user) };
 }
 
@@ -118,15 +170,22 @@ export async function loginWithGoogle(accessToken) {
   const g = await verifyGoogleAccessToken(accessToken);
 
   // Case 1: existing user with this googleId
-  const byGoogle = await prisma.user.findUnique({ where: { googleId: g.googleId } });
+  const byGoogle = await prisma.user.findUnique({
+    where: { googleId: g.googleId },
+  });
   if (byGoogle) {
-    return { user: publicUser(byGoogle), ...issueTokens(byGoogle) };
+    assertNotBanned(byGoogle);
+    const updated = await prisma.user.update({
+      where: { id: byGoogle.id },
+      data: { lastLoginAt: new Date() },
+    });
+    return { user: publicUser(updated), ...issueTokens(updated) };
   }
 
   // Case 2: existing user with this email (created via password signup)
   const byEmail = await prisma.user.findUnique({ where: { email: g.email } });
   if (byEmail) {
-    // Auto-link only if their email was already verified.
+    assertNotBanned(byEmail);
     if (!byEmail.emailVerified) {
       throw new HttpError(
         409,
@@ -138,6 +197,7 @@ export async function loginWithGoogle(accessToken) {
       data: {
         googleId: g.googleId,
         photoUrl: byEmail.photoUrl || g.photoUrl,
+        lastLoginAt: new Date(),
       },
     });
     return { user: publicUser(linked), ...issueTokens(linked) };
@@ -153,6 +213,7 @@ export async function loginWithGoogle(accessToken) {
       photoUrl: g.photoUrl,
       emailVerified: true,
       passwordHash: null,
+      lastLoginAt: new Date(),
     },
   });
   return { user: publicUser(created), ...issueTokens(created) };
@@ -168,7 +229,9 @@ export async function linkGoogleAccount(userId, accessToken) {
     return publicUser(me); // idempotent
   }
 
-  const clash = await prisma.user.findUnique({ where: { googleId: g.googleId } });
+  const clash = await prisma.user.findUnique({
+    where: { googleId: g.googleId },
+  });
   if (clash && clash.id !== userId) {
     throw new HttpError(409, 'This Google account is already linked to another user');
   }
@@ -210,11 +273,9 @@ export async function unlinkGoogleAccount(userId) {
 export async function requestPasswordReset(email) {
   const user = await prisma.user.findUnique({ where: { email } });
 
-  // Always return success, even if the email doesn't exist,
+  // Always return success even if the email doesn't exist,
   // to prevent account enumeration.
-  if (!user) {
-    return { ok: true };
-  }
+  if (!user) return { ok: true };
 
   const resetToken = generateSecureToken();
   const resetTokenExpiry = new Date(Date.now() + RESET_TTL_MS);
@@ -225,7 +286,6 @@ export async function requestPasswordReset(email) {
   });
 
   await sendPasswordResetEmail({ to: user.email, token: resetToken });
-
   return { ok: true };
 }
 
@@ -251,8 +311,12 @@ export async function resetPassword(token, newPassword) {
       passwordHash,
       resetToken: null,
       resetTokenExpiry: null,
+      // Password change kills every existing session.
+      tokenVersion: { increment: 1 },
     },
   });
+
+  invalidateSvCache(user.id);
 
   return { ok: true };
 }
