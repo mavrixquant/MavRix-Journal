@@ -1,0 +1,426 @@
+/* apps/web/src/features/admin/layout/AdminLayout.css
+   Admin shell chrome — dark, amber-accented, distinct from the main app
+   but visually harmonious with it. */
+
+.admin-shell {
+  --ax-bg-0: #07090D;
+  --ax-bg-1: #0A0D14;
+  --ax-panel: #0F121A;
+  --ax-panel-2: #131824;
+  --ax-line: rgba(255,255,255,.08);
+  --ax-line-soft: rgba(255,255,255,.045);
+  --ax-ink-1: #E7E9EE;
+  --ax-ink-2: #8892A3;
+  --ax-ink-3: #545E6E;
+  --ax-accent: #F59E0B;
+  --ax-accent-2: #FDE68A;
+  --ax-accent-soft: rgba(245,158,11,.10);
+  --ax-accent-ring: rgba(245,158,11,.28);
+  --ax-danger: #ef4444;
+  --ax-win: #35C4A1;
+  --ax-sidebar-w: 240px;
+  --ax-header-h: 56px;
+
+  display: grid;
+  grid-template-columns: var(--ax-sidebar-w) 1fr;
+  min-height: 100vh;
+  background:
+    radial-gradient(900px 520px at 15% -5%, rgba(245,158,11,.05), transparent 60%),
+    linear-gradient(180deg, var(--ax-bg-0), var(--ax-bg-1) 55%, var(--ax-bg-0));
+  color: var(--ax-ink-1);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---------- Sidebar ---------- */
+.admin-sidebar {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(180deg, #0F121A 0%, #0A0D13 100%);
+  border-right: 1px solid var(--ax-line);
+  overflow: hidden;
+}
+
+.admin-sidebar-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: var(--ax-header-h);
+  padding: 0 18px;
+  border-bottom: 1px solid var(--ax-line-soft);
+  flex-shrink: 0;
+}
+.admin-sidebar-head-eyebrow {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: var(--ax-accent);
+}
+.admin-sidebar-head-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ax-ink-1);
+  letter-spacing: -.01em;
+}
+.admin-sidebar-head-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ax-accent);
+  box-shadow: 0 0 8px rgba(245,158,11,.7);
+  flex-shrink: 0;
+}
+
+.admin-sidebar-nav {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 14px 8px 20px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,.08) transparent;
+}
+.admin-sidebar-nav::-webkit-scrollbar { width: 6px; }
+.admin-sidebar-nav::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,.08);
+  border-radius: 99px;
+}
+
+.admin-nav-section {
+  margin-bottom: 14px;
+}
+.admin-nav-section-label {
+  padding: 6px 10px 4px;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--ax-ink-3);
+}
+
+.admin-nav-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 34px;
+  padding: 0 10px;
+  border-radius: 7px;
+  border: 1px solid transparent;
+  color: var(--ax-ink-2);
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: .01em;
+  text-decoration: none;
+  cursor: pointer;
+  outline: none;
+  transition: background-color .18s, color .18s, border-color .18s;
+}
+.admin-nav-item:hover {
+  color: var(--ax-ink-1);
+  background: rgba(255,255,255,.045);
+  border-color: rgba(255,255,255,.06);
+}
+.admin-nav-item.is-active {
+  color: var(--ax-accent);
+  background: linear-gradient(90deg, rgba(245,158,11,.16), rgba(245,158,11,.05) 75%, transparent);
+  border-color: var(--ax-accent-ring);
+  font-weight: 600;
+}
+.admin-nav-item.is-active::before {
+  content: '';
+  position: absolute;
+  left: -1px; top: 6px; bottom: 6px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: linear-gradient(180deg, var(--ax-accent), var(--ax-accent-2));
+  box-shadow: 0 0 12px rgba(245,158,11,.75);
+}
+.admin-nav-item.is-soon {
+  opacity: .55;
+}
+.admin-nav-item.is-soon::after {
+  content: 'SOON';
+  margin-left: auto;
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: .12em;
+  padding: 2px 6px;
+  border-radius: 99px;
+  background: rgba(255,255,255,.06);
+  color: var(--ax-ink-3);
+}
+.admin-nav-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  flex-shrink: 0;
+  color: inherit;
+}
+
+.admin-sidebar-foot {
+  border-top: 1px solid var(--ax-line-soft);
+  padding: 12px 12px 14px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.admin-sidebar-role {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 10.5px;
+  color: var(--ax-ink-3);
+}
+.admin-sidebar-role strong {
+  color: var(--ax-accent);
+  font-weight: 700;
+}
+
+.admin-exit-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,.1);
+  background: rgba(255,255,255,.025);
+  color: var(--ax-ink-2);
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 11.5px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all .18s;
+}
+.admin-exit-btn:hover {
+  color: var(--ax-ink-1);
+  border-color: rgba(255,255,255,.2);
+  background: rgba(255,255,255,.05);
+}
+
+/* ---------- Main column ---------- */
+.admin-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.admin-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  height: var(--ax-header-h);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0 24px;
+  background: linear-gradient(180deg, rgba(15,18,26,.92), rgba(10,13,20,.92));
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--ax-line);
+}
+
+.admin-header-crumbs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 11.5px;
+  color: var(--ax-ink-3);
+}
+.admin-header-crumbs-root {
+  color: var(--ax-ink-2);
+  font-weight: 600;
+  letter-spacing: .02em;
+}
+.admin-header-crumbs-sep {
+  color: var(--ax-ink-3);
+  opacity: .55;
+}
+.admin-header-crumbs-current {
+  color: var(--ax-ink-1);
+  font-weight: 700;
+}
+
+.admin-header-spacer { flex: 1; }
+
+.admin-health {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 99px;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  border: 1px solid;
+}
+.admin-health.is-ok {
+  color: var(--ax-win);
+  background: rgba(53,196,161,.08);
+  border-color: rgba(53,196,161,.30);
+}
+.admin-health.is-degraded {
+  color: var(--ax-danger);
+  background: rgba(239,68,68,.08);
+  border-color: rgba(239,68,68,.30);
+}
+.admin-health-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 8px currentColor;
+  animation: ax-pulse 2s ease-in-out infinite;
+}
+@keyframes ax-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: .4; }
+}
+
+.admin-header-user {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 12px 4px 4px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.03);
+  border: 1px solid var(--ax-line-soft);
+  font-size: 12px;
+  color: var(--ax-ink-2);
+}
+.admin-header-avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(245,158,11,.22), rgba(245,158,11,.06));
+  border: 1px solid var(--ax-accent-ring);
+  color: var(--ax-accent);
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-weight: 700;
+  font-size: 10.5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.admin-body {
+  flex: 1;
+  min-height: 0;
+  padding: 28px 28px 60px;
+  max-width: 1560px;
+  width: 100%;
+}
+
+/* ---------- Page primitives (shared by admin pages) ---------- */
+.admin-ph {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 4px 0 18px;
+  border-bottom: 1px solid var(--ax-line-soft);
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+.admin-ph-left {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.admin-ph-eyebrow {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: var(--ax-accent);
+  line-height: 1;
+}
+.admin-ph-title {
+  margin: 0;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -.02em;
+  color: var(--ax-ink-1);
+  line-height: 1.15;
+}
+.admin-ph-sub {
+  margin: 0;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 12px;
+  color: var(--ax-ink-2);
+  letter-spacing: .01em;
+  line-height: 1.5;
+}
+.admin-ph-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 1024px) {
+  .admin-shell { grid-template-columns: 1fr; }
+  .admin-sidebar {
+    position: fixed;
+    top: 0; left: 0;
+    width: var(--ax-sidebar-w);
+    transform: translateX(-100%);
+    transition: transform .3s cubic-bezier(.16,1,.3,1);
+    z-index: 50;
+  }
+  .admin-shell.is-mobile-open .admin-sidebar {
+    transform: translateX(0);
+  }
+  .admin-body { padding: 20px 16px 60px; }
+  .admin-header { padding: 0 14px; }
+}
+
+
+/* ---------- Mobile-only menu button ---------- */
+.admin-mobile-menu {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--ax-ink-2);
+  cursor: pointer;
+  outline: none;
+  flex-shrink: 0;
+  transition: color .16s, background-color .16s;
+}
+.admin-mobile-menu:hover {
+  color: var(--ax-ink-1);
+  background: rgba(255,255,255,.06);
+}
+.admin-mobile-menu:focus-visible {
+  border-color: var(--ax-accent);
+  box-shadow: 0 0 0 3px rgba(245,158,11,.18);
+}
+@media (max-width: 1024px) {
+  .admin-mobile-menu { display: inline-flex; }
+}

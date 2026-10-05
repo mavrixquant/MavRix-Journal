@@ -1,11 +1,13 @@
 // apps/web/src/app/layout/HeaderBar/HeaderBar.jsx
 import { useEffect, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Menu as MenuIcon,
   LogOut,
   Palette,
   Settings,
   FileText,
+  Shield,
 } from 'lucide-react';
 
 import { useAuth } from '@/app/providers/AuthProvider';
@@ -29,16 +31,8 @@ export default function HeaderBar({
   const { user } = useAuth();
   const { data: accountsData } = useAccounts();
 
-  // Stable reference even when accountsData is undefined — silences
-  // the pre-existing react-hooks/exhaustive-deps warning here.
   const accounts = useMemo(() => accountsData ?? [], [accountsData]);
 
-  // Route-aware account selection.
-  //   dashboardType     — 'journal' | 'backtester' | 'other'
-  //   allowedTypes      — ['Live','Demo'] | ['Backtest'] | null
-  //   showAccountSelect — false on /manage/*, /personal/*
-  //   accountId         — currently selected account for this dashboard
-  //   setAccountId      — dispatches to the correct per-dashboard slot
   const {
     allowedTypes,
     showAccountSelect,
@@ -46,26 +40,20 @@ export default function HeaderBar({
     setAccountId,
   } = useDashboardAccount();
 
-  /* ---- Bridge accounts into AppProvider ---- */
   useEffect(() => {
     if (accountsData) {
       dispatch({ type: 'SET_ACCOUNTS', payload: accountsData });
     }
   }, [accountsData, dispatch]);
 
-  /* ---- Accounts filtered by dashboard type ---- */
   const filteredAccounts = useMemo(() => {
     if (!allowedTypes) return accounts;
     return accounts.filter((a) => allowedTypes.includes(a.type || 'Backtest'));
   }, [accounts, allowedTypes]);
 
-  /* ---- Auto-select first valid account; clear the slot if none ---- */
   useEffect(() => {
     if (!showAccountSelect) return;
 
-    // No accounts of the required type → clear the mirror so the
-    // dashboard renders its empty state instead of leaking a
-    // wrong-type account into useStats / useFilters.
     if (filteredAccounts.length === 0) {
       if (accountId !== null) {
         setAccountId(null);
@@ -79,7 +67,6 @@ export default function HeaderBar({
     }
   }, [filteredAccounts, accountId, showAccountSelect, setAccountId]);
 
-  /* ---- Derived display name + initials ---- */
   const displayName = useMemo(() => {
     if (!user) return 'User';
     const fromParts = [user.firstName, user.lastName]
@@ -99,16 +86,16 @@ export default function HeaderBar({
     return m.slice(0, 2).join('').toUpperCase() || 'U';
   }, [displayName]);
 
-  /* Title hidden when the desktop sidebar is expanded */
   const titleHidden = collapsed === false;
 
   const handleAccountChange = (id) => {
     setAccountId(id);
   };
 
+  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
+
   return (
     <header className="hb-root">
-      {/* Mobile-only hamburger */}
       <button
         type="button"
         className="hb-mobile-menu"
@@ -118,12 +105,10 @@ export default function HeaderBar({
         <MenuIcon size={16} />
       </button>
 
-      {/* Brand title */}
       <h1 className={`hb-title${titleHidden ? ' is-hidden' : ''}`}>
         MavRix Journal
       </h1>
 
-      {/* Account selector — only rendered on /journal/* and /backtester/* */}
       {showAccountSelect && (
         <div className="hb-account-root">
           <AccountSelect
@@ -136,8 +121,19 @@ export default function HeaderBar({
 
       <div className="hb-spacer" />
 
-      {/* Right cluster */}
       <div className="hb-right">
+        {isAdmin && (
+          <HBTooltip label="Admin panel">
+            <Link
+              to="/admin"
+              className="hb-icon-btn is-accent"
+              aria-label="Admin panel"
+            >
+              <Shield size={16} />
+            </Link>
+          </HBTooltip>
+        )}
+
         <IconButton
           icon={<Palette size={16} />}
           label="Theme"

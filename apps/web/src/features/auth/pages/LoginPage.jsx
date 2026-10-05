@@ -1,4 +1,4 @@
-// apps/web/src/features/auth/components/LoginPage.jsx
+// apps/web/src/features/auth/pages/LoginPage.jsx
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
@@ -25,6 +25,14 @@ function GoogleIcon() {
   );
 }
 
+/** Where to send a user after a successful auth — role-aware. */
+function landingFor(user) {
+  if (!user) return '/login';
+  if (!user.emailVerified) return '/verify-email';
+  if (user.role === 'admin' || user.role === 'superadmin') return '/admin';
+  return '/journal';
+}
+
 export default function Login() {
   const navigate = useNavigate();
   const { login, googleLogin } = useAuth();
@@ -44,7 +52,7 @@ export default function Login() {
     setError('');
     try {
       const user = await login(data);
-      navigate(user.emailVerified ? '/journal' : '/verify-email');
+      navigate(landingFor(user), { replace: true });
     } catch (err) {
       setError(err.message || 'Sign in failed. Please try again.');
     }
@@ -56,7 +64,7 @@ export default function Login() {
     try {
       const accessToken = await google.signIn();
       const user = await googleLogin(accessToken);
-      navigate(user.emailVerified ? '/journal' : '/verify-email');
+      navigate(landingFor(user), { replace: true });
     } catch (err) {
       setError(err.message || 'Google sign-in failed');
     } finally {
@@ -93,13 +101,7 @@ export default function Login() {
           {...register('password')}
         />
 
-        <div
-          style={{
-            textAlign: 'right',
-            marginTop: -4,
-            marginBottom: 14,
-          }}
-        >
+        <div style={{ textAlign: 'right', marginTop: -4, marginBottom: 14 }}>
           <Link
             to="/forgot-password"
             style={{

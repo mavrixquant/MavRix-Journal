@@ -9,6 +9,7 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import AppLayout from '@/app/layout/AppLayout';
 import { RequireAuth, RequireVerified, RequireGuest } from './guards';
 import { useAuth } from '@/app/providers/AuthProvider';
+import { RequireAdmin } from '@/features/admin/guards';
 
 /* ---- Auth pages ---- */
 const Login = lazy(() => import('@/features/auth/pages/LoginPage'));
@@ -31,9 +32,7 @@ const BacktesterDashboardPage = lazy(() =>
 );
 const TestLogsPage = lazy(() => import('@/features/backtester/test-logs/TestLogsPage'));
 const SimulatorPage = lazy(() => import('@/features/backtester/simulator/SimulatorPage'));
-const MarketChartPage = lazy(() =>
-  import('@/features/charts/MarketChartPage')
-);
+const MarketChartPage = lazy(() => import('@/features/charts/MarketChartPage'));
 
 /* ---- Manage ---- */
 const AccountsPage = lazy(() => import('@/features/manage/accounts/AccountsPage'));
@@ -43,16 +42,21 @@ const StrategiesPage = lazy(() => import('@/features/manage/strategies/Strategie
 const DiscussionPage = lazy(() => import('@/features/personal/discussion/DiscussionPage'));
 const ChatsPage = lazy(() => import('@/features/personal/chats/ChatsPage'));
 
+/* ---- Admin ---- */
+const AdminLayout = lazy(() => import('@/features/admin/layout/AdminLayout'));
+const AdminDashboardPage = lazy(() => import('@/features/admin/pages/AdminDashboardPage'));
+
 /**
  * RootRedirect — sends visitors to the right place based on auth state.
- *   logged-in + verified   → /journal
- *   logged-in + unverified → /verify-email
- *   not logged in          → /login
  */
 function RootRedirect() {
   const { user } = useAuth();
   if (!user) return <Navigate to="/login" replace />;
-  return <Navigate to={user.emailVerified ? '/journal' : '/verify-email'} replace />;
+  if (!user.emailVerified) return <Navigate to="/verify-email" replace />;
+  if (user.role === 'admin' || user.role === 'superadmin') {
+    return <Navigate to="/admin" replace />;
+  }
+  return <Navigate to="/journal" replace />;
 }
 
 export function AppRoutes() {
@@ -61,51 +65,28 @@ export function AppRoutes() {
       {/* Root → redirect based on auth state */}
       <Route path="/" element={<RootRedirect />} />
 
-      {/* Auth routes — only reachable when logged out */}
-      <Route
-        path="/login"
-        element={
-          <RequireGuest>
-            <Login />
-          </RequireGuest>
-        }
-      />
-      <Route
-        path="/signup"
-        element={
-          <RequireGuest>
-            <Signup />
-          </RequireGuest>
-        }
-      />
-      <Route
-        path="/forgot-password"
-        element={
-          <RequireGuest>
-            <ForgotPassword />
-          </RequireGuest>
-        }
-      />
-      <Route
-        path="/reset-password"
-        element={
-          <RequireGuest>
-            <ResetPassword />
-          </RequireGuest>
-        }
-      />
+      {/* Auth routes */}
+      <Route path="/login" element={<RequireGuest><Login /></RequireGuest>} />
+      <Route path="/signup" element={<RequireGuest><Signup /></RequireGuest>} />
+      <Route path="/forgot-password" element={<RequireGuest><ForgotPassword /></RequireGuest>} />
+      <Route path="/reset-password" element={<RequireGuest><ResetPassword /></RequireGuest>} />
 
       {/* Verify email — requires login, but NOT verification */}
-      <Route
-        path="/verify-email"
-        element={
-          <RequireAuth>
-            <VerifyEmail />
-          </RequireAuth>
-        }
-      />
+      <Route path="/verify-email" element={<RequireAuth><VerifyEmail /></RequireAuth>} />
 
-      {/* Protected app shell — AppLayout renders <Outlet /> */}
+      {/* ---------------- Admin subtree ---------------- */}
+      <Route
+        path="/admin"
+        element={
+          <RequireAdmin>
+            <AdminLayout />
+          </RequireAdmin>
+        }
+      >
+        <Route index element={<AdminDashboardPage />} />
+      </Route>
+
+      {/* ---------------- User app shell ---------------- */}
       <Route
         element={
           <RequireVerified>
@@ -113,28 +94,28 @@ export function AppRoutes() {
           </RequireVerified>
         }
       >
-        {/* ---- Journal ---- */}
+        {/* Journal */}
         <Route path="/journal" element={<DashboardPage />} />
         <Route path="/journal/analyse" element={<AnalysePage />} />
         <Route path="/journal/logs" element={<TradeLogsPage />} />
         <Route path="/journal/calendar" element={<EconomicCalendarPage />} />
 
-        {/* ---- Backtester ---- */}
+        {/* Backtester */}
         <Route path="/backtester" element={<BacktesterDashboardPage />} />
         <Route path="/backtester/logs" element={<TestLogsPage />} />
         <Route path="/backtester/simulator" element={<SimulatorPage />} />
         <Route path="/backtester/chart" element={<MarketChartPage />} />
 
-        {/* ---- Manage ---- */}
+        {/* Manage */}
         <Route path="/manage/accounts" element={<AccountsPage />} />
         <Route path="/manage/strategies" element={<StrategiesPage />} />
 
-        {/* ---- Personal ---- */}
+        {/* Personal */}
         <Route path="/personal/discussion" element={<DiscussionPage />} />
         <Route path="/personal/chats" element={<ChatsPage />} />
       </Route>
 
-      {/* Catch-all → home, which reroutes */}
+      {/* Catch-all */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

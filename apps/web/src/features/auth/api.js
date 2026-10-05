@@ -2,8 +2,7 @@
 import { apiJson, setAccessToken } from '@/shared/api/client';
 
 // Normalize our API's user shape into a Firebase-compatible shape
-// so existing consumers (Sidebar, AccountModal, AppLayout, App.jsx)
-// don't need to change.
+// so existing consumers don't need to change.
 function normalizeUser(u) {
   if (!u) return null;
   const displayName =
@@ -24,6 +23,11 @@ function normalizeUser(u) {
     photoURL: u.photoUrl ?? null,
     providerData,
     hasGoogle: !!u.hasGoogle,
+    // ─── admin extension ─────────────────────────────────────────────
+    // Exposed so guards.jsx and HeaderBar can branch without a second
+    // /me call. Values: 'user' | 'admin' | 'superadmin'.
+    role: u.role || 'user',
+    isBanned: !!u.isBanned,
   };
 }
 
