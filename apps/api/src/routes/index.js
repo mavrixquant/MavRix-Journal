@@ -5,6 +5,7 @@ import { accountsRoutes } from './accounts.routes.js';
 import { tradesRoutes } from './trades.routes.js';
 import { usersRoutes } from './users.routes.js';
 import { calendarRoutes } from './calendar.routes.js';
+import { adminRoutes } from './admin.routes.js';
 
 export const apiRouter = Router();
 
@@ -15,3 +16,4 @@ apiRouter.use('/accounts', accountsRoutes);
 apiRouter.use('/trades', tradesRoutes);
 apiRouter.use('/users', usersRoutes);
 apiRouter.use('/calendar', calendarRoutes);
+apiRouter.use('/admin', adminRoutes);

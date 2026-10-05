@@ -69,6 +69,41 @@ export function broadcastToAll(event, payload) {
   return sent;
 }
 
+/**
+ * Force-close every SSE stream for a given user.
+ * Used by the admin "force logout" / "kick session" controls.
+ *
+ * Returns the number of sockets that were closed.
+ */
+export function disconnectUser(userId) {
+  const set = clients.get(userId);
+  if (!set) return 0;
+
+  let closed = 0;
+  for (const res of set) {
+    try {
+      // Notify the client before closing so the browser can react
+      // (e.g. show a "you were signed out" toast before reconnecting).
+      res.write(
+        `event: forced-logout\ndata: ${JSON.stringify({
+          reason: 'admin',
+          ts: Date.now(),
+        })}\n\n`
+      );
+    } catch {
+      // ignore
+    }
+    try {
+      res.end();
+      closed += 1;
+    } catch {
+      // ignore
+    }
+  }
+  clients.delete(userId);
+  return closed;
+}
+
 /** Diagnostics — number of open streams for a user. */
 export function getClientCount(userId) {
   return clients.get(userId)?.size ?? 0;
