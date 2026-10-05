@@ -9,6 +9,7 @@
 
 import { Router } from 'express';
 import { z } from 'zod';
+import { gexDaySchema } from '@mavrix/shared/validators';
 import { requireAuth } from '../middleware/auth.js';
 import { requireAdmin, requireSuperadmin } from '../middleware/admin.js';
 import { rateLimit } from '../lib/rateLimit.js';
@@ -16,6 +17,7 @@ import * as ctrl from '../controllers/admin.controller.js';
 import * as accCtrl from '../controllers/adminAccounts.controller.js';
 import * as tradeCtrl from '../controllers/adminTrades.controller.js';
 import * as opsCtrl from '../controllers/adminOps.controller.js';
+import * as gexCtrl from '../controllers/adminGex.controller.js';
 
 export const adminRoutes = Router();
 
@@ -139,3 +141,11 @@ adminRoutes.post('/broadcast', broadcastLimiter, validate(broadcastSchema), opsC
 adminRoutes.post('/calendar/sync', sensitive, opsCtrl.calendarSync);
 adminRoutes.delete('/calendar/cache', requireSuperadmin, sensitive, opsCtrl.calendarWipe);
 adminRoutes.get('/calendar/logs', opsCtrl.calendarLogs);
+
+/* ---------------- GEX Levels ---------------- */
+// GET    /api/admin/gex              — list every uploaded day
+// POST   /api/admin/gex              — upsert (409 unless ?overwrite=true)
+// DELETE /api/admin/gex/:date        — superadmin only
+adminRoutes.get('/gex', gexCtrl.list);
+adminRoutes.post('/gex', writeLimiter, validate(gexDaySchema), gexCtrl.upsert);
+adminRoutes.delete('/gex/:date', requireSuperadmin, sensitive, gexCtrl.remove);
