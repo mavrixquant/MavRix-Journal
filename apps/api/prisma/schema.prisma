@@ -23,28 +23,15 @@ model User {
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
-  // -------------------------------------------------------------------------
-  // Admin panel — role, ban state, session invalidation
-  // -------------------------------------------------------------------------
-  // role: "user" | "admin" | "superadmin"
-  //   user       — default; normal app access
-  //   admin      — read + most mutations across all users
-  //   superadmin — everything, incl. role changes, hard deletes, settings
   role String @default("user")
 
-  // Ban state. isBanned is the fast boolean the login / refresh path reads.
-  // bannedReason/At/By exist for the audit story — who did it and why.
   isBanned     Boolean   @default(false)
   bannedAt     DateTime?
   bannedReason String?
   bannedBy     String?
 
-  // Set on every successful login. Admin dashboard "Last seen" column.
   lastLoginAt DateTime?
 
-  // Bumping this invalidates every issued access + refresh token for this
-  // user. Used by "force logout" and by password-reset. requireAuth compares
-  // the JWT's `sv` claim against this value.
   tokenVersion Int @default(0)
 
   accounts Account[]
@@ -80,26 +67,6 @@ model Account {
   @@map("accounts")
 }
 
-// ---------------------------------------------------------------------------
-// Trade
-//
-// A single Trade model serves BOTH dashboards, but the two dashboards use
-// different, non-overlapping field sets:
-//
-//   Live / Demo (Journal trade logs):
-//     date, entryTime, exitTime, direction, symbol,
-//     entryPrice, takeProfit, stopLoss, pnl, quantity, notes
-//
-//   Backtest (Backtester test logs):
-//     date, entryTime, exitTime, direction, symbol,
-//     mae, mfe, slPoints, pnl, quantity, notes
-//
-// Fields that belong to the "other" dashboard's shape are stored as NULL.
-// This avoids a polymorphic model and keeps a single trade-list endpoint.
-//
-// slPoints is the resolved stop-loss distance in POINTS. The UI may capture
-// it in ticks (account.slUnit === 'ticks'), but the API always stores points.
-// ---------------------------------------------------------------------------
 model Trade {
   id        String @id @default(cuid())
   accountId String
@@ -110,17 +77,14 @@ model Trade {
   direction String
   symbol    String @default("")
 
-  // --- Backtester-only (nullable on Live/Demo trades) ---
   mae      Float?
   mfe      Float?
   slPoints Float?
 
-  // --- Journal-only (nullable on Backtest trades) ---
   entryPrice Float?
   takeProfit Float?
   stopLoss   Float?
 
-  // --- Common ---
   pnl       Float    @default(0)
   quantity  Float?
   notes     String   @default("")
@@ -151,44 +115,31 @@ model UserLayout {
   @@map("user_layouts")
 }
 
-// ---------------------------------------------------------------------------
-// Economic Calendar — cached from Biquote (https://biquote.io)
-//
-// Design notes:
-//   - externalId is Biquote's `id` field (e.g. "mql5:900001"). Unique.
-//   - eventId is Biquote's `eventId` (e.g. "mql5:840") — the recurring series
-//     identifier. Not unique; many rows share one eventId.
-//   - actual / forecast / previous / revisedPrevious are stored as String?
-//     because Biquote returns null when unpublished and numbers otherwise.
-//     String preserves both the null signal and the raw value for display.
-//   - multiplier is stored separately from unit so the frontend can decide
-//     how to render (e.g. 152000 + "thousands" → "152,000K").
-// ---------------------------------------------------------------------------
 model EconomicEvent {
   id              String    @id @default(cuid())
   externalId      String    @unique
   eventId         String?
-  date            String // YYYY-MM-DD derived from timeUtc
-  timeUtc         String // HH:mm derived from timeUtc
-  dateTimeUtc     DateTime // full UTC timestamp — primary sort/index key
-  period          DateTime? // Biquote's `period` field
-  countryCode     String // ISO alpha-2: US, EU, GB, JP, TR, ...
-  currency        String // USD, EUR, GBP, JPY, TRY, ...
-  event           String // event name: "Nonfarm Payrolls"
-  impact          String // high | medium | low
-  eventType       String? // indicator | holiday | speech | auction
-  sector          String? // jobs | inflation | ...
-  unit            String? // percent | currency | job | barrel | ...
-  multiplier      String? // thousands | millions | null
+  date            String
+  timeUtc         String
+  dateTimeUtc     DateTime
+  period          DateTime?
+  countryCode     String
+  currency        String
+  event           String
+  impact          String
+  eventType       String?
+  sector          String?
+  unit            String?
+  multiplier      String?
   digits          Int?
   actual          String?
   forecast        String?
   previous        String?
   revisedPrevious String?
   revision        Int?
-  timeMode        String? // exact | date | notime | tentative
+  timeMode        String?
   sourceUrl       String?
-  source          String // mql5 | (second feed)
+  source          String
   fetchedAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
@@ -199,25 +150,12 @@ model EconomicEvent {
   @@map("economic_events")
 }
 
-// ---------------------------------------------------------------------------
-// AdminAuditLog — append-only record of every admin mutation.
-//
-// Design notes:
-//   - actorId is a SOFT reference (String, not FK) on purpose, so a
-//     hard-deleted admin does not erase their action history. actorEmail
-//     is denormalized for the same reason.
-//   - targetType + targetId are also soft — deleting a user must not
-//     cascade-delete the audit trail of what was done to them.
-//   - metadata is a freeform Json blob for action-specific context
-//     (ban reason, settings diff, impersonation target, etc.).
-//   - No updatedAt — rows are immutable.
-// ---------------------------------------------------------------------------
 model AdminAuditLog {
   id         String   @id @default(cuid())
-  actorId    String // soft ref → users.id (no FK on purpose)
+  actorId    String
   actorEmail String
-  action     String // "user.ban", "settings.update", "user.impersonate", ...
-  targetType String? // "user" | "account" | "trade" | "setting" | "system"
+  action     String
+  targetType String?
   targetId   String?
   metadata   Json     @default("{}")
   ipAddress  String?
@@ -231,12 +169,6 @@ model AdminAuditLog {
   @@map("admin_audit_logs")
 }
 
-// ---------------------------------------------------------------------------
-// SiteSetting — runtime-editable key/value config.
-//
-// Values are Json so a setting can be a bool, number, string, or object.
-// Small set of rows (one per key), read frequently, cached in-process.
-// ---------------------------------------------------------------------------
 model SiteSetting {
   key       String   @id
   value     Json
@@ -244,4 +176,43 @@ model SiteSetting {
   updatedBy String?
 
   @@map("site_settings")
+}
+
+// ---------------------------------------------------------------------------
+// GEX / BL levels — one row per trading day.
+//
+// Design notes:
+//   - `date` is a plain "YYYY-MM-DD" string. It represents the CALENDAR DAY
+//     the levels are for (i.e. what the admin selected in the date picker).
+//   - `levels` holds the canonical `[{ type, price, label }]` array.
+//   - `converted` is the deterministic pipe-string built from `levels`.
+//     It's stored so the user's "Copy" button returns EXACTLY what the admin
+//     confirmed. The server re-serializes on POST and rejects mismatches.
+//   - `blCount` / `gexCount` / `otherCount` denormalize the type breakdown
+//     for the list view (avoids parsing the full `levels` array per row).
+//   - `sourceTimezone` records which timezone the admin's date picker was
+//     using when the row was created. Future site-wide TZ feature can query
+//     this to migrate ambiguous dates.
+//   - `uploadedBy` is a soft ref (String, no FK) — matching the audit-log
+//     convention so a hard-deleted admin does not orphan their uploads.
+// ---------------------------------------------------------------------------
+model GexDay {
+  id         String   @id @default(cuid())
+  date       String   @unique
+  levels     Json     @default("[]")
+  converted  String   @default("")
+
+  levelCount Int @default(0)
+  blCount    Int @default(0)
+  gexCount   Int @default(0)
+  otherCount Int @default(0)
+
+  sourceTimezone String @default("Asia/Kolkata")
+  uploadedBy     String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([date])
+  @@map("gex_days")
 }

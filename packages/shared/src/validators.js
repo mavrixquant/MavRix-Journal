@@ -24,25 +24,18 @@ export const loginSchema = z.object({
 
 /* ------------------------------------------------------------------ */
 /*  Column configs                                                     */
-/*                                                                     */
-/*  Accepts BOTH shapes so legacy accounts (flat string values) and    */
-/*  new accounts (v2 objects with dropdown options) validate cleanly.  */
 /* ------------------------------------------------------------------ */
 
-// A single entry — either a legacy string or a v2 object.
 const columnTypeEnum = z.enum(['text', 'dropdown', 'number']);
 
 const columnConfigEntrySchema = z.union([
-  // Legacy: { "Setup": "dropdown" }
   columnTypeEnum,
-  // v2: { "Setup": { type: "dropdown", options: [...] } }
   z.object({
     type: columnTypeEnum,
     options: z.array(z.string().trim().min(1)).max(200).optional(),
   }),
 ]);
 
-// The full columnConfigs map — arbitrary keys, each holding an entry.
 const columnConfigsSchema = z.record(columnConfigEntrySchema).default({});
 
 /* ------------------------------------------------------------------ */
@@ -71,28 +64,24 @@ export const accountSchema = z.object({
 /* ------------------------------------------------------------------ */
 
 export const tradeSchema = z.object({
-  // Always required
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   entryTime: z.string().regex(/^\d{2}:\d{2}$/),
   exitTime: z.string().regex(/^\d{2}:\d{2}$/),
   direction: z.enum(DIRECTIONS),
   symbol: z.string().trim().max(30).optional().default(''),
 
-  // Backtester-only — nullable (Live/Demo trades store null here)
   mae: z.number().finite().nonnegative().nullable().optional(),
   mfe: z.number().finite().nonnegative().nullable().optional(),
   slPoints: z.number().finite().nonnegative().nullable().optional(),
 
-  // Journal-only — nullable (Backtest trades store null here)
   entryPrice: z.number().finite().nullable().optional(),
   takeProfit: z.number().finite().nullable().optional(),
   stopLoss: z.number().finite().nullable().optional(),
 
-  // Common
   pnl: z.number().finite().default(0),
   quantity: z.number().finite().positive().nullable().optional(),
   notes: z.string().max(2000).optional().default(''),
-}).passthrough(); // allow arbitrary dynamic column keys at top level
+}).passthrough();
 
 export const tradeBatchSchema = z.object({
   accountId: z.string().min(1),
@@ -125,37 +114,17 @@ export const layoutSchema = z.object({
 /*  Economic Calendar                                                  */
 /* ------------------------------------------------------------------ */
 
-// Express puts query params on req.query as either a string or an array
-// (arrays happen when the same key is repeated: ?currency=USD&currency=EUR).
-// Our web client always sends CSV, but Postman / curl users may send either.
-// This helper normalizes both forms into a clean array of trimmed strings.
 const csvToArray = (v) => {
   if (v === undefined || v === null || v === '') return [];
   if (Array.isArray(v)) return v.map((s) => String(s).trim()).filter(Boolean);
   return String(v).split(',').map((s) => s.trim()).filter(Boolean);
 };
 
-// GET /api/calendar query contract.
-//
-//   from     — required, YYYY-MM-DD
-//   to       — required, YYYY-MM-DD
-//   currency — optional, CSV or array; uppercase ISO codes
-//   impact   — optional, CSV or array; must be one of IMPACT_LEVELS
-//   limit    — optional, integer 1..MAX_CALENDAR_EVENTS_PER_REQUEST
-//
-// After parsing, `currency` and `impact` are always arrays (possibly empty),
-// and `limit` is always a number. Callers never need to re-check undefined.
 export const calendarQuerySchema = z.object({
   from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'from must be YYYY-MM-DD'),
   to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'to must be YYYY-MM-DD'),
-  currency: z.preprocess(
-    csvToArray,
-    z.array(z.string().min(1).max(8))
-  ),
-  impact: z.preprocess(
-    csvToArray,
-    z.array(z.enum(IMPACT_LEVELS))
-  ),
+  currency: z.preprocess(csvToArray, z.array(z.string().min(1).max(8))),
+  impact: z.preprocess(csvToArray, z.array(z.enum(IMPACT_LEVELS))),
   limit: z.preprocess(
     (v) =>
       v === undefined || v === null || v === ''
@@ -163,4 +132,27 @@ export const calendarQuerySchema = z.object({
         : Number(v),
     z.number().int().positive().max(MAX_CALENDAR_EVENTS_PER_REQUEST)
   ),
+});
+
+/* ------------------------------------------------------------------ */
+/*  GEX levels                                                         */
+/* ------------------------------------------------------------------ */
+
+// A single GEX level — { type, price, label }.
+export const gexLevelSchema = z.object({
+  type: z.string().trim().min(1).max(20),
+  price: z.number().finite(),
+  label: z.string().trim().min(1).max(500),
+});
+
+// Payload for POST /api/admin/gex — the whole day's worth of levels.
+//
+// `converted` is REQUIRED — the server re-serializes `levels` and rejects
+// any mismatch. This prevents a client from tampering with the pipe-string
+// that the user will later copy into TradingView.
+export const gexDaySchema = z.object({
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  levels: z.array(gexLevelSchema).min(1).max(500),
+  converted: z.string().min(1).max(20000),
+  sourceTimezone: z.string().trim().min(1).max(64).optional(),
 });
