@@ -1,17 +1,16 @@
 // apps/web/src/features/charts/components/WatchlistSidebar.jsx
 //
 // Left sidebar: every catalog symbol grouped by category, with live price
-// + change %. Category headers are collapsible accordions; collapse state
-// persists in localStorage across sessions.
+// + change % and per-symbol icon.
 //
-// Search box at the top filters across all symbols by code, label, or
-// category. When a query is active the grouped view is replaced by a flat
-// result list; clicking a result switches the chart symbol.
+// Category headers are collapsible accordions; collapse state persists in
+// localStorage. The search box above filters across all symbols.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronDown, Minimize2, Maximize2, Search, X } from 'lucide-react';
 
 import { useMarketQuotes } from '@/shared/api/marketData';
+import SymbolIcon from './SymbolIcon';
 
 const STORAGE_KEY = 'mavrix:chart:watchlist:collapsed';
 
@@ -55,7 +54,7 @@ function fmtPrice(n) {
 const CSS = `
   .wl-root {
     position: sticky; top: 12px;
-    max-height: calc(100vh - 100px);
+    max-height: 100vh;
     display: flex; flex-direction: column;
     border-radius: 12px;
     background: rgba(15,18,25,.55);
@@ -94,11 +93,12 @@ const CSS = `
     cursor: pointer;
     transition: color .15s, border-color .15s, background-color .15s;
   }
-  .wl-toggle-all:hover {
+  .wl-toggle-all:hover:not(:disabled) {
     color: #F59E0B;
     border-color: rgba(245,158,11,.28);
     background: rgba(245,158,11,.06);
   }
+  .wl-toggle-all:disabled { opacity: .35; cursor: not-allowed; }
   .wl-toggle-all:focus-visible {
     outline: none;
     border-color: #F59E0B;
@@ -202,18 +202,13 @@ const CSS = `
     color: #F59E0B;
     background: rgba(245,158,11,.06);
   }
-
   .wl-group-chevron {
     flex-shrink: 0;
     transition: transform .22s cubic-bezier(.2,.8,.25,1);
     transform: rotate(0deg);
   }
-  .wl-group.is-collapsed .wl-group-chevron {
-    transform: rotate(-90deg);
-  }
-
+  .wl-group.is-collapsed .wl-group-chevron { transform: rotate(-90deg); }
   .wl-group-label { flex: 1; }
-
   .wl-group-count {
     font-family: 'IBM Plex Mono', ui-monospace, monospace;
     font-size: 9px; font-weight: 600;
@@ -262,11 +257,16 @@ const CSS = `
     display: flex; flex-direction: column; gap: 1px;
     min-width: 0; flex: 1;
   }
+  .wl-code-row {
+    display: flex; align-items: center; gap: 7px;
+    min-width: 0;
+  }
   .wl-code {
     font-family: 'IBM Plex Mono', ui-monospace, monospace;
     font-size: 12px; font-weight: 700;
     color: #E7E9EE;
     letter-spacing: .02em;
+    white-space: nowrap;
   }
   .wl-row.is-active .wl-code { color: #F59E0B; }
   .wl-label {
@@ -276,6 +276,7 @@ const CSS = `
   }
   .wl-row-right {
     display: flex; flex-direction: column; align-items: flex-end; gap: 1px;
+    flex-shrink: 0;
   }
   .wl-price {
     font-family: 'IBM Plex Mono', ui-monospace, monospace;
@@ -317,12 +318,8 @@ const CSS = `
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .wl-toggle-all,
-    .wl-search-input,
-    .wl-search-clear,
-    .wl-group-head,
-    .wl-group-chevron,
-    .wl-row { transition: none !important; }
+    .wl-toggle-all, .wl-search-input, .wl-search-clear,
+    .wl-group-head, .wl-group-chevron, .wl-row { transition: none !important; }
     .wl-group-items { animation: none !important; }
   }
 `;
@@ -350,8 +347,6 @@ export default function WatchlistSidebar({ catalog = [], activeSymbol, onChange 
     return map;
   }, [data]);
 
-  /* ---------------- Grouped view (default) ---------------- */
-
   const grouped = useMemo(() => {
     const m = new Map();
     for (const s of catalog) {
@@ -360,8 +355,6 @@ export default function WatchlistSidebar({ catalog = [], activeSymbol, onChange 
     }
     return [...m.entries()];
   }, [catalog]);
-
-  /* ---------------- Search (flat) ---------------- */
 
   const normalizedQuery = query.trim().toLowerCase();
 
@@ -382,8 +375,6 @@ export default function WatchlistSidebar({ catalog = [], activeSymbol, onChange 
   }, [catalog, normalizedQuery]);
 
   const isSearching = normalizedQuery.length > 0;
-
-  /* ---------------- Handlers ---------------- */
 
   const toggleGroup = useCallback((category) => {
     setCollapsed((prev) => {
@@ -421,11 +412,8 @@ export default function WatchlistSidebar({ catalog = [], activeSymbol, onChange 
 
   const handleKeyDown = useCallback((e) => {
     if (e.key === 'Escape') {
-      if (query) {
-        setQuery('');
-      } else {
-        e.currentTarget.blur();
-      }
+      if (query) setQuery('');
+      else e.currentTarget.blur();
     }
   }, [query]);
 
@@ -433,8 +421,6 @@ export default function WatchlistSidebar({ catalog = [], activeSymbol, onChange 
     setQuery('');
     inputRef.current?.focus();
   }, []);
-
-  /* ---------------- Row renderer (shared) ---------------- */
 
   const renderRow = (s, { showCategory = false } = {}) => {
     const q = quoteMap.get(s.code);
@@ -451,12 +437,13 @@ export default function WatchlistSidebar({ catalog = [], activeSymbol, onChange 
         onClick={() => handlePick(s.code)}
       >
         <div className="wl-row-main">
-          <span className="wl-code">
-            {s.code}
+          <div className="wl-code-row">
+            <SymbolIcon symbol={s.code} size={16} />
+            <span className="wl-code">{s.code}</span>
             {showCategory && (
               <span className="wl-results-cat">{s.category}</span>
             )}
-          </span>
+          </div>
           <span className="wl-label">{s.label}</span>
         </div>
         <div className="wl-row-right">
@@ -472,8 +459,6 @@ export default function WatchlistSidebar({ catalog = [], activeSymbol, onChange 
       </button>
     );
   };
-
-  /* ---------------- Render ---------------- */
 
   return (
     <aside className="wl-root">

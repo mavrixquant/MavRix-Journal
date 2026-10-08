@@ -1,12 +1,16 @@
 // apps/web/src/features/charts/components/QuoteHeader.jsx
 //
-// Thin live-price strip above the chart.
+// Thin live-price strip above the chart, with per-symbol icon.
 
 import { useMarketQuote } from '@/shared/api/marketData';
+import SymbolIcon from './SymbolIcon';
 
 function fmtPrice(n) {
   if (n == null || Number.isNaN(n)) return '—';
-  return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+  return n.toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 4,
+  });
 }
 
 function fmtVolume(n) {
@@ -24,6 +28,7 @@ export default function QuoteHeader({ symbol, displayName }) {
     return (
       <div className="qh-root">
         <div className="qh-main">
+          <SymbolIcon symbol={symbol} size={22} />
           <span className="qh-code">{symbol}</span>
           <span className="qh-name">{displayName}</span>
         </div>
@@ -39,6 +44,7 @@ export default function QuoteHeader({ symbol, displayName }) {
     return (
       <div className="qh-root">
         <div className="qh-main">
+          <SymbolIcon symbol={symbol} size={22} />
           <span className="qh-code">{symbol}</span>
           <span className="qh-name">{displayName}</span>
         </div>
@@ -53,6 +59,7 @@ export default function QuoteHeader({ symbol, displayName }) {
   return (
     <div className="qh-root">
       <div className="qh-main">
+        <SymbolIcon symbol={symbol} size={22} />
         <span className="qh-code">{symbol}</span>
         <span className="qh-name">{displayName}</span>
       </div>

@@ -335,8 +335,8 @@ export default function MarketChartPage() {
   /* ---------------- Indicators ---------------- */
 
   const [indicators, setIndicators] = useState({
-    ema20: true,
-    ema50: true,
+    ema20: false,
+    ema50: false,
     vwap: false,
     bb: false,
   });
