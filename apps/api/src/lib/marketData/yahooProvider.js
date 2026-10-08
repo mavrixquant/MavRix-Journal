@@ -1,27 +1,19 @@
 // apps/api/src/lib/marketData/yahooProvider.js
 //
-// Fetches OHLCV bars from Yahoo Finance's v8 chart endpoint and normalizes
-// them into the shape lightweight-charts expects.
-//
-// Yahoo interval codes:  1m 2m 5m 15m 30m 60m 90m 1h 1d 5d 1wk 1mo 3mo
-// We expose:             1m 5m 15m 1h 4h 1d
-// 4h is aggregated from 1h server-side (Yahoo has no native 4h).
+// Fetches OHLCV bars + quotes from Yahoo Finance's v8 chart endpoint.
+// 4h bars are aggregated from 1h server-side (Yahoo has no native 4h).
 
 import { env } from '../../config/env.js';
 import { HttpError } from '../../middleware/error.js';
 import { enqueue } from './queue.js';
 import { get as cacheGet, set as cacheSet } from './cache.js';
 
-/* ------------------------------------------------------------------ */
-/*  Interval / range mapping                                          */
-/* ------------------------------------------------------------------ */
-
 const YAHOO_INTERVAL_MAP = {
   '1m':  '1m',
   '5m':  '5m',
   '15m': '15m',
   '1h':  '1h',
-  '4h':  '1h',   // aggregate → 4h buckets
+  '4h':  '1h',
   '1d':  '1d',
 };
 
@@ -34,13 +26,13 @@ const DEFAULT_RANGE = {
   '1d':  '1y',
 };
 
-/* ------------------------------------------------------------------ */
-/*  Outbound fetch                                                    */
-/* ------------------------------------------------------------------ */
-
 const UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ' +
   '(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+
+/* ------------------------------------------------------------------ */
+/*  Raw fetch                                                         */
+/* ------------------------------------------------------------------ */
 
 async function fetchYahooChart(yahooSymbol, yahooInterval, range) {
   const url = new URL(
@@ -53,25 +45,16 @@ async function fetchYahooChart(yahooSymbol, yahooInterval, range) {
   url.searchParams.set('events', 'div,splits');
 
   const controller = new AbortController();
-  const timer = setTimeout(
-    () => controller.abort(),
-    env.marketData.yahooTimeoutMs
-  );
+  const timer = setTimeout(() => controller.abort(), env.marketData.yahooTimeoutMs);
 
   try {
     const res = await fetch(url.toString(), {
-      headers: {
-        'User-Agent': UA,
-        Accept: 'application/json,text/plain,*/*',
-      },
+      headers: { 'User-Agent': UA, Accept: 'application/json,text/plain,*/*' },
       signal: controller.signal,
     });
 
     if (res.status === 429) {
-      throw new HttpError(
-        429,
-        'Yahoo Finance rate limit reached. Please try again in a moment.'
-      );
+      throw new HttpError(429, 'Yahoo Finance rate limit reached. Try again shortly.');
     }
     if (res.status === 404) {
       throw new HttpError(404, `Yahoo has no data for ${yahooSymbol}`);
@@ -89,12 +72,9 @@ async function fetchYahooChart(yahooSymbol, yahooInterval, range) {
     if (!body?.chart?.result?.length) {
       throw new HttpError(404, `Yahoo returned no series for ${yahooSymbol}`);
     }
-
     return body;
   } catch (err) {
-    if (err?.name === 'AbortError') {
-      throw new HttpError(504, 'Yahoo request timed out');
-    }
+    if (err?.name === 'AbortError') throw new HttpError(504, 'Yahoo request timed out');
     throw err;
   } finally {
     clearTimeout(timer);
@@ -102,7 +82,7 @@ async function fetchYahooChart(yahooSymbol, yahooInterval, range) {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Normalization                                                     */
+/*  Bar normalization                                                 */
 /* ------------------------------------------------------------------ */
 
 function normalizeBars(raw, isDaily) {
@@ -117,36 +97,19 @@ function normalizeBars(raw, isDaily) {
 
   const bars = [];
   for (let i = 0; i < ts.length; i++) {
-    const o = open[i];
-    const h = high[i];
-    const l = low[i];
-    const c = close[i];
+    const o = open[i], h = high[i], l = low[i], c = close[i];
     if (o == null || h == null || l == null || c == null) continue;
-
-    const time = isDaily
-      ? new Date(ts[i] * 1000).toISOString().slice(0, 10)
-      : ts[i]; // lightweight-charts expects UTC seconds for intraday
-
     bars.push({
-      time,
-      open: o,
-      high: h,
-      low: l,
-      close: c,
+      time: isDaily ? new Date(ts[i] * 1000).toISOString().slice(0, 10) : ts[i],
+      open: o, high: h, low: l, close: c,
       volume: volume[i] == null ? 0 : volume[i],
     });
   }
   return bars;
 }
 
-/* ------------------------------------------------------------------ */
-/*  4h aggregation from 1h bars                                       */
-/* ------------------------------------------------------------------ */
-
 function mergeBucket(bucket) {
-  let high = -Infinity;
-  let low = Infinity;
-  let volume = 0;
+  let high = -Infinity, low = Infinity, volume = 0;
   for (const b of bucket) {
     if (b.high > high) high = b.high;
     if (b.low < low) low = b.low;
@@ -155,8 +118,7 @@ function mergeBucket(bucket) {
   return {
     time: bucket[0].time,
     open: bucket[0].open,
-    high,
-    low,
+    high, low,
     close: bucket[bucket.length - 1].close,
     volume,
   };
@@ -164,45 +126,30 @@ function mergeBucket(bucket) {
 
 function aggregateTo4h(bars1h) {
   if (bars1h.length === 0) return [];
-
   const out = [];
   let bucket = [];
   let currentBucketKey = null;
-
   for (const b of bars1h) {
-    // Numeric Unix-second timestamps → 4h UTC buckets
-    const bucketKey = Math.floor(b.time / (4 * 3600));
-    if (currentBucketKey === null) currentBucketKey = bucketKey;
-
-    if (bucketKey !== currentBucketKey) {
+    const key = Math.floor(b.time / (4 * 3600));
+    if (currentBucketKey === null) currentBucketKey = key;
+    if (key !== currentBucketKey) {
       out.push(mergeBucket(bucket));
       bucket = [];
-      currentBucketKey = bucketKey;
+      currentBucketKey = key;
     }
     bucket.push(b);
   }
   if (bucket.length > 0) out.push(mergeBucket(bucket));
-
   return out;
 }
 
 /* ------------------------------------------------------------------ */
-/*  Public API                                                        */
+/*  Public — bars                                                     */
 /* ------------------------------------------------------------------ */
 
-/**
- * Fetch normalized bars for a Yahoo ticker.
- *
- * @param {string} yahooSymbol   — e.g. "NQ=F" or "BTC-USD"
- * @param {string} interval      — one of SUPPORTED_INTERVALS
- * @param {string} [rangeOverride] — Yahoo range string, overrides default
- * @returns {Promise<Array<{time:number|string, open:number, high:number, low:number, close:number, volume:number}>>}
- */
 export async function getBars(yahooSymbol, interval, rangeOverride) {
   const yahooInterval = YAHOO_INTERVAL_MAP[interval];
-  if (!yahooInterval) {
-    throw new HttpError(400, `Unsupported interval: ${interval}`);
-  }
+  if (!yahooInterval) throw new HttpError(400, `Unsupported interval: ${interval}`);
 
   const range = rangeOverride || DEFAULT_RANGE[interval] || '5d';
   const isDaily = interval === '1d';
@@ -212,7 +159,6 @@ export async function getBars(yahooSymbol, interval, rangeOverride) {
   const cached = cacheGet(cacheKey);
   if (cached) return cached;
 
-  // Route through the queue. Retry once on 429 with a short backoff.
   let raw;
   let attempt = 0;
   while (true) {
@@ -220,8 +166,7 @@ export async function getBars(yahooSymbol, interval, rangeOverride) {
       raw = await enqueue(() => fetchYahooChart(yahooSymbol, yahooInterval, range));
       break;
     } catch (err) {
-      const isRateLimited = err?.status === 429;
-      if (!isRateLimited || attempt >= 2) throw err;
+      if (err?.status !== 429 || attempt >= 2) throw err;
       attempt += 1;
       await new Promise((r) => setTimeout(r, 1500 * attempt));
     }
@@ -232,22 +177,45 @@ export async function getBars(yahooSymbol, interval, rangeOverride) {
 
   const ttl = env.marketData.cacheTtl[interval] ?? 60_000;
   cacheSet(cacheKey, bars, ttl);
-
   return bars;
 }
 
-/** Latest price snapshot from `meta` — cheap, uses the 1d cache. */
+/* ------------------------------------------------------------------ */
+/*  Public — quote                                                    */
+/* ------------------------------------------------------------------ */
+
+const QUOTE_TTL_MS = 30_000;
+
 export async function getQuote(yahooSymbol) {
-  const raw = await enqueue(() =>
-    fetchYahooChart(yahooSymbol, '1m', '1d')
-  );
-  const meta = raw.chart.result[0]?.meta || {};
-  return {
+  const cacheKey = `yahoo-quote:${yahooSymbol}`;
+  const cached = cacheGet(cacheKey);
+  if (cached) return cached;
+
+  const raw = await enqueue(() => fetchYahooChart(yahooSymbol, '1m', '1d'));
+  const result = raw.chart.result[0];
+  const meta = result?.meta || {};
+
+  const price = meta.regularMarketPrice ?? null;
+  const previousClose = meta.chartPreviousClose ?? meta.previousClose ?? null;
+
+  const quote = {
     symbol: meta.symbol ?? yahooSymbol,
-    price: meta.regularMarketPrice ?? null,
-    previousClose: meta.chartPreviousClose ?? meta.previousClose ?? null,
+    price,
+    previousClose,
+    change: price != null && previousClose != null ? +(price - previousClose).toFixed(4) : null,
+    changePct: price != null && previousClose
+      ? +(((price - previousClose) / previousClose) * 100).toFixed(3)
+      : null,
     currency: meta.currency ?? null,
     exchange: meta.exchangeName ?? null,
     instrumentType: meta.instrumentType ?? null,
+    dayHigh: meta.regularMarketDayHigh ?? null,
+    dayLow: meta.regularMarketDayLow ?? null,
+    volume: meta.regularMarketVolume ?? null,
+    marketState: meta.marketState ?? null,
+    updatedAt: Date.now(),
   };
+
+  cacheSet(cacheKey, quote, QUOTE_TTL_MS);
+  return quote;
 }

@@ -1,6 +1,4 @@
 // apps/api/src/routes/marketData.routes.js
-//
-// Mounted at /api/market-data. All routes require an authenticated user.
 
 import { Router } from 'express';
 import { requireAuth } from '../middleware/auth.js';
@@ -10,12 +8,8 @@ export const marketDataRoutes = Router();
 
 marketDataRoutes.use(requireAuth);
 
-// GET /api/market-data/catalog
-// Returns the fixed symbol catalog + supported intervals.
+// Order matters: /quotes before /quote (otherwise /quote matches prefix)
 marketDataRoutes.get('/catalog', ctrl.catalog);
-
-// GET /api/market-data/bars?symbol=NQ&interval=5m&range=5d
 marketDataRoutes.get('/bars', ctrl.bars);
-
-// GET /api/market-data/quote?symbol=NQ
+marketDataRoutes.get('/quotes', ctrl.quotes);
 marketDataRoutes.get('/quote', ctrl.quote);
