@@ -8,12 +8,16 @@ import { HttpError } from '../../middleware/error.js';
 import { enqueue } from './queue.js';
 import { get as cacheGet, set as cacheSet } from './cache.js';
 
+/* ------------------------------------------------------------------ */
+/*  Interval / range mapping                                          */
+/* ------------------------------------------------------------------ */
+
 const YAHOO_INTERVAL_MAP = {
   '1m':  '1m',
   '5m':  '5m',
   '15m': '15m',
   '1h':  '1h',
-  '4h':  '1h',
+  '4h':  '1h',   // aggregate → 4h buckets
   '1d':  '1d',
 };
 
@@ -26,13 +30,13 @@ const DEFAULT_RANGE = {
   '1d':  '1y',
 };
 
+/* ------------------------------------------------------------------ */
+/*  Outbound fetch                                                    */
+/* ------------------------------------------------------------------ */
+
 const UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ' +
   '(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
-
-/* ------------------------------------------------------------------ */
-/*  Raw fetch                                                         */
-/* ------------------------------------------------------------------ */
 
 async function fetchYahooChart(yahooSymbol, yahooInterval, range) {
   const url = new URL(
@@ -108,6 +112,10 @@ function normalizeBars(raw, isDaily) {
   return bars;
 }
 
+/* ------------------------------------------------------------------ */
+/*  4h aggregation from 1h bars                                       */
+/* ------------------------------------------------------------------ */
+
 function mergeBucket(bucket) {
   let high = -Infinity, low = Infinity, volume = 0;
   for (const b of bucket) {
@@ -149,7 +157,9 @@ function aggregateTo4h(bars1h) {
 
 export async function getBars(yahooSymbol, interval, rangeOverride) {
   const yahooInterval = YAHOO_INTERVAL_MAP[interval];
-  if (!yahooInterval) throw new HttpError(400, `Unsupported interval: ${interval}`);
+  if (!yahooInterval) {
+    throw new HttpError(400, `Unsupported interval: ${interval}`);
+  }
 
   const range = rangeOverride || DEFAULT_RANGE[interval] || '5d';
   const isDaily = interval === '1d';
