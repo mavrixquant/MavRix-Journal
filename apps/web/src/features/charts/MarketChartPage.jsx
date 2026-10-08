@@ -2,6 +2,8 @@
 //
 // /backtester/chart — full-page market chart with watchlist, quote header,
 // indicators, and drawing tools.
+//
+// NOTE: watchlist styles moved into WatchlistSidebar.jsx (self-contained).
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
@@ -28,8 +30,6 @@ import QuoteHeader from './components/QuoteHeader';
 import WatchlistSidebar from './components/WatchlistSidebar';
 import IndicatorOverlay from './components/IndicatorOverlay';
 import DrawingToolbar from './components/DrawingToolbar';
-
-import '@/shared/ui/page-header.css';
 
 const DEFAULT_SYMBOL = 'NQ';
 const DEFAULT_INTERVAL = '5m';
@@ -115,76 +115,6 @@ const CSS = `
     0%,100% { opacity: .35; transform: scale(.8); }
     50%     { opacity: 1; transform: scale(1.15); }
   }
-
-  /* ---------- WatchlistSidebar ---------- */
-  .wl-root {
-    position: sticky; top: 12px;
-    max-height: calc(100vh - 100px);
-    display: flex; flex-direction: column;
-    border-radius: 12px; background: rgba(15,18,25,.55);
-    border: 1px solid var(--line); overflow: hidden;
-  }
-  @media (max-width: 1100px) { .wl-root { display: none; } }
-  .wl-head {
-    display: flex; align-items: center; gap: 8px;
-    padding: 12px 14px; border-bottom: 1px solid var(--line-soft);
-    flex-shrink: 0;
-  }
-  .wl-title {
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    font-size: 10px; font-weight: 700; letter-spacing: .14em;
-    text-transform: uppercase; color: var(--ink-2);
-  }
-  .wl-count {
-    margin-left: auto;
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    font-size: 10px; color: var(--accent); font-weight: 700;
-  }
-  .wl-list { flex: 1; min-height: 0; overflow-y: auto; padding: 4px; }
-  .wl-list::-webkit-scrollbar { width: 6px; }
-  .wl-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,.08); border-radius: 99px; }
-
-  .wl-group { margin-bottom: 4px; }
-  .wl-group-head {
-    padding: 8px 10px 3px;
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    font-size: 9px; font-weight: 700; letter-spacing: .14em;
-    text-transform: uppercase; color: var(--ink-3);
-  }
-  .wl-row {
-    display: flex; align-items: center; justify-content: space-between;
-    gap: 8px; width: 100%; padding: 8px 10px;
-    border-radius: 7px; border: 1px solid transparent;
-    background: transparent; cursor: pointer; text-align: left;
-    transition: all .14s; font-family: inherit;
-  }
-  .wl-row:hover { background: rgba(255,255,255,.04); }
-  .wl-row.is-active {
-    background: rgba(245,158,11,.10);
-    border-color: var(--accent-soft2);
-  }
-  .wl-row-main { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
-  .wl-code {
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    font-size: 12px; font-weight: 700; color: var(--ink-1);
-    letter-spacing: .02em;
-  }
-  .wl-row.is-active .wl-code { color: var(--accent); }
-  .wl-label {
-    font-size: 10px; color: var(--ink-3);
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  }
-  .wl-row-right { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; }
-  .wl-price {
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    font-size: 11px; color: var(--ink-2); font-weight: 600;
-  }
-  .wl-change {
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    font-size: 10px; color: var(--ink-3); font-weight: 600;
-  }
-  .wl-change.is-up { color: var(--win); }
-  .wl-change.is-down { color: var(--loss); }
 
   /* ---------- IndicatorOverlay ---------- */
   .ind-root {
@@ -357,7 +287,7 @@ const CSS = `
 
   @media (prefers-reduced-motion: reduce) {
     .cx-spinner, .ct-pulse, .qh-pulse { animation: none !important; }
-    .wl-row, .ind-toggle, .dt-tool, .dt-clear, .ct-tf, .ct-fs { transition: none !important; }
+    .ind-toggle, .dt-tool, .dt-clear, .ct-tf, .ct-fs { transition: none !important; }
   }
 `;
 
@@ -394,7 +324,6 @@ export default function MarketChartPage() {
     dataUpdatedAt,
   } = useMarketBars({ symbol, interval, enabled: !!catalog });
 
-  // Stable references for memoization (fixes react-hooks/exhaustive-deps).
   const symbols = useMemo(() => catalog?.symbols ?? [], [catalog]);
   const bars = useMemo(() => barPayload?.bars ?? [], [barPayload]);
 
@@ -459,8 +388,6 @@ export default function MarketChartPage() {
           return;
         }
 
-        // Sort ascending by time. If both clicks landed on the same bar
-        // the line is degenerate — skip and reset.
         const sorted = normalizeTrendlinePoints(pendingPoint, { time, price });
         setPendingPoint(null);
         setDrawingMode(DRAWING_MODES.NONE);
@@ -521,26 +448,6 @@ export default function MarketChartPage() {
     <>
       <style>{CSS}</style>
       <div className="chart-root">
-        <div className="ph">
-          <div className="ph-row">
-            <div className="ph-left">
-              <span className="ph-eyebrow">Backtester</span>
-              <h1 className="ph-title">
-                {currentSymbol?.code ?? symbol}
-                {currentSymbol?.label && (
-                  <span style={{ marginLeft: 10, fontSize: 13, fontWeight: 500, color: 'var(--ink-2)' }}>
-                    {currentSymbol.label}
-                  </span>
-                )}
-              </h1>
-              <p className="ph-sub">
-                Yahoo Finance delayed feed
-                {currentSymbol?.category ? ` · ${currentSymbol.category}` : ''}
-              </p>
-            </div>
-          </div>
-        </div>
-
         <div className="chart-layout">
           <WatchlistSidebar
             catalog={symbols}
