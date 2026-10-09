@@ -8,15 +8,13 @@
 //   02  Equity & Drawdown   — underwater curve + daily P&L / R:R
 //   03  Monthly             — month bars + calendar heatmap + weekly chips
 //   04  Timing              — time-of-day chart + rolling expectancy
-//   05  Breakdowns          — session / day-of-week / direction bars
+//   05  Breakdowns          — session / day-of-week / direction + strategy
 //   06  Symbols & Duration  — symbol table + holding-time widget
 //   07  Trade Log           — full filterable table
 //
-// Filter UI lives in AnalyseFilters (moved here from the Journal dashboard
-// header in the Analyse revamp). Everything below the header is driven by
-// the shared useStats() hook, which reads the filtered trades produced by
-// useFilters() → applyFilters(). So every panel updates live as the user
-// toggles filters.
+// Filter UI lives in AnalyseFilters. Everything below the header is driven
+// by the shared useStats() hook, which reads the filtered trades produced
+// by useFilters() → applyFilters().
 
 import { useAuth } from '@/app/providers/AuthProvider';
 import { useAppContext } from '@/app/providers/AppProvider';
@@ -37,6 +35,7 @@ import KPIGrid from '@/features/dashboard/components/panels/KPIGrid';
 import AdvancedKPIGrid from '@/features/dashboard/components/panels/AdvancedKPIGrid';
 import DurationWidget from '@/features/dashboard/components/panels/DurationWidget';
 import SymbolBreakdownTable from '@/features/dashboard/components/panels/SymbolBreakdownTable';
+import StrategyBreakdownTable from '@/features/dashboard/components/panels/StrategyBreakdownTable';
 import Calendar from '@/features/dashboard/components/panels/Calendar';
 import WeeklyChart from '@/features/dashboard/components/panels/WeeklyChart';
 import TradeTable from '@/features/dashboard/components/panels/TradeTable';
@@ -50,9 +49,7 @@ import RRCompareChart from '@/features/dashboard/components/charts/RRCompareChar
 import CategoryBarChart from '@/features/dashboard/components/charts/CategoryBarChart';
 
 /* ------------------------------------------------------------------ */
-/*  Page CSS.                                                          */
-/*  All classes used by AnalyseHeader / AnalyseFilters / AnalyseSection */
-/*  live here so this stylesheet is emitted exactly once per route.    */
+/*  Page CSS — identical to previous version, no new rules added.      */
 /* ------------------------------------------------------------------ */
 const CSS = `
   .analyse-root {
@@ -82,7 +79,6 @@ const CSS = `
     -webkit-font-smoothing: antialiased;
   }
 
-  /* ---------- Panel grid ---------- */
   .analyse-panels {
     display: grid;
     gap: 18px;
@@ -100,7 +96,6 @@ const CSS = `
     .analyse-panels.cols-3 { grid-template-columns: minmax(0, 1fr); }
   }
 
-  /* ---------- Section ---------- */
   .as-root {
     display: flex;
     flex-direction: column;
@@ -158,7 +153,6 @@ const CSS = `
     min-width: 0;
   }
 
-  /* ---------- Panel card ---------- */
   .as-panel {
     position: relative;
     display: flex;
@@ -215,7 +209,6 @@ const CSS = `
     overflow: auto;
   }
 
-  /* ---------- Filter bar ---------- */
   .af-root {
     display: flex;
     flex-direction: column;
@@ -359,7 +352,6 @@ const CSS = `
     color: #FFFFFF;
   }
 
-  /* ---------- Empty / no-match states ---------- */
   .an-empty {
     padding: 60px 24px;
     text-align: center;
@@ -414,8 +406,6 @@ const CSS = `
 
 /* ------------------------------------------------------------------ */
 /*  Local breakdown wrappers                                           */
-/*  CategoryBarChart needs a `data` prop; these tiny wrappers build    */
-/*  that data from useStats().groupBy with a canonical ordering.       */
 /* ------------------------------------------------------------------ */
 const SESSION_ORDER = [
   'Asia', 'London', 'NY Pre-Market', 'NY AM',
@@ -491,11 +481,8 @@ export default function AnalysePage() {
   const { state } = useAppContext();
   const { accountId } = useDashboardAccount();
 
-  // Load + enrich + dispatch trades. Returns the enriched payload so we can
-  // distinguish "account has no trades" from "filters excluded everything".
   const enriched = useEnrichedTrades(accountId);
 
-  // Mirror filter state to the URL for shareable / back-button support.
   useFilterUrlSync();
 
   const { stats, account } = useStats();
@@ -503,10 +490,6 @@ export default function AnalysePage() {
   const totalCount = enriched.enrichedTrades.length;
   const filteredCount = stats?.n ?? 0;
 
-  // On the very first render, the enrichment payload is ready but its
-  // useEffect dispatch into AppProvider hasn't fired yet — so state.trades
-  // is still empty and stats.n is transiently 0. Detect that window and
-  // show a skeleton instead of a false "no matches" screen.
   const isHydrating = totalCount > 0 && state.trades.length === 0;
 
   if (!user || isHydrating) return <PageSkeleton />;
@@ -604,6 +587,15 @@ export default function AnalysePage() {
               </AnalysePanel>
               <AnalysePanel title="By Direction" height={300}>
                 <DirectionBreakdown />
+              </AnalysePanel>
+            </div>
+            <div className="analyse-panels cols-1">
+              <AnalysePanel
+                title="By Strategy"
+                note="net per playbook"
+                height="auto"
+              >
+                <StrategyBreakdownTable />
               </AnalysePanel>
             </div>
           </AnalyseSection>

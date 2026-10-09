@@ -4,6 +4,7 @@ import KPIGrid from './KPIGrid';
 import AdvancedKPIGrid from './AdvancedKPIGrid';
 import DurationWidget from './DurationWidget';
 import SymbolBreakdownTable from './SymbolBreakdownTable';
+import StrategyBreakdownTable from './StrategyBreakdownTable';
 import Calendar from './Calendar';
 import WeeklyChart from './WeeklyChart';
 import RRCompareChart from '../charts/RRCompareChart';
@@ -55,7 +56,7 @@ function Panel({ title, note, children, padding = '14px 16px' }) {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Wrapper components (ones that need their own hooks or props)       */
+/*  Wrapper components                                                 */
 /* ------------------------------------------------------------------ */
 
 function HeroPanel() {
@@ -160,6 +161,14 @@ function RRComparePanel() {
   );
 }
 
+function StrategyBreakdownPanel() {
+  return (
+    <Panel title="By Strategy" note="net per playbook">
+      <StrategyBreakdownTable />
+    </Panel>
+  );
+}
+
 function CategoryChartsPanel() {
   const { groupBy, metric } = useStats();
   const isMoney = metric === '$';
@@ -238,6 +247,7 @@ export const PANEL_REGISTRY = {
   timeChart:         { label: 'Time of Day Chart',                     Component: TimeChartPanel },
   rollingExpectancy: { label: 'Rolling 20-Trade Expectancy',           Component: RollingExpectancyPanel },
   rrCompare:         { label: 'RR Comparison / Symbol Breakdown',      Component: RRComparePanel },
+  strategyBreakdown: { label: 'Strategy Breakdown',                    Component: StrategyBreakdownPanel },
   categoryCharts:    { label: 'Session / DOW / Direction Charts',      Component: CategoryChartsPanel },
 };
 

@@ -17,6 +17,7 @@ export const DEFAULT_LAYOUT = [
   { i: 'monthly',            x: 0,  y: 19, w: 6,  h: 5,  minW: 1, minH: 1, visible: true },
   { i: 'rollingExpectancy',  x: 6,  y: 19, w: 8,  h: 5,  minW: 1, minH: 1, visible: true },
   { i: 'rrCompare',          x: 0,  y: 24, w: 14, h: 7,  minW: 1, minH: 1, visible: true },
+  { i: 'strategyBreakdown',  x: 0,  y: 31, w: 14, h: 6,  minW: 1, minH: 1, visible: true },
 
   // ---- Right column (x: 14) ----
   { i: 'kpiGrid',            x: 14, y: 0,  w: 10, h: 5,  minW: 1, minH: 1, visible: true },
@@ -38,6 +39,7 @@ export const PANEL_META = {
   durationWidget:    { label: 'Holding Time Widget' },
   rollingExpectancy: { label: 'Rolling 20-Trade Expectancy' },
   rrCompare:         { label: 'RR Comparison / Symbol Breakdown' },
+  strategyBreakdown: { label: 'Strategy Breakdown' },
   categoryCharts:    { label: 'Session / DOW / Direction Charts' },
 };
 
@@ -54,6 +56,7 @@ export function buildMobileLayout() {
     'timeChart',
     'underwater',
     'categoryCharts',
+    'strategyBreakdown',
     'monthly',
     'rollingExpectancy',
     'rrCompare',
