@@ -1,4 +1,3 @@
-
 // apps/api/src/services/trades.service.js
 import { prisma } from '../lib/prisma.js';
 import { HttpError } from '../middleware/error.js';
@@ -7,12 +6,16 @@ import { broadcastToUser } from '../lib/broadcaster.js';
 
 // Every column that lives in a dedicated Trade column — NOT in `dynamic`.
 // A single source of truth for both `splitTradePayload` and `sanitizeDynamic`.
+//
+// `strategyId` is a dedicated FK column, so it is reserved here. That keeps
+// it out of `dynamic` and out of the client's arbitrary payload passthrough.
 const RESERVED = new Set([
   'date',
   'entryTime',
   'exitTime',
   'direction',
   'symbol',
+  'strategyId',
 
   // Backtester-only
   'mae',
@@ -59,6 +62,16 @@ function serialize(t) {
   return {
     id: t.id,
     accountId: t.accountId,
+    strategyId: t.strategyId,
+    strategy: t.strategy
+      ? {
+          id: t.strategy.id,
+          name: t.strategy.name,
+          color: t.strategy.color,
+          status: t.strategy.status,
+          direction: t.strategy.direction,
+        }
+      : null,
     tradeId: t.tradeId,
     date: t.date,
     entryTime: t.entryTime,
@@ -94,17 +107,46 @@ async function assertAccountOwnership(userId, accountId) {
 async function assertTradeOwnership(userId, tradeId) {
   const trade = await prisma.trade.findFirst({
     where: { id: tradeId, account: { userId } },
+    include: { strategy: true },
   });
   if (!trade) throw new HttpError(404, 'Trade not found');
   return trade;
 }
 
-export async function listTrades(userId, accountId) {
-  if (!accountId) throw new HttpError(400, 'accountId query param required');
-  await assertAccountOwnership(userId, accountId);
+async function assertStrategyOwnership(userId, strategyId) {
+  const strategy = await prisma.strategy.findFirst({
+    where: { id: strategyId, userId },
+    select: { id: true },
+  });
+  if (!strategy) throw new HttpError(404, 'Strategy not found');
+}
+
+/**
+ * Fetch trades for the current user.
+ *
+ * Filters:
+ *   - accountId  → all trades belonging to that account
+ *   - strategyId → all trades (across every account of the user) tagged with
+ *                  that strategy. Powers the strategy detail page.
+ *
+ * Exactly one filter must be supplied.
+ */
+export async function listTrades(userId, { accountId, strategyId } = {}) {
+  if (!accountId && !strategyId) {
+    throw new HttpError(400, 'accountId or strategyId query param required');
+  }
+
+  if (accountId) await assertAccountOwnership(userId, accountId);
+  if (strategyId) await assertStrategyOwnership(userId, strategyId);
+
+  const where = {};
+  if (accountId) where.accountId = accountId;
+  if (strategyId) where.strategyId = strategyId;
+
   const trades = await prisma.trade.findMany({
-    where: { accountId },
+    where,
     orderBy: [{ date: 'desc' }, { entryTime: 'desc' }],
+    include: { strategy: true },
   });
   return trades.map(serialize);
 }
@@ -115,9 +157,10 @@ export async function getTrade(userId, id) {
 }
 
 export async function createTrade(userId, payload) {
-  const { accountId } = payload;
+  const { accountId, strategyId } = payload;
   if (!accountId) throw new HttpError(400, 'accountId is required');
   await assertAccountOwnership(userId, accountId);
+  if (strategyId) await assertStrategyOwnership(userId, strategyId);
 
   const { reserved, dynamic } = splitTradePayload(payload);
   const tradeId = generateTradeId(reserved);
@@ -125,8 +168,9 @@ export async function createTrade(userId, payload) {
   try {
     const t = await prisma.trade.create({
       data: { accountId, tradeId, ...reserved, dynamic },
+      include: { strategy: true },
     });
-    notify(userId, [['trades', accountId]]);
+    notify(userId, [['trades', accountId], ['strategies']]);
     return serialize(t);
   } catch (err) {
     if (err.code === 'P2002') {
@@ -138,6 +182,20 @@ export async function createTrade(userId, payload) {
 
 export async function bulkCreateTrades(userId, { accountId, trades, columnConfigs }) {
   await assertAccountOwnership(userId, accountId);
+
+  // Validate all referenced strategies in ONE query instead of N.
+  const strategyIds = [
+    ...new Set(trades.map((t) => t.strategyId).filter(Boolean)),
+  ];
+  if (strategyIds.length > 0) {
+    const owned = await prisma.strategy.findMany({
+      where: { id: { in: strategyIds }, userId },
+      select: { id: true },
+    });
+    if (owned.length !== strategyIds.length) {
+      throw new HttpError(404, 'One or more strategies do not exist or are not yours.');
+    }
+  }
 
   const prepared = trades.map((raw) => {
     const { reserved, dynamic } = splitTradePayload(raw);
@@ -176,12 +234,17 @@ export async function bulkCreateTrades(userId, { accountId, trades, columnConfig
   });
 
   // Trade list changed AND the account's columnConfigs may have changed.
-  notify(userId, [['trades', accountId], ['accounts']]);
+  notify(userId, [['trades', accountId], ['accounts'], ['strategies']]);
   return { created: prepared.length };
 }
 
 export async function updateTrade(userId, id, payload) {
   const existing = await assertTradeOwnership(userId, id);
+
+  if (payload.strategyId) {
+    await assertStrategyOwnership(userId, payload.strategyId);
+  }
+
   const { reserved, dynamic } = splitTradePayload(payload);
 
   const merged = {
@@ -200,8 +263,9 @@ export async function updateTrade(userId, id, payload) {
     const t = await prisma.trade.update({
       where: { id },
       data: { ...reserved, tradeId, dynamic: nextDynamic },
+      include: { strategy: true },
     });
-    notify(userId, [['trades', existing.accountId]]);
+    notify(userId, [['trades', existing.accountId], ['strategies']]);
     return serialize(t);
   } catch (err) {
     if (err.code === 'P2002') {
@@ -215,14 +279,14 @@ export async function deleteTrade(userId, id) {
   const existing = await assertTradeOwnership(userId, id);
   const accountId = existing.accountId;
   await prisma.trade.delete({ where: { id } });
-  notify(userId, [['trades', accountId]]);
+  notify(userId, [['trades', accountId], ['strategies']]);
   return { ok: true };
 }
 
 export async function deleteTradesByAccount(userId, accountId) {
   await assertAccountOwnership(userId, accountId);
   const res = await prisma.trade.deleteMany({ where: { accountId } });
-  notify(userId, [['trades', accountId]]);
+  notify(userId, [['trades', accountId], ['strategies']]);
   return { deleted: res.count };
 }
 

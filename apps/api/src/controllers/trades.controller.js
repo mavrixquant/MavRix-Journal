@@ -2,7 +2,10 @@ import * as tradesService from '../services/trades.service.js';
 
 export async function list(req, res, next) {
   try {
-    const trades = await tradesService.listTrades(req.userId, req.query.accountId);
+    const trades = await tradesService.listTrades(req.userId, {
+      accountId: req.query.accountId,
+      strategyId: req.query.strategyId,
+    });
     res.json({ trades });
   } catch (e) { next(e); }
 }

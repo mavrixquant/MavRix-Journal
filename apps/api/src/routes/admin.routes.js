@@ -18,6 +18,7 @@ import * as accCtrl from '../controllers/adminAccounts.controller.js';
 import * as tradeCtrl from '../controllers/adminTrades.controller.js';
 import * as opsCtrl from '../controllers/adminOps.controller.js';
 import * as gexCtrl from '../controllers/adminGex.controller.js';
+import * as strategyCtrl from '../controllers/adminStrategies.controller.js';
 
 export const adminRoutes = Router();
 
@@ -130,6 +131,11 @@ adminRoutes.get('/trades', tradeCtrl.list);
 // Order matters: by-account before /:id
 adminRoutes.delete('/trades/by-account/:accountId', writeLimiter, tradeCtrl.removeByAccount);
 adminRoutes.delete('/trades/:id', writeLimiter, tradeCtrl.remove);
+
+/* ---------------- Strategies ---------------- */
+adminRoutes.get('/strategies', strategyCtrl.list);
+adminRoutes.get('/strategies/:id', strategyCtrl.get);
+adminRoutes.delete('/strategies/:id', requireSuperadmin, sensitive, strategyCtrl.remove);
 
 /* ---------------- Audit ---------------- */
 adminRoutes.get('/audit', opsCtrl.audit);
