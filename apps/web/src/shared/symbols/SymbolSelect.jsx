@@ -27,6 +27,12 @@
 //     replace it.
 //   - While the catalog is loading, the trigger is disabled and shows
 //     "Loading symbols…"
+//
+// Z-INDEX NOTE:
+//   The popover content is portaled to document.body. When SymbolSelect is
+//   used inside a modal (e.g. AddTradeModal with .at-overlay z-index 1000),
+//   the default z-50 from the shadcn wrapper would sit BEHIND the modal
+//   backdrop. `.symsel-pop` therefore forces z-index: 3000 !important.
 
 import { useCallback, useMemo, useState } from 'react';
 import { Check, ChevronDown, Search } from 'lucide-react';
@@ -127,7 +133,9 @@ const CSS = `
     transform: translateY(-50%) rotate(180deg);
   }
 
-  /* ---------- Panel ---------- */
+  /* ---------- Panel ----------
+     z-index: 3000 !important — must float above the AddTradeModal overlay
+     (z-index 1000) and any Alert overlay (z-index 2000). */
   .symsel-pop {
     padding: 0 !important;
     background: #11151F !important;
@@ -138,6 +146,7 @@ const CSS = `
     width: var(--radix-popover-trigger-width);
     min-width: 280px;
     max-width: 420px;
+    z-index: 3000 !important;
   }
 
   .symsel-cmd {
@@ -373,12 +382,8 @@ export default function SymbolSelect({
           align="start"
           sideOffset={6}
           className="symsel-pop"
-          onOpenAutoFocus={(e) => {
-            // Let cmdk focus its own input on mount.
-            e.preventDefault();
-          }}
         >
-          <Command className="symsel-cmd" shouldFilter>
+          <Command className="symsel-cmd">
             <div className="symsel-cmd-input-wrap">
               <Search size={13} />
               <Command.Input
