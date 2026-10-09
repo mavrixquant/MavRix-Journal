@@ -2,13 +2,12 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { ensureFreshAccessToken } from './client';
+import { setTypingState } from '@/shared/chat/chatStream';
 
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 
 /* ------------------------------------------------------------------ */
 /*  Fallback store — when SSE fails 3x we let hooks resume polling.   */
-/*  Uses useSyncExternalStore so any component can subscribe without  */
-/*  prop-drilling through context.                                     */
 /* ------------------------------------------------------------------ */
 
 let fallbackMode = false;
@@ -37,6 +36,43 @@ export function useSSEFallback() {
 }
 
 /* ------------------------------------------------------------------ */
+/*  Chat cache helpers — mutate the messages infiniteQuery in place.  */
+/*  pages[0] holds the NEWEST page; each page's messages are          */
+/*  ascending (oldest → newest within the page).                      */
+/* ------------------------------------------------------------------ */
+
+function appendMessage(queryClient, conversationId, message) {
+  queryClient.setQueryData(['chat', 'messages', conversationId], (old) => {
+    if (!old || !Array.isArray(old.pages) || old.pages.length === 0) return old;
+    const [first, ...rest] = old.pages;
+    // Dedupe — the sender may already have the message via its HTTP response.
+    if (first.messages.some((m) => m.id === message.id)) return old;
+    return {
+      ...old,
+      pages: [
+        { ...first, messages: [...first.messages, message] },
+        ...rest,
+      ],
+    };
+  });
+}
+
+function patchMessage(queryClient, conversationId, messageId, patch) {
+  queryClient.setQueryData(['chat', 'messages', conversationId], (old) => {
+    if (!old || !Array.isArray(old.pages)) return old;
+    return {
+      ...old,
+      pages: old.pages.map((page) => ({
+        ...page,
+        messages: page.messages.map((m) =>
+          m.id === messageId ? { ...m, ...patch } : m
+        ),
+      })),
+    };
+  });
+}
+
+/* ------------------------------------------------------------------ */
 /*  The bridge hook                                                    */
 /* ------------------------------------------------------------------ */
 
@@ -46,7 +82,9 @@ const RECONNECT_MAX_MS = 8000;
 
 /**
  * Opens a single SSE connection per logged-in user.
- * On every `invalidate` event, invalidates the corresponding React Query keys.
+ * On `invalidate`, invalidates the corresponding React Query keys.
+ * On chat events, mutates the chat caches directly (fast path) and lightly
+ * invalidates the conversation list so ordering/previews stay fresh.
  *
  * Mount exactly ONCE per app (e.g. inside AppLayout).
  */
@@ -70,7 +108,6 @@ export function useSSEBridge({ enabled = true } = {}) {
       if (cancelled) return;
 
       if (!token) {
-        // Not logged in (or refresh failed). Try again shortly.
         scheduleReconnect();
         return;
       }
@@ -84,7 +121,6 @@ export function useSSEBridge({ enabled = true } = {}) {
         failuresRef.current = 0;
         setConnected(true);
         setFallbackMode(false);
-
         // On (re)connect we may have missed events. Force a full refresh.
         queryClient.invalidateQueries();
       });
@@ -92,6 +128,8 @@ export function useSSEBridge({ enabled = true } = {}) {
       es.addEventListener('hello', () => {
         // Handshake acknowledged. Nothing to do — 'open' already fired.
       });
+
+      /* ---------------- Generic query invalidation ---------------- */
 
       es.addEventListener('invalidate', (e) => {
         let payload;
@@ -107,6 +145,79 @@ export function useSSEBridge({ enabled = true } = {}) {
         });
       });
 
+      /* ---------------- Chat: new message ---------------- */
+
+      es.addEventListener('chat:message:new', (e) => {
+        let payload;
+        try {
+          payload = JSON.parse(e.data);
+        } catch {
+          return;
+        }
+        const { conversationId, message } = payload || {};
+        if (!conversationId || !message) return;
+
+        // Fast path — splice the message into the open thread's cache.
+        appendMessage(queryClient, conversationId, message);
+
+        // Slow path — refresh the sidebar (preview text, ordering, unread).
+        queryClient.invalidateQueries({ queryKey: ['chat', 'conversations'] });
+
+        // Clear the sender's typing flag for this conversation.
+        if (message.senderId) {
+          setTypingState(conversationId, message.senderId, false);
+        }
+      });
+
+      /* ---------------- Chat: edit ---------------- */
+
+      es.addEventListener('chat:message:edited', (e) => {
+        let payload;
+        try {
+          payload = JSON.parse(e.data);
+        } catch {
+          return;
+        }
+        const { conversationId, messageId, body, editedAt } = payload || {};
+        if (!conversationId || !messageId) return;
+        patchMessage(queryClient, conversationId, messageId, { body, editedAt });
+        queryClient.invalidateQueries({ queryKey: ['chat', 'conversations'] });
+      });
+
+      /* ---------------- Chat: delete for everyone ---------------- */
+
+      es.addEventListener('chat:message:deleted', (e) => {
+        let payload;
+        try {
+          payload = JSON.parse(e.data);
+        } catch {
+          return;
+        }
+        const { conversationId, messageId } = payload || {};
+        if (!conversationId || !messageId) return;
+        patchMessage(queryClient, conversationId, messageId, {
+          body: null,
+          deleted: true,
+          deletedAt: new Date().toISOString(),
+        });
+        queryClient.invalidateQueries({ queryKey: ['chat', 'conversations'] });
+      });
+
+      /* ---------------- Chat: typing (ephemeral) ---------------- */
+
+      es.addEventListener('chat:typing', (e) => {
+        let payload;
+        try {
+          payload = JSON.parse(e.data);
+        } catch {
+          return;
+        }
+        const { conversationId, userId, isTyping } = payload || {};
+        if (!conversationId || !userId) return;
+        // Feeds the chatStream pub/sub → useTypingIndicator()
+        setTypingState(conversationId, userId, !!isTyping);
+      });
+
       es.addEventListener('error', () => {
         if (cancelled) return;
 
@@ -116,7 +227,6 @@ export function useSSEBridge({ enabled = true } = {}) {
 
         failuresRef.current += 1;
         if (failuresRef.current >= MAX_FAILURES) {
-          // Give up on SSE — hooks will resume polling.
           setFallbackMode(true);
           return;
         }
