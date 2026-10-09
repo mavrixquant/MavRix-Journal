@@ -1,4 +1,4 @@
-// apps/web/src/features/charts/lib/symbolIcons.js
+// apps/web/src/shared/symbols/symbolIcons.js
 //
 // Maps each catalog symbol to an icon spec.
 //
@@ -10,7 +10,12 @@
 // Sources:
 //   cryptocurrency-icons  → node_modules/cryptocurrency-icons/svg/color/*.svg
 //   flag-icons            → node_modules/flag-icons/flags/1x1/*.svg
-//   CME_Group.svg         → apps/web/src/assets/CME_Group.svg
+//   CME_Group.png         → apps/web/src/assets/CME_Group.png
+//
+// This module is consumed by:
+//   - features/charts/components/QuoteHeader.jsx
+//   - features/charts/components/WatchlistSidebar.jsx
+//   - shared/trade-logs/AddTradeModal.jsx (via shared/symbols/SymbolSelect)
 
 /* ------------------------------------------------------------------ */
 /*  Static imports (Vite bundles these as asset URLs)                 */

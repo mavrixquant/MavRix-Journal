@@ -10,7 +10,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronDown, Minimize2, Maximize2, Search, X } from 'lucide-react';
 
 import { useMarketQuotes } from '@/shared/api/marketData';
-import SymbolIcon from './SymbolIcon';
+import { SymbolIcon } from '@/shared/symbols';
 
 const STORAGE_KEY = 'mavrix:chart:watchlist:collapsed';
 

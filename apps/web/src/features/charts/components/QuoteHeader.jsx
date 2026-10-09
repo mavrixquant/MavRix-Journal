@@ -3,7 +3,7 @@
 // Thin live-price strip above the chart, with per-symbol icon.
 
 import { useMarketQuote } from '@/shared/api/marketData';
-import SymbolIcon from './SymbolIcon';
+import { SymbolIcon } from '@/shared/symbols';
 
 function fmtPrice(n) {
   if (n == null || Number.isNaN(n)) return '—';
