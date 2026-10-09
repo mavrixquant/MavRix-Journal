@@ -34,6 +34,7 @@ const MarketChartPage = lazy(() => import('@/features/charts/MarketChartPage'));
 /* ---- Manage ---- */
 const AccountsPage = lazy(() => import('@/features/manage/accounts/AccountsPage'));
 const StrategiesPage = lazy(() => import('@/features/manage/strategies/StrategiesPage'));
+const StrategyDetailPage = lazy(() => import('@/features/manage/strategies/StrategyDetailPage'));
 
 /* ---- Utilities ---- */
 const GexPage = lazy(() => import('@/features/utilities/gex/GexPage'));
@@ -116,6 +117,7 @@ export function AppRoutes() {
 
         <Route path="/manage/accounts" element={<AccountsPage />} />
         <Route path="/manage/strategies" element={<StrategiesPage />} />
+        <Route path="/manage/strategies/:id" element={<StrategyDetailPage />} />
 
         <Route path="/utilities/gex" element={<GexPage />} />
 
