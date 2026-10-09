@@ -23,6 +23,13 @@
 //
 // The v1→v2 columnConfigs upgrade is handled by normalizeColumnConfigs()
 // from @mavrix/shared.
+//
+// SYMBOL INPUT
+// ------------
+// Symbol uses <SymbolSelect>, a searchable dropdown sourced from the same
+// /api/market-data/catalog used by the chart page. The trigger is a button,
+// so the browser's native `required` no longer applies — symbol presence is
+// validated explicitly in validate() below.
 
 import { useEffect, useMemo, useState } from 'react';
 import { FaTimes, FaPlus, FaCheck } from 'react-icons/fa';
@@ -30,6 +37,7 @@ import { FaTimes, FaPlus, FaCheck } from 'react-icons/fa';
 import Portal from '@/shared/components/Portal';
 import { useCreateTrade, useUpdateTrade } from '@/shared/api/trades';
 import { normalizeColumnConfigs } from '@mavrix/shared';
+import { SymbolSelect } from '@/shared/symbols';
 
 const TICKS_PER_POINT = 4;
 
@@ -426,6 +434,12 @@ export default function AddTradeModal({ isOpen, onClose, account, trade = null }
     if (!/^\d{2}:\d{2}$/.test(form.entryTime)) return 'Entry Time must be HH:MM.';
     if (!/^\d{2}:\d{2}$/.test(form.exitTime))  return 'Exit Time must be HH:MM.';
 
+    // Symbol is required — enforced here (not via the input's `required`
+    // attribute) because the field is now a button-triggered dropdown.
+    if (!form.symbol || !String(form.symbol).trim()) {
+      return 'Symbol is required.';
+    }
+
     // Quantity is required for both modes.
     const q = Number(form.quantity);
     if (form.quantity === '' || !Number.isFinite(q) || q <= 0) {
@@ -588,15 +602,18 @@ export default function AddTradeModal({ isOpen, onClose, account, trade = null }
                     </select>
                   </div>
                   <div>
-                    <label className="at-label">Symbol<span className="req">*</span></label>
-                    <input
-                      type="text"
-                      className="at-input"
-                      placeholder="e.g. NQ, ES"
+                    <label
+                      htmlFor="at-symbol"
+                      className="at-label"
+                    >
+                      Symbol<span className="req">*</span>
+                    </label>
+                    <SymbolSelect
+                      id="at-symbol"
                       value={form.symbol}
-                      onChange={(e) => set('symbol', e.target.value)}
+                      onChange={(code) => set('symbol', code)}
+                      placeholder="Select symbol…"
                       disabled={saving}
-                      required
                     />
                   </div>
                 </div>

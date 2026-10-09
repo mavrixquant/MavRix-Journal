@@ -9,10 +9,19 @@
 // Returns null when the symbol has no icon mapping — callers should treat
 // the icon as purely decorative and always render the symbol CODE as text
 // alongside it.
+//
+// Visual language:
+//   single (CME / crypto)  → rounded square image
+//   dual   (forex)         → two CIRCULAR flags arranged on a LEFT-leaning
+//                            diagonal (top-left → bottom-right):
+//                              · base currency flag (first)  at TOP-LEFT, IN FRONT
+//                              · quote currency flag (second) at BOTTOM-RIGHT, BEHIND
+//   badge  (spot metals)   → circular colored chip with 2-letter label
 
 import { getIconSpec } from './symbolIcons';
 
 const RADIUS_RATIO = 0.18;
+const DUAL_OVERLAP_RATIO = 0.42;
 
 export default function SymbolIcon({
   symbol,
@@ -54,10 +63,22 @@ export default function SymbolIcon({
     );
   }
 
-  /* ---------------- dual (forex flags) ---------------- */
+  /* ---------------- dual (forex flags, left diagonal) ---------------- */
+  //
+  // Layout (square footprint, s + overlap on each axis):
+  //
+  //     ┌──────────────┐
+  //     │[BASE]        │   ← top-left, IN FRONT
+  //     │        ╲     │
+  //     │         [QUOTE]│  ← bottom-right, BEHIND
+  //     └──────────────┘
+  //
+  // Both flags are rendered as CIRCLES (borderRadius: 50%). Render order
+  // determines stacking: the QUOTE flag is drawn first (behind); the BASE
+  // flag is drawn second so it sits on top.
   if (spec.kind === 'dual') {
-    const overlap = Math.round(s * 0.42);
-    const totalW = s + overlap;
+    const overlap = Math.round(s * DUAL_OVERLAP_RATIO);
+    const total = s + overlap;
 
     return (
       <span
@@ -68,12 +89,33 @@ export default function SymbolIcon({
         style={{
           position: 'relative',
           display: 'inline-block',
-          width: totalW,
-          height: s,
+          width: total,
+          height: total,
           flexShrink: 0,
           lineHeight: 0,
         }}
       >
+        {/* Quote currency — bottom-right, BEHIND */}
+        <img
+          src={spec.right}
+          alt=""
+          width={s}
+          height={s}
+          draggable={false}
+          loading="lazy"
+          style={{
+            position: 'absolute',
+            right: 0,
+            bottom: 0,
+            width: s,
+            height: s,
+            borderRadius: '50%',
+            objectFit: 'cover',
+            boxShadow: '0 0 0 1px rgba(0,0,0,.55)',
+            userSelect: 'none',
+          }}
+        />
+        {/* Base currency — top-left, IN FRONT */}
         <img
           src={spec.left}
           alt=""
@@ -87,26 +129,7 @@ export default function SymbolIcon({
             top: 0,
             width: s,
             height: s,
-            borderRadius: radius,
-            objectFit: 'cover',
-            boxShadow: '0 0 0 1px rgba(0,0,0,.55)',
-            userSelect: 'none',
-          }}
-        />
-        <img
-          src={spec.right}
-          alt=""
-          width={s}
-          height={s}
-          draggable={false}
-          loading="lazy"
-          style={{
-            position: 'absolute',
-            left: overlap,
-            top: 0,
-            width: s,
-            height: s,
-            borderRadius: radius,
+            borderRadius: '50%',
             objectFit: 'cover',
             boxShadow: '0 0 0 1px rgba(0,0,0,.55)',
             userSelect: 'none',
