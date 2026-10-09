@@ -15,3 +15,7 @@ ai-context
 notes.*
 # GEX data backups (contains real data — never commit)
 apps/api/backups/
+
+# Chat smoke-test scratch files
+.chat-*
+_smoke-chat.ps1

@@ -9,6 +9,7 @@ import { calendarRoutes } from './calendar.routes.js';
 import { gexRoutes } from './gex.routes.js';
 import { marketDataRoutes } from './marketData.routes.js';
 import { adminRoutes } from './admin.routes.js';
+import { chatRoutes } from './chat.routes.js';
 
 export const apiRouter = Router();
 
@@ -22,4 +23,5 @@ apiRouter.use('/users', usersRoutes);
 apiRouter.use('/calendar', calendarRoutes);
 apiRouter.use('/gex', gexRoutes);
 apiRouter.use('/market-data', marketDataRoutes);
+apiRouter.use('/chat', chatRoutes);
 apiRouter.use('/admin', adminRoutes);

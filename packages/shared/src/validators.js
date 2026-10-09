@@ -181,3 +181,40 @@ export const gexDaySchema = z.object({
   converted: z.string().min(1).max(20000),
   sourceTimezone: z.string().trim().min(1).max(64).optional(),
 });
+
+/* ------------------------------------------------------------------ */
+/*  Chat — Direct Messages                                             */
+/* ------------------------------------------------------------------ */
+
+// Body of a message. 4000 char cap, trimmed, non-empty.
+export const sendMessageSchema = z.object({
+  body: z.string().trim().min(1).max(4000),
+  replyToId: z.string().min(1).nullable().optional(),
+});
+
+// Edit uses the same body rules as send.
+export const editMessageSchema = z.object({
+  body: z.string().trim().min(1).max(4000),
+});
+
+// Typing indicator — ephemeral, not persisted.
+export const typingSchema = z.object({
+  isTyping: z.boolean(),
+});
+
+// Create (or fetch) a DM with a peer.
+export const createDmSchema = z.object({
+  peerId: z.string().min(1).max(64),
+});
+
+// User search — min 2 chars, capped at 100 to prevent wildcard scanning.
+export const userSearchSchema = z.object({
+  q: z.string().trim().min(2).max(100),
+});
+
+// Per-participant conversation flags (pin / mute / archive).
+export const updateConversationSchema = z.object({
+  isPinned: z.boolean().optional(),
+  isMuted: z.boolean().optional(),
+  isArchived: z.boolean().optional(),
+});

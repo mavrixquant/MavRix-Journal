@@ -34,9 +34,11 @@ model User {
 
   tokenVersion Int @default(0)
 
-  accounts   Account[]
-  layouts    UserLayout[]
-  strategies Strategy[]
+  accounts      Account[]
+  layouts       UserLayout[]
+  strategies    Strategy[]
+  conversations ConversationParticipant[]
+  messages      Message[]
 
   @@index([role])
   @@index([isBanned])
@@ -259,4 +261,82 @@ model Strategy {
   @@index([userId])
   @@index([userId, status])
   @@map("strategies")
+}
+
+// ---------------------------------------------------------------------------
+// Chat — Direct Messages (DMs) only. Discussions (public/private channels)
+// will reuse these same tables with `type='channel'` in a future project.
+//
+// Design notes:
+//   - `Conversation.dmKey` is a sorted "minUserId:maxUserId" string, unique,
+//     that enforces one DM per pair of users at the DB level. Null for
+//     future channels (which will use a `slug`).
+//   - `ConversationParticipant` is the ONLY access-control check. Every
+//     service call resolves the requesting user's row here before touching
+//     the conversation. No admin route reads this table.
+//   - `Message.deletedForIds` is per-user "delete for me". The read path
+//     filters with `NOT: { deletedForIds: { has: userId } }`.
+//   - `Message.deletedAt` is "delete for everyone" — soft-delete only. Body
+//     retained in the DB, nulled out by the serializer on the wire.
+//   - `Message.replyToId` is a self-FK, SetNull on delete.
+//   - `unreadCount` on participant is incremented in the send transaction and
+//     reset on markRead. Avoids a per-list count(*) query.
+// ---------------------------------------------------------------------------
+model Conversation {
+  id              String   @id @default(cuid())
+  type            String   @default("dm")
+  dmKey           String?  @unique
+  lastMessageAt   DateTime @default(now())
+  lastMessageText String?
+  lastMessageById String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  participants ConversationParticipant[]
+  messages     Message[]
+
+  @@index([lastMessageAt])
+  @@map("conversations")
+}
+
+model ConversationParticipant {
+  id             String   @id @default(cuid())
+  conversationId String
+  userId         String
+  joinedAt       DateTime @default(now())
+  lastReadAt     DateTime @default(now())
+  lastReadMsgId  String?
+  unreadCount    Int      @default(0)
+  isPinned       Boolean  @default(false)
+  isMuted        Boolean  @default(false)
+  isArchived     Boolean  @default(false)
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId])
+  @@index([userId, isArchived])
+  @@index([userId, lastReadAt])
+  @@map("conversation_participants")
+}
+
+model Message {
+  id             String    @id @default(cuid())
+  conversationId String
+  senderId       String
+  body           String
+  replyToId      String?
+  createdAt      DateTime  @default(now())
+  editedAt       DateTime?
+  deletedAt      DateTime?
+  deletedForIds  String[]  @default([])
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  replyTo      Message?     @relation("MessageReply", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies      Message[]    @relation("MessageReply")
+
+  @@index([conversationId, createdAt])
+  @@index([senderId])
+  @@map("messages")
 }
