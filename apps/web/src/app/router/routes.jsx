@@ -45,18 +45,19 @@ const ChatsPage = lazy(() => import('@/features/personal/chats/ChatsPage'));
 
 /* ---- Admin ---- */
 const AdminLayout = lazy(() => import('@/features/admin/layout/AdminLayout'));
-const AdminDashboardPage  = lazy(() => import('@/features/admin/pages/AdminDashboardPage'));
-const AdminUsersPage      = lazy(() => import('@/features/admin/pages/AdminUsersPage'));
-const AdminUserDetailPage = lazy(() => import('@/features/admin/pages/AdminUserDetailPage'));
-const AdminAccountsPage   = lazy(() => import('@/features/admin/pages/AdminAccountsPage'));
-const AdminTradesPage     = lazy(() => import('@/features/admin/pages/AdminTradesPage'));
-const AdminAuditPage      = lazy(() => import('@/features/admin/pages/AdminAuditPage'));
-const AdminSessionsPage   = lazy(() => import('@/features/admin/pages/AdminSessionsPage'));
-const AdminSystemPage     = lazy(() => import('@/features/admin/pages/AdminSystemPage'));
-const AdminCalendarPage   = lazy(() => import('@/features/admin/pages/AdminCalendarPage'));
-const AdminSettingsPage   = lazy(() => import('@/features/admin/pages/AdminSettingsPage'));
-const AdminBroadcastPage  = lazy(() => import('@/features/admin/pages/AdminBroadcastPage'));
-const AdminGexPage        = lazy(() => import('@/features/admin/pages/AdminGexPage'));
+const AdminDashboardPage    = lazy(() => import('@/features/admin/pages/AdminDashboardPage'));
+const AdminUsersPage        = lazy(() => import('@/features/admin/pages/AdminUsersPage'));
+const AdminUserDetailPage   = lazy(() => import('@/features/admin/pages/AdminUserDetailPage'));
+const AdminAccountsPage     = lazy(() => import('@/features/admin/pages/AdminAccountsPage'));
+const AdminTradesPage       = lazy(() => import('@/features/admin/pages/AdminTradesPage'));
+const AdminStrategiesPage   = lazy(() => import('@/features/admin/pages/AdminStrategiesPage'));
+const AdminAuditPage        = lazy(() => import('@/features/admin/pages/AdminAuditPage'));
+const AdminSessionsPage     = lazy(() => import('@/features/admin/pages/AdminSessionsPage'));
+const AdminSystemPage       = lazy(() => import('@/features/admin/pages/AdminSystemPage'));
+const AdminCalendarPage     = lazy(() => import('@/features/admin/pages/AdminCalendarPage'));
+const AdminSettingsPage     = lazy(() => import('@/features/admin/pages/AdminSettingsPage'));
+const AdminBroadcastPage    = lazy(() => import('@/features/admin/pages/AdminBroadcastPage'));
+const AdminGexPage          = lazy(() => import('@/features/admin/pages/AdminGexPage'));
 
 function RootRedirect() {
   const { user } = useAuth();
@@ -94,6 +95,7 @@ export function AppRoutes() {
         <Route path="users/:id" element={<AdminUserDetailPage />} />
         <Route path="accounts"  element={<AdminAccountsPage />} />
         <Route path="trades"    element={<AdminTradesPage />} />
+        <Route path="strategies" element={<AdminStrategiesPage />} />
         <Route path="audit"     element={<AdminAuditPage />} />
         <Route path="sessions"  element={<AdminSessionsPage />} />
         <Route path="system"    element={<AdminSystemPage />} />

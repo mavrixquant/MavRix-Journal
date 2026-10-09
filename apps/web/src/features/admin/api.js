@@ -14,18 +14,20 @@ import { apiJson } from '@/shared/api/client';
 /*  Query keys                                                        */
 /* ------------------------------------------------------------------ */
 export const adminKeys = {
-  me:       ['admin', 'me'],
-  stats:    ['admin', 'stats'],
-  health:   ['admin', 'health'],
-  users:    (filters) => ['admin', 'users', filters],
-  user:     (id) => ['admin', 'user', id],
-  accounts: (filters) => ['admin', 'accounts', filters],
-  account:  (id) => ['admin', 'account', id],
-  trades:   (filters) => ['admin', 'trades', filters],
-  audit:    (filters) => ['admin', 'audit', filters],
-  sessions: ['admin', 'sessions'],
-  settings: ['admin', 'settings'],
-  calLogs:  ['admin', 'calendar', 'logs'],
+  me:         ['admin', 'me'],
+  stats:      ['admin', 'stats'],
+  health:     ['admin', 'health'],
+  users:      (filters) => ['admin', 'users', filters],
+  user:       (id) => ['admin', 'user', id],
+  accounts:   (filters) => ['admin', 'accounts', filters],
+  account:    (id) => ['admin', 'account', id],
+  trades:     (filters) => ['admin', 'trades', filters],
+  strategies: (filters) => ['admin', 'strategies', filters],
+  strategy:   (id) => ['admin', 'strategy', id],
+  audit:      (filters) => ['admin', 'audit', filters],
+  sessions:   ['admin', 'sessions'],
+  settings:   ['admin', 'settings'],
+  calLogs:    ['admin', 'calendar', 'logs'],
 };
 
 /* ------------------------------------------------------------------ */
@@ -75,7 +77,7 @@ export function useAdminUsers(filters = {}) {
     queryKey: adminKeys.users(filters),
     queryFn: () => apiJson(`/api/admin/users${buildQS(filters)}`),
     staleTime: 15_000,
-    placeholderData: (prev) => prev,   // keep old page visible while new loads
+    placeholderData: (prev) => prev,
   });
 }
 
@@ -272,6 +274,48 @@ export function useAdminDeleteTradesByAccount() {
       apiJson(`/api/admin/trades/by-account/${accountId}`, { method: 'DELETE' }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin', 'trades'] });
+      qc.invalidateQueries({ queryKey: adminKeys.stats });
+      qc.invalidateQueries({ queryKey: ['admin', 'audit'] });
+    },
+  });
+}
+
+/* ------------------------------------------------------------------ */
+/*  Strategies                                                        */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Cross-user strategy list. Same filters as the user-side list, plus
+ * `userId` to scope to one owner.
+ */
+export function useAdminStrategies(filters = {}) {
+  return useQuery({
+    queryKey: adminKeys.strategies(filters),
+    queryFn: () => apiJson(`/api/admin/strategies${buildQS(filters)}`),
+    staleTime: 15_000,
+    placeholderData: (prev) => prev,
+  });
+}
+
+export function useAdminStrategy(strategyId) {
+  return useQuery({
+    queryKey: adminKeys.strategy(strategyId),
+    queryFn: () => apiJson(`/api/admin/strategies/${strategyId}`),
+    enabled: !!strategyId,
+  });
+}
+
+/**
+ * Superadmin-only. Trades tagged with the strategy are DETACHED
+ * (Trade.strategyId → null via FK SetNull), not deleted.
+ */
+export function useAdminDeleteStrategy() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (strategyId) =>
+      apiJson(`/api/admin/strategies/${strategyId}`, { method: 'DELETE' }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'strategies'] });
       qc.invalidateQueries({ queryKey: adminKeys.stats });
       qc.invalidateQueries({ queryKey: ['admin', 'audit'] });
     },
