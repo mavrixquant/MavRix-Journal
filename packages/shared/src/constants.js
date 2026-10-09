@@ -45,6 +45,33 @@ export const MAX_LAYOUTS = 3;
 export const MAX_DROPDOWN_UNIQUES = 10;
 
 /* ------------------------------------------------------------------ */
+/*  Strategies                                                         */
+/* ------------------------------------------------------------------ */
+
+// Lifecycle states. "archived" is the soft-delete path — the strategy
+// disappears from pickers but its historical trades keep the tag.
+export const STRATEGY_STATUSES = ['active', 'paused', 'archived'];
+
+// A strategy is either Long-only, Short-only, or applies to both.
+// "null" (undefined direction) means both.
+export const STRATEGY_DIRECTIONS = ['Long', 'Short'];
+
+// Curated palette for strategy colours. Values are 6-digit hex strings.
+// The web app uses these to render the strategy chip; the API just stores
+// whatever hex the client sent (validation restricts it to this palette).
+export const STRATEGY_COLORS = [
+  { hex: '#F59E0B', label: 'Amber'  },
+  { hex: '#4C8BF5', label: 'Blue'   },
+  { hex: '#35C4A1', label: 'Green'  },
+  { hex: '#FF5C5C', label: 'Red'    },
+  { hex: '#A78BFA', label: 'Violet' },
+  { hex: '#6C7686', label: 'Grey'   },
+];
+
+// Default colour applied when the client doesn't specify one.
+export const STRATEGY_DEFAULT_COLOR = '#F59E0B';
+
+/* ------------------------------------------------------------------ */
 /*  Custom column configs                                              */
 /*                                                                     */
 /*  A columnConfigs JSON blob can be in one of two shapes:             */

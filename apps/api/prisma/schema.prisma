@@ -34,8 +34,9 @@ model User {
 
   tokenVersion Int @default(0)
 
-  accounts Account[]
-  layouts  UserLayout[]
+  accounts   Account[]
+  layouts    UserLayout[]
+  strategies Strategy[]
 
   @@index([role])
   @@index([isBanned])
@@ -68,14 +69,15 @@ model Account {
 }
 
 model Trade {
-  id        String @id @default(cuid())
-  accountId String
-  tradeId   String
-  date      String
-  entryTime String
-  exitTime  String
-  direction String
-  symbol    String @default("")
+  id         String  @id @default(cuid())
+  accountId  String
+  strategyId String?
+  tradeId    String
+  date       String
+  entryTime  String
+  exitTime   String
+  direction  String
+  symbol     String  @default("")
 
   mae      Float?
   mfe      Float?
@@ -92,11 +94,13 @@ model Trade {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  account  Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  strategy Strategy? @relation(fields: [strategyId], references: [id], onDelete: SetNull)
 
   @@unique([accountId, tradeId])
   @@index([accountId])
   @@index([accountId, date])
+  @@index([strategyId])
   @@map("trades")
 }
 
@@ -197,10 +201,10 @@ model SiteSetting {
 //     convention so a hard-deleted admin does not orphan their uploads.
 // ---------------------------------------------------------------------------
 model GexDay {
-  id         String   @id @default(cuid())
-  date       String   @unique
-  levels     Json     @default("[]")
-  converted  String   @default("")
+  id        String @id @default(cuid())
+  date      String @unique
+  levels    Json   @default("[]")
+  converted String @default("")
 
   levelCount Int @default(0)
   blCount    Int @default(0)
@@ -215,4 +219,44 @@ model GexDay {
 
   @@index([date])
   @@map("gex_days")
+}
+
+// ---------------------------------------------------------------------------
+// Strategy — a user-owned playbook.
+//
+// Design notes:
+//   - One strategy name per user (`@@unique([userId, name])`).
+//   - `status` is a plain string: "active" | "paused" | "archived". Validation
+//     happens at the Zod layer, not the DB, so we don't need a migration to
+//     add a new status later.
+//   - `direction` is nullable: null means "both Long and Short", a value
+//     means the strategy only applies to that direction.
+//   - `color` is a hex string used to render the strategy chip / row accent.
+//     The allowed palette is enforced in the shared validator.
+//   - `tags` is a Postgres TEXT[] — array of free-form labels for grouping.
+//   - Deleting a user cascades to their strategies. Deleting a strategy does
+//     NOT cascade to trades: `Trade.strategyId` is `onDelete: SetNull`, so
+//     trades keep running and just lose the tag.
+// ---------------------------------------------------------------------------
+model Strategy {
+  id          String   @id @default(cuid())
+  userId      String
+  name        String
+  description String   @default("")
+  rules       String   @default("")
+  status      String   @default("active")
+  color       String   @default("#F59E0B")
+  direction   String?
+  timeframe   String?
+  tags        String[] @default([])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trades Trade[]
+
+  @@unique([userId, name])
+  @@index([userId])
+  @@index([userId, status])
+  @@map("strategies")
 }

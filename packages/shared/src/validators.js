@@ -3,6 +3,7 @@ import { z } from 'zod';
 import {
   ACCOUNT_TYPES, CURRENCIES, RISK_TYPES, RISK_UNITS,
   SL_UNITS, COMMISSION_MODES, DIRECTIONS,
+  STRATEGY_STATUSES, STRATEGY_DIRECTIONS, STRATEGY_COLORS,
 } from './constants.js';
 import { IMPACT_LEVELS, MAX_CALENDAR_EVENTS_PER_REQUEST } from './calendar.js';
 
@@ -60,6 +61,28 @@ export const accountSchema = z.object({
 });
 
 /* ------------------------------------------------------------------ */
+/*  Strategy                                                           */
+/* ------------------------------------------------------------------ */
+
+// Accept only hex values from the shared palette.
+const strategyColorEnum = z.enum(
+  STRATEGY_COLORS.map((c) => c.hex)
+);
+
+export const strategySchema = z.object({
+  name: z.string().trim().min(1).max(80),
+  description: z.string().max(2000).optional().default(''),
+  rules: z.string().max(5000).optional().default(''),
+  status: z.enum(STRATEGY_STATUSES).optional().default('active'),
+  color: strategyColorEnum.optional().default('#F59E0B'),
+  direction: z.enum(STRATEGY_DIRECTIONS).nullable().optional(),
+  timeframe: z.string().trim().max(20).nullable().optional(),
+  tags: z.array(z.string().trim().min(1).max(40)).max(20).optional().default([]),
+});
+
+export const strategyUpdateSchema = strategySchema.partial();
+
+/* ------------------------------------------------------------------ */
 /*  Trade                                                              */
 /* ------------------------------------------------------------------ */
 
@@ -69,6 +92,8 @@ export const tradeSchema = z.object({
   exitTime: z.string().regex(/^\d{2}:\d{2}$/),
   direction: z.enum(DIRECTIONS),
   symbol: z.string().trim().max(30).optional().default(''),
+
+  strategyId: z.string().min(1).nullable().optional(),
 
   mae: z.number().finite().nonnegative().nullable().optional(),
   mfe: z.number().finite().nonnegative().nullable().optional(),
