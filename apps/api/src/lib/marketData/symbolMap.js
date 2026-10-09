@@ -78,6 +78,23 @@ export function resolveSymbol(internalSymbol) {
 /* ------------------------------------------------------------------ */
 
 export const SYMBOL_CATALOG = [
+
+  // ---------- Forex (Biquote / MT5) ----------
+  { code: 'EURUSD', label: 'Euro / US Dollar',       category: 'Forex', exchange: 'MT5', provider: 'biquote' },
+  { code: 'GBPUSD', label: 'British Pound / US Dollar', category: 'Forex', exchange: 'MT5', provider: 'biquote' },
+  { code: 'USDJPY', label: 'US Dollar / Japanese Yen',   category: 'Forex', exchange: 'MT5', provider: 'biquote' },
+  { code: 'AUDUSD', label: 'Australian Dollar / USD',     category: 'Forex', exchange: 'MT5', provider: 'biquote' },
+  { code: 'USDCAD', label: 'US Dollar / Canadian Dollar', category: 'Forex', exchange: 'MT5', provider: 'biquote' },
+  { code: 'USDCHF', label: 'US Dollar / Swiss Franc',     category: 'Forex', exchange: 'MT5', provider: 'biquote' },
+  { code: 'NZDUSD', label: 'New Zealand Dollar / USD',    category: 'Forex', exchange: 'MT5', provider: 'biquote' },
+  { code: 'EURGBP', label: 'Euro / British Pound',        category: 'Forex', exchange: 'MT5', provider: 'biquote' },
+  { code: 'EURJPY', label: 'Euro / Japanese Yen',         category: 'Forex', exchange: 'MT5', provider: 'biquote' },
+  { code: 'GBPJPY', label: 'British Pound / Japanese Yen', category: 'Forex', exchange: 'MT5', provider: 'biquote' },
+  
+  // ---------- Spot metals (Biquote) ----------
+  { code: 'XAUUSD', label: 'Gold Spot / USD',   category: 'Metals', exchange: 'MT5', provider: 'biquote' },
+  { code: 'XAGUSD', label: 'Silver Spot / USD', category: 'Metals', exchange: 'MT5', provider: 'biquote' },
+
   // ---------- Equity index futures (Yahoo) ----------
   { code: 'NQ',  label: 'Nasdaq 100',       category: 'Futures',     exchange: 'CME',   provider: 'yahoo' },
   { code: 'MNQ', label: 'Micro Nasdaq 100', category: 'Futures',     exchange: 'CME',   provider: 'yahoo' },
@@ -91,22 +108,6 @@ export const SYMBOL_CATALOG = [
   { code: 'MGC', label: 'Micro Gold',       category: 'Commodities', exchange: 'COMEX', provider: 'yahoo' },
   { code: 'CL',  label: 'Crude Oil (WTI)',  category: 'Commodities', exchange: 'NYMEX', provider: 'yahoo' },
   { code: 'MCL', label: 'Micro Crude Oil',  category: 'Commodities', exchange: 'NYMEX', provider: 'yahoo' },
-
-  // ---------- Forex (Biquote / MT5) ----------
-  { code: 'EURUSD', label: 'Euro / US Dollar',       category: 'Forex', exchange: 'MT5', provider: 'biquote' },
-  { code: 'GBPUSD', label: 'British Pound / US Dollar', category: 'Forex', exchange: 'MT5', provider: 'biquote' },
-  { code: 'USDJPY', label: 'US Dollar / Japanese Yen',   category: 'Forex', exchange: 'MT5', provider: 'biquote' },
-  { code: 'AUDUSD', label: 'Australian Dollar / USD',     category: 'Forex', exchange: 'MT5', provider: 'biquote' },
-  { code: 'USDCAD', label: 'US Dollar / Canadian Dollar', category: 'Forex', exchange: 'MT5', provider: 'biquote' },
-  { code: 'USDCHF', label: 'US Dollar / Swiss Franc',     category: 'Forex', exchange: 'MT5', provider: 'biquote' },
-  { code: 'NZDUSD', label: 'New Zealand Dollar / USD',    category: 'Forex', exchange: 'MT5', provider: 'biquote' },
-  { code: 'EURGBP', label: 'Euro / British Pound',        category: 'Forex', exchange: 'MT5', provider: 'biquote' },
-  { code: 'EURJPY', label: 'Euro / Japanese Yen',         category: 'Forex', exchange: 'MT5', provider: 'biquote' },
-  { code: 'GBPJPY', label: 'British Pound / Japanese Yen', category: 'Forex', exchange: 'MT5', provider: 'biquote' },
-
-  // ---------- Spot metals (Biquote) ----------
-  { code: 'XAUUSD', label: 'Gold Spot / USD',   category: 'Metals', exchange: 'MT5', provider: 'biquote' },
-  { code: 'XAGUSD', label: 'Silver Spot / USD', category: 'Metals', exchange: 'MT5', provider: 'biquote' },
 
   // ---------- Crypto (Yahoo) ----------
   { code: 'BTCUSD', label: 'Bitcoin',  category: 'Crypto', provider: 'yahoo' },
