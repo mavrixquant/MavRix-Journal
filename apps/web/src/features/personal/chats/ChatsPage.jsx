@@ -1,14 +1,111 @@
-// apps/web/src/features/personal/components/Chats.jsx
-import { FaCommentDots } from 'react-icons/fa';
-import ComingSoon from '@/shared/components/ComingSoon';
+// apps/web/src/features/personal/chats/ChatsPage.jsx
+//
+// Two-pane chat UI. Left = conversation list, right = active thread.
+// Fully private — no admin role can see these conversations.
+//
+// Mobile (< 900px): single pane. Selecting a conversation slides in the
+// thread; the back button returns to the list.
 
-export default function Chats() {
+import { useState, useMemo } from 'react';
+import { MessageSquare } from 'lucide-react';
+
+import { useAuth } from '@/app/providers/AuthProvider';
+import { useChatConversations } from '@/shared/api/chat';
+import { PageSkeleton } from '@/shared/ui/page-skeleton';
+
+import ConversationList from './components/ConversationList';
+import MessageThread from './components/MessageThread';
+import NewChatModal from './components/NewChatModal';
+
+import './ChatsPage.css';
+import '@/shared/ui/page-header.css';
+
+export default function ChatsPage() {
+  const { user } = useAuth();
+  const [selectedId, setSelectedId] = useState(null);
+  const [newChatOpen, setNewChatOpen] = useState(false);
+  const [mobileThreadOpen, setMobileThreadOpen] = useState(false);
+
+  const { data: conversations = [], isLoading } = useChatConversations();
+
+  const selectedConversation = useMemo(
+    () => conversations.find((c) => c.id === selectedId) || null,
+    [conversations, selectedId]
+  );
+
+  const handleSelect = (id) => {
+    setSelectedId(id);
+    setMobileThreadOpen(true);
+  };
+
+  const handleMobileBack = () => {
+    setMobileThreadOpen(false);
+  };
+
+  const handleCreatedConversation = (id) => {
+    setSelectedId(id);
+    setMobileThreadOpen(true);
+  };
+
+  if (isLoading) return <PageSkeleton />;
+
+  // Root class drives which pane is visible on mobile.
+  let rootClass = 'chat-root';
+  if (!selectedId) rootClass += ' is-mobile-list-open';
+  else if (mobileThreadOpen) rootClass += ' is-mobile-thread-open';
+
   return (
-    <ComingSoon
-      eyebrow="Personal Space"
-      title="Chats"
-      description="Conversational analysis of your trading — ask questions about your edge, your worst setups, and your timing."
-      icon={FaCommentDots}
-    />
+    <div className="chat-page">
+      {/* ---------- Page header ---------- */}
+      <div className="ph">
+        <div className="ph-row">
+          <div className="ph-left">
+            <span className="ph-eyebrow">Personal</span>
+            <h1 className="ph-title">Chats</h1>
+            <p className="ph-sub">
+              Private direct messages · encrypted by connection, visible only to you and the other person
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* ---------- Two-pane body ---------- */}
+      <div className={rootClass}>
+        <ConversationList
+          conversations={conversations}
+          selectedId={selectedId}
+          currentUserId={user?.id}
+          onSelect={handleSelect}
+          onNewChat={() => setNewChatOpen(true)}
+        />
+
+        {selectedConversation ? (
+          <MessageThread
+            conversationId={selectedId}
+            onBack={handleMobileBack}
+          />
+        ) : (
+          <div className="chat-thread">
+            <div className="chat-empty">
+              <div className="chat-empty-icon">
+                <MessageSquare size={26} />
+              </div>
+              <h3>No conversation selected</h3>
+              <p>
+                Pick a conversation from the list, or start a new one.
+                Only you and the other person can see these messages.
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ---------- New-chat modal ---------- */}
+      <NewChatModal
+        isOpen={newChatOpen}
+        onClose={() => setNewChatOpen(false)}
+        onCreated={handleCreatedConversation}
+      />
+    </div>
   );
 }
