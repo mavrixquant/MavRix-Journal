@@ -28,6 +28,7 @@ export function useFilters() {
   const setSelectedTimeBlocks = (b) => dispatch({ type: actions.SET_SELECTED_TIME_BLOCKS, payload: b });
   const setActiveFilterType = (t) => dispatch({ type: actions.SET_ACTIVE_FILTER_TYPE, payload: t });
   const setFilterParams = (p) => dispatch({ type: actions.SET_FILTER_PARAMS, payload: p });
+  const setStrategyIds = (ids) => dispatch({ type: actions.SET_STRATEGY_IDS, payload: ids });
 
   // Guard: no account for the current dashboard type → no trades.
   // Without this, the caller would score stale trades from the OTHER
@@ -39,6 +40,7 @@ export function useFilters() {
 
   return {
     filterSelections: state.filterSelections,
+    strategyIds: state.strategyIds || [],
     stMode: state.stMode,
     selectedSessions: state.selectedSessions,
     selectedTimeBlocks: state.selectedTimeBlocks,
@@ -46,6 +48,7 @@ export function useFilters() {
     filterParams: state.filterParams,
     SL: resolveSL(selectedAccount),
     setFilterSelection,
+    setStrategyIds,
     resetAllFilters,
     setSTMode,
     setSelectedSessions,

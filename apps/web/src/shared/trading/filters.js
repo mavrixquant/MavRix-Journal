@@ -39,6 +39,21 @@ export function applyDynamicFilters(trades, filterSelections, dynamicKeys) {
   });
 }
 
+/**
+ * Filter trades by strategy id.
+ *
+ *   strategyIds = []       → no filter (all strategies)
+ *   strategyIds = [id, …]  → only trades whose strategyId is in the list
+ *   trade.strategyId = null → excluded when strategyIds is non-empty
+ */
+export function applyStrategyFilter(trades, strategyIds) {
+  if (!trades || trades.length === 0) return trades;
+  if (!Array.isArray(strategyIds) || strategyIds.length === 0) return trades;
+
+  const wanted = new Set(strategyIds);
+  return trades.filter(t => t.strategyId != null && wanted.has(t.strategyId));
+}
+
 export function applySessionTimeFilter(trades, stMode, selectedSessions, selectedTimeBlocks) {
   if (!trades || trades.length === 0) return trades;
   if (stMode === 'session' && selectedSessions.length === 0) return trades;
@@ -112,6 +127,7 @@ export function applyLimitsFilter(trades, activeFilterType, filterParams, curren
 
 export function applyFilters(trades, state, accountOrSL) {
   let filtered = applyDynamicFilters(trades, state.filterSelections, state.dynamicFilterKeys);
+  filtered = applyStrategyFilter(filtered, state.strategyIds || []);
   filtered = applySessionTimeFilter(filtered, state.stMode, state.selectedSessions, state.selectedTimeBlocks);
   filtered = applyLimitsFilter(filtered, state.activeFilterType, state.filterParams, state.currentR, accountOrSL);
   return filtered;

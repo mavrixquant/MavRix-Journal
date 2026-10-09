@@ -18,6 +18,7 @@ import { useAppContext, actions } from '@/app/providers/AppProvider';
 /*    &stb=09:30|10:00                                                */
 /*    &aft=day                                                        */
 /*    &fp=sessionLimit:2|dayLimit:3|winLimit:2|lossLimit:1            */
+/*    &strat=cuid1,cuid2                                              */
 /* ------------------------------------------------------------------ */
 
 const DYN_KEY = 'fs';
@@ -26,6 +27,7 @@ const SESSIONS_KEY = 'ss';
 const BLOCKS_KEY = 'stb';
 const ACTIVE_FILTER_KEY = 'aft';
 const FILTER_PARAMS_KEY = 'fp';
+const STRATEGY_KEY = 'strat';
 
 function serializeSelections(selections) {
   const parts = [];
@@ -95,14 +97,21 @@ export function useFilterUrlSync() {
     const stb = searchParams.get(BLOCKS_KEY);
     const aft = searchParams.get(ACTIVE_FILTER_KEY);
     const fp = searchParams.get(FILTER_PARAMS_KEY);
+    const strat = searchParams.get(STRATEGY_KEY);
 
     // Nothing in the URL — leave defaults untouched.
-    if (!fs && !stm && !ss && !stb && !aft && !fp) return;
+    if (!fs && !stm && !ss && !stb && !aft && !fp && !strat) return;
 
     if (fs) {
       dispatch({
         type: actions.SET_FILTER_SELECTIONS,
         payload: deserializeSelections(fs),
+      });
+    }
+    if (strat) {
+      dispatch({
+        type: actions.SET_STRATEGY_IDS,
+        payload: strat.split(',').filter(Boolean),
       });
     }
     if (stm) {
@@ -142,6 +151,7 @@ export function useFilterUrlSync() {
     };
 
     setOrDelete(DYN_KEY, serializeSelections(state.filterSelections));
+    setOrDelete(STRATEGY_KEY, (state.strategyIds || []).join(','));
     setOrDelete(ST_MODE_KEY, state.stMode === 'session' ? '' : state.stMode);
     setOrDelete(SESSIONS_KEY, state.selectedSessions.join('|'));
     setOrDelete(BLOCKS_KEY, state.selectedTimeBlocks.join('|'));
@@ -172,6 +182,7 @@ export function useFilterUrlSync() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     state.filterSelections,
+    state.strategyIds,
     state.stMode,
     state.selectedSessions,
     state.selectedTimeBlocks,

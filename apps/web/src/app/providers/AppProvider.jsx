@@ -6,6 +6,7 @@ const initialState = {
   currentR: 1,
   filterSelections: {},
   dynamicFilterKeys: [],
+  strategyIds: [],
   stMode: 'session',
   selectedSessions: [],
   selectedTimeBlocks: [],
@@ -52,6 +53,7 @@ const ACTION_TYPES = {
   SET_CURRENT_R: 'SET_CURRENT_R',
   SET_FILTER_SELECTIONS: 'SET_FILTER_SELECTIONS',
   SET_DYNAMIC_FILTER_KEYS: 'SET_DYNAMIC_FILTER_KEYS',
+  SET_STRATEGY_IDS: 'SET_STRATEGY_IDS',
   SET_ST_MODE: 'SET_ST_MODE',
   SET_SELECTED_SESSIONS: 'SET_SELECTED_SESSIONS',
   SET_SELECTED_TIME_BLOCKS: 'SET_SELECTED_TIME_BLOCKS',
@@ -83,6 +85,8 @@ function appReducer(state, action) {
       return { ...state, filterSelections: action.payload };
     case ACTION_TYPES.SET_DYNAMIC_FILTER_KEYS:
       return { ...state, dynamicFilterKeys: action.payload };
+    case ACTION_TYPES.SET_STRATEGY_IDS:
+      return { ...state, strategyIds: action.payload };
     case ACTION_TYPES.SET_ST_MODE:
       return { ...state, stMode: action.payload };
     case ACTION_TYPES.SET_SELECTED_SESSIONS:
@@ -100,6 +104,7 @@ function appReducer(state, action) {
       return {
         ...state,
         filterSelections: {},
+        strategyIds: [],
         stMode: 'session',
         selectedSessions: [],
         selectedTimeBlocks: [],

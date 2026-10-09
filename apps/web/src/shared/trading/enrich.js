@@ -1,4 +1,3 @@
-
 // apps/web/src/shared/trading/enrich.js
 import { getSession, get30MinBucket, DOW_NAMES } from './time.js';
 
@@ -25,9 +24,14 @@ function computeDurationMinutes(entryStr, exitStr) {
 //
 // NOTE: `notes` MUST be here. If it isn't, enrichTradesFromDB() treats it as
 // a custom column, and the trade table renders a duplicate "Notes" column.
+//
+// NOTE: `strategyId` and `strategy` are dedicated fields (a real FK and its
+// joined payload). They must not leak into `dynamic`.
 const STANDARD_KEYS = new Set([
   'accountId',
   'tradeId',
+  'strategyId',
+  'strategy',
   'date',
   'entryTime',
   'exitTime',
@@ -108,6 +112,11 @@ export function enrichTradesFromDB(rawTrades) {
       ? Number(trade.stopLoss)
       : null;
 
+    // Strategy relation — nullable. Server serializes `strategy` as null when
+    // untagged, or a small snapshot { id, name, color, status, direction }.
+    const strategyId = trade.strategyId ?? null;
+    const strategy = trade.strategy ?? null;
+
     const dynamic = {};
     dynamicKeys.forEach(key => {
       dynamic[key] = trade[key] !== undefined ? String(trade[key]) : '—';
@@ -115,6 +124,8 @@ export function enrichTradesFromDB(rawTrades) {
 
     return {
       id: trade.id || index,
+      strategyId,
+      strategy,
       date: dateStr,
       dateObj,
       entry: entryStr,
