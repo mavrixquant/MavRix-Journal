@@ -269,7 +269,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"accountId\": \"{{accountId}}\",\n  \"date\": \"2025-01-15\",\n  \"entryTime\": \"09:35\",\n  \"exitTime\": \"10:15\",\n  \"direction\": \"Long\",\n  \"symbol\": \"NQ\",\n  \"mae\": 8.2,\n  \"mfe\": 15.4,\n  \"pnl\": 12.34,\n  \"slPoints\": 12.5,\n  \"quantity\": 3,\n  \"notes\": \"Breakout above VWAP\",\n  \"setup\": \"Breakout\",\n  \"factors\": \"VWAP + ORH\"\n}"
+              "raw": "{\n  \"accountId\": \"{{accountId}}\",\n  \"date\": \"2025-01-15\",\n  \"entryTime\": \"09:35\",\n  \"exitTime\": \"10:15\",\n  \"direction\": \"Long\",\n  \"symbol\": \"NQ\",\n  \"strategyId\": \"{{strategyId}}\",\n  \"mae\": 8.2,\n  \"mfe\": 15.4,\n  \"pnl\": 12.34,\n  \"slPoints\": 12.5,\n  \"quantity\": 3,\n  \"notes\": \"Breakout above VWAP\",\n  \"setup\": \"Breakout\",\n  \"factors\": \"VWAP + ORH\"\n}"
             },
             "url": "{{baseUrl}}/api/trades"
           }
@@ -415,6 +415,166 @@
             "method": "DELETE",
             "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
             "url": "{{baseUrl}}/api/trades/by-account/{{accountId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Strategies",
+      "item": [
+        {
+          "name": "List Strategies",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "pm.test('200', () => pm.response.to.have.status(200));",
+                "const json = pm.response.json();",
+                "pm.test('Has strategies array', () => pm.expect(json.strategies).to.be.an('array'));"
+              ]
+            }
+          }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": "{{baseUrl}}/api/strategies"
+          }
+        },
+        {
+          "name": "Create Strategy",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "const json = pm.response.json();",
+                "if (json.strategy?.id) pm.environment.set('strategyId', json.strategy.id);",
+                "pm.test('201', () => pm.response.to.have.status(201));",
+                "pm.test('Strategy has id', () => pm.expect(json.strategy.id).to.be.a('string'));",
+                "pm.test('Name matches', () => pm.expect(json.strategy.name).to.eql('VWAP Reversal'));",
+                "pm.test('Status is active', () => pm.expect(json.strategy.status).to.eql('active'));",
+                "pm.test('tradeCount starts at 0', () => pm.expect(json.strategy.tradeCount).to.eql(0));"
+              ]
+            }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"VWAP Reversal\",\n  \"description\": \"Fade the first pullback after a VWAP reclaim\",\n  \"rules\": \"1. Wait for VWAP reclaim\\n2. Enter on first pullback\\n3. Stop below VWAP\",\n  \"status\": \"active\",\n  \"color\": \"#4C8BF5\",\n  \"direction\": \"Long\",\n  \"timeframe\": \"5m\",\n  \"tags\": [\"mean-reversion\", \"intraday\"]\n}"
+            },
+            "url": "{{baseUrl}}/api/strategies"
+          }
+        },
+        {
+          "name": "Get Strategy",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "pm.test('200', () => pm.response.to.have.status(200));",
+                "pm.test('Tags persisted', () => pm.expect(pm.response.json().strategy.tags).to.be.an('array'));"
+              ]
+            }
+          }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": "{{baseUrl}}/api/strategies/{{strategyId}}"
+          }
+        },
+        {
+          "name": "Update Strategy",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "const json = pm.response.json();",
+                "pm.test('200', () => pm.response.to.have.status(200));",
+                "pm.test('Name updated', () => pm.expect(json.strategy.name).to.eql('VWAP Reversal v2'));",
+                "pm.test('Status paused', () => pm.expect(json.strategy.status).to.eql('paused'));"
+              ]
+            }
+          }],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"VWAP Reversal v2\",\n  \"status\": \"paused\"\n}"
+            },
+            "url": "{{baseUrl}}/api/strategies/{{strategyId}}"
+          }
+        },
+        {
+          "name": "Archive Strategy",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "pm.test('200', () => pm.response.to.have.status(200));",
+                "pm.test('Status archived', () => pm.expect(pm.response.json().strategy.status).to.eql('archived'));"
+              ]
+            }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": "{{baseUrl}}/api/strategies/{{strategyId}}/archive"
+          }
+        },
+        {
+          "name": "Delete Strategy",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "pm.test('200', () => pm.response.to.have.status(200));",
+                "const json = pm.response.json();",
+                "pm.test('ok true', () => pm.expect(json.ok).to.eql(true));",
+                "pm.test('detachedTrades is a number', () => pm.expect(json.detachedTrades).to.be.a('number'));"
+              ]
+            }
+          }],
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": "{{baseUrl}}/api/strategies/{{strategyId}}"
+          }
+        },
+        {
+          "name": "Trades by Strategy",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "pm.test('200', () => pm.response.to.have.status(200));",
+                "pm.test('Has trades array', () => pm.expect(pm.response.json().trades).to.be.an('array'));"
+              ]
+            }
+          }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/trades?strategyId={{strategyId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "trades"],
+              "query": [{ "key": "strategyId", "value": "{{strategyId}}" }]
+            }
           }
         }
       ]
@@ -862,6 +1022,42 @@
             "method": "DELETE",
             "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
             "url": "{{baseUrl}}/api/admin/trades/by-account/{{accountId}}"
+          }
+        },
+        {
+          "name": "Strategies — list",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "pm.test('200', () => pm.response.to.have.status(200));",
+                "const json = pm.response.json();",
+                "pm.test('Has strategies array', () => pm.expect(json.strategies).to.be.an('array'));",
+                "pm.test('Has total', () => pm.expect(json.total).to.be.a('number'));"
+              ]
+            }
+          }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": "{{baseUrl}}/api/admin/strategies?limit=25"
+          }
+        },
+        {
+          "name": "Strategies — detail",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": "{{baseUrl}}/api/admin/strategies/{{strategyId}}"
+          }
+        },
+        {
+          "name": "Strategies — delete (superadmin)",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": "{{baseUrl}}/api/admin/strategies/{{strategyId}}"
           }
         },
         {
