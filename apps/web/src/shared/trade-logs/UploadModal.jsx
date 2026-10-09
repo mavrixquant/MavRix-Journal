@@ -4,31 +4,27 @@
 // account type:
 //
 //   Live / Demo : Date*, Entry Time*, Exit Time*, Direction*, Symbol*,
-//                 Entry Price, Take Profit, Stop Loss, P&L*, Quantity*,
-//                 Notes, [custom columns]
+//                 Strategy, Entry Price, Take Profit, Stop Loss,
+//                 P&L*, Quantity*, Notes, [custom columns]
 //
 //   Backtest    : Date*, Entry Time*, Exit Time*, Direction*, Symbol*,
-//                 MAE*, MFE*, SL* (or fall back to account default),
+//                 Strategy, MAE*, MFE*, SL* (or fall back to account default),
 //                 P&L, Quantity*, Notes, [custom columns]
 //
 // (* = mandatory)
 //
+// STRATEGY RESOLUTION
+// -------------------
+// The `Strategy` column is optional. Its value is matched (case-insensitive)
+// against the user's strategy names. Unmatched names are silently dropped
+// (the row keeps no strategy tag). This avoids surprising the user when
+// they rename a strategy and re-import an old file.
+//
 // CUSTOM COLUMN EDITOR
 // --------------------
 // After parsing, each detected custom column is presented as an editable
-// draft. The user can:
-//   - Rename the column (inline input, validated for collisions)
-//   - Delete the column (removes its data from every trade in the batch)
-//   - Choose type (Text / Dropdown / Number) — or accept an inferred lock
-//   - When type is Dropdown: edit the option list (remove chips, add new)
-//
-// On upload, a single transform pass applies all renames, deletions, and
-// dropdown-option filters to parseResult.trades, and the account's
-// columnConfigs is persisted in the v2 shape:
-//   { "Setup": { "type": "dropdown", "options": ["A", "B"] } }
-//
-// The v1→v2 upgrade path is handled by normalizeColumnConfigs() from
-// @mavrix/shared (Phase 6).
+// draft. See the ColumnCard component below for the rename / delete / type /
+// options UI.
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import * as XLSX from 'xlsx';
@@ -51,10 +47,9 @@ import { normalizeColumnConfigs } from '@mavrix/shared';
 const TICKS_PER_POINT = 4;
 const MAX_DROPDOWN_UNIQUES = 10;
 
-// Reserved names that can't be used as custom column names.
-// Mirrors the API's RESERVED set in apps/api/src/services/trades.service.js.
 const RESERVED_NAMES = new Set([
   'date', 'entryTime', 'exitTime', 'direction', 'symbol',
+  'strategyId', 'strategy',
   'mae', 'mfe', 'slPoints',
   'entryPrice', 'takeProfit', 'stopLoss',
   'pnl', 'quantity', 'notes',
@@ -68,10 +63,11 @@ const RESERVED_MAP_BACKTEST = {
   'Exit Time': 'exitTime',
   'Direction': 'direction',
   'Symbol': 'symbol',
+  'Strategy': 'strategyName',
   'MAE': 'mae',
   'MFE': 'mfe',
   'SL': 'sl',
-  'Stop Loss': 'sl',    // accept either
+  'Stop Loss': 'sl',
   'P&L': 'pnl',
   'Quantity': 'quantity',
   'Notes': 'notes',
@@ -83,6 +79,7 @@ const RESERVED_MAP_JOURNAL = {
   'Exit Time': 'exitTime',
   'Direction': 'direction',
   'Symbol': 'symbol',
+  'Strategy': 'strategyName',
   'Entry Price': 'entryPrice',
   'Take Profit': 'takeProfit',
   'Stop Loss': 'stopLoss',
@@ -158,7 +155,7 @@ function hasAnyValue(v) {
 
 /* ---------- Parse ---------- */
 
-function parseFile(workbook, account, existingTrades) {
+function parseFile(workbook, account, existingTrades, strategies) {
   const isBacktest = account.type === 'Backtest';
   const RESERVED_MAP = getReservedMap(account);
 
@@ -195,6 +192,13 @@ function parseFile(workbook, account, existingTrades) {
       customHeaderNames.push(trimmed);
     }
   });
+
+  // Name → id lookup for strategy resolution. Lowercased for case-insensitive
+  // matching. Missing names will silently drop.
+  const strategyByName = new Map();
+  for (const s of strategies || []) {
+    strategyByName.set(String(s.name).trim().toLowerCase(), s.id);
+  }
 
   const missingSlRows = [];
   const invalidQuantityRows = [];
@@ -236,6 +240,16 @@ function parseFile(workbook, account, existingTrades) {
       invalidQuantityRows.push(excelRowNum);
     }
     trade.quantity = quantityNum;
+
+    // ---- Strategy resolution ----
+    // Resolve the raw name to an id. Unmatched names → null, silently.
+    if (trade.strategyName !== undefined && trade.strategyName !== null && trade.strategyName !== '') {
+      const key = String(trade.strategyName).trim().toLowerCase();
+      trade.strategyId = strategyByName.get(key) || null;
+    } else {
+      trade.strategyId = null;
+    }
+    delete trade.strategyName;
 
     // ---- Mode-specific validation ----
     if (isBacktest) {
@@ -283,7 +297,12 @@ function parseFile(workbook, account, existingTrades) {
     });
 
     Object.keys(trade).forEach((k) => {
-      if (trade[k] === undefined || trade[k] === null) delete trade[k];
+      if (trade[k] === undefined || trade[k] === null) {
+        // strategyId can legitimately be null; drop it here so defaults apply
+        // downstream, but leave it out of the payload entirely.
+        if (k === 'strategyId') return;
+        delete trade[k];
+      }
     });
 
     tradesData.push(trade);
@@ -356,7 +375,6 @@ function parseFile(workbook, account, existingTrades) {
     }
 
     const stored = storedConfigs[col];
-    // stored may be legacy string or v2 object — check both
     const storedType =
       typeof stored === 'string' ? stored :
       stored && typeof stored === 'object' ? stored.type :
@@ -379,7 +397,7 @@ function parseFile(workbook, account, existingTrades) {
   return { trades: tradesData, customColumns, errors, hasSLColumn, tradesCount: tradesData.length };
 }
 
-/* ---------- Build drafts from parsed result ---------- */
+/* ---------- Drafts ---------- */
 
 function buildDrafts(customColumns) {
   return customColumns.map((col) => ({
@@ -394,15 +412,12 @@ function buildDrafts(customColumns) {
   }));
 }
 
-/* ---------- Apply drafts to parsed trades (rename / delete / filter) ---------- */
-
 function applyDraftsToTrades(trades, drafts, deletedOriginalNames) {
   const deletedSet = new Set(deletedOriginalNames);
 
   return trades.map((trade) => {
     const next = { ...trade };
 
-    // Rename pass
     for (const d of drafts) {
       if (d.originalName !== d.name) {
         if (d.originalName in next) {
@@ -412,9 +427,6 @@ function applyDraftsToTrades(trades, drafts, deletedOriginalNames) {
       }
     }
 
-    // Dropdown option filter — if a trade's value isn't in the (possibly
-    // edited) options list, blank it out so AddTradeModal's <select>
-    // always shows a valid value.
     for (const d of drafts) {
       if (d.type === 'dropdown') {
         const v = next[d.name];
@@ -424,7 +436,6 @@ function applyDraftsToTrades(trades, drafts, deletedOriginalNames) {
       }
     }
 
-    // Deletion pass
     for (const origName of deletedSet) {
       delete next[origName];
     }
@@ -700,7 +711,6 @@ const UPL_CSS = `
     font-weight: 600;
   }
 
-  /* ---------- Custom column card ---------- */
   .upl-col-list {
     display: flex;
     flex-direction: column;
@@ -849,7 +859,6 @@ const UPL_CSS = `
     gap: 6px;
   }
 
-  /* ---------- Dropdown option chips editor ---------- */
   .upl-options {
     margin-top: 12px;
     padding-top: 12px;
@@ -1100,7 +1109,7 @@ const UPL_CSS = `
 `;
 
 /* ------------------------------------------------------------------ */
-/*  Per-column card component                                          */
+/*  Column card                                                       */
 /* ------------------------------------------------------------------ */
 
 function ColumnCard({
@@ -1119,7 +1128,6 @@ function ColumnCard({
   const [renameError, setRenameError] = useState('');
   const [newOption, setNewOption] = useState('');
 
-  // Reset internal state if the underlying draft changes identity
   useEffect(() => {
     if (!renaming) setRenameDraft(draft.name);
   }, [draft.name, renaming]);
@@ -1150,7 +1158,6 @@ function ColumnCard({
       setRenameError(`"${next}" is a reserved column name.`);
       return;
     }
-    // Collision check against other drafts (by their CURRENT names)
     const collision = allDrafts.some(
       (d, i) => i !== index && d.name === next
     );
@@ -1179,7 +1186,6 @@ function ColumnCard({
 
   return (
     <div className={`upl-col-row ${renaming ? 'is-renaming' : ''}`}>
-      {/* ---------- Header row: name + actions ---------- */}
       <div className="upl-col-head">
         {renaming ? (
           <>
@@ -1253,14 +1259,12 @@ function ColumnCard({
 
       {renameError && <div className="upl-rename-error">{renameError}</div>}
 
-      {/* ---------- Sample values ---------- */}
       {!renaming && draft.sampleValues?.length > 0 && (
         <div className="upl-col-sample">
           Sample: {draft.sampleValues.join(', ')}
         </div>
       )}
 
-      {/* ---------- Type selector ---------- */}
       <div className="upl-col-types">
         {draft.locked ? (
           <span className="upl-locked-pill">
@@ -1292,7 +1296,6 @@ function ColumnCard({
         )}
       </div>
 
-      {/* ---------- Dropdown options editor ---------- */}
       {isDropdown && (
         <div className="upl-options">
           <span className="upl-options-label">
@@ -1353,7 +1356,14 @@ function ColumnCard({
 /*  Main component                                                     */
 /* ------------------------------------------------------------------ */
 
-export default function UploadModal({ isOpen, onClose, account, existingTrades, onSuccess }) {
+export default function UploadModal({
+  isOpen,
+  onClose,
+  account,
+  existingTrades,
+  strategies = [],
+  onSuccess,
+}) {
   const [parseResult, setParseResult] = useState(null);
   const [drafts, setDrafts] = useState([]);
   const [deletedOriginalNames, setDeletedOriginalNames] = useState([]);
@@ -1393,7 +1403,7 @@ export default function UploadModal({ isOpen, onClose, account, existingTrades, 
     reader.onload = (evt) => {
       try {
         const wb = XLSX.read(evt.target.result, { type: 'array' });
-        const result = parseFile(wb, account, existingTrades);
+        const result = parseFile(wb, account, existingTrades, strategies);
         setParseResult(result);
         setDrafts(buildDrafts(result.customColumns || []));
       } catch (err) {
@@ -1403,8 +1413,6 @@ export default function UploadModal({ isOpen, onClose, account, existingTrades, 
     reader.onerror = () => { setParseResult({ errors: ['Failed to read file.'] }); setIsParsing(false); };
     reader.readAsArrayBuffer(file);
   };
-
-  /* ---------- Draft mutations ---------- */
 
   const handleRename = (index, newName) => {
     setDrafts((prev) =>
@@ -1450,12 +1458,9 @@ export default function UploadModal({ isOpen, onClose, account, existingTrades, 
     );
   };
 
-  /* ---------- Upload ---------- */
-
   const handleUpload = async () => {
     if (!parseResult || (parseResult.errors && parseResult.errors.length > 0)) return;
 
-    // Safety: every unlocked dropdown must have at least one option.
     const emptyDropdowns = drafts.filter(
       (d) => d.type === 'dropdown' && d.options.length === 0 && !d.locked
     );
@@ -1474,15 +1479,12 @@ export default function UploadModal({ isOpen, onClose, account, existingTrades, 
 
     setIsSaving(true);
     try {
-      // Build the transformed trades array
       const finalTrades = applyDraftsToTrades(
         parseResult.trades,
         drafts,
         deletedOriginalNames
       );
 
-      // Build the v2 columnConfigs — start from normalized existing config,
-      // then remove deleted columns and add/update surviving ones.
       const baseConfigs = normalizeColumnConfigs(account.columnConfigs || {});
       for (const origName of deletedOriginalNames) {
         delete baseConfigs[origName];
@@ -1496,6 +1498,7 @@ export default function UploadModal({ isOpen, onClose, account, existingTrades, 
 
       await createTrades(account.id, finalTrades);
       queryClient.invalidateQueries({ queryKey: ['trades', account.id] });
+      queryClient.invalidateQueries({ queryKey: ['strategies'] });
       await updateAccountColumnConfigs(account.id, baseConfigs);
 
       if (onSuccess) onSuccess(finalTrades.length);
@@ -1517,7 +1520,6 @@ export default function UploadModal({ isOpen, onClose, account, existingTrades, 
       <div className="upl-overlay" onClick={(e) => { if (e.target === e.currentTarget) handleClose(); }}>
         <div className="upl-modal">
 
-          {/* Header */}
           <div className="upl-head">
             <div>
               <h2 className="upl-title">
@@ -1532,10 +1534,8 @@ export default function UploadModal({ isOpen, onClose, account, existingTrades, 
             </button>
           </div>
 
-          {/* Body */}
           <div className="upl-body">
 
-            {/* Dropzone */}
             {!parseResult && !isParsing && (
               <label htmlFor="upload-modal-file" className="upl-drop">
                 <div className="upl-drop-icon">
@@ -1564,6 +1564,7 @@ export default function UploadModal({ isOpen, onClose, account, existingTrades, 
                   )}
                   <br />
                   Optional:
+                  <span className="req-list">Strategy</span>
                   {!isBacktest && (
                     <>
                       <span className="req-list">Entry Price</span>
@@ -1587,7 +1588,6 @@ export default function UploadModal({ isOpen, onClose, account, existingTrades, 
               </label>
             )}
 
-            {/* Parsing */}
             {isParsing && (
               <div className="upl-parsing">
                 <div className="upl-spinner" />
@@ -1595,10 +1595,8 @@ export default function UploadModal({ isOpen, onClose, account, existingTrades, 
               </div>
             )}
 
-            {/* Result */}
             {parseResult && !isParsing && (
               <>
-                {/* File summary */}
                 <div className="upl-summary">
                   <div className="upl-filename">{fileName}</div>
                   <div className="upl-chips">
@@ -1614,7 +1612,6 @@ export default function UploadModal({ isOpen, onClose, account, existingTrades, 
                   </div>
                 </div>
 
-                {/* Errors */}
                 {hasErrors && (
                   <div className="upl-error">
                     <div className="upl-error-title">
@@ -1626,7 +1623,6 @@ export default function UploadModal({ isOpen, onClose, account, existingTrades, 
                   </div>
                 )}
 
-                {/* Custom columns */}
                 {!hasErrors && drafts.length > 0 && (
                   <div>
                     <div className="upl-section-title">
@@ -1652,7 +1648,6 @@ export default function UploadModal({ isOpen, onClose, account, existingTrades, 
                   </div>
                 )}
 
-                {/* No custom columns */}
                 {!hasErrors && drafts.length === 0 && (
                   <div className="upl-ready">
                     <FaCheckCircle />
@@ -1663,7 +1658,6 @@ export default function UploadModal({ isOpen, onClose, account, existingTrades, 
             )}
           </div>
 
-          {/* Footer */}
           <div className="upl-foot">
             {!parseResult && (
               <>

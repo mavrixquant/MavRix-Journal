@@ -7,26 +7,10 @@
 // add / rename / delete columns, edit the type, edit dropdown options, and
 // rename or clear individual VALUES across every trade in the account.
 //
-// TYPE INFERENCE + LOCKING
-// ------------------------
-// The type of each column is INFERRED from the union of values across the
-// account's trades, then the type selector is LOCKED for cases where the
-// data leaves no choice:
-//
-//   - No values anywhere        → LOCKED text
-//   - All values numeric        → LOCKED number
-//   - >10 unique values         → LOCKED text
-//   - 1–10 unique, mixed types  → UNLOCKED (user picks text / dropdown)
-//
-// VALUES-IN-TRADES
-// ----------------
-// For dropdown columns the modal ALSO shows a per-value list:
-//   - Rename a value (updates every trade using it, with merge confirmation
-//     if the new name already exists)
-//   - Clear a value (sets every trade's value to empty)
-//
-// The whole options + values block is collapsible and hidden by default so
-// the card stays compact.
+// RESERVED set mirrors apps/web/src/shared/trading/enrich.js and
+// apps/api/src/services/trades.service.js. Keep all three in sync.
+// In particular: `strategyId` and `strategy` are dedicated fields on the
+// trade (FK + joined snapshot) and must never appear here.
 
 import { useEffect, useMemo, useState } from 'react';
 import {
@@ -61,6 +45,7 @@ const MAX_DROPDOWN_UNIQUES = 10;
 
 const RESERVED = new Set([
   'date', 'entryTime', 'exitTime', 'direction', 'symbol',
+  'strategyId', 'strategy',
   'mae', 'mfe', 'slPoints',
   'entryPrice', 'takeProfit', 'stopLoss',
   'pnl', 'quantity', 'notes',
@@ -85,13 +70,6 @@ function hasAnyValue(v) {
   return v !== '' && v !== null && v !== undefined;
 }
 
-/**
- * Compute inferred type + lock + unique values for a column name.
- * `trades` is the raw trades array (top-level dynamic fields).
- *
- * `unique` is ALWAYS populated when there are values — even for locked
- * columns — so the value-list UI has data regardless of lock state.
- */
 function inferColumnMeta(name, trades) {
   const values = [];
   for (const t of trades) {
@@ -287,7 +265,6 @@ const CSS = `
   .cm-addbtn:hover:not(:disabled) { transform: translateY(-1px); }
   .cm-addbtn:disabled { opacity: .5; cursor: not-allowed; }
 
-  /* ---------- Column list ---------- */
   .cm-list {
     display: flex; flex-direction: column; gap: 10px;
   }
@@ -379,7 +356,6 @@ const CSS = `
     letter-spacing: .01em;
   }
 
-  /* ---------- Type + lock row ---------- */
   .cm-type-row {
     margin-top: 10px;
     display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
@@ -399,7 +375,6 @@ const CSS = `
     display: inline-flex; align-items: center; gap: 6px;
   }
 
-  /* ---------- Collapsible details (options + values) ---------- */
   .cm-details-toggle {
     margin-top: 10px;
     display: inline-flex; align-items: center; gap: 8px;
@@ -431,7 +406,6 @@ const CSS = `
     margin-left: 2px;
   }
 
-  /* ---------- Options chip editor ---------- */
   .cm-details-body {
     margin-top: 12px;
     padding-top: 12px;
@@ -534,7 +508,6 @@ const CSS = `
     opacity: .35; cursor: not-allowed;
   }
 
-  /* ---------- Values list ---------- */
   .cm-values-list {
     display: flex; flex-direction: column; gap: 4px;
   }
@@ -597,7 +570,6 @@ const CSS = `
     opacity: .4; cursor: not-allowed;
   }
 
-  /* ---------- Rename value modal ---------- */
   .cm-merge-warn {
     margin-top: 10px;
     padding: 10px 12px;
@@ -643,7 +615,6 @@ const CSS = `
     line-height: 1.55;
   }
 
-  /* ---------- Loading overlay ---------- */
   .cm-loading-overlay {
     position: absolute;
     inset: 0;
@@ -723,7 +694,6 @@ const CSS = `
                 inset 0 1px 0 rgba(255,255,255,.5);
   }
 
-  /* ---------- spinner ---------- */
   .cm-spinner {
     display: inline-block;
     border-radius: 50%;
@@ -843,7 +813,6 @@ function ColumnRow({
 
   return (
     <div className={`cm-row ${renaming ? 'is-renaming' : ''}`}>
-      {/* ---------- Header row: name + actions ---------- */}
       <div className="cm-row-head">
         {renaming ? (
           <>
@@ -913,7 +882,6 @@ function ColumnRow({
 
       {renameError && <div className="cm-rename-error">{renameError}</div>}
 
-      {/* ---------- Type row ---------- */}
       {!renaming && (
         <div className="cm-type-row">
           {locked ? (
@@ -938,7 +906,6 @@ function ColumnRow({
         </div>
       )}
 
-      {/* ---------- Collapsible: options + values ---------- */}
       {!renaming && isDropdown && (
         <>
           <button
@@ -957,7 +924,6 @@ function ColumnRow({
 
           {showDetails && (
             <div className="cm-details-body">
-              {/* --- Options --- */}
               <div>
                 <span className="cm-block-label">
                   Dropdown options ({options.length})
@@ -1009,7 +975,6 @@ function ColumnRow({
                 </div>
               </div>
 
-              {/* --- Values in trades --- */}
               <div>
                 <span className="cm-block-label">
                   Values in trades ({values.length})
@@ -1061,7 +1026,7 @@ function ColumnRow({
 }
 
 /* ------------------------------------------------------------------ */
-/*  Rename-value modal (nested inside the column-manager Portal)       */
+/*  Rename-value modal                                                 */
 /* ------------------------------------------------------------------ */
 
 function RenameValueModal({
@@ -1074,7 +1039,7 @@ function RenameValueModal({
   onConfirm,
 }) {
   const [newValue, setNewValue] = useState('');
-  const [stage, setStage] = useState('edit'); // 'edit' | 'merge-confirm'
+  const [stage, setStage] = useState('edit');
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -1254,9 +1219,8 @@ export default function ColumnManagerModal({ isOpen, onClose, account, trades = 
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [configs, setConfigs] = useState({});
 
-  // Value-rename / value-clear state
-  const [editValue, setEditValue] = useState(null);        // { columnName, oldValue }
-  const [deleteValueTarget, setDeleteValueTarget] = useState(null); // { columnName, value }
+  const [editValue, setEditValue] = useState(null);
+  const [deleteValueTarget, setDeleteValueTarget] = useState(null);
 
   const addCol    = useAddCustomColumn();
   const renameCol = useRenameCustomColumn();
@@ -1283,7 +1247,6 @@ export default function ColumnManagerModal({ isOpen, onClose, account, trades = 
     }
   }, [pending]);
 
-  // Sync from account whenever the modal opens or the account changes.
   useEffect(() => {
     if (!isOpen) return;
     setConfigs(normalizeColumnConfigs(account?.columnConfigs || {}));
@@ -1311,9 +1274,6 @@ export default function ColumnManagerModal({ isOpen, onClose, account, trades = 
 
   if (!isOpen || !account) return null;
 
-  /* ---------------------------------------------------------------- */
-  /*  Add                                                              */
-  /* ---------------------------------------------------------------- */
   const handleAdd = async () => {
     setError('');
     const name = newName.trim();
@@ -1342,9 +1302,6 @@ export default function ColumnManagerModal({ isOpen, onClose, account, trades = 
     }
   };
 
-  /* ---------------------------------------------------------------- */
-  /*  Rename column                                                    */
-  /* ---------------------------------------------------------------- */
   const handleRenameColumn = async (oldName, newNameStr) => {
     if (!newNameStr || newNameStr === oldName) return;
 
@@ -1369,9 +1326,6 @@ export default function ColumnManagerModal({ isOpen, onClose, account, trades = 
     }
   };
 
-  /* ---------------------------------------------------------------- */
-  /*  Change type                                                      */
-  /* ---------------------------------------------------------------- */
   const handleTypeChange = async (name, type) => {
     setPending({ op: 'type', key: name });
     try {
@@ -1390,9 +1344,6 @@ export default function ColumnManagerModal({ isOpen, onClose, account, trades = 
     }
   };
 
-  /* ---------------------------------------------------------------- */
-  /*  Dropdown options change                                          */
-  /* ---------------------------------------------------------------- */
   const handleOptionsChange = async (name, options) => {
     setPending({ op: 'options', key: name });
     try {
@@ -1409,9 +1360,6 @@ export default function ColumnManagerModal({ isOpen, onClose, account, trades = 
     }
   };
 
-  /* ---------------------------------------------------------------- */
-  /*  Delete column                                                    */
-  /* ---------------------------------------------------------------- */
   const requestDelete = (name) => {
     setDeleteTarget(name);
     setError('');
@@ -1435,9 +1383,6 @@ export default function ColumnManagerModal({ isOpen, onClose, account, trades = 
     }
   };
 
-  /* ---------------------------------------------------------------- */
-  /*  Value-level operations                                           */
-  /* ---------------------------------------------------------------- */
   const requestEditValue = (columnName, value) => {
     setEditValue({ columnName, oldValue: value });
     setError('');
@@ -1495,7 +1440,6 @@ export default function ColumnManagerModal({ isOpen, onClose, account, trades = 
         >
           <div className={`cm-modal ${busy ? 'is-busy' : ''}`}>
 
-            {/* ---------- Loading overlay ---------- */}
             {busy && (
               <div className="cm-loading-overlay" role="status" aria-live="polite">
                 <Spinner size={22} variant="light" />
@@ -1523,7 +1467,6 @@ export default function ColumnManagerModal({ isOpen, onClose, account, trades = 
             <div className="cm-body">
               {error && <div className="cm-error">{error}</div>}
 
-              {/* ---- Add new ---- */}
               <div>
                 <span className="cm-section-title">Add a column</span>
                 <div style={{ marginTop: 10 }} className="cm-addrow">
@@ -1576,7 +1519,6 @@ export default function ColumnManagerModal({ isOpen, onClose, account, trades = 
                 </p>
               </div>
 
-              {/* ---- Existing ---- */}
               <div>
                 <span className="cm-section-title">
                   Existing columns
@@ -1626,7 +1568,6 @@ export default function ColumnManagerModal({ isOpen, onClose, account, trades = 
         </div>
       </Portal>
 
-      {/* ---- Delete column confirmation ---- */}
       <Alert
         isOpen={!!deleteTarget}
         type="confirm"
@@ -1638,7 +1579,6 @@ export default function ColumnManagerModal({ isOpen, onClose, account, trades = 
         onCancel={() => setDeleteTarget(null)}
       />
 
-      {/* ---- Delete value confirmation ---- */}
       <Alert
         isOpen={!!deleteValueTarget}
         type="confirm"
@@ -1654,7 +1594,6 @@ export default function ColumnManagerModal({ isOpen, onClose, account, trades = 
         onCancel={() => setDeleteValueTarget(null)}
       />
 
-      {/* ---- Rename value modal ---- */}
       <RenameValueModal
         isOpen={!!editValue}
         columnName={editValue?.columnName}

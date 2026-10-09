@@ -1,4 +1,3 @@
-
 // apps/web/src/shared/trade-logs/TradeLogsView.jsx
 //
 // Shared trade-logs page body. Consumed by BOTH:
@@ -7,20 +6,15 @@
 //
 // ACCOUNT SELECTION
 // -----------------
-// This view no longer owns an account selector. The currently-selected
+// This view does not own an account selector. The currently-selected
 // account is passed in as the `accountId` prop, sourced from the HeaderBar's
 // per-dashboard slot via useDashboardAccount() in the calling feature page.
 //
-// FIELD SETS
-// ----------
-// The visible columns depend on `account.type`:
-//
-//   Live / Demo : Date | Entry | Exit | Dir | Symbol | Entry Price |
-//                 Take Profit | Stop Loss | P&L | Quantity | Notes |
-//                 [dynamic] | [actions]
-//
-//   Backtest    : Date | Entry | Exit | Dir | Symbol | MAE | MFE | SL |
-//                 P&L | Quantity | Notes | [dynamic] | [actions]
+// STRATEGY COLUMN
+// ---------------
+// A "Strategy" column is rendered between Symbol and the mode-specific
+// columns. It reads `row.strategy` (a snapshot embedded by the API in the
+// trade serialize). When null, shows a muted em-dash.
 
 import { useState, useMemo, useCallback } from 'react';
 import {
@@ -36,6 +30,7 @@ import { toast } from 'sonner';
 
 import { useAccounts } from '@/shared/api/accounts';
 import { useTrades, useDeleteTrade } from '@/shared/api/trades';
+import { useStrategies } from '@/shared/api/strategies';
 import { enrichTradesFromDB } from '@/shared/trading/enrich';
 import UploadModal from './UploadModal';
 import AddTradeModal from './AddTradeModal';
@@ -48,7 +43,7 @@ import Alert from '@/shared/components/Alert';
 import '@/shared/ui/page-header.css';
 
 /* ------------------------------------------------------------------ */
-/*  Page-local CSS.                                                    */
+/*  Page-local CSS                                                     */
 /* ------------------------------------------------------------------ */
 const CSS = `
   .jm-root {
@@ -76,7 +71,6 @@ const CSS = `
     -webkit-font-smoothing: antialiased;
   }
 
-  /* ---------- Primary CTA ---------- */
   .jm-btn-primary {
     position: relative;
     display: inline-flex;
@@ -108,7 +102,6 @@ const CSS = `
     cursor: not-allowed;
   }
 
-  /* ---------- Secondary icon button ---------- */
   .jm-icon-btn {
     display: inline-flex;
     align-items: center;
@@ -137,7 +130,6 @@ const CSS = `
     .jm-icon-btn span { display: none; }
   }
 
-  /* ---------- Row actions (inside sticky-right cell) ---------- */
   .jm-row-actions {
     display: flex;
     align-items: center;
@@ -179,7 +171,35 @@ const CSS = `
     box-shadow: 0 0 0 3px rgba(239,68,68,.22);
   }
 
-  /* ---------- KPI strip ---------- */
+  /* Strategy chip — small inline pill with the strategy's colour */
+  .jm-strat-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 8px;
+    border-radius: 6px;
+    background: rgba(255,255,255,.03);
+    border: 1px solid rgba(255,255,255,.08);
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: .01em;
+    max-width: 100%;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+  .jm-strat-chip-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .jm-strat-chip-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
   .jm-kpis {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
@@ -212,7 +232,6 @@ const CSS = `
   .jm-kpi-value.neg { color: var(--loss); }
   .jm-kpi-value.amber { color: var(--accent); }
 
-  /* ---------- Table card ---------- */
   .jm-card {
     position: relative;
     border-radius: 18px;
@@ -227,7 +246,6 @@ const CSS = `
   }
   .jm-body { padding: 4px 18px 18px; }
 
-  /* ---------- Empty state ---------- */
   .jm-empty {
     padding: 60px 24px;
     text-align: center;
@@ -270,7 +288,7 @@ const CSS = `
 `;
 
 /* ------------------------------------------------------------------ */
-/*  Helpers                                                            */
+/*  Helpers                                                           */
 /* ------------------------------------------------------------------ */
 function formatTimeWithAMPM(timeStr) {
   if (!timeStr) return '—';
@@ -308,8 +326,35 @@ function DirText({ value }) {
   return <span style={{ color, fontWeight: 600 }}>{value}</span>;
 }
 
+function StrategyCell({ strategy }) {
+  if (!strategy) {
+    return <span style={{ color: 'var(--ink-3)' }}>—</span>;
+  }
+  const color = strategy.color || '#8892A3';
+  return (
+    <span
+      className="jm-strat-chip"
+      style={{
+        color,
+        background: `${color}18`,
+        borderColor: `${color}44`,
+      }}
+      title={strategy.name}
+    >
+      <span
+        className="jm-strat-chip-dot"
+        style={{
+          background: color,
+          boxShadow: `0 0 6px ${color}aa`,
+        }}
+      />
+      <span className="jm-strat-chip-name">{strategy.name}</span>
+    </span>
+  );
+}
+
 /* ------------------------------------------------------------------ */
-/*  Columns — mode-aware                                               */
+/*  Columns — mode-aware                                              */
 /* ------------------------------------------------------------------ */
 function buildColumns(dynamicKeys, currency, isBacktest, { onEdit, onDelete }) {
   const common = [
@@ -352,6 +397,14 @@ function buildColumns(dynamicKeys, currency, isBacktest, { onEdit, onDelete }) {
       meta: { label: 'Symbol' },
       size: 90,
       cell: (ctx) => ctx.getValue() || '—',
+    },
+    {
+      id: 'strategy',
+      accessorFn: (row) => row.strategy?.name || '',
+      header: 'Strategy',
+      meta: { label: 'Strategy' },
+      size: 140,
+      cell: (ctx) => <StrategyCell strategy={ctx.row.original.strategy} />,
     },
   ];
 
@@ -531,6 +584,8 @@ export default function TradeLogsView({
 
   const { data: rawTrades = [], isLoading: tradesLoading } = useTrades(accountId);
 
+  const { data: strategies = [] } = useStrategies();
+
   const { enrichedTrades, dynamicKeys } = useMemo(
     () => enrichTradesFromDB(rawTrades),
     [rawTrades]
@@ -594,7 +649,7 @@ export default function TradeLogsView({
   const loading = accountsLoading || (accountId && tradesLoading);
 
   const searchableIds = useMemo(
-    () => ['date', 'entry', 'exit', 'dir', 'symbol', 'notes', ...dynamicKeys],
+    () => ['date', 'entry', 'exit', 'dir', 'symbol', 'strategy', 'notes', ...dynamicKeys],
     [dynamicKeys]
   );
 
@@ -782,6 +837,7 @@ export default function TradeLogsView({
           onClose={() => setUploadOpen(false)}
           account={selectedAccount}
           existingTrades={rawTrades}
+          strategies={strategies}
           onSuccess={() => setUploadOpen(false)}
         />
 
@@ -792,7 +848,6 @@ export default function TradeLogsView({
           trade={editingTrade}
         />
 
-        {/* Phase 8: pass trades so the modal can infer locks + uniques */}
         <ColumnManagerModal
           isOpen={columnsOpen}
           onClose={() => setColumnsOpen(false)}

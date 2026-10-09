@@ -3,39 +3,28 @@
 // Single trade entry form. The field set depends on the account type:
 //
 //   Live / Demo : date*, entryTime*, exitTime*, direction*, symbol*,
-//                 entryPrice, takeProfit, stopLoss, pnl*, quantity*, notes,
-//                 then custom columns.
+//                 strategyId, entryPrice, takeProfit, stopLoss,
+//                 pnl*, quantity*, notes, then custom columns.
 //
 //   Backtest    : date*, entryTime*, exitTime*, direction*, symbol*,
-//                 mae*, mfe*, sl* (ticks/points from account), pnl,
-//                 quantity*, notes, then custom columns.
+//                 strategyId, mae*, mfe*, sl* (ticks/points from account),
+//                 pnl, quantity*, notes, then custom columns.
 //
 // (* = mandatory)
 //
-// CUSTOM COLUMN RENDERING
-// -----------------------
-// Each custom column's UI depends on its type in `account.columnConfigs`:
-//
-//   - type === 'dropdown' AND options.length > 0
-//       → <select> populated from options, with an empty "—" first option
-//   - anything else (text, number, dropdown with no options yet)
-//       → <input type="text">
-//
-// The v1→v2 columnConfigs upgrade is handled by normalizeColumnConfigs()
-// from @mavrix/shared.
-//
-// SYMBOL INPUT
-// ------------
-// Symbol uses <SymbolSelect>, a searchable dropdown sourced from the same
-// /api/market-data/catalog used by the chart page. The trigger is a button,
-// so the browser's native `required` no longer applies — symbol presence is
-// validated explicitly in validate() below.
+// STRATEGY PICKER
+// ---------------
+// Optional dropdown populated from the user's active strategies. Hidden
+// entirely when the user has no strategies — no point cluttering the form.
+// If a trade being EDITED has an archived strategy, we still show it (so
+// editing doesn't silently clear the tag).
 
 import { useEffect, useMemo, useState } from 'react';
 import { FaTimes, FaPlus, FaCheck } from 'react-icons/fa';
 
 import Portal from '@/shared/components/Portal';
 import { useCreateTrade, useUpdateTrade } from '@/shared/api/trades';
+import { useStrategies } from '@/shared/api/strategies';
 import { normalizeColumnConfigs } from '@mavrix/shared';
 import { SymbolSelect } from '@/shared/symbols';
 
@@ -43,8 +32,6 @@ const TICKS_PER_POINT = 4;
 
 /* ---------- helpers ---------- */
 
-// Backtest: convert the SL value the user typed (in the account's native unit)
-// into points for storage. Falls back to the account's default SL when blank.
 function resolveSlPoints(rawSl, account) {
   const raw = rawSl === '' || rawSl == null ? null : Number(rawSl);
   const hasRaw = raw != null && !Number.isNaN(raw) && raw > 0;
@@ -62,7 +49,6 @@ function resolveSlPoints(rawSl, account) {
   return +pts.toFixed(4);
 }
 
-// Prefill: convert stored points back into the account's native unit.
 function slPointsToDisplay(slPoints, account) {
   if (slPoints == null) return '';
   const n = Number(slPoints);
@@ -78,6 +64,7 @@ const EMPTY = {
   exitTime: '',
   direction: 'Long',
   symbol: '',
+  strategyId: '',
   // Backtest-only
   mae: '',
   mfe: '',
@@ -164,6 +151,11 @@ const CSS = `
     text-transform: uppercase; color: var(--ink-3);
   }
   .at-label .req { color: var(--accent); margin-left: 3px; }
+  .at-label .opt {
+    color: var(--ink-3); font-weight: 500;
+    letter-spacing: 0; text-transform: none;
+    margin-left: 6px; opacity: .7;
+  }
   .at-input, .at-select, .at-textarea {
     width: 100%; padding: 9px 12px;
     background: rgba(10,13,19,.6);
@@ -304,8 +296,7 @@ const CSS = `
 `;
 
 /* ------------------------------------------------------------------ */
-/*  Custom column field — renders <select> when the column is a        */
-/*  dropdown with options, else <input type="text">.                   */
+/*  Custom column field                                               */
 /* ------------------------------------------------------------------ */
 
 function CustomColumnField({ name, config, value, onChange, disabled }) {
@@ -327,7 +318,6 @@ function CustomColumnField({ name, config, value, onChange, disabled }) {
         {config.options.map((opt) => (
           <option key={opt} value={opt}>{opt}</option>
         ))}
-        {/* Preserve the existing value if it's not in options (legacy data) */}
         {value && !config.options.includes(value) && (
           <option value={value}>{value} (legacy)</option>
         )}
@@ -363,6 +353,23 @@ export default function AddTradeModal({ isOpen, onClose, account, trade = null }
   const updateTrade = useUpdateTrade();
   const saving = createTrade.isPending || updateTrade.isPending;
 
+  // Fetch the user's strategies for the picker.
+  const { data: allStrategies = [] } = useStrategies();
+
+  // Show active + paused. On edit, keep the trade's current strategy even
+  // if it's archived, so the dropdown reflects reality and doesn't silently
+  // blank the field.
+  const availableStrategies = useMemo(() => {
+    const visible = allStrategies.filter((s) => s.status !== 'archived');
+    if (isEdit && trade?.strategyId) {
+      const current = allStrategies.find((s) => s.id === trade.strategyId);
+      if (current && !visible.some((s) => s.id === current.id)) {
+        visible.push(current);
+      }
+    }
+    return visible.sort((a, b) => a.name.localeCompare(b.name));
+  }, [allStrategies, isEdit, trade]);
+
   // Normalized columnConfigs — always v2 shape { type, options? }.
   const columnConfigs = useMemo(
     () => normalizeColumnConfigs(account?.columnConfigs || {}),
@@ -388,6 +395,7 @@ export default function AddTradeModal({ isOpen, onClose, account, trade = null }
         exitTime: trade.exit || '',
         direction: trade.dir || 'Long',
         symbol: trade.symbol || '',
+        strategyId: trade.strategyId || '',
         // Backtest
         mae: trade.mae != null ? String(trade.mae) : '',
         mfe: trade.mfe != null ? String(trade.mfe) : '',
@@ -434,13 +442,10 @@ export default function AddTradeModal({ isOpen, onClose, account, trade = null }
     if (!/^\d{2}:\d{2}$/.test(form.entryTime)) return 'Entry Time must be HH:MM.';
     if (!/^\d{2}:\d{2}$/.test(form.exitTime))  return 'Exit Time must be HH:MM.';
 
-    // Symbol is required — enforced here (not via the input's `required`
-    // attribute) because the field is now a button-triggered dropdown.
     if (!form.symbol || !String(form.symbol).trim()) {
       return 'Symbol is required.';
     }
 
-    // Quantity is required for both modes.
     const q = Number(form.quantity);
     if (form.quantity === '' || !Number.isFinite(q) || q <= 0) {
       return 'Quantity must be a positive number.';
@@ -454,7 +459,6 @@ export default function AddTradeModal({ isOpen, onClose, account, trade = null }
         return 'This Backtest account needs an SL value (or set a default in the account).';
       }
     } else {
-      // Journal: P&L is required.
       if (form.pnl === '' || Number.isNaN(Number(form.pnl))) {
         return 'P&L is required.';
       }
@@ -475,6 +479,7 @@ export default function AddTradeModal({ isOpen, onClose, account, trade = null }
       exitTime: form.exitTime,
       direction: form.direction,
       symbol: form.symbol.trim(),
+      strategyId: form.strategyId || null,
       pnl: form.pnl === '' ? 0 : Number(form.pnl) || 0,
       quantity: Number(form.quantity),
       notes: form.notes.trim(),
@@ -511,6 +516,7 @@ export default function AddTradeModal({ isOpen, onClose, account, trade = null }
   };
 
   const slUnitLabel = account?.slUnit === 'ticks' ? 'ticks' : 'points';
+  const showStrategyPicker = availableStrategies.length > 0;
 
   return (
     <Portal>
@@ -602,10 +608,7 @@ export default function AddTradeModal({ isOpen, onClose, account, trade = null }
                     </select>
                   </div>
                   <div>
-                    <label
-                      htmlFor="at-symbol"
-                      className="at-label"
-                    >
+                    <label htmlFor="at-symbol" className="at-label">
                       Symbol<span className="req">*</span>
                     </label>
                     <SymbolSelect
@@ -617,6 +620,30 @@ export default function AddTradeModal({ isOpen, onClose, account, trade = null }
                     />
                   </div>
                 </div>
+
+                {showStrategyPicker && (
+                  <div>
+                    <label className="at-label">
+                      Strategy
+                      <span className="opt">optional</span>
+                    </label>
+                    <select
+                      className="at-select"
+                      value={form.strategyId}
+                      onChange={(e) => set('strategyId', e.target.value)}
+                      disabled={saving}
+                    >
+                      <option value="">— None —</option>
+                      {availableStrategies.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.name}
+                          {s.status === 'archived' ? ' (archived)' : ''}
+                          {s.status === 'paused' ? ' (paused)' : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </div>
 
               {/* ---------------- Outcomes ---------------- */}
