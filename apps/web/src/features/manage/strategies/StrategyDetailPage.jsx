@@ -2,9 +2,12 @@
 //
 // /manage/strategies/:id — detail page.
 //
+// Title + badge + subtitle are published to the GLOBAL header bar via
+// usePageHeader(). Action buttons (Edit / Archive / Delete) render in a
+// slim toolbar row on the page.
+//
 // Shows strategy meta + rules, KPIs computed from tagged trades, and the
-// list of trades belonging to this strategy. Edit / archive / delete are
-// available from the header.
+// list of trades belonging to this strategy.
 
 import { useMemo, useState } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
@@ -25,10 +28,10 @@ import {
 import Alert from '@/shared/components/Alert';
 import { PageSkeleton } from '@/shared/ui/page-skeleton';
 import DataTable from '@/shared/ui/data-table';
+import { usePageHeader } from '@/app/layout/PageHeaderProvider';
 
 import StrategyFormModal from './StrategyFormModal';
 import './StrategiesPage.css';
-import '@/shared/ui/page-header.css';
 
 function fmtMoney(v) {
   if (v == null || Number.isNaN(Number(v))) return '—';
@@ -205,6 +208,21 @@ export default function StrategyDetailPage() {
     }
   };
 
+  /* ---------- Publish to global header ----------
+     Note: called unconditionally (before early returns) so the hook
+     order stays stable. Passes safe defaults when strategy is missing. */
+  const headerBadgeVariant =
+    strategy?.status === 'active' ? 'is-live'
+    : strategy?.status === 'paused' ? 'is-demo'
+    : 'is-default';
+
+  usePageHeader({
+    title: strategy?.name || 'Strategy',
+    badge: strategy?.status,
+    badgeVariant: headerBadgeVariant,
+    subtitle: strategy?.description,
+  });
+
   /* ---------- Early returns ---------- */
   if (stratLoading) return <PageSkeleton />;
 
@@ -235,55 +253,44 @@ export default function StrategyDetailPage() {
           <FaArrowLeft size={11} /> Back to Strategies
         </Link>
 
-        {/* ---------- Header ---------- */}
-        <div className="ph" style={{ '--strat-color': strategy.color }}>
-          <div className="ph-row">
-            <div className="ph-left">
-              <span className="ph-eyebrow">Strategy</span>
-              <div className="ph-title-row">
-                <h1 className="ph-title">{strategy.name}</h1>
-                <span className={`strat-tile-status ${statusClass}`}>
-                  {strategy.status}
-                </span>
-              </div>
-              {strategy.description && (
-                <p className="ph-sub">{strategy.description}</p>
-              )}
-            </div>
+        {/* ---------- Actions toolbar (title is in the global header) ---------- */}
+        <div className="strat-toolbar">
+          <span className={`strat-tile-status ${statusClass}`}>
+            {strategy.status}
+          </span>
 
-            <div className="ph-right">
-              <button
-                type="button"
-                className="strat-btn"
-                onClick={() => setEditOpen(true)}
-              >
-                <FaEdit size={11} /> Edit
-              </button>
-              {strategy.status !== 'archived' && (
-                <button
-                  type="button"
-                  className="strat-btn"
-                  onClick={() => setArchiveOpen(true)}
-                  disabled={archiveMutation.isPending}
-                >
-                  <FaArchive size={11} /> Archive
-                </button>
-              )}
-              <button
-                type="button"
-                className="strat-btn"
-                style={{
-                  color: '#f87171',
-                  borderColor: 'rgba(239,68,68,.35)',
-                  background: 'rgba(239,68,68,.05)',
-                }}
-                onClick={() => setDeleteOpen(true)}
-                disabled={deleteMutation.isPending}
-              >
-                <FaTrash size={11} /> Delete
-              </button>
-            </div>
-          </div>
+          <div className="strat-toolbar-spacer" />
+
+          <button
+            type="button"
+            className="strat-btn"
+            onClick={() => setEditOpen(true)}
+          >
+            <FaEdit size={11} /> Edit
+          </button>
+          {strategy.status !== 'archived' && (
+            <button
+              type="button"
+              className="strat-btn"
+              onClick={() => setArchiveOpen(true)}
+              disabled={archiveMutation.isPending}
+            >
+              <FaArchive size={11} /> Archive
+            </button>
+          )}
+          <button
+            type="button"
+            className="strat-btn"
+            style={{
+              color: '#f87171',
+              borderColor: 'rgba(239,68,68,.35)',
+              background: 'rgba(239,68,68,.05)',
+            }}
+            onClick={() => setDeleteOpen(true)}
+            disabled={deleteMutation.isPending}
+          >
+            <FaTrash size={11} /> Delete
+          </button>
         </div>
 
         {/* ---------- KPI strip ---------- */}

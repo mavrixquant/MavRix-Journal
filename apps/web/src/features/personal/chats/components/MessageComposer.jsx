@@ -4,8 +4,8 @@
 //   - auto-growing textarea
 //   - Enter to send, Shift+Enter newline
 //   - throttled typing signal (1 event per 2s while typing)
-//   - 4000 char counter with warning near the cap
-//   - disabled while an optimistic send is in flight (optional — see props)
+//   - 4000 char cap (hard max enforced on the textarea)
+//   - disabled while an optimistic send is in flight
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { SendHorizontal } from 'lucide-react';
@@ -99,8 +99,6 @@ export default function MessageComposer({
     }
   };
 
-  const remaining = MAX_LEN - text.length;
-  const nearLimit = remaining < 200;
   const canSend = text.trim().length > 0 && !disabled && !isSending;
 
   return (

@@ -9,12 +9,17 @@
 // Account comes from the header's selector (via useDashboardAccount() in
 // the calling feature page). This view does not own a selector.
 //
+// TITLE PUBLISHING
+// ----------------
+// This file lives under shared/ and therefore MAY NOT import from
+// @/app/layout/PageHeaderProvider (enforced by the eslint boundary rule).
+// The two wrapper feature pages publish title/subtitle to the global
+// header bar themselves.
+//
 // ACTIONS ROW
 // -----------
 // The four primary actions (Template, Columns, Upload, Add) sit on the
-// right of the KPI strip — same row as "Net P&L" and its peers. On narrow
-// viewports the row wraps: KPIs stay first, buttons fall to a second line
-// right-aligned.
+// right of the KPI strip — same row as "Net P&L" and its peers.
 
 import { useState, useMemo, useCallback } from 'react';
 import {
@@ -32,7 +37,6 @@ import { useAccounts } from '@/shared/api/accounts';
 import { useTrades, useDeleteTrade } from '@/shared/api/trades';
 import { useStrategies } from '@/shared/api/strategies';
 import { enrichTradesFromDB } from '@/shared/trading/enrich';
-import { usePageHeader } from '@/app/layout/PageHeaderProvider';
 import UploadModal from './UploadModal';
 import AddTradeModal from './AddTradeModal';
 import ColumnManagerModal from './ColumnManagerModal';
@@ -117,8 +121,6 @@ const CSS = `
   .jm-kpi-value.neg { color: var(--loss); }
   .jm-kpi-value.amber { color: var(--accent); }
 
-  /* Net P&L card gets a subtle accent so the actions cluster reads as
-     "attached" to the primary metric. */
   .jm-kpi.is-anchor {
     background: linear-gradient(180deg, rgba(245,158,11,.05), rgba(245,158,11,.015));
     border-color: var(--accent-soft2);
@@ -595,9 +597,6 @@ function buildColumns(dynamicKeys, currency, isBacktest, { onEdit, onDelete }) {
 export default function TradeLogsView({
   accountId,
   allowedTypes = [],
-  eyebrow,
-  title,
-  subtitle,
   noAccountsTitle,
   noAccountsMessage,
 }) {
@@ -689,12 +688,6 @@ export default function TradeLogsView({
     () => ['date', 'entry', 'exit', 'dir', 'symbol', 'strategy', 'notes', ...dynamicKeys],
     [dynamicKeys]
   );
-
-  // ---- Publish title + subtitle to the global header bar ----
-  usePageHeader({
-    title: title || 'Trade Logs',
-    subtitle: subtitle,
-  });
 
   if (loading) return <PageSkeleton />;
 
