@@ -2,12 +2,18 @@
 //
 // Left pane of the chat UI. Renders the current user's conversations,
 // newest activity first, pinned ahead of unpinned.
+//
+// Live "typing..." hint: uses useTypingConversations(currentUserId) which
+// returns a Set<string> of conversation IDs where the peer is typing.
+// Replaces the preview text with an accent-colored "typing..." while the
+// peer is active. One subscription for the whole list, not one per row.
 
 import { useMemo } from 'react';
 import { MessageSquarePlus, Pin } from 'lucide-react';
+import { useTypingConversations } from '@/shared/api/chat';
 
 /* ------------------------------------------------------------------ */
-/*  Small helpers — kept local because they're only used here         */
+/*  Local helpers                                                      */
 /* ------------------------------------------------------------------ */
 
 function initialsOf(user) {
@@ -65,6 +71,9 @@ export default function ConversationList({
     });
   }, [conversations]);
 
+  // Set of conversation ids where the peer is currently typing.
+  const typingSet = useTypingConversations(currentUserId);
+
   return (
     <aside className="chat-list">
       <div className="chat-list-header">
@@ -93,6 +102,7 @@ export default function ConversationList({
           sorted.map((c) => {
             const peer = c.peer;
             const isOwn = c.lastMessageById === currentUserId;
+            const isTyping = typingSet.has(c.id);
             const preview = c.lastMessageText
               ? (isOwn ? `You: ${c.lastMessageText}` : c.lastMessageText)
               : 'No messages yet';
@@ -120,7 +130,11 @@ export default function ConversationList({
                     </span>
                   </div>
                   <div className="chat-list-row-bottom">
-                    <span className="chat-list-preview">{preview}</span>
+                    <span
+                      className={`chat-list-preview${isTyping ? ' is-typing' : ''}`}
+                    >
+                      {isTyping ? 'typing...' : preview}
+                    </span>
                     {c.isPinned && <Pin size={10} className="chat-list-pin" />}
                     {c.unreadCount > 0 && (
                       <span className="chat-list-badge">

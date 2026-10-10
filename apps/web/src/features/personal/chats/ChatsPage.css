@@ -1,7 +1,7 @@
 /* apps/web/src/features/personal/chats/ChatsPage.css
    Two-pane chat layout. Scoped variables so nothing leaks.
    Desktop: [list 320px] [thread flex]
-   Mobile (<900px): single pane, list ⇄ thread toggled via state class. */
+   Mobile (<900px): single pane, list <-> thread toggled via state class. */
 
 .chat-page {
   --accent: #F59E0B;
@@ -42,7 +42,7 @@
 }
 
 /* ============================================================
-   Left pane — conversation list
+   Left pane - conversation list
    ============================================================ */
 .chat-list {
   display: flex;
@@ -230,6 +230,17 @@
   white-space: nowrap;
 }
 .chat-list-row.is-active .chat-list-preview { color: rgba(245,158,11,.7); }
+
+/* Typing hint in the conversation list preview - matches the header
+   indicator so the user can see the peer typing from anywhere in the
+   app without opening the thread. */
+.chat-list-preview.is-typing {
+  color: var(--accent);
+  font-style: italic;
+  font-weight: 600;
+  animation: chatPulse 1.4s ease-in-out infinite;
+}
+
 .chat-list-pin {
   flex-shrink: 0;
   color: var(--accent);
@@ -253,7 +264,7 @@
 }
 
 /* ============================================================
-   Right pane — thread
+   Right pane - thread
    ============================================================ */
 .chat-thread {
   display: flex;
@@ -929,7 +940,7 @@
 }
 
 /* ============================================================
-   Mobile — single-pane toggle
+   Mobile - single-pane toggle
    ============================================================ */
 @media (max-width: 900px) {
   .chat-root {

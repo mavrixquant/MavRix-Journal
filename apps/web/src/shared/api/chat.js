@@ -9,7 +9,7 @@
 //   ['chat', 'users', 'search', q]           - user search (caller debounces)
 //
 // Pagination model: useInfiniteQuery where pages[0] holds the NEWEST page.
-// Within each page, messages are ascending (oldest ? newest).
+// Within each page, messages are ascending (oldest -> newest).
 // fetchNextPage() loads older messages by passing the oldest createdAt as
 // `before`.
 //
@@ -25,7 +25,11 @@ import {
 import { useEffect, useState } from 'react';
 import { apiJson } from './client.js';
 import { useSSEFallback } from './sse.js';
-import { subscribeTyping, getTypingUserIds } from '@/shared/chat/chatStream.js';
+import {
+  subscribeTyping,
+  getTypingUserIds,
+  getTypingConversationIds,
+} from '@/shared/chat/chatStream.js';
 
 /* ------------------------------------------------------------------ */
 /*  Query keys                                                         */
@@ -226,6 +230,34 @@ export function useTypingIndicator(conversationId, excludeUserId) {
   return userIds;
 }
 
+/**
+ * Single-subscription variant of useTypingIndicator for the conversation
+ * list. Returns a Set<string> of conversation IDs where the peer is
+ * currently typing.
+ *
+ * Subscribes to the shared chatStream pub/sub once for the whole list
+ * (instead of one subscription per row) and re-reads on every change,
+ * plus a 1.5s heartbeat to catch TTL expirations.
+ */
+export function useTypingConversations(excludeUserId) {
+  const [set, setSet] = useState(() =>
+    getTypingConversationIds(excludeUserId)
+  );
+
+  useEffect(() => {
+    const update = () => setSet(getTypingConversationIds(excludeUserId));
+    update();
+    const unsub = subscribeTyping(update);
+    const iv = setInterval(update, 1500);
+    return () => {
+      unsub();
+      clearInterval(iv);
+    };
+  }, [excludeUserId]);
+
+  return set;
+}
+
 /* ------------------------------------------------------------------ */
 /*  Hooks - mutations                                                  */
 /* ------------------------------------------------------------------ */
@@ -323,14 +355,17 @@ export function useSendMessage() {
 
     onSuccess: (message, _vars, ctx) => {
       if (!ctx) return;
-      // Swap the optimistic entry for the server-confirmed message.
+      // Replace the optimistic entry with the server-confirmed message.
+      //
+      // This must be idempotent against the SSE echo: the backend
+      // broadcasts chat:message:new to ALL participants INCLUDING the
+      // sender, so the HTTP onSuccess and the SSE append race. Either can
+      // land first. Removing BOTH the temp id AND any existing real
+      // message with the same id, then appending once, is correct under
+      // every timing permutation.
       qc.setQueryData(chatKeys.messages(ctx.conversationId), (old) => {
         if (!old || !Array.isArray(old.pages) || old.pages.length === 0) return old;
         const [first, ...rest] = old.pages;
-        // Remove BOTH the optimistic temp id AND any pre-existing real copy.
-        // The server broadcasts chat:message:new to the SENDER too, so the
-        // SSE echo and this success handler race ? either can land first.
-        // Removing both, then appending once, is idempotent either way.
         const cleaned = first.messages.filter(
           (m) => m.id !== ctx.tempId && m.id !== message.id
         );
@@ -401,8 +436,8 @@ export function useEditMessage() {
 
 /**
  * Delete a message. Two scopes:
- *   scope='me'  ? hide locally (no server broadcast)
- *   scope='all' ? soft-delete for everyone (sender only)
+ *   scope='me'  - hide locally (no server broadcast)
+ *   scope='all' - soft-delete for everyone (sender only)
  */
 export function useDeleteMessage() {
   const qc = useQueryClient();
@@ -426,7 +461,7 @@ export function useDeleteMessage() {
             })),
           };
         }
-        // scope='all' ? keep in place, body nulled, marked deleted.
+        // scope='all' - keep in place, body nulled, marked deleted.
         return {
           ...old,
           pages: old.pages.map((page) => ({

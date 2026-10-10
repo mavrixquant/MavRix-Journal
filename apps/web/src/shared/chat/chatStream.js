@@ -4,7 +4,7 @@
 // React Query cache. Currently only used for the typing indicator.
 //
 // Why not React Query:
-//   - Typing is not persisted — it has a 4s TTL and expires on its own.
+//   - Typing is not persisted - it has a 4s TTL and expires on its own.
 //   - It arrives at ~1 event per 2s while a peer types; stuffing that into
 //     the query cache would thrash serialization for zero benefit.
 //
@@ -12,8 +12,10 @@
 //   typingState: Map<conversationId, Map<userId, expiresAtMs>>
 //   listeners:   Set<() => void>
 //
-// Subscribers are called synchronously on every change. The React binding
-// lives in shared/api/chat.js → useTypingIndicator().
+// Subscribers are called synchronously on every change. The React bindings
+// live in shared/api/chat.js:
+//   - useTypingIndicator(conversationId, excludeUserId)   - single thread
+//   - useTypingConversations(excludeUserId)               - whole list
 
 const TYPING_TTL_MS = 4000;
 const SWEEP_INTERVAL_MS = 1500;
@@ -78,7 +80,28 @@ export function getTypingUserIds(conversationId, excludeUserId) {
   return out;
 }
 
-/** Clear everything for a conversation — called when a thread is closed. */
+/**
+ * Returns a Set of conversation IDs where at least one user OTHER than
+ * `excludeUserId` is currently typing (not yet expired).
+ *
+ * Used by the conversation list to show an inline "typing..." hint
+ * without spinning up one subscription per row.
+ */
+export function getTypingConversationIds(excludeUserId) {
+  const out = new Set();
+  const now = Date.now();
+  for (const [cid, bucket] of typingState) {
+    for (const [uid, expiresAt] of bucket) {
+      if (expiresAt < now) continue;
+      if (uid === excludeUserId) continue;
+      out.add(cid);
+      break;
+    }
+  }
+  return out;
+}
+
+/** Clear everything for a conversation - called when a thread is closed. */
 export function clearTypingState(conversationId) {
   if (typingState.delete(conversationId)) notify();
 }
