@@ -1,4 +1,4 @@
-/* apps/web/src/app/shell/HeaderBar.css */
+/* apps/web/src/app/layout/HeaderBar/HeaderBar.css */
 
 .hb-root {
   --accent: #F59E0B;
@@ -16,7 +16,7 @@
   position: sticky;
   top: 0;
   z-index: 30;
-  height: 64px;
+  height: 68px;
   display: flex;
   align-items: center;
   gap: 16px;
@@ -55,35 +55,101 @@
   .hb-mobile-menu { display: none; }
 }
 
-/* ---------- Brand title ---------- */
-.hb-title {
-  margin: 0;
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
-  font-size: 18px;
-  font-weight: 800;
-  letter-spacing: -.03em;
-  color: #F5F6F8;
-  line-height: 1;
-  white-space: nowrap;
-  flex-shrink: 0;
+/* ---------- Page title block (driven by PageHeaderContext) ---------- */
+.hb-page-title-block {
   position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  min-width: 0;
+  flex-shrink: 1;
   padding-right: 18px;
-  opacity: 1;
-  transition: opacity .22s ease;
 }
-.hb-title::after {
+.hb-page-title-block::after {
   content: '';
   position: absolute;
   right: 0;
   top: 50%;
   transform: translateY(-50%);
   width: 1px;
-  height: 22px;
-  background: linear-gradient(180deg, transparent, rgba(255,255,255,.14), transparent);
+  height: 26px;
+  background: linear-gradient(
+    180deg,
+    transparent,
+    rgba(255,255,255,.14),
+    transparent
+  );
 }
-.hb-title.is-hidden { display: none; }
-@media (max-width: 1023px) {
-  .hb-title.is-hidden { display: block; }
+
+.hb-page-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.hb-page-title {
+  margin: 0;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: -.025em;
+  color: #F5F6F8;
+  line-height: 1.15;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hb-page-sub {
+  margin: 0;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: .02em;
+  color: var(--ink-2);
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Status badge — mirrors .ph-badge variants from page-header.css */
+.hb-page-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 99px;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  border: 1px solid;
+  white-space: nowrap;
+  flex-shrink: 0;
+  line-height: 1.4;
+}
+.hb-page-badge.is-live {
+  color: #4ade80;
+  background: rgba(74,222,128,.08);
+  border-color: rgba(74,222,128,.32);
+}
+.hb-page-badge.is-demo {
+  color: var(--accent);
+  background: rgba(245,158,11,.08);
+  border-color: rgba(245,158,11,.30);
+}
+.hb-page-badge.is-backtest {
+  color: #60a5fa;
+  background: rgba(96,165,250,.08);
+  border-color: rgba(96,165,250,.30);
+}
+.hb-page-badge.is-default {
+  color: var(--ink-2);
+  background: rgba(255,255,255,.04);
+  border-color: rgba(255,255,255,.12);
 }
 
 /* ---------- Account selector (Radix Select) ---------- */
@@ -550,14 +616,18 @@
 @media (prefers-reduced-motion: reduce) {
   .hb-mobile-menu, .hb-account-trigger, .hb-account-chevron,
   .hb-icon-btn, .hb-icon-btn svg,
-  .hb-user-pill, .hb-title { transition: none !important; }
+  .hb-user-pill { transition: none !important; }
   .hb-tip, .hb-select-content { animation: none !important; }
 }
 
 /* ---------- Mobile ---------- */
 @media (max-width: 640px) {
   .hb-root { padding: 0 12px; gap: 10px; }
-  .hb-title { font-size: 16px; padding-right: 12px; }
+
+  .hb-page-title-block { padding-right: 12px; }
+  .hb-page-title { font-size: 14px; }
+  .hb-page-sub { display: none; }
+
   .hb-account-root { min-width: 0; flex: 1; max-width: none; }
   .hb-divider { margin: 0 3px; }
   .hb-icon-btn { width: 34px; height: 34px; }

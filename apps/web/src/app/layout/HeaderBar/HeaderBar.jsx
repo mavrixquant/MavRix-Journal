@@ -16,13 +16,49 @@ import { useDashboardAccount } from '@/app/providers/useDashboardAccount';
 import { useAccounts } from '@/shared/api/accounts';
 import { AccountSelect } from './AccountSelect';
 import { IconButton, HBTooltip } from './IconButton';
+import { usePageHeaderContext } from '../PageHeaderProvider';
 
 import './HeaderBar.css';
 
-export const HEADER_HEIGHT = 64;
+export const HEADER_HEIGHT = 68;
+
+/* ------------------------------------------------------------------ */
+/*  Page title block — driven by PageHeaderContext                     */
+/*                                                                    */
+/*  Renders the current route's title (published via usePageHeader),   */
+/*  with an optional status badge and an optional subtitle line.       */
+/*  Falls back to "MavRix Journal" when no page has published one.     */
+/* ------------------------------------------------------------------ */
+function PageTitleBlock() {
+  const { config } = usePageHeaderContext();
+
+  const title = config?.title || 'MavRix Journal';
+  const badge = config?.badge;
+  const badgeVariant = config?.badgeVariant || 'is-default';
+  const subtitle = config?.subtitle;
+
+  return (
+    <div className="hb-page-title-block">
+      <div className="hb-page-title-row">
+        <h1 className="hb-page-title" title={title}>
+          {title}
+        </h1>
+        {badge && (
+          <span className={`hb-page-badge ${badgeVariant}`}>
+            {badge}
+          </span>
+        )}
+      </div>
+      {subtitle && (
+        <p className="hb-page-sub" title={subtitle}>
+          {subtitle}
+        </p>
+      )}
+    </div>
+  );
+}
 
 export default function HeaderBar({
-  collapsed,
   onMobileMenuClick,
   onAccountClick,
   onLogout,
@@ -86,8 +122,6 @@ export default function HeaderBar({
     return m.slice(0, 2).join('').toUpperCase() || 'U';
   }, [displayName]);
 
-  const titleHidden = collapsed === false;
-
   const handleAccountChange = (id) => {
     setAccountId(id);
   };
@@ -105,9 +139,7 @@ export default function HeaderBar({
         <MenuIcon size={16} />
       </button>
 
-      <h1 className={`hb-title${titleHidden ? ' is-hidden' : ''}`}>
-        MavRix Journal
-      </h1>
+      <PageTitleBlock />
 
       {showAccountSelect && (
         <div className="hb-account-root">

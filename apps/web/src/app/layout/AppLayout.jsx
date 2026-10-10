@@ -16,6 +16,7 @@ import { TooltipProvider } from '@/shared/ui/tooltip';
 import { Sheet, SheetContent, SheetTitle } from '@/shared/ui/sheet';
 import { useHotkey } from '@/shared/hooks/useHotkey';
 import { useSSEBridge } from '@/shared/api/sse';
+import { PageHeaderProvider } from './PageHeaderProvider';
 
 const STORAGE_KEY = 'mavrix:sidebar:collapsed';
 
@@ -49,57 +50,59 @@ export default function AppLayout() {
 
   return (
     <TooltipProvider delayDuration={250}>
-      <style>{`
-        @media (min-width: 1024px) {
-          .app-shell-main {
-            margin-left: ${mainMargin}px;
+      <PageHeaderProvider>
+        <style>{`
+          @media (min-width: 1024px) {
+            .app-shell-main {
+              margin-left: ${mainMargin}px;
+            }
           }
-        }
-      `}</style>
+        `}</style>
 
-      <TopStrip />
+        <TopStrip />
 
-      <Sidebar
-        collapsed={collapsed}
-        onCollapseToggle={() => setCollapsed((v) => !v)}
-      />
-
-      <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-        <SheetContent
-          side="left"
-          className="w-[280px] max-w-[85vw] border-r border-white/[.085] bg-transparent p-0 [&>button]:hidden"
-        >
-          <SheetTitle className="sr-only">Navigation</SheetTitle>
-          <SidebarContent
-            collapsed={false}
-            showCollapseButton={false}
-            onNavigate={() => setMobileOpen(false)}
-          />
-        </SheetContent>
-      </Sheet>
-
-      <div
-        className="app-shell-main min-h-screen"
-        style={{ transition: 'margin-left .4s cubic-bezier(.16, 1, .3, 1)' }}
-      >
-        <HeaderBar
+        <Sidebar
           collapsed={collapsed}
-          onMobileMenuClick={() => setMobileOpen(true)}
-          onAccountClick={() => setIsAccountModalOpen(true)}
-          onLogout={handleLogout}
+          onCollapseToggle={() => setCollapsed((v) => !v)}
         />
 
-        <main className="box-border w-full px-4 py-5 lg:px-7 lg:py-6">
-          <Suspense key={location.pathname} fallback={<PageSkeleton />}>
-            <Outlet />
-          </Suspense>
-        </main>
-      </div>
+        <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+          <SheetContent
+            side="left"
+            className="w-[280px] max-w-[85vw] border-r border-white/[.085] bg-transparent p-0 [&>button]:hidden"
+          >
+            <SheetTitle className="sr-only">Navigation</SheetTitle>
+            <SidebarContent
+              collapsed={false}
+              showCollapseButton={false}
+              onNavigate={() => setMobileOpen(false)}
+            />
+          </SheetContent>
+        </Sheet>
 
-      <AccountModal
-        isOpen={isAccountModalOpen}
-        onClose={() => setIsAccountModalOpen(false)}
-      />
+        <div
+          className="app-shell-main min-h-screen"
+          style={{ transition: 'margin-left .4s cubic-bezier(.16, 1, .3, 1)' }}
+        >
+          <HeaderBar
+            collapsed={collapsed}
+            onMobileMenuClick={() => setMobileOpen(true)}
+            onAccountClick={() => setIsAccountModalOpen(true)}
+            onLogout={handleLogout}
+          />
+
+          <main className="box-border w-full px-4 py-5 lg:px-7 lg:py-6">
+            <Suspense key={location.pathname} fallback={<PageSkeleton />}>
+              <Outlet />
+            </Suspense>
+          </main>
+        </div>
+
+        <AccountModal
+          isOpen={isAccountModalOpen}
+          onClose={() => setIsAccountModalOpen(false)}
+        />
+      </PageHeaderProvider>
     </TooltipProvider>
   );
 }
