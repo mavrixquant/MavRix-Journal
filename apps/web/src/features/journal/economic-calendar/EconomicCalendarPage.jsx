@@ -3,23 +3,25 @@
 // Economic Calendar — read-only feed of macro releases (CPI, NFP, FOMC, etc.)
 // sourced from Biquote and cached on the API. Fully independent from trades.
 //
+// Title + subtitle are published to the GLOBAL header bar via usePageHeader().
+// The List/Month view toggle has moved down into <CalendarFilters /> so it
+// sits next to the Sync button on the same row.
+//
 // Layout:
 //   ┌──────────────────────────────────────────────────────────────┐
-//   │  Flat header: eyebrow + title + sub + view toggle            │
-//   ├──────────────────────────────────────────────────────────────┤
-//   │  Filters card: impact / currency / date range / sync         │
+//   │  Filters card: impact / currency / date / view toggle / sync │
 //   ├──────────────────────────────────────────────────────────────┤
 //   │  Content: List view  OR  Month grid                          │
 //   └──────────────────────────────────────────────────────────────┘
 
 import { useMemo } from 'react';
-import { List, CalendarDays } from 'lucide-react';
 
 import {
   useCalendarEvents,
   useCalendarCurrencies,
   useCalendarMeta,
 } from '@/shared/api/calendar';
+import { usePageHeader } from '@/app/layout/PageHeaderProvider';
 
 import { useCalendarFilters } from './hooks/useCalendarFilters';
 import CalendarFilters from './components/CalendarFilters';
@@ -27,13 +29,10 @@ import CalendarGrid from './components/CalendarGrid';
 import EventList from './components/EventList';
 import EventDetailModal from './components/EventDetailModal';
 
-import '@/shared/ui/page-header.css';
-
 /* ------------------------------------------------------------------ */
 /*  Page-local CSS.                                                    */
-/*  Header chrome comes from page-header.css. This block covers the    */
-/*  filter card shell, the content card shell, the view toggle, and    */
-/*  loading/error states.                                              */
+/*  Header chrome now lives in the global HeaderBar. This block only   */
+/*  covers the content card shell + loading/error states.              */
 /* ------------------------------------------------------------------ */
 
 const CSS = `
@@ -57,7 +56,7 @@ const CSS = `
     -webkit-font-smoothing: antialiased;
   }
 
-  /* Content cards (filters + events) — these stay glass panels. */
+  /* Content cards (filters + events) — glass panels. */
   .ec-card {
     position: relative;
     border-radius: 18px;
@@ -69,40 +68,6 @@ const CSS = `
     overflow: hidden;
   }
   .ec-body { padding: 4px 18px 18px; }
-
-  /* View toggle (in header actions slot). */
-  .ec-view-toggle {
-    display: inline-flex;
-    padding: 3px;
-    background: rgba(0,0,0,.32);
-    border: 1px solid rgba(255,255,255,.06);
-    border-radius: 10px;
-    gap: 2px;
-  }
-  .ec-view-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 7px 12px;
-    border-radius: 7px;
-    background: transparent;
-    border: none;
-    color: var(--ink-2);
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: .02em;
-    cursor: pointer;
-    transition: all .18s;
-    white-space: nowrap;
-  }
-  .ec-view-btn:hover { color: var(--ink-1); background: rgba(255,255,255,.04); }
-  .ec-view-btn.is-active {
-    background: linear-gradient(135deg, var(--accent), var(--accent-2));
-    color: #0D1117;
-    font-weight: 700;
-    box-shadow: 0 6px 16px -8px rgba(245,158,11,.6);
-  }
 
   .ec-loading {
     padding: 80px 20px;
@@ -175,50 +140,22 @@ export default function EconomicCalendarPage() {
 
   const showError = eventsQuery.isError;
 
+  // Publish title + dynamic subtitle to the global header bar.
+  const subText = meta.data?.totalEvents
+    ? `${meta.data.totalEvents.toLocaleString()} events cached · live from Biquote`
+    : 'Live macro releases · CPI · NFP · FOMC · central banks';
+
+  usePageHeader({
+    title: 'Economic Calendar',
+    subtitle: subText,
+  });
+
   return (
     <>
       <style>{CSS}</style>
       <div className="ec-root">
 
-        {/* ---------- Header ---------- */}
-        <div className="ph">
-          <div className="ph-row">
-            <div className="ph-left">
-              <span className="ph-eyebrow">Journal</span>
-              <h1 className="ph-title">Economic Calendar</h1>
-              <p className="ph-sub">
-                {meta.data?.totalEvents
-                  ? `${meta.data.totalEvents.toLocaleString()} events cached · live from Biquote`
-                  : 'Live macro releases · CPI · NFP · FOMC · central banks'}
-              </p>
-            </div>
-
-            <div className="ph-right">
-              <div className="ec-view-toggle" role="tablist">
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={filters.view === 'list'}
-                  className={`ec-view-btn ${filters.view === 'list' ? 'is-active' : ''}`}
-                  onClick={() => filters.setView('list')}
-                >
-                  <List size={12} /> List
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={filters.view === 'month'}
-                  className={`ec-view-btn ${filters.view === 'month' ? 'is-active' : ''}`}
-                  onClick={() => filters.setView('month')}
-                >
-                  <CalendarDays size={12} /> Month
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* ---------- Filters card ---------- */}
+        {/* ---------- Filters card (view toggle lives here now) ---------- */}
         <div className="ec-card" style={{ padding: '18px 22px' }}>
           <CalendarFilters
             availableCurrencies={currencies.data ?? []}
@@ -234,6 +171,8 @@ export default function EconomicCalendarPage() {
             applyPreset={filters.applyPreset}
             setCustomRange={filters.setCustomRange}
             goToToday={filters.goToToday}
+            view={filters.view}
+            setView={filters.setView}
           />
         </div>
 

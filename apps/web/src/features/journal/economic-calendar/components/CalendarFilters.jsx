@@ -3,13 +3,14 @@
 // Filter bar for the Economic Calendar page.
 //
 // Controls:
+//   - Impact segmented buttons: All / High / Medium / Low (multi-select).
 //   - Currency chips: discovered dynamically from the cache. Empty selection
 //     means "all currencies".
-//   - Impact segmented buttons: All / High / Medium / Low (multi-select).
 //   - Date-range preset buttons: Today / Week / Month + custom from/to.
-//   - Sync button: triggers POST /api/calendar/sync and refreshes.
+//   - View toggle: List / Month — grouped with the Sync button.
+//   - Sync button: POST /api/calendar/sync and refresh.
 
-import { RefreshCw, Calendar, X } from 'lucide-react';
+import { RefreshCw, Calendar, X, List, CalendarDays } from 'lucide-react';
 import {
   IMPACT_LEVELS,
   CURRENCY_NAMES,
@@ -53,6 +54,7 @@ const CSS = `
     margin-right: 4px;
     flex-shrink: 0;
   }
+  .cf-spacer { flex: 1; min-width: 8px; }
 
   /* ---------- Currency chips ---------- */
   .cf-chip {
@@ -200,6 +202,40 @@ const CSS = `
     animation: cfSpin 1s linear infinite;
   }
 
+  /* ---------- View toggle (segmented, in the same row as Sync) ---------- */
+  .cf-view-toggle {
+    display: inline-flex;
+    padding: 3px;
+    background: rgba(0,0,0,.32);
+    border: 1px solid rgba(255,255,255,.06);
+    border-radius: 10px;
+    gap: 2px;
+  }
+  .cf-view-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 12px;
+    border-radius: 7px;
+    background: transparent;
+    border: none;
+    color: var(--ink-2);
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .02em;
+    cursor: pointer;
+    transition: all .18s;
+    white-space: nowrap;
+  }
+  .cf-view-btn:hover { color: var(--ink-1); background: rgba(255,255,255,.04); }
+  .cf-view-btn.is-active {
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    color: #0D1117;
+    font-weight: 700;
+    box-shadow: 0 6px 16px -8px rgba(245,158,11,.6);
+  }
+
   .cf-clear {
     display: inline-flex;
     align-items: center;
@@ -222,7 +258,7 @@ const CSS = `
 
   @keyframes cfSpin { to { transform: rotate(360deg); } }
   @media (prefers-reduced-motion: reduce) {
-    .cf-chip, .cf-btn, .cf-seg-btn, .cf-clear { transition: none !important; }
+    .cf-chip, .cf-btn, .cf-seg-btn, .cf-clear, .cf-view-btn { transition: none !important; }
     .cf-sync-icon.spinning { animation: none !important; }
   }
 `;
@@ -262,6 +298,10 @@ export default function CalendarFilters({
   applyPreset,
   setCustomRange,
   goToToday,
+
+  // View toggle (moved here from the page header)
+  view,
+  setView,
 }) {
   const syncMutation = useSyncCalendar();
 
@@ -293,7 +333,7 @@ export default function CalendarFilters({
       <style>{CSS}</style>
       <div className="cf-root">
 
-        {/* ---------- Row 1: Impact ---------- */}
+        {/* ---------- Row 1: Impact + view toggle + sync ---------- */}
         <div className="cf-row">
           <span className="cf-label">Impact</span>
           <div className="cf-seg">
@@ -320,7 +360,7 @@ export default function CalendarFilters({
             })}
           </div>
 
-          <div style={{ flex: 1 }} />
+          <div className="cf-spacer" />
 
           <button
             type="button"
@@ -335,6 +375,28 @@ export default function CalendarFilters({
             />
             {syncMutation.isPending ? 'Syncing…' : 'Sync now'}
           </button>
+
+          {/* View toggle: sits on the same row, to the right of Sync */}
+          <div className="cf-view-toggle" role="tablist">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={view === 'list'}
+              className={`cf-view-btn ${view === 'list' ? 'is-active' : ''}`}
+              onClick={() => setView('list')}
+            >
+              <List size={12} /> List
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={view === 'month'}
+              className={`cf-view-btn ${view === 'month' ? 'is-active' : ''}`}
+              onClick={() => setView('month')}
+            >
+              <CalendarDays size={12} /> Month
+            </button>
+          </div>
         </div>
 
         {/* ---------- Row 2: Currency ---------- */}
