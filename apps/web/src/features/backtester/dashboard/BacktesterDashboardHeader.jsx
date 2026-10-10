@@ -2,16 +2,14 @@
 //
 // Backtester-dashboard header.
 //
-// Unlike the Journal header, the Backtester header KEEPS its full filter
-// toolbar (R:R tabs, DynamicFilters, Session/Time, Limits, Optimize, Reset).
-// The Analyse-page revamp only stripped filters from the Journal dashboard.
+// Title + badge are published to the GLOBAL header bar via usePageHeader()
+// so they render next to the account selector.
 //
-// Changes in this revision:
-//   - Uses the shared useEnrichedTrades hook (extracted from this file's
-//     previous inline enrichment logic) so both dashboards share one code
-//     path for loading + dispatching trades.
-//   - The Customize button is now disabled when the Backtest account has
-//     no trades.
+// Everything else stays on the page:
+//   - Collapse chevron (toggles the filter toolbar below)
+//   - Customize button (disabled when the account has no trades)
+//   - Collapsible filter toolbar (RRTabs, DynamicFilters, Session/Time,
+//     Limits, Optimize, Reset)
 
 import { useState } from 'react';
 import { FaSlidersH } from 'react-icons/fa';
@@ -21,6 +19,7 @@ import { useDashboardAccount } from '@/app/providers/useDashboardAccount';
 import { useEnrichedTrades } from '@/features/dashboard/hooks/useEnrichedTrades';
 import { useFilters } from '@/features/dashboard/hooks/useFilters';
 import { useFilterUrlSync } from '@/features/dashboard/hooks/useFilterUrlSync';
+import { usePageHeader } from '@/app/layout/PageHeaderProvider';
 
 import RRTabs from '@/features/dashboard/components/filters/RRTabs';
 import DynamicFilters from '@/features/dashboard/components/filters/DynamicFilters';
@@ -28,11 +27,9 @@ import SessionTimeModal from '@/features/dashboard/components/filters/SessionTim
 import LimitsModal from '@/features/dashboard/components/filters/LimitsModal';
 import OptimizeModal from '@/features/dashboard/components/optimize/OptimizeModal';
 
-import '@/shared/ui/page-header.css';
-
 /* ------------------------------------------------------------------ */
-/*  Header-local CSS. Identical to the previous version — the visual   */
-/*  language is unchanged; only the data source + button gating moved. */
+/*  Header-local CSS.                                                  */
+/*  Same visual language as the previous version, minus the title row. */
 /* ------------------------------------------------------------------ */
 const HDR_CSS = `
   .hdr-root {
@@ -45,13 +42,28 @@ const HDR_CSS = `
     --ink-1: #E7E9EE;
     --ink-2: #8892A3;
     --ink-3: #545E6E;
+
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 2px 0 20px;
   }
+
+  /* ---------- Top actions row ---------- */
+  .hdr-actions-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--line-soft);
+  }
+  .hdr-spacer { flex: 1; min-width: 8px; }
 
   /* ---------- Collapse chevron ---------- */
   .hdr-collapse {
-    width: 26px;
-    height: 26px;
-    border-radius: 8px;
+    width: 30px;
+    height: 30px;
+    border-radius: 9px;
     border: 1px solid rgba(255,255,255,.1);
     background: rgba(255,255,255,.03);
     color: var(--ink-2);
@@ -253,8 +265,7 @@ export default function BacktesterDashboardHeader({ onCustomize }) {
   // Mirror filter state to the URL for shareable / back-button support.
   useFilterUrlSync();
 
-  // Enrich + dispatch trades for this Backtest account. The returned payload
-  // is used only to gate the Customize button on data availability.
+  // Enrich + dispatch trades for this Backtest account.
   const enriched = useEnrichedTrades(accountId);
 
   const [showSessionModal, setShowSessionModal] = useState(false);
@@ -269,63 +280,56 @@ export default function BacktesterDashboardHeader({ onCustomize }) {
 
   const hasData = enriched.enrichedTrades.length > 0;
 
-  // Backtester is Backtest-only. Badge is always `is-backtest`.
-  const badgeClass = 'is-backtest';
+  // Publish title + badge to the global header bar.
+  usePageHeader({
+    title: 'Backtester',
+    badge: selectedAccount?.type,
+    badgeVariant: 'is-backtest',
+  });
 
   return (
     <>
       <style>{HDR_CSS}</style>
-      <div className="hdr-root ph">
-        {/* ---------- Title row ---------- */}
-        <div className="ph-row">
-          <div className="ph-left">
-            <div className="ph-title-row">
-              <button
-                type="button"
-                className={`hdr-collapse ${toolbarOpen ? '' : 'is-closed'}`}
-                onClick={() => setToolbarOpen((v) => !v)}
-                aria-expanded={toolbarOpen}
-                aria-controls="hdr-toolbar"
-                title={toolbarOpen ? 'Hide filters' : 'Show filters'}
-              >
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.4"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
-                >
-                  <polyline points="6 15 12 9 18 15" />
-                </svg>
-              </button>
-
-              <h1 className="ph-title">Backtester</h1>
-              {selectedAccount && (
-                <span className={`ph-badge ${badgeClass}`}>
-                  {selectedAccount.type}
-                </span>
-              )}
-            </div>
-          </div>
-
-          <div className="ph-right">
-            <button
-              type="button"
-              className="hdr-customize"
-              onClick={onCustomize}
-              disabled={!hasData}
-              title={
-                hasData
-                  ? 'Customize dashboard'
-                  : 'Add trades to this account first to customize the layout'
-              }
+      <div className="hdr-root">
+        {/* ---------- Top actions row ---------- */}
+        <div className="hdr-actions-row">
+          <button
+            type="button"
+            className={`hdr-collapse ${toolbarOpen ? '' : 'is-closed'}`}
+            onClick={() => setToolbarOpen((v) => !v)}
+            aria-expanded={toolbarOpen}
+            aria-controls="hdr-toolbar"
+            title={toolbarOpen ? 'Hide filters' : 'Show filters'}
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.4"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
             >
-              <FaSlidersH size={12} />
-              Customize
-            </button>
-          </div>
+              <polyline points="6 15 12 9 18 15" />
+            </svg>
+          </button>
+
+          <div className="hdr-spacer" />
+
+          <button
+            type="button"
+            className="hdr-customize"
+            onClick={onCustomize}
+            disabled={!hasData}
+            title={
+              hasData
+                ? 'Customize dashboard'
+                : 'Add trades to this account first to customize the layout'
+            }
+          >
+            <FaSlidersH size={12} />
+            Customize
+          </button>
         </div>
 
         {/* ---------- Collapsible toolbar ---------- */}

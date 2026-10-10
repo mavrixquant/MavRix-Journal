@@ -3,6 +3,9 @@
 // The Analyse route — a full analytical report for the currently selected
 // Journal account (Live or Demo).
 //
+// Title + badge + dynamic subtitle are published to the GLOBAL header bar
+// via usePageHeader().
+//
 // Sections:
 //   01  Snapshot            — Hero equity + KPI grids
 //   02  Equity & Drawdown   — underwater curve + daily P&L / R:R
@@ -11,10 +14,6 @@
 //   05  Breakdowns          — session / day-of-week / direction + strategy
 //   06  Symbols & Duration  — symbol table + holding-time widget
 //   07  Trade Log           — full filterable table
-//
-// Filter UI lives in AnalyseFilters. Everything below the header is driven
-// by the shared useStats() hook, which reads the filtered trades produced
-// by useFilters() → applyFilters().
 
 import { useAuth } from '@/app/providers/AuthProvider';
 import { useAppContext } from '@/app/providers/AppProvider';
@@ -22,10 +21,10 @@ import { useDashboardAccount } from '@/app/providers/useDashboardAccount';
 import { useEnrichedTrades } from '@/features/dashboard/hooks/useEnrichedTrades';
 import { useStats } from '@/features/dashboard/hooks/useStats';
 import { useFilterUrlSync } from '@/features/dashboard/hooks/useFilterUrlSync';
+import { usePageHeader } from '@/app/layout/PageHeaderProvider';
 
 import { PageSkeleton } from '@/shared/ui/page-skeleton';
 
-import AnalyseHeader from './AnalyseHeader';
 import AnalyseFilters from './AnalyseFilters';
 import { AnalyseSection, AnalysePanel } from './AnalyseSection';
 
@@ -49,7 +48,7 @@ import RRCompareChart from '@/features/dashboard/components/charts/RRCompareChar
 import CategoryBarChart from '@/features/dashboard/components/charts/CategoryBarChart';
 
 /* ------------------------------------------------------------------ */
-/*  Page CSS — identical to previous version, no new rules added.      */
+/*  Page CSS — unchanged from the previous version.                    */
 /* ------------------------------------------------------------------ */
 const CSS = `
   .analyse-root {
@@ -492,6 +491,33 @@ export default function AnalysePage() {
 
   const isHydrating = totalCount > 0 && state.trades.length === 0;
 
+  // Compute the dynamic subtitle BEFORE the early return so the hook is
+  // always called in the same order across renders.
+  const isFiltered = totalCount > 0 && filteredCount !== totalCount;
+  let subText;
+  if (totalCount === 0) {
+    subText = 'No trades recorded for this account yet';
+  } else if (isFiltered) {
+    subText = `${filteredCount} of ${totalCount} trades match your filters`;
+  } else {
+    subText = `${totalCount} ${totalCount === 1 ? 'trade' : 'trades'} across this account`;
+  }
+
+  const badgeVariant =
+    account?.type === 'Demo'
+      ? 'is-demo'
+      : account?.type === 'Backtest'
+        ? 'is-backtest'
+        : 'is-live';
+
+  // Publish title + badge + dynamic subtitle to the global header bar.
+  usePageHeader({
+    title: 'Analyse',
+    badge: account?.type,
+    badgeVariant,
+    subtitle: subText,
+  });
+
   if (!user || isHydrating) return <PageSkeleton />;
 
   const hasAnyTrades = totalCount > 0;
@@ -499,12 +525,6 @@ export default function AnalysePage() {
   return (
     <div className="analyse-root">
       <style>{CSS}</style>
-
-      <AnalyseHeader
-        account={account}
-        totalCount={totalCount}
-        filteredCount={filteredCount}
-      />
 
       <AnalyseFilters />
 

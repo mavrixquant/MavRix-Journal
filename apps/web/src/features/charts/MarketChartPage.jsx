@@ -3,7 +3,8 @@
 // /backtester/chart — full-page market chart with watchlist, quote header,
 // indicators, and drawing tools.
 //
-// NOTE: watchlist styles moved into WatchlistSidebar.jsx (self-contained).
+// Title + current symbol+interval subtitle are published to the GLOBAL
+// header bar via usePageHeader().
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
@@ -12,6 +13,7 @@ import {
   useMarketCatalog,
   useMarketBars,
 } from '@/shared/api/marketData';
+import { usePageHeader } from '@/app/layout/PageHeaderProvider';
 
 import { PageSkeleton } from '@/shared/ui/page-skeleton';
 import { computeIndicators } from './lib/indicators';
@@ -439,6 +441,13 @@ export default function MarketChartPage() {
       console.warn('[chart] fullscreen rejected:', err);
     }
   }, []);
+
+  /* ---------------- Publish title to global header ---------------- */
+
+  usePageHeader({
+    title: 'Chart',
+    subtitle: `${symbol} · ${interval.toUpperCase()}`,
+  });
 
   /* ---------------- Render ---------------- */
 

@@ -3,6 +3,8 @@
 // Two-pane chat UI. Left = conversation list, right = active thread.
 // Fully private — no admin role can see these conversations.
 //
+// Title + subtitle are published to the GLOBAL header bar via usePageHeader().
+//
 // Mobile (< 900px): single pane. Selecting a conversation slides in the
 // thread; the back button returns to the list.
 
@@ -11,6 +13,7 @@ import { MessageSquare } from 'lucide-react';
 
 import { useAuth } from '@/app/providers/AuthProvider';
 import { useChatConversations } from '@/shared/api/chat';
+import { usePageHeader } from '@/app/layout/PageHeaderProvider';
 import { PageSkeleton } from '@/shared/ui/page-skeleton';
 
 import ConversationList from './components/ConversationList';
@@ -18,7 +21,6 @@ import MessageThread from './components/MessageThread';
 import NewChatModal from './components/NewChatModal';
 
 import './ChatsPage.css';
-import '@/shared/ui/page-header.css';
 
 export default function ChatsPage() {
   const { user } = useAuth();
@@ -47,6 +49,12 @@ export default function ChatsPage() {
     setMobileThreadOpen(true);
   };
 
+  // Publish title + subtitle to the global header bar.
+  usePageHeader({
+    title: 'Chats',
+    subtitle: 'Private direct messages · visible only to you and the other person',
+  });
+
   if (isLoading) return <PageSkeleton />;
 
   // Root class drives which pane is visible on mobile.
@@ -56,19 +64,6 @@ export default function ChatsPage() {
 
   return (
     <div className="chat-page">
-      {/* ---------- Page header ---------- */}
-      <div className="ph">
-        <div className="ph-row">
-          <div className="ph-left">
-            <span className="ph-eyebrow">Personal</span>
-            <h1 className="ph-title">Chats</h1>
-            <p className="ph-sub">
-              Private direct messages · encrypted by connection, visible only to you and the other person
-            </p>
-          </div>
-        </div>
-      </div>
-
       {/* ---------- Two-pane body ---------- */}
       <div className={rootClass}>
         <ConversationList

@@ -2,7 +2,10 @@
 //
 // /utilities/gex — user-facing GEX level viewer.
 //
-// Layout (Phase 7 order — converted string ABOVE the chart):
+// Title + dynamic subtitle (days uploaded / total levels) are published to
+// the GLOBAL header bar via usePageHeader().
+//
+// Layout:
 //   ┌──────────────┬──────────────────────────────────────┐
 //   │              │  Converted string (TOP)              │
 //   │  Date list   │  ─────────────────────────────       │
@@ -15,10 +18,9 @@ import { Layers, Clipboard, ClipboardCheck, CalendarDays } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { useGexDays, useGexDay } from '@/shared/api/gex';
+import { usePageHeader } from '@/app/layout/PageHeaderProvider';
 import { PageSkeleton } from '@/shared/ui/page-skeleton';
 import GexLevelChart from './components/GexLevelChart';
-
-import '@/shared/ui/page-header.css';
 
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                            */
@@ -256,7 +258,6 @@ const CSS = `
     flex-direction: column;
     gap: 14px;
   }
-  /* Tighter padding for the chart card so the SVG gets more room */
   .gxp-card-body.is-chart {
     padding: 12px 14px 16px;
   }
@@ -425,6 +426,16 @@ export default function GexPage() {
     [days]
   );
 
+  // Publish title + dynamic subtitle to the global header bar.
+  const subText = days.length === 0
+    ? 'No GEX data uploaded yet'
+    : `${days.length} ${days.length === 1 ? 'day' : 'days'} uploaded · ${totalLevels} levels total`;
+
+  usePageHeader({
+    title: 'GEX Levels',
+    subtitle: subText,
+  });
+
   /* ----------------------------- Render ----------------------------- */
 
   if (daysLoading) return <PageSkeleton />;
@@ -433,21 +444,6 @@ export default function GexPage() {
     <>
       <style>{CSS}</style>
       <div className="gxp-root">
-
-        {/* ---------- Header ---------- */}
-        <div className="ph">
-          <div className="ph-row">
-            <div className="ph-left">
-              <span className="ph-eyebrow">Utilities</span>
-              <h1 className="ph-title">GEX Levels</h1>
-              <p className="ph-sub">
-                {days.length === 0
-                  ? 'No GEX data uploaded yet'
-                  : `${days.length} ${days.length === 1 ? 'day' : 'days'} uploaded · ${totalLevels} levels total`}
-              </p>
-            </div>
-          </div>
-        </div>
 
         {/* ---------- Empty state ---------- */}
         {days.length === 0 && (

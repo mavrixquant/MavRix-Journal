@@ -2,39 +2,42 @@
 //
 // Journal-dashboard header.
 //
-// As of the Analyse-page revamp, this header is intentionally minimal:
-//   - Title + account badge
-//   - A single "Customize" button (disabled when there are no trades)
+// Title + account badge are published to the GLOBAL header bar via
+// usePageHeader() so they render next to the account selector.
 //
-// All filter UI (DynamicFilters, Session/Time, Limits, Reset) has been
-// moved to the /journal/analyse route, where deep-dive analysis actually
-// needs it. The journal dashboard itself stays focused on the visual
-// overview — panels, layout, customization.
+// The only on-page element left is a right-aligned "Customize" button that
+// enters dashboard edit mode. It's disabled when the current account has no
+// trades (nothing to lay out yet).
 //
-// Trade enrichment still happens HERE (via useEnrichedTrades) so the
-// dashboard panels have data on first paint. The Analyse page uses the
-// same hook, so both routes share one source of truth.
+// Trade enrichment still happens HERE via useEnrichedTrades so the dashboard
+// panels have data on first paint. The Analyse page uses the same hook, so
+// both routes share one source of truth.
 
 import { FaSlidersH } from 'react-icons/fa';
 
 import { useAppContext } from '@/app/providers/AppProvider';
 import { useDashboardAccount } from '@/app/providers/useDashboardAccount';
 import { useEnrichedTrades } from '@/features/dashboard/hooks/useEnrichedTrades';
-
-import '@/shared/ui/page-header.css';
+import { usePageHeader } from '@/app/layout/PageHeaderProvider';
 
 /* ------------------------------------------------------------------ */
 /*  Header-local CSS.                                                  */
-/*  Much leaner than before — the toolbar, collapse chevron, and all   */
-/*  filter-button styling now live on the Analyse page instead.        */
 /* ------------------------------------------------------------------ */
 const HDR_CSS = `
-  .hdr-root {
+  .hdr-actions-row {
     --accent: #F59E0B;
     --accent-2: #FDE68A;
     --accent-soft2: rgba(245,158,11,.28);
     --ink-1: #E7E9EE;
     --ink-2: #8892A3;
+    --line-soft: rgba(255,255,255,.05);
+
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    padding: 2px 0 16px;
+    border-bottom: 1px solid var(--line-soft);
+    margin-bottom: 20px;
   }
 
   /* ---------- Customize button ---------- */
@@ -90,44 +93,37 @@ export default function JournalDashboardHeader({ onCustomize }) {
   const selectedAccount =
     state.accounts.find((acc) => acc.id === accountId) || null;
 
-  const badgeClass =
+  const badgeVariant =
     selectedAccount?.type === 'Demo' ? 'is-demo' : 'is-live';
 
   const hasData = enriched.enrichedTrades.length > 0;
 
+  // Publish title + badge to the global header bar. Values are primitives,
+  // so the effect inside usePageHeader re-runs only when they change.
+  usePageHeader({
+    title: 'Dashboard',
+    badge: selectedAccount?.type,
+    badgeVariant,
+  });
+
   return (
     <>
       <style>{HDR_CSS}</style>
-      <div className="hdr-root ph">
-        <div className="ph-row">
-          <div className="ph-left">
-            <div className="ph-title-row">
-              <h1 className="ph-title">Dashboard</h1>
-              {selectedAccount && (
-                <span className={`ph-badge ${badgeClass}`}>
-                  {selectedAccount.type}
-                </span>
-              )}
-            </div>
-          </div>
-
-          <div className="ph-right">
-            <button
-              type="button"
-              className="hdr-customize"
-              onClick={onCustomize}
-              disabled={!hasData}
-              title={
-                hasData
-                  ? 'Customize dashboard'
-                  : 'Add trades to this account first to customize the layout'
-              }
-            >
-              <FaSlidersH size={12} />
-              Customize
-            </button>
-          </div>
-        </div>
+      <div className="hdr-actions-row">
+        <button
+          type="button"
+          className="hdr-customize"
+          onClick={onCustomize}
+          disabled={!hasData}
+          title={
+            hasData
+              ? 'Customize dashboard'
+              : 'Add trades to this account first to customize the layout'
+          }
+        >
+          <FaSlidersH size={12} />
+          Customize
+        </button>
       </div>
     </>
   );
