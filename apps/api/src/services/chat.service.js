@@ -231,7 +231,6 @@ export async function listConversations(userId) {
     where: {
       userId,
       isArchived: false,
-      conversation: { messages: { some: {} } },
     },
     include: {
       conversation: {
