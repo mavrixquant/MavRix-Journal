@@ -2,8 +2,10 @@
 //
 // /manage/strategies — the list page.
 //
-// Shows KPI strip (counts by status + total tagged trades), segmented
-// status filter, and a grid of strategy tiles. Click a tile → detail page.
+// Title + subtitle are published to the GLOBAL header bar via usePageHeader().
+//
+// Toolbar (above the KPI strip): status tabs left, New Strategy right.
+// Below: KPI strip, then a grid of strategy tiles. Click a tile → detail page.
 // Tiles have inline Edit + Delete actions.
 
 import { useMemo, useState } from 'react';
@@ -26,10 +28,10 @@ import {
 } from '@/shared/api/strategies';
 import Alert from '@/shared/components/Alert';
 import { PageSkeleton } from '@/shared/ui/page-skeleton';
+import { usePageHeader } from '@/app/layout/PageHeaderProvider';
 
 import StrategyFormModal from './StrategyFormModal';
 import './StrategiesPage.css';
-import '@/shared/ui/page-header.css';
 
 const FILTERS = [
   { id: 'all',      label: 'All',      icon: null },
@@ -91,51 +93,47 @@ export default function StrategiesPage() {
     }
   };
 
+  // Publish title + subtitle to the global header bar.
+  usePageHeader({
+    title: 'Strategies',
+    subtitle: 'Define playbooks, tag trades, and track per-strategy edge',
+  });
+
   if (isLoading) return <PageSkeleton />;
 
   return (
     <>
       <div className="strat-root">
 
-        {/* ---------- Header ---------- */}
-        <div className="ph">
-          <div className="ph-row">
-            <div className="ph-left">
-              <span className="ph-eyebrow">Manage</span>
-              <h1 className="ph-title">Strategies</h1>
-              <p className="ph-sub">
-                Define playbooks, tag trades, and track per-strategy edge
-              </p>
-            </div>
-
-            <div className="ph-right">
-              <div className="strat-tabs">
-                {FILTERS.map((f) => {
-                  const Icon = f.icon;
-                  return (
-                    <button
-                      key={f.id}
-                      type="button"
-                      className={`strat-tab ${filter === f.id ? 'active' : ''}`}
-                      onClick={() => setFilter(f.id)}
-                    >
-                      {Icon && <Icon size={9} />}
-                      <span>{f.label}</span>
-                      <span className="strat-tab-count">{counts[f.id]}</span>
-                    </button>
-                  );
-                })}
-              </div>
-
-              <button
-                type="button"
-                className="strat-btn-primary"
-                onClick={() => setModalState({ open: true, strategy: null })}
-              >
-                <FaPlus size={11} /> New Strategy
-              </button>
-            </div>
+        {/* ---------- Toolbar: Status tabs left, New Strategy right ---------- */}
+        <div className="strat-toolbar">
+          <div className="strat-tabs">
+            {FILTERS.map((f) => {
+              const Icon = f.icon;
+              return (
+                <button
+                  key={f.id}
+                  type="button"
+                  className={`strat-tab ${filter === f.id ? 'active' : ''}`}
+                  onClick={() => setFilter(f.id)}
+                >
+                  {Icon && <Icon size={9} />}
+                  <span>{f.label}</span>
+                  <span className="strat-tab-count">{counts[f.id]}</span>
+                </button>
+              );
+            })}
           </div>
+
+          <div className="strat-toolbar-spacer" />
+
+          <button
+            type="button"
+            className="strat-btn-primary"
+            onClick={() => setModalState({ open: true, strategy: null })}
+          >
+            <FaPlus size={11} /> New Strategy
+          </button>
         </div>
 
         {/* ---------- KPI strip ---------- */}

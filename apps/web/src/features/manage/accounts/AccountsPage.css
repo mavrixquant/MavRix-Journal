@@ -1,10 +1,9 @@
 /* apps/web/src/features/manage/accounts/AccountsPage.css
    Page-level styles for the Portfolio Accounts page.
 
-   Header chrome is provided by '@/shared/ui/page-header.css' (.ph / .ph-row /
-   .ph-left / .ph-title / .ph-sub / .ph-right). This file only styles the
-   content below: the KPI strip, the accounts grid, the account cards, the
-   type-tab control, the buttons, and the empty state. */
+   Title now lives in the global HeaderBar. This file only styles the
+   content: the toolbar, KPI strip, accounts grid, cards, buttons, and
+   the empty state. */
 
 /* ---------- Root ---------- */
 .acc-root {
@@ -34,21 +33,18 @@
   -webkit-font-smoothing: antialiased;
 }
 
-/* ---------- Generic glass card (used by account cards) ---------- */
-.acc-card {
-  position: relative;
-  border-radius: 18px;
-  background: linear-gradient(180deg, rgba(15,18,25,.72), rgba(15,18,25,.55));
-  backdrop-filter: blur(18px) saturate(140%);
-  -webkit-backdrop-filter: blur(18px) saturate(140%);
-  border: 1px solid var(--line);
-  box-shadow:
-    0 20px 50px -30px rgba(0,0,0,.9),
-    inset 0 1px 0 rgba(255,255,255,.03);
-  overflow: hidden;
+/* ---------- Toolbar (above KPI strip) ---------- */
+.acc-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--line-soft);
 }
+.acc-toolbar-spacer { flex: 1; min-width: 8px; }
 
-/* ---------- Type tabs (segmented filter, in header actions slot) ---------- */
+/* ---------- Type tabs (segmented filter) ---------- */
 .acc-type-tabs {
   display: inline-flex;
   align-items: center;
@@ -98,7 +94,21 @@
   box-shadow: 0 8px 20px -10px rgba(245,158,11,.6), inset 0 1px 0 rgba(255,255,255,.4);
 }
 
-/* ---------- Buttons (shared with AccountFormModal) ---------- */
+/* ---------- Generic glass card ---------- */
+.acc-card {
+  position: relative;
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(15,18,25,.72), rgba(15,18,25,.55));
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  border: 1px solid var(--line);
+  box-shadow:
+    0 20px 50px -30px rgba(0,0,0,.9),
+    inset 0 1px 0 rgba(255,255,255,.03);
+  overflow: hidden;
+}
+
+/* ---------- Buttons ---------- */
 .acc-btn {
   display: inline-flex;
   align-items: center;
@@ -162,7 +172,6 @@
 }
 .acc-btn-primary:active { transform: translateY(0) scale(.98); }
 
-/* Compact icon-only button for card footers */
 .acc-icon-btn {
   display: inline-flex;
   align-items: center;
@@ -347,7 +356,6 @@
   border-color: rgba(96,165,250,.32);
 }
 
-/* ---------- Metric bar (Starting Capital | Total P&L) ---------- */
 .acc-metric-bar {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -386,7 +394,6 @@
 .acc-metric-value.neg { color: var(--loss); }
 .acc-metric-value.dim { color: var(--ink-2); font-weight: 600; }
 
-/* ---------- Settings list ---------- */
 .acc-settings {
   display: flex;
   flex-direction: column;
@@ -434,7 +441,6 @@
 }
 .acc-setting-value .dim { color: var(--ink-3); font-weight: 400; }
 
-/* ---------- Account footer ---------- */
 .acc-account-footer {
   display: flex;
   justify-content: space-between;
@@ -454,7 +460,6 @@
   gap: 6px;
 }
 
-/* ---------- Empty state ---------- */
 .acc-empty {
   padding: 60px 24px;
   text-align: center;
@@ -495,7 +500,6 @@
   margin-top: 20px;
 }
 
-/* ---------- Animations ---------- */
 @keyframes accShine {
   0%,100% { transform: translateX(-130%) skewX(-18deg); }
   55%     { transform: translateX(230%) skewX(-18deg); }
@@ -508,4 +512,6 @@
 
 @media (max-width: 640px) {
   .acc-root { padding: 16px; }
+  .acc-toolbar { flex-direction: column; align-items: stretch; }
+  .acc-type-tabs { justify-content: space-between; }
 }

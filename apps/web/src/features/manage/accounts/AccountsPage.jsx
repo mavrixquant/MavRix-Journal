@@ -17,6 +17,7 @@ import { useQueries } from '@tanstack/react-query';
 
 import Alert from '@/shared/components/Alert';
 import LoadingOverlay from '@/shared/components/LoadingOverlay';
+import { usePageHeader } from '@/app/layout/PageHeaderProvider';
 
 import {
   useAccounts,
@@ -31,7 +32,6 @@ import { queryClient } from '@/shared/api/queryClient';
 
 import AccountFormModal from './AccountFormModal';
 import './AccountsPage.css';
-import '@/shared/ui/page-header.css';
 
 const ACCOUNT_TYPES = ['Backtest', 'Live', 'Demo'];
 
@@ -111,6 +111,12 @@ export default function AccountsPage() {
   const [loadingDelete, setLoadingDelete] = useState(false);
   const [successAlert, setSuccessAlert] = useState({ show: false, message: '' });
   const [errorAlert, setErrorAlert] = useState({ show: false, message: '' });
+
+  // Publish title + subtitle to the global header bar.
+  usePageHeader({
+    title: 'Portfolio Accounts',
+    subtitle: 'Monitor account capital, risk parameters, and aggregate net return',
+  });
 
   const pnlMap = useQueries({
     queries: accounts.map((acc) => ({
@@ -227,44 +233,34 @@ export default function AccountsPage() {
     <>
       <div className="acc-root">
 
-        {/* ---------- Header ---------- */}
-        <div className="ph">
-          <div className="ph-row">
-            <div className="ph-left">
-              <span className="ph-eyebrow">Manage</span>
-              <h1 className="ph-title">Portfolio Accounts</h1>
-              <p className="ph-sub">
-                Monitor account capital, risk parameters, and aggregate net return
-              </p>
-            </div>
-
-            <div className="ph-right">
-              <div className="acc-type-tabs">
-                <span className="acc-type-label">
-                  <FaFilter size={9} />
-                  Type
-                </span>
-                {ACCOUNT_TYPES.map((type) => (
-                  <button
-                    key={type}
-                    type="button"
-                    className={`acc-type-tab ${selectedType === type ? 'active' : ''}`}
-                    onClick={() => setSelectedType(type)}
-                  >
-                    {type}
-                  </button>
-                ))}
-              </div>
-
+        {/* ---------- Toolbar: Type tabs left, New Account right ---------- */}
+        <div className="acc-toolbar">
+          <div className="acc-type-tabs">
+            <span className="acc-type-label">
+              <FaFilter size={9} />
+              Type
+            </span>
+            {ACCOUNT_TYPES.map((type) => (
               <button
+                key={type}
                 type="button"
-                className="acc-btn-primary"
-                onClick={openCreate}
+                className={`acc-type-tab ${selectedType === type ? 'active' : ''}`}
+                onClick={() => setSelectedType(type)}
               >
-                <FaPlus size={11} /> New Account
+                {type}
               </button>
-            </div>
+            ))}
           </div>
+
+          <div className="acc-toolbar-spacer" />
+
+          <button
+            type="button"
+            className="acc-btn-primary"
+            onClick={openCreate}
+          >
+            <FaPlus size={11} /> New Account
+          </button>
         </div>
 
         {/* ---------- KPI summary ---------- */}

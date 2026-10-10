@@ -1,9 +1,9 @@
 /* apps/web/src/features/manage/strategies/StrategiesPage.css
    Page-level styles for the Strategies list page.
 
-   Header chrome is provided by '@/shared/ui/page-header.css'. This file
-   only styles the content below: KPI strip, filter tabs, strategy cards,
-   empty state, buttons, colour swatches, tag chips. */
+   Title now lives in the global HeaderBar. This file only styles the
+   content: toolbar, KPI strip, strategy cards, empty state, buttons,
+   colour swatches, tag chips. */
 
 /* ---------- Root ---------- */
 .strat-root {
@@ -30,6 +30,17 @@
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
+
+/* ---------- Toolbar (above KPI strip) ---------- */
+.strat-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--line-soft);
+}
+.strat-toolbar-spacer { flex: 1; min-width: 8px; }
 
 /* ---------- Generic glass card ---------- */
 .strat-card {
@@ -280,7 +291,6 @@
     inset 0 1px 0 rgba(255,255,255,.04);
 }
 
-/* Left colour bar — uses the strategy's own colour (inline style) */
 .strat-tile::before {
   content: '';
   position: absolute;
@@ -459,10 +469,12 @@
 
 @media (max-width: 640px) {
   .strat-root { padding: 16px; }
+  .strat-toolbar { flex-direction: column; align-items: stretch; }
+  .strat-tabs { justify-content: space-between; }
 }
 
 /* ==========================================================================
-   Form modal
+   Form modal (unchanged from previous version — kept for completeness)
    ========================================================================== */
 .strat-overlay {
   position: fixed;
@@ -634,7 +646,6 @@
   gap: 12px;
 }
 
-/* ---------- Colour picker ---------- */
 .strat-colors {
   display: flex;
   flex-wrap: wrap;
@@ -668,7 +679,6 @@
   transform: none;
 }
 
-/* ---------- Tags input ---------- */
 .strat-tags-input {
   display: flex;
   flex-wrap: wrap;
@@ -749,7 +759,6 @@
   flex-shrink: 0;
 }
 
-/* ---------- Spinner ---------- */
 .strat-spinner {
   width: 12px;
   height: 12px;
@@ -781,7 +790,7 @@
 }
 
 /* ==========================================================================
-   Detail page
+   Detail page (unchanged — preserved for completeness)
    ========================================================================== */
 .strat-detail-root {
   --accent: #F59E0B;

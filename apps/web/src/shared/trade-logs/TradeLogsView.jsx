@@ -6,15 +6,15 @@
 //
 // ACCOUNT SELECTION
 // -----------------
-// This view does not own an account selector. The currently-selected
-// account is passed in as the `accountId` prop, sourced from the HeaderBar's
-// per-dashboard slot via useDashboardAccount() in the calling feature page.
+// Account comes from the header's selector (via useDashboardAccount() in
+// the calling feature page). This view does not own a selector.
 //
-// STRATEGY COLUMN
-// ---------------
-// A "Strategy" column is rendered between Symbol and the mode-specific
-// columns. It reads `row.strategy` (a snapshot embedded by the API in the
-// trade serialize). When null, shows a muted em-dash.
+// ACTIONS ROW
+// -----------
+// The four primary actions (Template, Columns, Upload, Add) sit on the
+// right of the KPI strip — same row as "Net P&L" and its peers. On narrow
+// viewports the row wraps: KPIs stay first, buttons fall to a second line
+// right-aligned.
 
 import { useState, useMemo, useCallback } from 'react';
 import {
@@ -32,6 +32,7 @@ import { useAccounts } from '@/shared/api/accounts';
 import { useTrades, useDeleteTrade } from '@/shared/api/trades';
 import { useStrategies } from '@/shared/api/strategies';
 import { enrichTradesFromDB } from '@/shared/trading/enrich';
+import { usePageHeader } from '@/app/layout/PageHeaderProvider';
 import UploadModal from './UploadModal';
 import AddTradeModal from './AddTradeModal';
 import ColumnManagerModal from './ColumnManagerModal';
@@ -39,8 +40,6 @@ import { downloadTradeTemplate } from './downloadTemplate';
 import DataTable from '@/shared/ui/data-table';
 import { PageSkeleton } from '@/shared/ui/page-skeleton';
 import Alert from '@/shared/components/Alert';
-
-import '@/shared/ui/page-header.css';
 
 /* ------------------------------------------------------------------ */
 /*  Page-local CSS                                                     */
@@ -71,6 +70,95 @@ const CSS = `
     -webkit-font-smoothing: antialiased;
   }
 
+  /* ---------- KPI + actions row ---------- */
+  .jm-top-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .jm-kpis {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+    flex: 1 1 480px;
+    min-width: 0;
+  }
+  .jm-kpi {
+    padding: 14px 16px;
+    border-radius: 12px;
+    background: rgba(255,255,255,.02);
+    border: 1px solid var(--line-soft);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: 74px;
+  }
+  .jm-kpi-label {
+    display: block;
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 9.5px;
+    font-weight: 700;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin-bottom: 5px;
+  }
+  .jm-kpi-value {
+    display: block;
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: -.01em;
+    line-height: 1.15;
+  }
+  .jm-kpi-value.pos { color: var(--win); }
+  .jm-kpi-value.neg { color: var(--loss); }
+  .jm-kpi-value.amber { color: var(--accent); }
+
+  /* Net P&L card gets a subtle accent so the actions cluster reads as
+     "attached" to the primary metric. */
+  .jm-kpi.is-anchor {
+    background: linear-gradient(180deg, rgba(245,158,11,.05), rgba(245,158,11,.015));
+    border-color: var(--accent-soft2);
+  }
+
+  /* ---------- Actions cluster ---------- */
+  .jm-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    flex: 0 0 auto;
+  }
+
+  .jm-icon-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 13px;
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,.1);
+    background: rgba(255,255,255,.03);
+    color: var(--ink-2);
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .02em;
+    cursor: pointer;
+    transition: all .22s cubic-bezier(.2,.8,.25,1);
+    white-space: nowrap;
+    min-height: 40px;
+  }
+  .jm-icon-btn:hover:not(:disabled) {
+    color: var(--accent);
+    background: rgba(245,158,11,.06);
+    border-color: var(--accent-soft2);
+    transform: translateY(-1px);
+  }
+  .jm-icon-btn:disabled { opacity: .4; cursor: not-allowed; }
+
   .jm-btn-primary {
     position: relative;
     display: inline-flex;
@@ -92,6 +180,7 @@ const CSS = `
       inset 0 1px 0 rgba(255,255,255,.4);
     transition: transform .25s cubic-bezier(.175,.885,.32,1.275), box-shadow .3s;
     white-space: nowrap;
+    min-height: 40px;
   }
   .jm-btn-primary:hover:not(:disabled) {
     transform: translateY(-2px);
@@ -102,34 +191,12 @@ const CSS = `
     cursor: not-allowed;
   }
 
-  .jm-icon-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 9px 12px;
-    border-radius: 10px;
-    border: 1px solid rgba(255,255,255,.1);
-    background: rgba(255,255,255,.03);
-    color: var(--ink-2);
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: .02em;
-    cursor: pointer;
-    transition: all .22s cubic-bezier(.2,.8,.25,1);
-    white-space: nowrap;
-  }
-  .jm-icon-btn:hover:not(:disabled) {
-    color: var(--accent);
-    background: rgba(245,158,11,.06);
-    border-color: var(--accent-soft2);
-    transform: translateY(-1px);
-  }
-  .jm-icon-btn:disabled { opacity: .4; cursor: not-allowed; }
   @media (max-width: 900px) {
     .jm-icon-btn span { display: none; }
+    .jm-icon-btn { padding: 10px; }
   }
 
+  /* ---------- Row actions in the table ---------- */
   .jm-row-actions {
     display: flex;
     align-items: center;
@@ -171,7 +238,7 @@ const CSS = `
     box-shadow: 0 0 0 3px rgba(239,68,68,.22);
   }
 
-  /* Strategy chip — small inline pill with the strategy's colour */
+  /* Strategy chip */
   .jm-strat-chip {
     display: inline-flex;
     align-items: center;
@@ -199,38 +266,6 @@ const CSS = `
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-
-  .jm-kpis {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-    gap: 12px;
-  }
-  .jm-kpi {
-    padding: 14px 16px;
-    border-radius: 12px;
-    background: rgba(255,255,255,.02);
-    border: 1px solid var(--line-soft);
-  }
-  .jm-kpi-label {
-    display: block;
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    font-size: 9.5px;
-    font-weight: 700;
-    letter-spacing: .14em;
-    text-transform: uppercase;
-    color: var(--ink-3);
-    margin-bottom: 5px;
-  }
-  .jm-kpi-value {
-    display: block;
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    font-size: 20px;
-    font-weight: 700;
-    letter-spacing: -.01em;
-  }
-  .jm-kpi-value.pos { color: var(--win); }
-  .jm-kpi-value.neg { color: var(--loss); }
-  .jm-kpi-value.amber { color: var(--accent); }
 
   .jm-card {
     position: relative;
@@ -284,6 +319,8 @@ const CSS = `
 
   @media (max-width: 640px) {
     .jm-root { padding: 16px; }
+    .jm-top-row { flex-direction: column; }
+    .jm-actions { width: 100%; justify-content: flex-end; }
   }
 `;
 
@@ -653,6 +690,12 @@ export default function TradeLogsView({
     [dynamicKeys]
   );
 
+  // ---- Publish title + subtitle to the global header bar ----
+  usePageHeader({
+    title: title || 'Trade Logs',
+    subtitle: subtitle,
+  });
+
   if (loading) return <PageSkeleton />;
 
   if (!selectedAccount) {
@@ -663,16 +706,6 @@ export default function TradeLogsView({
       <>
         <style>{CSS}</style>
         <div className="jm-root">
-          <div className="ph">
-            <div className="ph-row">
-              <div className="ph-left">
-                <span className="ph-eyebrow">{eyebrow}</span>
-                <h1 className="ph-title">{title}</h1>
-                <p className="ph-sub">{subtitle}</p>
-              </div>
-            </div>
-          </div>
-
           <div className="jm-empty">
             <div className="jm-empty-icon">
               <FaFolderOpen />
@@ -693,90 +726,84 @@ export default function TradeLogsView({
       <style>{CSS}</style>
       <div className="jm-root">
 
-        <div className="ph">
-          <div className="ph-row">
-            <div className="ph-left">
-              <span className="ph-eyebrow">{eyebrow}</span>
-              <h1 className="ph-title">{title}</h1>
-              <p className="ph-sub">{subtitle}</p>
+        {/* ---------- KPI strip + action buttons (single row) ---------- */}
+        <div className="jm-top-row">
+          <div className="jm-kpis">
+            <div className="jm-kpi">
+              <span className="jm-kpi-label">Total Trades</span>
+              <span className="jm-kpi-value">{kpis.total}</span>
             </div>
-
-            <div className="ph-right">
-              <button
-                type="button"
-                className="jm-icon-btn"
-                onClick={() => downloadTradeTemplate({ account: selectedAccount })}
-                title="Download .xlsx template"
+            <div className="jm-kpi">
+              <span className="jm-kpi-label">Win Rate</span>
+              <span
+                className={`jm-kpi-value ${
+                  kpis.total === 0
+                    ? ''
+                    : kpis.winRate >= 50
+                      ? 'pos'
+                      : 'neg'
+                }`}
               >
-                <FaDownload size={11} /> <span>Template</span>
-              </button>
-
-              <button
-                type="button"
-                className="jm-icon-btn"
-                onClick={() => setColumnsOpen(true)}
-                title="Manage custom columns"
-              >
-                <FaColumns size={11} /> <span>Columns</span>
-              </button>
-
-              <button
-                type="button"
-                className="jm-icon-btn"
-                onClick={() => setUploadOpen(true)}
-                title="Bulk-upload from Excel"
-              >
-                <FaFileUpload size={11} /> <span>Upload</span>
-              </button>
-
-              <button
-                type="button"
-                className="jm-btn-primary"
-                onClick={() => setAddTradeOpen(true)}
-              >
-                <FaPlus size={11} /> Add {isBacktest ? 'Test' : 'Trade'}
-              </button>
+                {kpis.winRate.toFixed(1)}%
+              </span>
             </div>
+            <div className="jm-kpi">
+              <span className="jm-kpi-label">Wins</span>
+              <span className="jm-kpi-value pos">{kpis.wins}</span>
+            </div>
+            <div className="jm-kpi">
+              <span className="jm-kpi-label">Losses</span>
+              <span className="jm-kpi-value neg">{kpis.losses}</span>
+            </div>
+            <div className="jm-kpi is-anchor">
+              <span className="jm-kpi-label">Net P&amp;L</span>
+              <span
+                className={`jm-kpi-value ${kpis.netPnl >= 0 ? 'pos' : 'neg'}`}
+              >
+                {formatMoney(kpis.netPnl, currency)}
+              </span>
+            </div>
+          </div>
+
+          <div className="jm-actions">
+            <button
+              type="button"
+              className="jm-icon-btn"
+              onClick={() => downloadTradeTemplate({ account: selectedAccount })}
+              title="Download .xlsx template"
+            >
+              <FaDownload size={11} /> <span>Template</span>
+            </button>
+
+            <button
+              type="button"
+              className="jm-icon-btn"
+              onClick={() => setColumnsOpen(true)}
+              title="Manage custom columns"
+            >
+              <FaColumns size={11} /> <span>Columns</span>
+            </button>
+
+            <button
+              type="button"
+              className="jm-icon-btn"
+              onClick={() => setUploadOpen(true)}
+              title="Bulk-upload from Excel"
+            >
+              <FaFileUpload size={11} /> <span>Upload</span>
+            </button>
+
+            <button
+              type="button"
+              className="jm-btn-primary"
+              onClick={() => setAddTradeOpen(true)}
+            >
+              <FaPlus size={11} /> Add {isBacktest ? 'Test' : 'Trade'}
+            </button>
           </div>
         </div>
 
-        <div className="jm-kpis">
-          <div className="jm-kpi">
-            <span className="jm-kpi-label">Total Trades</span>
-            <span className="jm-kpi-value">{kpis.total}</span>
-          </div>
-          <div className="jm-kpi">
-            <span className="jm-kpi-label">Win Rate</span>
-            <span
-              className={`jm-kpi-value ${
-                kpis.total === 0
-                  ? ''
-                  : kpis.winRate >= 50
-                    ? 'pos'
-                    : 'neg'
-              }`}
-            >
-              {kpis.winRate.toFixed(1)}%
-            </span>
-          </div>
-          <div className="jm-kpi">
-            <span className="jm-kpi-label">Wins</span>
-            <span className="jm-kpi-value pos">{kpis.wins}</span>
-          </div>
-          <div className="jm-kpi">
-            <span className="jm-kpi-label">Losses</span>
-            <span className="jm-kpi-value neg">{kpis.losses}</span>
-          </div>
-          <div className="jm-kpi">
-            <span className="jm-kpi-label">Net P&amp;L</span>
-            <span
-              className={`jm-kpi-value ${kpis.netPnl >= 0 ? 'pos' : 'neg'}`}
-            >
-              {formatMoney(kpis.netPnl, currency)}
-            </span>
-          </div>
-        </div>
-
+        {/* ---------- Table card ---------- */}
         <div className="jm-card jm-body">
           {enrichedTrades.length === 0 ? (
             <div className="jm-empty">
