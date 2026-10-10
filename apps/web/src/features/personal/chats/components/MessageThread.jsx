@@ -5,13 +5,17 @@
 //   - infinite-scroll message list (sentinel at the top loads older pages)
 //   - composer
 //
+// Message actions (Edit / Delete) are triggered by RIGHT-CLICK on desktop
+// and LONG-PRESS (550ms) on touch. A floating MessageContextMenu is
+// rendered at the cursor. Hover actions are intentionally NOT used.
+//
 // Auto-scroll behavior:
-//   - On conversation change → jump to bottom.
-//   - When a new message arrives → scroll to bottom ONLY if the user was
+//   - On conversation change, jump to bottom.
+//   - When a new message arrives, scroll to bottom ONLY if the user was
 //     already near the bottom (tracked live by the scroll handler).
 
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
-import { ArrowLeft, Loader2, Pencil, Trash2 } from 'lucide-react';
+import { ArrowLeft, Loader2, Pencil } from 'lucide-react';
 
 import { useAuth } from '@/app/providers/AuthProvider';
 import {
@@ -26,8 +30,10 @@ import {
 } from '@/shared/api/chat';
 
 import MessageComposer from './MessageComposer';
+import MessageContextMenu from './MessageContextMenu';
 
 const EDIT_WINDOW_MS = 15 * 60 * 1000;
+const LONG_PRESS_MS = 550;
 
 /* ------------------------------------------------------------------ */
 /*  Small helpers                                                      */
@@ -106,8 +112,6 @@ export default function MessageThread({ conversationId, onBack }) {
   const sendTyping = useSendTyping();
 
   /* ---------------- Flatten paginated messages ---------------- */
-  // pages[0] = newest page; within each page messages are ascending.
-  // Display order: oldest → newest.
 
   const messages = useMemo(() => {
     if (!data?.pages) return [];
@@ -127,9 +131,8 @@ export default function MessageThread({ conversationId, onBack }) {
   const sentinelRef = useRef(null);
   const atBottomRef = useRef(true);
   const lastCountRef = useRef(0);
-  const prependAnchorRef = useRef(null); // { height, top } before fetchNextPage
+  const prependAnchorRef = useRef(null);
 
-  // Track whether the user is at (or very near) the bottom.
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return undefined;
@@ -141,7 +144,6 @@ export default function MessageThread({ conversationId, onBack }) {
     return () => el.removeEventListener('scroll', onScroll);
   }, []);
 
-  // On conversation change: jump to bottom, reset counters.
   useEffect(() => {
     lastCountRef.current = 0;
     atBottomRef.current = true;
@@ -153,7 +155,6 @@ export default function MessageThread({ conversationId, onBack }) {
     }
   }, [conversationId]);
 
-  // On new message arriving: scroll to bottom IF user was already at bottom.
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
@@ -166,17 +167,14 @@ export default function MessageThread({ conversationId, onBack }) {
     lastCountRef.current = nextCount;
   }, [messages.length]);
 
-  // Preserve scroll position when older messages are prepended.
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
 
-    // When a fetch-next-page begins, record the current scrollHeight.
     if (isFetchingNextPage && !prependAnchorRef.current) {
       prependAnchorRef.current = { height: el.scrollHeight, top: el.scrollTop };
     }
 
-    // When it completes, adjust scrollTop by the added height.
     if (!isFetchingNextPage && prependAnchorRef.current) {
       const prev = prependAnchorRef.current;
       const delta = el.scrollHeight - prev.height;
@@ -187,7 +185,6 @@ export default function MessageThread({ conversationId, onBack }) {
     }
   }, [isFetchingNextPage]);
 
-  // Sentinel observer — loads the next page when the top sentinel enters view.
   useEffect(() => {
     const el = sentinelRef.current;
     if (!el || !hasNextPage) return undefined;
@@ -217,7 +214,7 @@ export default function MessageThread({ conversationId, onBack }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversationId, messages.length]);
 
-  /* ---------------- Editing state ---------------- */
+  /* ---------------- nowTs for edit-window checks ---------------- */
 
   const [nowTs, setNowTs] = useState(0);
   useEffect(() => {
@@ -225,6 +222,56 @@ export default function MessageThread({ conversationId, onBack }) {
     const iv = setInterval(() => setNowTs(Date.now()), 30_000);
     return () => clearInterval(iv);
   }, []);
+
+  /* ---------------- Context menu state ---------------- */
+
+  const [ctxMenu, setCtxMenu] = useState(null); // { x, y, message } | null
+
+  const openContextMenu = useCallback((x, y, message) => {
+    setCtxMenu({ x, y, message });
+  }, []);
+
+  const closeContextMenu = useCallback(() => {
+    setCtxMenu(null);
+  }, []);
+
+  // Long-press tracking — one shared timer, reset on move/end.
+  const longPressRef = useRef({ timer: null, fired: false });
+
+  const handleMessageTouchStart = useCallback(
+    (msg, e) => {
+      if (msg._optimistic) return;
+      const touch = e.touches?.[0];
+      if (!touch) return;
+      longPressRef.current.fired = false;
+      longPressRef.current.timer = setTimeout(() => {
+        longPressRef.current.fired = true;
+        openContextMenu(touch.clientX, touch.clientY, msg);
+      }, LONG_PRESS_MS);
+    },
+    [openContextMenu]
+  );
+
+  const cancelLongPress = useCallback(() => {
+    if (longPressRef.current.timer) {
+      clearTimeout(longPressRef.current.timer);
+      longPressRef.current.timer = null;
+    }
+  }, []);
+
+  const handleMessageContextMenu = useCallback(
+    (msg, e) => {
+      if (msg._optimistic) return;
+      e.preventDefault();
+      openContextMenu(e.clientX, e.clientY, msg);
+    },
+    [openContextMenu]
+  );
+
+  // Cleanup long-press timer on unmount.
+  useEffect(() => () => cancelLongPress(), [cancelLongPress]);
+
+  /* ---------------- Editing state ---------------- */
 
   const [editingId, setEditingId] = useState(null);
   const [editText, setEditText] = useState('');
@@ -248,19 +295,20 @@ export default function MessageThread({ conversationId, onBack }) {
     );
   }, [editText, editingId, conversationId, editMessage]);
 
-  /* ---------------- Delete flow ---------------- */
+  /* ---------------- Delete flow (direct, no modal) ---------------- */
 
-  const [deleteTarget, setDeleteTarget] = useState(null);
-
-  const handleDelete = useCallback(
-    (scope) => {
-      if (!deleteTarget) return;
-      deleteMessage.mutate(
-        { conversationId, messageId: deleteTarget.id, scope },
-        { onSuccess: () => setDeleteTarget(null) }
-      );
+  const handleDeleteMe = useCallback(
+    (msg) => {
+      deleteMessage.mutate({ conversationId, messageId: msg.id, scope: 'me' });
     },
-    [deleteTarget, conversationId, deleteMessage]
+    [conversationId, deleteMessage]
+  );
+
+  const handleDeleteAll = useCallback(
+    (msg) => {
+      deleteMessage.mutate({ conversationId, messageId: msg.id, scope: 'all' });
+    },
+    [conversationId, deleteMessage]
   );
 
   /* ---------------- Send ---------------- */
@@ -285,7 +333,7 @@ export default function MessageThread({ conversationId, onBack }) {
   const peerName = displayNameOf(peer);
 
   const threadSubClass = peerTyping ? 'chat-thread-sub is-typing' : 'chat-thread-sub';
-  const threadSubText = peerTyping ? 'typing…' : (peer?.email || '');
+  const threadSubText = peerTyping ? 'typing...' : (peer?.email || '');
 
   /* ---------------- Early returns ---------------- */
 
@@ -373,10 +421,6 @@ export default function MessageThread({ conversationId, onBack }) {
           const showDaySep = !prev || dayKey(prev.createdAt) !== dayKey(msg.createdAt);
           const isOwn = msg.senderId === currentUserId;
           const isDeleted = !!msg.deleted;
-          const withinEditWindow =
-            isOwn &&
-            !isDeleted &&
-            nowTs > 0 && (nowTs - new Date(msg.createdAt).getTime()) < EDIT_WINDOW_MS;
           const isEditing = editingId === msg.id;
 
           return (
@@ -385,7 +429,14 @@ export default function MessageThread({ conversationId, onBack }) {
                 <div className="chat-day-sep">{formatDayLabel(msg.createdAt)}</div>
               )}
 
-              <div className={`chat-msg ${isOwn ? 'is-own' : 'is-peer'} ${isDeleted ? 'is-deleted' : ''} ${msg._optimistic ? 'chat-msg-optimistic' : ''}`}>
+              <div
+                className={`chat-msg ${isOwn ? 'is-own' : 'is-peer'} ${isDeleted ? 'is-deleted' : ''} ${msg._optimistic ? 'chat-msg-optimistic' : ''}`}
+                onContextMenu={(e) => handleMessageContextMenu(msg, e)}
+                onTouchStart={(e) => handleMessageTouchStart(msg, e)}
+                onTouchMove={cancelLongPress}
+                onTouchEnd={cancelLongPress}
+                onTouchCancel={cancelLongPress}
+              >
                 {isEditing ? (
                   <div className="chat-edit-inline">
                     <textarea
@@ -413,31 +464,6 @@ export default function MessageThread({ conversationId, onBack }) {
                   </div>
                 ) : (
                   <>
-                    {!msg._optimistic && (
-                      <div className="chat-msg-actions">
-                        {withinEditWindow && (
-                          <button
-                            type="button"
-                            className="chat-msg-btn"
-                            onClick={() => startEdit(msg)}
-                            title="Edit"
-                            aria-label="Edit message"
-                          >
-                            <Pencil size={11} />
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          className="chat-msg-btn is-danger"
-                          onClick={() => setDeleteTarget(msg)}
-                          title="Delete"
-                          aria-label="Delete message"
-                        >
-                          <Trash2 size={11} />
-                        </button>
-                      </div>
-                    )}
-
                     <div className="chat-msg-bubble">
                       {isDeleted ? '[message deleted]' : (msg.body || '')}
                     </div>
@@ -468,49 +494,26 @@ export default function MessageThread({ conversationId, onBack }) {
         isSending={sendMessage.isPending}
       />
 
-      {/* ---------- Delete-choice modal ---------- */}
-      {deleteTarget && (
-        <div
-          className="chat-modal-overlay"
-          onClick={(e) => { if (e.target === e.currentTarget) setDeleteTarget(null); }}
-        >
-          <div className="chat-modal">
-            <h3>Delete message</h3>
-            <p>How would you like to delete this message?</p>
-
-            <div className="chat-modal-actions">
-              <button
-                type="button"
-                className="chat-modal-action"
-                onClick={() => handleDelete('me')}
-                disabled={deleteMessage.isPending}
-              >
-                <Trash2 size={13} />
-                Delete for me
-              </button>
-
-              {deleteTarget.senderId === currentUserId && !deleteTarget.deleted && (
-                <button
-                  type="button"
-                  className="chat-modal-action is-danger"
-                  onClick={() => handleDelete('all')}
-                  disabled={deleteMessage.isPending}
-                >
-                  <Trash2 size={13} />
-                  Delete for everyone
-                </button>
-              )}
-            </div>
-
-            <button
-              type="button"
-              className="chat-modal-cancel"
-              onClick={() => setDeleteTarget(null)}
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
+      {/* ---------- Right-click / long-press context menu ---------- */}
+      {ctxMenu && (
+        <MessageContextMenu
+          x={ctxMenu.x}
+          y={ctxMenu.y}
+          canEdit={
+            ctxMenu.message.senderId === currentUserId &&
+            !ctxMenu.message.deleted &&
+            nowTs > 0 &&
+            (nowTs - new Date(ctxMenu.message.createdAt).getTime()) < EDIT_WINDOW_MS
+          }
+          canDeleteAll={
+            ctxMenu.message.senderId === currentUserId &&
+            !ctxMenu.message.deleted
+          }
+          onEdit={() => startEdit(ctxMenu.message)}
+          onDeleteMe={() => handleDeleteMe(ctxMenu.message)}
+          onDeleteAll={() => handleDeleteAll(ctxMenu.message)}
+          onClose={closeContextMenu}
+        />
       )}
 
       <style>{`@keyframes chatSpin { to { transform: rotate(360deg); } }`}</style>

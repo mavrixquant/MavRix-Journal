@@ -402,12 +402,15 @@
   color: var(--ink-3);
 }
 
-/* ---- Message row ---- */
+/* ---- Message row ----
+   -webkit-touch-callout: none — prevents the iOS native callout on
+   long-press, so our custom context menu can take over cleanly. */
 .chat-msg {
   display: flex;
   flex-direction: column;
   max-width: 72%;
   position: relative;
+  -webkit-touch-callout: none;
 }
 .chat-msg.is-own   { align-self: flex-end;   align-items: flex-end; }
 .chat-msg.is-peer  { align-self: flex-start; align-items: flex-start; }
@@ -463,50 +466,7 @@
   opacity: .7;
 }
 
-/* Hover actions */
-.chat-msg-actions {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  display: flex;
-  gap: 4px;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity .15s;
-}
-.chat-msg.is-own  .chat-msg-actions { right: 100%; margin-right: 8px; }
-.chat-msg.is-peer .chat-msg-actions { left: 100%;  margin-left: 8px;  }
-.chat-msg:hover .chat-msg-actions {
-  opacity: 1;
-  pointer-events: auto;
-}
-
-.chat-msg-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 26px;
-  padding: 0;
-  border-radius: 7px;
-  border: 1px solid rgba(255,255,255,.09);
-  background: rgba(15,18,25,.9);
-  color: var(--ink-2);
-  cursor: pointer;
-  transition: all .15s;
-}
-.chat-msg-btn:hover {
-  color: var(--accent);
-  background: rgba(245,158,11,.1);
-  border-color: var(--accent-soft2);
-}
-.chat-msg-btn.is-danger:hover {
-  color: #f87171;
-  background: rgba(239,68,68,.1);
-  border-color: rgba(239,68,68,.42);
-}
-
-/* Inline edit */
+/* ---- Inline edit ---- */
 .chat-edit-inline {
   display: flex;
   flex-direction: column;
@@ -560,6 +520,62 @@
 }
 .chat-edit-btn.is-save:hover { transform: translateY(-1px); }
 .chat-edit-btn:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+
+/* ============================================================
+   Message context menu (right-click / long-press)
+   ============================================================ */
+.chat-ctx-menu {
+  position: fixed;
+  z-index: 2200;
+  padding: 4px;
+  border-radius: 10px;
+  background: #11151F;
+  border: 1px solid rgba(255,255,255,.1);
+  box-shadow:
+    0 20px 50px -10px rgba(0,0,0,.9),
+    0 0 0 1px rgba(245,158,11,.06);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  animation: chatCtxIn .14s cubic-bezier(.2,.8,.25,1);
+  transform-origin: top left;
+}
+@keyframes chatCtxIn {
+  from { opacity: 0; transform: scale(.96) translateY(-2px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.chat-ctx-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 7px;
+  border: none;
+  background: transparent;
+  color: var(--ink-1);
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 12px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color .12s ease, color .12s ease;
+}
+.chat-ctx-item:hover,
+.chat-ctx-item:focus-visible {
+  background: rgba(245,158,11,.10);
+  color: var(--accent);
+  outline: none;
+}
+.chat-ctx-item svg { flex-shrink: 0; }
+
+.chat-ctx-item.is-danger { color: #f87171; }
+.chat-ctx-item.is-danger:hover,
+.chat-ctx-item.is-danger:focus-visible {
+  background: rgba(239,68,68,.12);
+  color: #fca5a5;
+}
 
 /* ============================================================
    Composer
@@ -692,7 +708,7 @@
 }
 
 /* ============================================================
-   Delete-choice modal
+   Modal overlay (shared by NewChatModal)
    ============================================================ */
 .chat-modal-overlay {
   position: fixed;
@@ -706,91 +722,6 @@
   padding: 16px;
   animation: chatFade .18s ease;
 }
-.chat-modal {
-  width: 100%;
-  max-width: 400px;
-  padding: 22px 24px 20px;
-  border-radius: 16px;
-  background: linear-gradient(180deg, #12161F, #0C1017);
-  border: 1px solid var(--line);
-  box-shadow: 0 40px 100px -30px rgba(0,0,0,.95), 0 0 0 1px var(--accent-soft);
-  color: var(--ink-1);
-  position: relative;
-  overflow: hidden;
-  animation: chatPop .28s cubic-bezier(.2,.8,.25,1);
-}
-.chat-modal::before {
-  content: '';
-  position: absolute;
-  left: 0; right: 0; top: 0; height: 2px;
-  background: linear-gradient(90deg, transparent, var(--accent), var(--accent-2), var(--accent), transparent);
-  background-size: 200% 100%;
-  animation: chatGrad 4s linear infinite;
-}
-.chat-modal h3 {
-  margin: 0 0 6px;
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--ink-1);
-}
-.chat-modal p {
-  margin: 0 0 18px;
-  font-size: 12.5px;
-  line-height: 1.6;
-  color: var(--ink-2);
-  font-family: 'IBM Plex Mono', ui-monospace, monospace;
-}
-.chat-modal-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.chat-modal-action {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  padding: 10px 14px;
-  border-radius: 10px;
-  border: 1px solid rgba(255,255,255,.1);
-  background: rgba(255,255,255,.03);
-  color: var(--ink-1);
-  font-family: 'IBM Plex Mono', ui-monospace, monospace;
-  font-size: 12px;
-  font-weight: 600;
-  text-align: left;
-  cursor: pointer;
-  transition: all .2s;
-}
-.chat-modal-action:hover {
-  background: rgba(255,255,255,.06);
-  border-color: rgba(255,255,255,.2);
-  transform: translateX(2px);
-}
-.chat-modal-action.is-danger {
-  color: #f87171;
-  border-color: rgba(239,68,68,.35);
-  background: rgba(239,68,68,.05);
-}
-.chat-modal-action.is-danger:hover {
-  background: rgba(239,68,68,.12);
-  border-color: rgba(239,68,68,.55);
-}
-.chat-modal-cancel {
-  margin-top: 12px;
-  width: 100%;
-  padding: 9px 16px;
-  border-radius: 10px;
-  border: none;
-  background: transparent;
-  color: var(--ink-2);
-  font-family: 'IBM Plex Mono', ui-monospace, monospace;
-  font-size: 11.5px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: color .2s;
-}
-.chat-modal-cancel:hover { color: var(--ink-1); }
 
 /* ============================================================
    New-chat modal
@@ -958,10 +889,12 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .chat-modal::before,
+  .chat-modal-overlay,
   .chat-newchat-modal::before,
+  .chat-ctx-menu,
   .chat-thread-sub.is-typing { animation: none !important; }
   .chat-composer-send,
   .chat-list-row,
-  .chat-newchat-user { transition: none !important; }
+  .chat-newchat-user,
+  .chat-ctx-item { transition: none !important; }
 }
