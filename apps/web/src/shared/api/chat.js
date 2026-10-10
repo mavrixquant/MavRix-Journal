@@ -10,11 +10,9 @@
 //
 // Pagination model: useInfiniteQuery where pages[0] holds the NEWEST page.
 // Within each page, messages are ascending (oldest -> newest).
-// fetchNextPage() loads older messages by passing the oldest createdAt as
-// `before`.
 //
 // SSE integration: shared/api/sse.js mutates the messages cache directly
-// on chat:message:new / :edited / :deleted - no refetch for those events.
+// on chat:message:new / :edited / :deleted / :delivered / chat:read.
 
 import {
   useQuery,
@@ -79,7 +77,7 @@ export async function fetchMessages(id, { before, limit = 50 } = {}) {
   const data = await apiJson(
     `/api/chat/conversations/${encodeURIComponent(id)}/messages?${params.toString()}`
   );
-  return data; // { messages, hasMore, nextCursor }
+  return data;
 }
 
 export async function sendMessage(conversationId, { body, replyToId }) {
@@ -115,6 +113,13 @@ export async function markConversationRead(conversationId) {
   );
 }
 
+export async function markMessageDelivered(messageId) {
+  return apiJson(
+    `/api/chat/messages/${encodeURIComponent(messageId)}/delivered`,
+    { method: 'POST' }
+  );
+}
+
 export async function sendTyping(conversationId, isTyping) {
   return apiJson(
     `/api/chat/conversations/${encodeURIComponent(conversationId)}/typing`,
@@ -136,13 +141,6 @@ export async function searchUsers(q) {
 /*  Hooks - reads                                                      */
 /* ------------------------------------------------------------------ */
 
-/**
- * List my conversations.
- *
- * Polls every 20s ONLY if the SSE bridge has fallen back. Otherwise relies
- * on the SSE chat:message:new broadcast + explicit invalidations after
- * create/send/edit/delete.
- */
 export function useChatConversations() {
   const sseFallback = useSSEFallback();
   return useQuery({
@@ -162,9 +160,6 @@ export function useChatConversation(conversationId) {
   });
 }
 
-/**
- * Paginated message history.
- */
 export function useChatMessages(conversationId, { limit = 50 } = {}) {
   const sseFallback = useSSEFallback();
   return useInfiniteQuery({
@@ -180,10 +175,6 @@ export function useChatMessages(conversationId, { limit = 50 } = {}) {
   });
 }
 
-/**
- * Debounced user search. Returns `[]` when the term is under 2 chars.
- * Caller is expected to debounce the string before passing it in.
- */
 export function useChatUserSearch(q) {
   const trimmed = String(q || '').trim();
   const enabled = trimmed.length >= 2;
@@ -196,14 +187,6 @@ export function useChatUserSearch(q) {
   });
 }
 
-/**
- * Live "is the peer typing?" indicator for the given conversation.
- * Subscribes to the chatStream pub/sub fed by the SSE bridge.
- *
- * @param {string}      conversationId
- * @param {string|null} excludeUserId  - usually the current user's id
- * @returns {string[]}                 - user ids of the other side typing
- */
 export function useTypingIndicator(conversationId, excludeUserId) {
   const [userIds, setUserIds] = useState(() =>
     conversationId ? getTypingUserIds(conversationId, excludeUserId) : []
@@ -218,8 +201,6 @@ export function useTypingIndicator(conversationId, excludeUserId) {
       setUserIds(getTypingUserIds(conversationId, excludeUserId));
     update();
     const unsub = subscribeTyping(update);
-    // TTL expiry is time-based, not event-based - poll just enough to
-    // catch the moment a stale typing flag drops off.
     const iv = setInterval(update, 1500);
     return () => {
       unsub();
@@ -230,15 +211,6 @@ export function useTypingIndicator(conversationId, excludeUserId) {
   return userIds;
 }
 
-/**
- * Single-subscription variant of useTypingIndicator for the conversation
- * list. Returns a Set<string> of conversation IDs where the peer is
- * currently typing.
- *
- * Subscribes to the shared chatStream pub/sub once for the whole list
- * (instead of one subscription per row) and re-reads on every change,
- * plus a 1.5s heartbeat to catch TTL expirations.
- */
 export function useTypingConversations(excludeUserId) {
   const [set, setSet] = useState(() =>
     getTypingConversationIds(excludeUserId)
@@ -267,15 +239,11 @@ export function useCreateConversation() {
   return useMutation({
     mutationFn: createConversation,
     onSuccess: (conv) => {
-      // Inject the new (or existing) conversation into the list cache
-      // immediately so the UI can render the thread without waiting for
-      // the refetch to land.
       qc.setQueryData(chatKeys.conversations(), (old) => {
         if (!Array.isArray(old)) return old;
         if (old.some((c) => c.id === conv.id)) return old;
         return [conv, ...old];
       });
-      // Then refetch to sync with the server's authoritative ordering.
       qc.invalidateQueries({ queryKey: chatKeys.conversations() });
     },
   });
@@ -292,26 +260,12 @@ export function useUpdateConversation() {
   });
 }
 
-/* ------------------------------------------------------------------ */
-/*  Send - optimistic append                                           */
-/* ------------------------------------------------------------------ */
-
 let __tempCounter = 0;
 function nextTempId() {
   __tempCounter += 1;
   return `__optimistic__${Date.now()}_${__tempCounter}`;
 }
 
-/**
- * Send a message with optimistic append.
- *
- * Caller usage:
- *   const send = useSendMessage();
- *   send.mutate({ conversationId, body, replyToId, senderId });
- *
- *   `senderId` is used only to stamp the optimistic message so the UI can
- *   render it on the right side before the server echo arrives.
- */
 export function useSendMessage() {
   const qc = useQueryClient();
 
@@ -338,6 +292,8 @@ export function useSendMessage() {
           editedAt: null,
           deletedAt: null,
           deleted: false,
+          deliveredAt: null,
+          readAt: null,
           _optimistic: true,
         };
         const [first, ...rest] = old.pages;
@@ -355,14 +311,7 @@ export function useSendMessage() {
 
     onSuccess: (message, _vars, ctx) => {
       if (!ctx) return;
-      // Replace the optimistic entry with the server-confirmed message.
-      //
-      // This must be idempotent against the SSE echo: the backend
-      // broadcasts chat:message:new to ALL participants INCLUDING the
-      // sender, so the HTTP onSuccess and the SSE append race. Either can
-      // land first. Removing BOTH the temp id AND any existing real
-      // message with the same id, then appending once, is correct under
-      // every timing permutation.
+      // Idempotent against SSE echo (see message handler in sse.js).
       qc.setQueryData(chatKeys.messages(ctx.conversationId), (old) => {
         if (!old || !Array.isArray(old.pages) || old.pages.length === 0) return old;
         const [first, ...rest] = old.pages;
@@ -372,13 +321,11 @@ export function useSendMessage() {
         const updated = { ...first, messages: [...cleaned, message] };
         return { ...old, pages: [updated, ...rest] };
       });
-      // Sidebar preview + ordering.
       qc.invalidateQueries({ queryKey: chatKeys.conversations() });
     },
 
     onError: (_err, _vars, ctx) => {
       if (!ctx) return;
-      // Roll back the optimistic entry.
       qc.setQueryData(chatKeys.messages(ctx.conversationId), (old) => {
         if (!old || !Array.isArray(old.pages)) return old;
         return {
@@ -393,9 +340,6 @@ export function useSendMessage() {
   });
 }
 
-/**
- * Edit a message. Optimistically rewrites the body + editedAt in-place.
- */
 export function useEditMessage() {
   const qc = useQueryClient();
 
@@ -434,11 +378,6 @@ export function useEditMessage() {
   });
 }
 
-/**
- * Delete a message. Two scopes:
- *   scope='me'  - hide locally (no server broadcast)
- *   scope='all' - soft-delete for everyone (sender only)
- */
 export function useDeleteMessage() {
   const qc = useQueryClient();
 
@@ -452,7 +391,6 @@ export function useDeleteMessage() {
       qc.setQueryData(key, (old) => {
         if (!old || !Array.isArray(old.pages)) return old;
         if (scope === 'me') {
-          // Remove entirely - the thread doesn't render a tombstone for this.
           return {
             ...old,
             pages: old.pages.map((page) => ({
@@ -461,7 +399,6 @@ export function useDeleteMessage() {
             })),
           };
         }
-        // scope='all' - keep in place, body nulled, marked deleted.
         return {
           ...old,
           pages: old.pages.map((page) => ({
@@ -491,19 +428,14 @@ export function useDeleteMessage() {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Read + typing - fire-and-forget                                    */
+/*  Read + delivery + typing - fire-and-forget                         */
 /* ------------------------------------------------------------------ */
 
-/**
- * Mark a conversation read. Fires whenever the thread is focused and a
- * new inbound message lands. Throttled by the caller.
- */
 export function useMarkRead() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (conversationId) => markConversationRead(conversationId),
     onSuccess: (_r, conversationId) => {
-      // Zero-out the sidebar badge locally.
       qc.setQueryData(chatKeys.conversations(), (old) => {
         if (!Array.isArray(old)) return old;
         return old.map((c) =>
@@ -515,14 +447,23 @@ export function useMarkRead() {
 }
 
 /**
- * Fire-and-forget typing event. Errors are swallowed because typing is
- * ephemeral - a dropped signal just means the peer sees "..." disappear.
+ * Fire-and-forget delivery ack. Called automatically by the SSE bridge in
+ * shared/api/sse.js when an inbound `chat:message:new` arrives. Errors are
+ * swallowed — a dropped ack just means the sender sees ✓ instead of ✓✓
+ * until the peer opens the thread (which bulk-acks via markRead).
  */
+export function useMarkDelivered() {
+  return useMutation({
+    mutationFn: (messageId) => markMessageDelivered(messageId),
+    retry: false,
+    onError: () => {},
+  });
+}
+
 export function useSendTyping() {
   return useMutation({
     mutationFn: ({ conversationId, isTyping }) =>
       sendTyping(conversationId, isTyping),
-    // Never retry; never surface errors.
     retry: false,
     onError: () => {},
   });

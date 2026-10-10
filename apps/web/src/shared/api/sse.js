@@ -1,13 +1,13 @@
 // apps/web/src/shared/api/sse.js
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { ensureFreshAccessToken } from './client';
+import { ensureFreshAccessToken, apiJson } from './client';
 import { setTypingState } from '@/shared/chat/chatStream';
 
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 
 /* ------------------------------------------------------------------ */
-/*  Fallback store — when SSE fails 3x we let hooks resume polling.   */
+/*  Fallback store - when SSE fails 3x we let hooks resume polling.   */
 /* ------------------------------------------------------------------ */
 
 let fallbackMode = false;
@@ -26,7 +26,6 @@ function getFallbackMode() {
   return fallbackMode;
 }
 
-/** Read the current fallback flag inside a React component. */
 export function useSSEFallback() {
   return useSyncExternalStore(
     subscribeFallback,
@@ -36,16 +35,13 @@ export function useSSEFallback() {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Chat cache helpers — mutate the messages infiniteQuery in place.  */
-/*  pages[0] holds the NEWEST page; each page's messages are          */
-/*  ascending (oldest → newest within the page).                      */
+/*  Chat cache helpers                                                 */
 /* ------------------------------------------------------------------ */
 
 function appendMessage(queryClient, conversationId, message) {
   queryClient.setQueryData(['chat', 'messages', conversationId], (old) => {
     if (!old || !Array.isArray(old.pages) || old.pages.length === 0) return old;
     const [first, ...rest] = old.pages;
-    // Dedupe — the sender may already have the message via its HTTP response.
     if (first.messages.some((m) => m.id === message.id)) return old;
     return {
       ...old,
@@ -82,19 +78,26 @@ const RECONNECT_MAX_MS = 8000;
 
 /**
  * Opens a single SSE connection per logged-in user.
- * On `invalidate`, invalidates the corresponding React Query keys.
- * On chat events, mutates the chat caches directly (fast path) and lightly
- * invalidates the conversation list so ordering/previews stay fresh.
  *
- * Mount exactly ONCE per app (e.g. inside AppLayout).
+ * @param {object}  opts
+ * @param {boolean} opts.enabled
+ * @param {string}  opts.currentUserId — the logged-in user's id. Used to
+ *   decide whether an inbound chat:message:new needs a delivery ack.
+ *   Changes to this value do NOT reconnect the stream (ref-based).
  */
-export function useSSEBridge({ enabled = true } = {}) {
+export function useSSEBridge({ enabled = true, currentUserId = null } = {}) {
   const queryClient = useQueryClient();
   const [connected, setConnected] = useState(false);
 
   const esRef = useRef(null);
   const reconnectTimerRef = useRef(null);
   const failuresRef = useRef(0);
+  const userIdRef = useRef(currentUserId);
+
+  // Keep the ref in sync without restarting the SSE stream on login.
+  useEffect(() => {
+    userIdRef.current = currentUserId;
+  }, [currentUserId]);
 
   useEffect(() => {
     if (!enabled) return undefined;
@@ -121,12 +124,11 @@ export function useSSEBridge({ enabled = true } = {}) {
         failuresRef.current = 0;
         setConnected(true);
         setFallbackMode(false);
-        // On (re)connect we may have missed events. Force a full refresh.
         queryClient.invalidateQueries();
       });
 
       es.addEventListener('hello', () => {
-        // Handshake acknowledged. Nothing to do — 'open' already fired.
+        // Handshake acknowledged.
       });
 
       /* ---------------- Generic query invalidation ---------------- */
@@ -157,15 +159,21 @@ export function useSSEBridge({ enabled = true } = {}) {
         const { conversationId, message } = payload || {};
         if (!conversationId || !message) return;
 
-        // Fast path — splice the message into the open thread's cache.
         appendMessage(queryClient, conversationId, message);
-
-        // Slow path — refresh the sidebar (preview text, ordering, unread).
         queryClient.invalidateQueries({ queryKey: ['chat', 'conversations'] });
 
-        // Clear the sender's typing flag for this conversation.
         if (message.senderId) {
           setTypingState(conversationId, message.senderId, false);
+        }
+
+        // Auto-ack delivery for inbound messages. Fire-and-forget; a dropped
+        // ack just means the sender sees ✓ until the peer opens the thread.
+        const myId = userIdRef.current;
+        if (myId && message.senderId && message.senderId !== myId) {
+          apiJson(
+            `/api/chat/messages/${encodeURIComponent(message.id)}/delivered`,
+            { method: 'POST' }
+          ).catch(() => {});
         }
       });
 
@@ -203,6 +211,54 @@ export function useSSEBridge({ enabled = true } = {}) {
         queryClient.invalidateQueries({ queryKey: ['chat', 'conversations'] });
       });
 
+      /* ---------------- Chat: delivered ---------------- */
+
+      es.addEventListener('chat:message:delivered', (e) => {
+        let payload;
+        try {
+          payload = JSON.parse(e.data);
+        } catch {
+          return;
+        }
+        const { conversationId, messageId, deliveredAt } = payload || {};
+        if (!conversationId || !messageId) return;
+        patchMessage(queryClient, conversationId, messageId, { deliveredAt });
+      });
+
+      /* ---------------- Chat: read receipt ---------------- */
+
+      es.addEventListener('chat:read', (e) => {
+        let payload;
+        try {
+          payload = JSON.parse(e.data);
+        } catch {
+          return;
+        }
+        const { conversationId, readerUserId, readAt } = payload || {};
+        if (!conversationId || !readerUserId || !readAt) return;
+
+        const readTs = new Date(readAt).getTime();
+
+        // Mark all OWN messages in this conversation whose createdAt <= readAt
+        // as read. The reader's own messages are skipped (we shouldn't tick
+        // our own inbound messages on their behalf).
+        queryClient.setQueryData(['chat', 'messages', conversationId], (old) => {
+          if (!old || !Array.isArray(old.pages)) return old;
+          return {
+            ...old,
+            pages: old.pages.map((page) => ({
+              ...page,
+              messages: page.messages.map((m) => {
+                if (m.senderId === readerUserId) return m;
+                if (m.readAt) return m;
+                if (new Date(m.createdAt).getTime() > readTs) return m;
+                return { ...m, readAt };
+              }),
+            })),
+          };
+        });
+      });
+
       /* ---------------- Chat: typing (ephemeral) ---------------- */
 
       es.addEventListener('chat:typing', (e) => {
@@ -214,7 +270,6 @@ export function useSSEBridge({ enabled = true } = {}) {
         }
         const { conversationId, userId, isTyping } = payload || {};
         if (!conversationId || !userId) return;
-        // Feeds the chatStream pub/sub → useTypingIndicator()
         setTypingState(conversationId, userId, !!isTyping);
       });
 

@@ -1,7 +1,4 @@
 // apps/api/src/controllers/chat.controller.js
-//
-// Thin HTTP layer for the chat routes. All access-control and business
-// logic lives in chat.service.js.
 
 import * as svc from '../services/chat.service.js';
 
@@ -64,6 +61,13 @@ export async function sendMessage(req, res, next) {
 export async function markRead(req, res, next) {
   try {
     const result = await svc.markRead(req.userId, req.params.id);
+    res.json(result);
+  } catch (e) { next(e); }
+}
+
+export async function markDelivered(req, res, next) {
+  try {
+    const result = await svc.markDelivered(req.userId, req.params.messageId);
     res.json(result);
   } catch (e) { next(e); }
 }

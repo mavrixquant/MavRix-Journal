@@ -5,14 +5,20 @@
 // guarantee that no admin route can ever see these conversations.
 //
 // SSE events emitted (all via broadcastToUser):
-//   chat:message:new     { conversationId, message }              → all participants
-//   chat:message:edited  { conversationId, messageId, body, editedAt } → all participants
-//   chat:message:deleted { conversationId, messageId, scope:'all' } → all participants
-//   chat:typing          { conversationId, userId, isTyping }     → other participants
+//   chat:message:new         { conversationId, message }                       -> all participants
+//   chat:message:edited      { conversationId, messageId, body, editedAt }     -> all participants
+//   chat:message:deleted     { conversationId, messageId, scope:'all' }        -> all participants
+//   chat:message:delivered   { conversationId, messageId, deliveredAt }        -> all participants
+//   chat:typing              { conversationId, userId, isTyping }              -> other participants
+//   chat:read                { conversationId, readerUserId, lastReadMsgId, readAt } -> other participants
 //
-// Read receipts are intentionally NOT broadcast in this build. The DB columns
-// (lastReadAt / lastReadMsgId / unreadCount) are kept in sync silently so the
-// self-side unread badge works. Broadcasting them is a one-event add-on.
+// Read receipts:
+//   - markDelivered: called by the non-sender's device when it receives a
+//     message via SSE. Sets Message.deliveredAt if null. Idempotent.
+//   - markRead: called when the non-sender opens the thread. In one
+//     transaction, bulk-marks every inbound message as delivered AND read,
+//     then resets the participant's unreadCount and lastReadAt/Id.
+//     Broadcasts chat:read to the other participant(s).
 
 import { prisma } from '../lib/prisma.js';
 import { HttpError } from '../middleware/error.js';
@@ -49,6 +55,8 @@ function serializeMessage(m) {
     editedAt: m.editedAt,
     deletedAt: m.deletedAt,
     deleted: !!m.deletedAt,
+    deliveredAt: m.deliveredAt ?? null,
+    readAt: m.readAt ?? null,
   };
 }
 
@@ -109,9 +117,6 @@ export async function searchUsers(userId, q) {
   const query = String(q || '').trim();
   if (query.length < 2) return [];
 
-  // If the query contains "@", treat it as an email PREFIX match to
-  // prevent full-directory enumeration (a bare "a" should not dump the
-  // entire user table). Names still use a CONTAINS match for UX.
   const isEmailQuery = query.includes('@');
 
   const where = isEmailQuery
@@ -171,7 +176,6 @@ export async function getOrCreateDm(userId, peerId) {
 
   const key = dmKeyFor(userId, peerId);
 
-  // ---- Fast path: existing DM ----
   const existing = await prisma.conversation.findUnique({
     where: { dmKey: key },
     include: {
@@ -192,7 +196,6 @@ export async function getOrCreateDm(userId, peerId) {
     return serializeConversation(existing, userId, myRow);
   }
 
-  // ---- Create new DM ----
   const created = await prisma.conversation.create({
     data: {
       type: 'dm',
@@ -218,14 +221,6 @@ export async function getOrCreateDm(userId, peerId) {
   return serializeConversation(created, userId, myRow);
 }
 
-/**
- * List the current user's conversations.
- *
- * Only conversations with at least one message are shown in the sidebar.
- * This means: opening a new DM and sending nothing does NOT surface the
- * thread on the peer's list. The moment the first message is sent, it
- * appears everywhere live via the `chat:message:new` broadcast.
- */
 export async function listConversations(userId) {
   const rows = await prisma.conversationParticipant.findMany({
     where: {
@@ -249,7 +244,6 @@ export async function listConversations(userId) {
     },
   });
 
-  // Pinned first, then most recent activity.
   rows.sort((a, b) => {
     if (a.isPinned !== b.isPinned) return a.isPinned ? -1 : 1;
     const at = a.conversation.lastMessageAt?.getTime() || 0;
@@ -311,7 +305,6 @@ export async function listMessages(userId, conversationId, { before, limit } = {
 
   const where = {
     conversationId,
-    // "delete for me" — the requesting user does not see messages they hid.
     NOT: { deletedForIds: { has: userId } },
   };
 
@@ -322,7 +315,6 @@ export async function listMessages(userId, conversationId, { before, limit } = {
     }
   }
 
-  // Fetch take+1 to know if a further page exists.
   const rows = await prisma.message.findMany({
     where,
     orderBy: { createdAt: 'desc' },
@@ -331,7 +323,6 @@ export async function listMessages(userId, conversationId, { before, limit } = {
 
   const hasMore = rows.length > take;
   const slice = hasMore ? rows.slice(0, take) : rows;
-  // Payload is ascending (oldest → newest) for direct prepend into the UI.
   const messages = slice.map(serializeMessage).reverse();
 
   return {
@@ -379,13 +370,11 @@ export async function sendMessage(userId, conversationId, { body, replyToId }) {
       },
     });
 
-    // Bump unread for every participant EXCEPT the sender.
     await tx.conversationParticipant.updateMany({
       where: { conversationId, userId: { not: userId } },
       data: { unreadCount: { increment: 1 } },
     });
 
-    // Sender's own read pointer moves forward.
     await tx.conversationParticipant.update({
       where: { conversationId_userId: { conversationId, userId } },
       data: { lastReadAt: now, lastReadMsgId: created.id },
@@ -433,7 +422,6 @@ export async function editMessage(userId, messageId, { body }) {
       data: { body: trimmed, editedAt: new Date() },
     });
 
-    // If this was the last surviving message, refresh the preview text.
     const convo = await tx.conversation.findUnique({
       where: { id: row.conversationId },
       select: { lastMessageAt: true },
@@ -471,25 +459,21 @@ export async function deleteMessage(userId, messageId, scope) {
 
   await assertParticipant(userId, msg.conversationId);
 
-  // ---- delete for me ----
   if (scope === 'me') {
-    // Append userId to deletedForIds only if not already present.
     await prisma.$executeRaw`
       UPDATE "messages"
       SET "deletedForIds" = array_append("deletedForIds", ${userId})
       WHERE "id" = ${messageId}
         AND NOT (${userId} = ANY("deletedForIds"))
     `;
-    // No broadcast — this is a purely local action.
     return { ok: true, scope: 'me' };
   }
 
-  // ---- delete for everyone ----
   if (msg.senderId !== userId) {
     throw new HttpError(403, 'You can only delete your own messages for everyone');
   }
   if (msg.deletedAt) {
-    return { ok: true, scope: 'all' }; // idempotent
+    return { ok: true, scope: 'all' };
   }
 
   await prisma.$transaction(async (tx) => {
@@ -498,7 +482,6 @@ export async function deleteMessage(userId, messageId, scope) {
       data: { deletedAt: new Date() },
     });
 
-    // Recompute the conversation preview from the last non-deleted message.
     const last = await tx.message.findFirst({
       where: { conversationId: msg.conversationId, deletedAt: null },
       orderBy: { createdAt: 'desc' },
@@ -536,9 +519,62 @@ export async function deleteMessage(userId, messageId, scope) {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Read / Typing                                                      */
+/*  Delivery + Read receipts                                           */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Mark an inbound message as delivered. Called by the non-sender's device
+ * when it receives the message via SSE. Idempotent, non-sender only.
+ *
+ * The sender's own device calling this returns { skipped: 'sender' } so a
+ * client bug can't fake a delivery receipt.
+ */
+export async function markDelivered(userId, messageId) {
+  const msg = await prisma.message.findUnique({
+    where: { id: messageId },
+    select: { id: true, conversationId: true, senderId: true, deliveredAt: true },
+  });
+  if (!msg) throw new HttpError(404, 'Message not found');
+
+  await assertParticipant(userId, msg.conversationId);
+
+  if (msg.senderId === userId) {
+    return { ok: true, skipped: 'sender' };
+  }
+  if (msg.deliveredAt) {
+    return { ok: true, alreadyDelivered: true };
+  }
+
+  const now = new Date();
+  const updated = await prisma.message.update({
+    where: { id: messageId },
+    data: { deliveredAt: now },
+  });
+
+  const participantIds = await getParticipantIds(msg.conversationId);
+  const payload = {
+    conversationId: msg.conversationId,
+    messageId: msg.id,
+    deliveredAt: now,
+  };
+  for (const pid of participantIds) {
+    broadcastToUser(pid, 'chat:message:delivered', payload);
+  }
+
+  return { ok: true, deliveredAt: updated.deliveredAt };
+}
+
+/**
+ * Mark a conversation read. Called when the non-sender opens the thread.
+ *
+ * In one transaction:
+ *   - sets deliveredAt + readAt on every inbound message that hasn't been
+ *     read yet (covers both live delivery and the offline reconnection case)
+ *   - resets the participant's unreadCount, lastReadAt, lastReadMsgId
+ *
+ * Then broadcasts chat:read to the OTHER participant(s) so the sender's
+ * tick cluster updates live.
+ */
 export async function markRead(userId, conversationId) {
   await assertParticipant(userId, conversationId);
 
@@ -552,20 +588,51 @@ export async function markRead(userId, conversationId) {
     select: { id: true },
   });
 
-  await prisma.conversationParticipant.update({
-    where: { conversationId_userId: { conversationId, userId } },
-    data: {
-      unreadCount: 0,
-      lastReadAt: new Date(),
-      lastReadMsgId: last?.id || null,
-    },
+  const now = new Date();
+
+  await prisma.$transaction(async (tx) => {
+    // Bulk mark inbound messages as delivered + read.
+    await tx.message.updateMany({
+      where: {
+        conversationId,
+        senderId: { not: userId },
+        readAt: null,
+      },
+      data: {
+        deliveredAt: now,
+        readAt: now,
+      },
+    });
+
+    await tx.conversationParticipant.update({
+      where: { conversationId_userId: { conversationId, userId } },
+      data: {
+        unreadCount: 0,
+        lastReadAt: now,
+        lastReadMsgId: last?.id || null,
+      },
+    });
   });
 
-  // NOTE: read receipts are intentionally NOT broadcast in this build.
-  // The DB stays in sync so the UI can show the self-side unread badge.
-  // Broadcasting is a one-event add-on later.
-  return { ok: true };
+  // Broadcast to the OTHER participant(s) only — the reader already knows.
+  const participantIds = await getParticipantIds(conversationId);
+  const payload = {
+    conversationId,
+    readerUserId: userId,
+    lastReadMsgId: last?.id || null,
+    readAt: now,
+  };
+  for (const pid of participantIds) {
+    if (pid === userId) continue;
+    broadcastToUser(pid, 'chat:read', payload);
+  }
+
+  return { ok: true, readAt: now };
 }
+
+/* ------------------------------------------------------------------ */
+/*  Typing                                                             */
+/* ------------------------------------------------------------------ */
 
 export async function broadcastTyping(userId, conversationId, isTyping) {
   await assertParticipant(userId, conversationId);

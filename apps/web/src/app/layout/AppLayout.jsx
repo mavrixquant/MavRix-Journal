@@ -37,7 +37,9 @@ export default function AppLayout() {
 
   useHotkey('mod+b', () => setCollapsed((v) => !v));
 
-  useSSEBridge({ enabled: !!user });
+  // Single SSE connection per app. currentUserId is used by the chat bridge
+  // to decide whether an inbound chat:message:new needs a delivery ack.
+  useSSEBridge({ enabled: !!user, currentUserId: user?.id });
 
   const handleLogout = async () => {
     await logout();
@@ -88,15 +90,6 @@ export default function AppLayout() {
         />
 
         <main className="box-border w-full px-4 py-5 lg:px-7 lg:py-6">
-          {/*
-            The `key` forces a clean remount of the outlet subtree on every
-            pathname change. React Router v7 wraps navigations in
-            startTransition — if a lazy child's promise stalls, React keeps
-            the previous subtree visible. A stable key gives React an
-            unambiguous signal: "this is a different page, throw the old
-            one away." Query-string-only changes (e.g. filter URL sync)
-            do NOT remount, because they don't change the pathname.
-          */}
           <Suspense key={location.pathname} fallback={<PageSkeleton />}>
             <Outlet />
           </Suspense>

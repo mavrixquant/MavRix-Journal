@@ -5,17 +5,16 @@
 //   - infinite-scroll message list (sentinel at the top loads older pages)
 //   - composer
 //
-// Message actions (Edit / Delete) are triggered by RIGHT-CLICK on desktop
-// and LONG-PRESS (550ms) on touch. A floating MessageContextMenu is
-// rendered at the cursor. Hover actions are intentionally NOT used.
+// Read receipts (ticks) on OWN messages only:
+//   _optimistic       -> clock icon (sending)
+//   deliveredAt=null  -> single grey check (sent)
+//   deliveredAt set   -> double grey check (delivered)
+//   readAt set        -> double green check (read)
 //
-// Auto-scroll behavior:
-//   - On conversation change, jump to bottom.
-//   - When a new message arrives, scroll to bottom ONLY if the user was
-//     already near the bottom (tracked live by the scroll handler).
+// Message actions (Edit / Delete) via right-click / long-press only.
 
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
-import { ArrowLeft, Loader2, Pencil } from 'lucide-react';
+import { ArrowLeft, Loader2, Pencil, Check, CheckCheck, Clock } from 'lucide-react';
 
 import { useAuth } from '@/app/providers/AuthProvider';
 import {
@@ -83,6 +82,23 @@ function formatDayLabel(iso) {
   if (diff === 1) return 'Yesterday';
   if (diff < 7) return d.toLocaleDateString('en-US', { weekday: 'long' });
   return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+}
+
+/**
+ * Read-receipt tick icon for an own message.
+ * Pure — takes the message, returns the right icon.
+ */
+function MessageTicks({ msg }) {
+  if (msg._optimistic) {
+    return <Clock size={12} className="chat-tick is-sending" aria-label="Sending" />;
+  }
+  if (msg.readAt) {
+    return <CheckCheck size={13} className="chat-tick is-read" aria-label="Read" />;
+  }
+  if (msg.deliveredAt) {
+    return <CheckCheck size={13} className="chat-tick is-delivered" aria-label="Delivered" />;
+  }
+  return <Check size={12} className="chat-tick is-sent" aria-label="Sent" />;
 }
 
 /* ------------------------------------------------------------------ */
@@ -225,17 +241,14 @@ export default function MessageThread({ conversationId, onBack }) {
 
   /* ---------------- Context menu state ---------------- */
 
-  const [ctxMenu, setCtxMenu] = useState(null); // { x, y, message } | null
-
+  const [ctxMenu, setCtxMenu] = useState(null);
   const openContextMenu = useCallback((x, y, message) => {
     setCtxMenu({ x, y, message });
   }, []);
-
   const closeContextMenu = useCallback(() => {
     setCtxMenu(null);
   }, []);
 
-  // Long-press tracking — one shared timer, reset on move/end.
   const longPressRef = useRef({ timer: null, fired: false });
 
   const handleMessageTouchStart = useCallback(
@@ -268,7 +281,6 @@ export default function MessageThread({ conversationId, onBack }) {
     [openContextMenu]
   );
 
-  // Cleanup long-press timer on unmount.
   useEffect(() => () => cancelLongPress(), [cancelLongPress]);
 
   /* ---------------- Editing state ---------------- */
@@ -295,7 +307,7 @@ export default function MessageThread({ conversationId, onBack }) {
     );
   }, [editText, editingId, conversationId, editMessage]);
 
-  /* ---------------- Delete flow (direct, no modal) ---------------- */
+  /* ---------------- Delete flow ---------------- */
 
   const handleDeleteMe = useCallback(
     (msg) => {
@@ -473,9 +485,7 @@ export default function MessageThread({ conversationId, onBack }) {
                       {msg.editedAt && !isDeleted && (
                         <span className="chat-msg-edited">· edited</span>
                       )}
-                      {msg._optimistic && (
-                        <span className="chat-msg-edited">· sending…</span>
-                      )}
+                      {isOwn && !isDeleted && <MessageTicks msg={msg} />}
                     </div>
                   </>
                 )}
@@ -494,7 +504,7 @@ export default function MessageThread({ conversationId, onBack }) {
         isSending={sendMessage.isPending}
       />
 
-      {/* ---------- Right-click / long-press context menu ---------- */}
+      {/* ---------- Context menu ---------- */}
       {ctxMenu && (
         <MessageContextMenu
           x={ctxMenu.x}

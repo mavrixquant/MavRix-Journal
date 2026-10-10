@@ -184,24 +184,6 @@ model SiteSetting {
   @@map("site_settings")
 }
 
-// ---------------------------------------------------------------------------
-// GEX / BL levels — one row per trading day.
-//
-// Design notes:
-//   - `date` is a plain "YYYY-MM-DD" string. It represents the CALENDAR DAY
-//     the levels are for (i.e. what the admin selected in the date picker).
-//   - `levels` holds the canonical `[{ type, price, label }]` array.
-//   - `converted` is the deterministic pipe-string built from `levels`.
-//     It's stored so the user's "Copy" button returns EXACTLY what the admin
-//     confirmed. The server re-serializes on POST and rejects mismatches.
-//   - `blCount` / `gexCount` / `otherCount` denormalize the type breakdown
-//     for the list view (avoids parsing the full `levels` array per row).
-//   - `sourceTimezone` records which timezone the admin's date picker was
-//     using when the row was created. Future site-wide TZ feature can query
-//     this to migrate ambiguous dates.
-//   - `uploadedBy` is a soft ref (String, no FK) — matching the audit-log
-//     convention so a hard-deleted admin does not orphan their uploads.
-// ---------------------------------------------------------------------------
 model GexDay {
   id        String @id @default(cuid())
   date      String @unique
@@ -223,23 +205,6 @@ model GexDay {
   @@map("gex_days")
 }
 
-// ---------------------------------------------------------------------------
-// Strategy — a user-owned playbook.
-//
-// Design notes:
-//   - One strategy name per user (`@@unique([userId, name])`).
-//   - `status` is a plain string: "active" | "paused" | "archived". Validation
-//     happens at the Zod layer, not the DB, so we don't need a migration to
-//     add a new status later.
-//   - `direction` is nullable: null means "both Long and Short", a value
-//     means the strategy only applies to that direction.
-//   - `color` is a hex string used to render the strategy chip / row accent.
-//     The allowed palette is enforced in the shared validator.
-//   - `tags` is a Postgres TEXT[] — array of free-form labels for grouping.
-//   - Deleting a user cascades to their strategies. Deleting a strategy does
-//     NOT cascade to trades: `Trade.strategyId` is `onDelete: SetNull`, so
-//     trades keep running and just lose the tag.
-// ---------------------------------------------------------------------------
 model Strategy {
   id          String   @id @default(cuid())
   userId      String
@@ -264,23 +229,18 @@ model Strategy {
 }
 
 // ---------------------------------------------------------------------------
-// Chat — Direct Messages (DMs) only. Discussions (public/private channels)
-// will reuse these same tables with `type='channel'` in a future project.
+// Chat — Direct Messages (DMs) only.
 //
-// Design notes:
-//   - `Conversation.dmKey` is a sorted "minUserId:maxUserId" string, unique,
-//     that enforces one DM per pair of users at the DB level. Null for
-//     future channels (which will use a `slug`).
-//   - `ConversationParticipant` is the ONLY access-control check. Every
-//     service call resolves the requesting user's row here before touching
-//     the conversation. No admin route reads this table.
-//   - `Message.deletedForIds` is per-user "delete for me". The read path
-//     filters with `NOT: { deletedForIds: { has: userId } }`.
-//   - `Message.deletedAt` is "delete for everyone" — soft-delete only. Body
-//     retained in the DB, nulled out by the serializer on the wire.
-//   - `Message.replyToId` is a self-FK, SetNull on delete.
-//   - `unreadCount` on participant is incremented in the send transaction and
-//     reset on markRead. Avoids a per-list count(*) query.
+// Read receipts:
+//   - Message.deliveredAt — set by the non-sender's device when it receives
+//     the message (either via POST /messages/:id/delivered for live SSE
+//     delivery, or in bulk by markRead on thread open).
+//   - Message.readAt — set when the non-sender opens the conversation
+//     (markRead). Also triggers a broadcast to the sender.
+//
+// Both columns are nullable. For a fresh DM, they're null until the peer's
+// device acknowledges. For 1:1 DMs, "the non-sender" is unambiguous — when
+// Discussions arrive later, this migrates to a per-user MessageReceipt table.
 // ---------------------------------------------------------------------------
 model Conversation {
   id              String   @id @default(cuid())
@@ -330,6 +290,8 @@ model Message {
   editedAt       DateTime?
   deletedAt      DateTime?
   deletedForIds  String[]  @default([])
+  deliveredAt    DateTime?
+  readAt         DateTime?
 
   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   sender       User         @relation(fields: [senderId], references: [id], onDelete: Cascade)

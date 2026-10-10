@@ -8,6 +8,7 @@
 //   - send message: 30 / min / user
 //   - typing:       120 / min / user (client throttles to ~1 per 2s)
 //   - search:       30 / min / user
+//   - delivered:    600 / min / user (one per inbound message, high ceiling)
 
 import { Router } from 'express';
 import {
@@ -49,6 +50,12 @@ const searchLimiter = rateLimit({
   windowMs: 60_000,
   max: 30,
   message: 'Too many searches. Slow down.',
+});
+
+const deliveredLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 600,
+  message: 'Too many delivery acks.',
 });
 
 /* ---------------- Users ---------------- */
@@ -95,6 +102,11 @@ chatRoutes.post(
 
 /* ---------------- Single message ---------------- */
 
+chatRoutes.post(
+  '/messages/:messageId/delivered',
+  deliveredLimiter,
+  ctrl.markDelivered
+);
 chatRoutes.patch(
   '/messages/:messageId',
   validate(editMessageSchema),

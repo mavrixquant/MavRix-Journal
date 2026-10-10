@@ -1,7 +1,5 @@
 /* apps/web/src/features/personal/chats/ChatsPage.css
-   Two-pane chat layout. Scoped variables so nothing leaks.
-   Desktop: [list 320px] [thread flex]
-   Mobile (<900px): single pane, list <-> thread toggled via state class. */
+   Two-pane chat layout. Scoped variables so nothing leaks. */
 
 .chat-page {
   --accent: #F59E0B;
@@ -15,6 +13,7 @@
   --ink-3: #545E6E;
   --panel: #11151F;
   --panel-2: #151A26;
+  --tick-read: #35C4A1;
 
   display: flex;
   flex-direction: column;
@@ -231,9 +230,6 @@
 }
 .chat-list-row.is-active .chat-list-preview { color: rgba(245,158,11,.7); }
 
-/* Typing hint in the conversation list preview - matches the header
-   indicator so the user can see the peer typing from anywhere in the
-   app without opening the thread. */
 .chat-list-preview.is-typing {
   color: var(--accent);
   font-style: italic;
@@ -402,9 +398,6 @@
   color: var(--ink-3);
 }
 
-/* ---- Message row ----
-   -webkit-touch-callout: none — prevents the iOS native callout on
-   long-press, so our custom context menu can take over cleanly. */
 .chat-msg {
   display: flex;
   flex-direction: column;
@@ -466,6 +459,19 @@
   opacity: .7;
 }
 
+/* ---- Read-receipt ticks (own messages only) ---- */
+.chat-tick {
+  flex-shrink: 0;
+  transition: color .2s ease;
+}
+.chat-tick.is-sending   { color: var(--ink-3); opacity: .7; }
+.chat-tick.is-sent      { color: var(--ink-3); }
+.chat-tick.is-delivered { color: var(--ink-2); }
+.chat-tick.is-read      {
+  color: var(--tick-read);
+  filter: drop-shadow(0 0 4px rgba(53,196,161,.45));
+}
+
 /* ---- Inline edit ---- */
 .chat-edit-inline {
   display: flex;
@@ -522,7 +528,7 @@
 .chat-edit-btn:disabled { opacity: .5; cursor: not-allowed; transform: none; }
 
 /* ============================================================
-   Message context menu (right-click / long-press)
+   Context menu
    ============================================================ */
 .chat-ctx-menu {
   position: fixed;
@@ -544,7 +550,6 @@
   from { opacity: 0; transform: scale(.96) translateY(-2px); }
   to   { opacity: 1; transform: none; }
 }
-
 .chat-ctx-item {
   display: inline-flex;
   align-items: center;
@@ -569,7 +574,6 @@
   outline: none;
 }
 .chat-ctx-item svg { flex-shrink: 0; }
-
 .chat-ctx-item.is-danger { color: #f87171; }
 .chat-ctx-item.is-danger:hover,
 .chat-ctx-item.is-danger:focus-visible {
@@ -708,7 +712,7 @@
 }
 
 /* ============================================================
-   Modal overlay (shared by NewChatModal)
+   Modal overlay
    ============================================================ */
 .chat-modal-overlay {
   position: fixed;
@@ -892,9 +896,11 @@
   .chat-modal-overlay,
   .chat-newchat-modal::before,
   .chat-ctx-menu,
-  .chat-thread-sub.is-typing { animation: none !important; }
+  .chat-thread-sub.is-typing,
+  .chat-list-preview.is-typing { animation: none !important; }
   .chat-composer-send,
   .chat-list-row,
   .chat-newchat-user,
-  .chat-ctx-item { transition: none !important; }
+  .chat-ctx-item,
+  .chat-tick { transition: none !important; }
 }
