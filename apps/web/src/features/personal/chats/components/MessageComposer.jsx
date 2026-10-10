@@ -109,7 +109,7 @@ export default function MessageComposer({
         <textarea
           ref={textareaRef}
           className="chat-composer-input"
-          placeholder="Type a message…  (Enter to send · Shift+Enter for a new line)"
+          placeholder="Type a message…"
           value={text}
           onChange={handleChange}
           onKeyDown={handleKeyDown}
@@ -118,17 +118,6 @@ export default function MessageComposer({
           maxLength={MAX_LEN}
           aria-label="Message input"
         />
-        <div className="chat-composer-hint">
-          <span>
-            {nearLimit ? (
-              <span className="is-warn">
-                {remaining} character{remaining === 1 ? '' : 's'} left
-              </span>
-            ) : (
-              'Enter to send · Shift+Enter for a new line'
-            )}
-          </span>
-        </div>
       </div>
 
       <button

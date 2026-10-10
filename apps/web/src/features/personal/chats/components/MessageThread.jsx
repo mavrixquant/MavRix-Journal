@@ -430,10 +430,29 @@ export default function MessageThread({ conversationId, onBack }) {
 
         {messages.map((msg, idx) => {
           const prev = messages[idx - 1];
+          const next = messages[idx + 1];
           const showDaySep = !prev || dayKey(prev.createdAt) !== dayKey(msg.createdAt);
           const isOwn = msg.senderId === currentUserId;
           const isDeleted = !!msg.deleted;
           const isEditing = editingId === msg.id;
+
+          // Timestamp grouping — hide the time on every message EXCEPT the
+          // last in a run of messages that share the same HH:MM, same sender,
+          // and same calendar day. Different senders are never merged into
+          // one visual group even if the minute matches — otherwise the
+          // earlier message would render with no time at all.
+          const sameDayAsNext =
+            next && dayKey(next.createdAt) === dayKey(msg.createdAt);
+          const sameMinuteAsNext =
+            next && formatTime(next.createdAt) === formatTime(msg.createdAt);
+          const sameSenderAsNext =
+            next && next.senderId === msg.senderId;
+          const isLastInGroup =
+            !next || !sameDayAsNext || !sameMinuteAsNext || !sameSenderAsNext;
+
+          const showEditedBadge = !!(msg.editedAt && !isDeleted);
+          const showTicks = isOwn && !isDeleted;
+          const showMetaRow = isLastInGroup || showEditedBadge || showTicks;
 
           return (
             <div key={msg.id} style={{ display: 'contents' }}>
@@ -480,13 +499,17 @@ export default function MessageThread({ conversationId, onBack }) {
                       {isDeleted ? '[message deleted]' : (msg.body || '')}
                     </div>
 
-                    <div className="chat-msg-meta">
-                      <span>{formatTime(msg.createdAt)}</span>
-                      {msg.editedAt && !isDeleted && (
-                        <span className="chat-msg-edited">· edited</span>
-                      )}
-                      {isOwn && !isDeleted && <MessageTicks msg={msg} />}
-                    </div>
+                    {showMetaRow && (
+                      <div className="chat-msg-meta">
+                        {isLastInGroup && <span>{formatTime(msg.createdAt)}</span>}
+                        {showEditedBadge && (
+                          <span className="chat-msg-edited">
+                            {isLastInGroup ? '· edited' : 'edited'}
+                          </span>
+                        )}
+                        {showTicks && <MessageTicks msg={msg} />}
+                      </div>
+                    )}
                   </>
                 )}
               </div>
