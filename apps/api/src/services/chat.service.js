@@ -4,6 +4,11 @@
 // first — that is the ONLY access-control check for chat, and it is the
 // guarantee that no admin route can ever see these conversations.
 //
+// Conversation types:
+//   'dm'    — one-to-one direct message. `dmKey` is set. Peer lookup used.
+//   'group' — multi-user group. `name`, `visibility`, etc. are set. Any
+//             participant can read/write. Group creation is admin-only.
+//
 // SSE events emitted (all via broadcastToUser):
 //   chat:message:new         { conversationId, message }                       -> all participants
 //   chat:message:edited      { conversationId, messageId, body, editedAt }     -> all participants
@@ -28,6 +33,8 @@ const EDIT_WINDOW_MS = 15 * 60 * 1000;
 const PREVIEW_MAX = 120;
 const MESSAGE_PAGE_DEFAULT = 50;
 const MESSAGE_PAGE_MAX = 100;
+const GROUP_DISCOVER_DEFAULT_LIMIT = 50;
+const GROUP_DISCOVER_MAX_LIMIT = 100;
 
 /* ------------------------------------------------------------------ */
 /*  Serializers                                                        */
@@ -60,23 +67,48 @@ function serializeMessage(m) {
   };
 }
 
+/**
+ * Unified serializer for both DM and group conversations.
+ *
+ * For DMs, `peer` is the other user and every group-metadata field is null.
+ * For groups, `peer` is null and the metadata fields are populated.
+ * `role` is the CALLER's role in this conversation — always 'member' for DMs.
+ */
 function serializeConversation(c, userId, participantRow) {
-  const peer =
-    c.type === 'dm'
-      ? c.participants.find((p) => p.userId !== userId)?.user || null
-      : null;
+  const isGroup = c.type === 'group';
+
+  const peer = !isGroup
+    ? c.participants.find((p) => p.userId !== userId)?.user || null
+    : null;
 
   return {
     id: c.id,
     type: c.type,
+    isGroup,
+
     peer: serializePublicUser(peer),
+
+    // Group metadata — all null for DMs.
+    name: isGroup ? c.name : null,
+    description: isGroup ? c.description : null,
+    visibility: isGroup ? c.visibility : null,
+    color: isGroup ? c.color : null,
+    iconEmoji: isGroup ? c.iconEmoji : null,
+    createdById: isGroup ? c.createdById : null,
+    memberCount: isGroup ? c.memberCount : null,
+
+    // Caller's role. 'member' for DMs by default.
+    role: participantRow.role || 'member',
+
     lastMessageAt: c.lastMessageAt,
     lastMessageText: c.lastMessageText,
     lastMessageById: c.lastMessageById,
+
     unreadCount: participantRow.unreadCount,
     isPinned: participantRow.isPinned,
     isMuted: participantRow.isMuted,
     isArchived: participantRow.isArchived,
+
     createdAt: c.createdAt,
   };
 }
@@ -85,6 +117,14 @@ function serializeConversation(c, userId, participantRow) {
 /*  Guards                                                             */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Returns the caller's participant row for a conversation.
+ * Throws 404 if the row is missing — never 403, to avoid leaking
+ * conversation existence.
+ *
+ * The returned object includes `role`, which group-scoped callers use
+ * to decide ownership / moderator actions.
+ */
 async function assertParticipant(userId, conversationId) {
   const row = await prisma.conversationParticipant.findUnique({
     where: { conversationId_userId: { conversationId, userId } },
@@ -94,9 +134,9 @@ async function assertParticipant(userId, conversationId) {
       isPinned: true,
       isMuted: true,
       isArchived: true,
+      role: true,
     },
   });
-  // 404 (not 403) to avoid leaking conversation existence.
   if (!row) throw new HttpError(404, 'Conversation not found');
   return row;
 }
@@ -153,7 +193,7 @@ export async function searchUsers(userId, q) {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Conversations                                                      */
+/*  DMs                                                                */
 /* ------------------------------------------------------------------ */
 
 function dmKeyFor(a, b) {
@@ -220,6 +260,10 @@ export async function getOrCreateDm(userId, peerId) {
   const myRow = await assertParticipant(userId, created.id);
   return serializeConversation(created, userId, myRow);
 }
+
+/* ------------------------------------------------------------------ */
+/*  Conversations                                                      */
+/* ------------------------------------------------------------------ */
 
 export async function listConversations(userId) {
   const rows = await prisma.conversationParticipant.findMany({
@@ -522,13 +566,6 @@ export async function deleteMessage(userId, messageId, scope) {
 /*  Delivery + Read receipts                                           */
 /* ------------------------------------------------------------------ */
 
-/**
- * Mark an inbound message as delivered. Called by the non-sender's device
- * when it receives the message via SSE. Idempotent, non-sender only.
- *
- * The sender's own device calling this returns { skipped: 'sender' } so a
- * client bug can't fake a delivery receipt.
- */
 export async function markDelivered(userId, messageId) {
   const msg = await prisma.message.findUnique({
     where: { id: messageId },
@@ -564,17 +601,6 @@ export async function markDelivered(userId, messageId) {
   return { ok: true, deliveredAt: updated.deliveredAt };
 }
 
-/**
- * Mark a conversation read. Called when the non-sender opens the thread.
- *
- * In one transaction:
- *   - sets deliveredAt + readAt on every inbound message that hasn't been
- *     read yet (covers both live delivery and the offline reconnection case)
- *   - resets the participant's unreadCount, lastReadAt, lastReadMsgId
- *
- * Then broadcasts chat:read to the OTHER participant(s) so the sender's
- * tick cluster updates live.
- */
 export async function markRead(userId, conversationId) {
   await assertParticipant(userId, conversationId);
 
@@ -591,7 +617,6 @@ export async function markRead(userId, conversationId) {
   const now = new Date();
 
   await prisma.$transaction(async (tx) => {
-    // Bulk mark inbound messages as delivered + read.
     await tx.message.updateMany({
       where: {
         conversationId,
@@ -614,7 +639,6 @@ export async function markRead(userId, conversationId) {
     });
   });
 
-  // Broadcast to the OTHER participant(s) only — the reader already knows.
   const participantIds = await getParticipantIds(conversationId);
   const payload = {
     conversationId,
@@ -647,4 +671,235 @@ export async function broadcastTyping(userId, conversationId, isTyping) {
     });
   }
   return { ok: true };
+}
+
+/* ------------------------------------------------------------------ */
+/*  Groups — user-facing surface                                       */
+/*                                                                     */
+/*  Group *creation* and full administration live under                */
+/*  /api/admin/groups/* (see adminGroups.service.js). This file only   */
+/*  handles the four actions a normal user can take:                   */
+/*                                                                     */
+/*    • browse public groups they aren't in                             */
+/*    • self-join a public group                                        */
+/*    • leave a group they belong to                                    */
+/*    • list the members of a group they belong to                      */
+/* ------------------------------------------------------------------ */
+
+/**
+ * List every PUBLIC group that `userId` is NOT already a member of.
+ * Optionally filtered by name (`q`, case-insensitive, substring).
+ * Ordered by memberCount desc, then createdAt desc — busiest groups first.
+ */
+export async function listDiscoverablePublicGroups(
+  userId,
+  { q = '', limit = GROUP_DISCOVER_DEFAULT_LIMIT } = {}
+) {
+  const memberships = await prisma.conversationParticipant.findMany({
+    where: { userId },
+    select: { conversationId: true },
+  });
+  const excludedIds = memberships.map((m) => m.conversationId);
+
+  const where = {
+    type: 'group',
+    visibility: 'public',
+    memberCount: { gt: 0 },
+    id: { notIn: excludedIds },
+  };
+
+  const trimmed = String(q || '').trim();
+  if (trimmed) {
+    where.name = { contains: trimmed, mode: 'insensitive' };
+  }
+
+  const capped = Math.min(
+    Math.max(1, Number(limit) || GROUP_DISCOVER_DEFAULT_LIMIT),
+    GROUP_DISCOVER_MAX_LIMIT
+  );
+
+  const rows = await prisma.conversation.findMany({
+    where,
+    orderBy: [{ memberCount: 'desc' }, { createdAt: 'desc' }],
+    take: capped,
+    include: {
+      createdBy: {
+        select: {
+          id: true, email: true, firstName: true, lastName: true, photoUrl: true,
+        },
+      },
+    },
+  });
+
+  return rows.map((c) => ({
+    id: c.id,
+    type: c.type,
+    name: c.name,
+    description: c.description,
+    visibility: c.visibility,
+    color: c.color,
+    iconEmoji: c.iconEmoji,
+    memberCount: c.memberCount,
+    createdAt: c.createdAt,
+    createdBy: serializePublicUser(c.createdBy),
+  }));
+}
+
+/**
+ * Self-join a PUBLIC group. Idempotent — if the caller is already a member,
+ * returns the existing conversation unchanged.
+ *
+ * Refuses:
+ *   • non-group conversation ids (404 — would otherwise leak DM existence)
+ *   • private groups (403 — user must be added by an admin)
+ */
+export async function joinPublicGroup(userId, groupId) {
+  const group = await prisma.conversation.findUnique({
+    where: { id: groupId },
+    select: { id: true, type: true, visibility: true },
+  });
+  if (!group || group.type !== 'group') {
+    throw new HttpError(404, 'Group not found');
+  }
+  if (group.visibility !== 'public') {
+    throw new HttpError(403, 'This group is private. Ask an admin to add you.');
+  }
+
+  const existing = await prisma.conversationParticipant.findUnique({
+    where: { conversationId_userId: { conversationId: groupId, userId } },
+    select: { id: true },
+  });
+
+  if (!existing) {
+    await prisma.$transaction(async (tx) => {
+      await tx.conversationParticipant.create({
+        data: { conversationId: groupId, userId, role: 'member' },
+      });
+      await tx.conversation.update({
+        where: { id: groupId },
+        data: { memberCount: { increment: 1 } },
+      });
+    });
+  }
+
+  const full = await prisma.conversation.findUnique({
+    where: { id: groupId },
+    include: {
+      participants: {
+        include: {
+          user: {
+            select: {
+              id: true, email: true, firstName: true, lastName: true, photoUrl: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  const myRow = await assertParticipant(userId, groupId);
+  return serializeConversation(full, userId, myRow);
+}
+
+/**
+ * Leave a group. Idempotent — leaving a group you're not in succeeds.
+ *
+ * Refuses:
+ *   • DMs (400 — DMs have no leave semantics)
+ *   • the last owner leaving (400 — must transfer ownership first)
+ */
+export async function leaveGroup(userId, groupId) {
+  const conv = await prisma.conversation.findUnique({
+    where: { id: groupId },
+    select: { id: true, type: true },
+  });
+  if (!conv) throw new HttpError(404, 'Conversation not found');
+  if (conv.type === 'dm') {
+    throw new HttpError(400, 'You cannot leave a direct message.');
+  }
+  if (conv.type !== 'group') {
+    throw new HttpError(400, 'Not a group');
+  }
+
+  const participant = await prisma.conversationParticipant.findUnique({
+    where: { conversationId_userId: { conversationId: groupId, userId } },
+    select: { id: true, role: true },
+  });
+
+  if (!participant) {
+    return { ok: true, alreadyLeft: true };
+  }
+
+  if (participant.role === 'owner') {
+    const ownerCount = await prisma.conversationParticipant.count({
+      where: { conversationId: groupId, role: 'owner' },
+    });
+    if (ownerCount <= 1) {
+      throw new HttpError(
+        400,
+        'You are the group owner. Transfer ownership or delete the group before leaving.'
+      );
+    }
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.conversationParticipant.delete({
+      where: { conversationId_userId: { conversationId: groupId, userId } },
+    });
+    const fresh = await tx.conversation.findUnique({
+      where: { id: groupId },
+      select: { memberCount: true },
+    });
+    if (fresh && fresh.memberCount > 0) {
+      await tx.conversation.update({
+        where: { id: groupId },
+        data: { memberCount: { decrement: 1 } },
+      });
+    }
+  });
+
+  return { ok: true };
+}
+
+/**
+ * List every member of a group the caller belongs to.
+ * Ordered by role (owner → moderator → member), then join time ascending.
+ */
+export async function listGroupMembers(userId, groupId) {
+  await assertParticipant(userId, groupId);
+
+  const conv = await prisma.conversation.findUnique({
+    where: { id: groupId },
+    select: { type: true },
+  });
+  if (!conv || conv.type !== 'group') {
+    throw new HttpError(404, 'Group not found');
+  }
+
+  const rows = await prisma.conversationParticipant.findMany({
+    where: { conversationId: groupId },
+    include: {
+      user: {
+        select: {
+          id: true, email: true, firstName: true, lastName: true, photoUrl: true,
+        },
+      },
+    },
+  });
+
+  const rank = { owner: 0, moderator: 1, member: 2 };
+  rows.sort((a, b) => {
+    const ra = rank[a.role] ?? 99;
+    const rb = rank[b.role] ?? 99;
+    if (ra !== rb) return ra - rb;
+    return a.joinedAt.getTime() - b.joinedAt.getTime();
+  });
+
+  return rows.map((p) => ({
+    id: p.id,
+    userId: p.userId,
+    role: p.role,
+    joinedAt: p.joinedAt,
+    user: serializePublicUser(p.user),
+  }));
 }

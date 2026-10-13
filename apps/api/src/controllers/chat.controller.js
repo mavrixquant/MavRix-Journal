@@ -2,12 +2,20 @@
 
 import * as svc from '../services/chat.service.js';
 
+/* ------------------------------------------------------------------ */
+/*  Users                                                              */
+/* ------------------------------------------------------------------ */
+
 export async function searchUsers(req, res, next) {
   try {
     const users = await svc.searchUsers(req.userId, req.query.q);
     res.json({ users });
   } catch (e) { next(e); }
 }
+
+/* ------------------------------------------------------------------ */
+/*  Conversations                                                      */
+/* ------------------------------------------------------------------ */
 
 export async function listConversations(req, res, next) {
   try {
@@ -40,6 +48,10 @@ export async function updateConversation(req, res, next) {
     res.json(result);
   } catch (e) { next(e); }
 }
+
+/* ------------------------------------------------------------------ */
+/*  Messages                                                           */
+/* ------------------------------------------------------------------ */
 
 export async function listMessages(req, res, next) {
   try {
@@ -99,5 +111,40 @@ export async function deleteMessage(req, res, next) {
     const scope = req.query.scope === 'all' ? 'all' : 'me';
     const result = await svc.deleteMessage(req.userId, req.params.messageId, scope);
     res.json(result);
+  } catch (e) { next(e); }
+}
+
+/* ------------------------------------------------------------------ */
+/*  Groups — user-facing surface                                       */
+/* ------------------------------------------------------------------ */
+
+export async function discoverGroups(req, res, next) {
+  try {
+    const groups = await svc.listDiscoverablePublicGroups(req.userId, {
+      q: req.query.q,
+      limit: req.query.limit,
+    });
+    res.json({ groups });
+  } catch (e) { next(e); }
+}
+
+export async function joinGroup(req, res, next) {
+  try {
+    const conversation = await svc.joinPublicGroup(req.userId, req.params.id);
+    res.json({ conversation });
+  } catch (e) { next(e); }
+}
+
+export async function leaveGroup(req, res, next) {
+  try {
+    const result = await svc.leaveGroup(req.userId, req.params.id);
+    res.json(result);
+  } catch (e) { next(e); }
+}
+
+export async function listGroupMembers(req, res, next) {
+  try {
+    const members = await svc.listGroupMembers(req.userId, req.params.id);
+    res.json({ members });
   } catch (e) { next(e); }
 }
