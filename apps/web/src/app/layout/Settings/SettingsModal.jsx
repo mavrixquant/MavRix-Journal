@@ -5,8 +5,8 @@
 //   - Settings icon → Preferences tab
 //   - User pill     → Account tab
 //
-// Phase 1 ships the shell + the fully-functional Account panel. Every other
-// tab renders a "Coming in Phase 2" placeholder.
+// All 7 tabs are functional. Preference persistence lives in
+// SettingsProvider (mounted at the app root).
 
 import { useEffect, useState } from 'react';
 import {
@@ -21,8 +21,15 @@ import {
 } from 'lucide-react';
 
 import Portal from '@/shared/components/Portal';
-import AccountPanel from './panels/AccountPanel';
-import PlaceholderPanel from './panels/PlaceholderPanel';
+
+import AccountPanel       from './panels/AccountPanel';
+import AppearancePanel    from './panels/AppearancePanel';
+import PreferencesPanel   from './panels/PreferencesPanel';
+import NotificationsPanel from './panels/NotificationsPanel';
+import ChatsPanel         from './panels/ChatsPanel';
+import DataPanel          from './panels/DataPanel';
+import AboutPanel         from './panels/AboutPanel';
+
 import './SettingsModal.css';
 
 /* ------------------------------------------------------------------ */
@@ -82,6 +89,23 @@ const TABS = [
 ];
 
 /* ------------------------------------------------------------------ */
+/*  Panel dispatch                                                     */
+/* ------------------------------------------------------------------ */
+
+function renderPanel(id) {
+  switch (id) {
+    case 'account':       return <AccountPanel />;
+    case 'appearance':    return <AppearancePanel />;
+    case 'preferences':   return <PreferencesPanel />;
+    case 'notifications': return <NotificationsPanel />;
+    case 'chats':         return <ChatsPanel />;
+    case 'data':          return <DataPanel />;
+    case 'about':         return <AboutPanel />;
+    default:              return null;
+  }
+}
+
+/* ------------------------------------------------------------------ */
 /*  Component                                                          */
 /* ------------------------------------------------------------------ */
 
@@ -92,14 +116,13 @@ export default function SettingsModal({
 }) {
   const [activeTab, setActiveTab] = useState(initialTab);
 
-  // Re-sync the active tab whenever the modal is (re)opened from a different
-  // entry point. If the user closes via Account and reopens via Palette,
-  // they land on Appearance, not Account.
+  // Re-sync the active tab whenever the modal is (re)opened from a
+  // different entry point.
   useEffect(() => {
     if (isOpen) setActiveTab(initialTab);
   }, [isOpen, initialTab]);
 
-  // Escape closes. Bound only while the modal is open.
+  // Escape closes.
   useEffect(() => {
     if (!isOpen) return undefined;
     const onKey = (e) => {
@@ -127,7 +150,7 @@ export default function SettingsModal({
           aria-modal="true"
           aria-label="Settings"
         >
-          {/* ---------- Left rail: navigation ---------- */}
+          {/* ---------- Left rail ---------- */}
           <aside className="settings-rail">
             <div className="settings-rail-head">
               <span className="settings-rail-eyebrow">Preferences</span>
@@ -154,7 +177,7 @@ export default function SettingsModal({
             </nav>
           </aside>
 
-          {/* ---------- Right pane: content ---------- */}
+          {/* ---------- Right pane ---------- */}
           <section className="settings-pane">
             <header className="settings-pane-head">
               <div className="settings-pane-headtext">
@@ -176,49 +199,7 @@ export default function SettingsModal({
             </header>
 
             <div className="settings-pane-body">
-              {activeTab === 'account' && <AccountPanel />}
-
-              {activeTab === 'appearance' && (
-                <PlaceholderPanel
-                  title="Appearance options coming soon"
-                  description="Accent color, density, font size, and reduced-motion toggles will live here."
-                />
-              )}
-
-              {activeTab === 'preferences' && (
-                <PlaceholderPanel
-                  title="Preferences coming soon"
-                  description="Default landing page, time format, date format, and confirmation behaviour will live here."
-                />
-              )}
-
-              {activeTab === 'notifications' && (
-                <PlaceholderPanel
-                  title="Notification controls coming soon"
-                  description="Broadcast banners, chat alerts, sound, and typing indicators will be configurable here."
-                />
-              )}
-
-              {activeTab === 'chats' && (
-                <PlaceholderPanel
-                  title="Chat preferences coming soon"
-                  description="Composer behaviour, read receipts, and inline typing display will be configurable here."
-                />
-              )}
-
-              {activeTab === 'data' && (
-                <PlaceholderPanel
-                  title="Data controls coming soon"
-                  description="Export your data, clear the local cache, and reset saved dashboard layouts from here."
-                />
-              )}
-
-              {activeTab === 'about' && (
-                <PlaceholderPanel
-                  title="About & support coming soon"
-                  description="Version info, terms, privacy, and support contact will live here."
-                />
-              )}
+              {renderPanel(activeTab)}
             </div>
           </section>
         </div>

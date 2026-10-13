@@ -1,16 +1,16 @@
 /* apps/web/src/app/layout/Settings/SettingsModal.css
-   Global settings modal — shell, navigation, panel primitives, and the
-   account panel. All classes are namespaced under `.settings-*` so nothing
-   leaks into the rest of the app. */
+   Global settings modal — shell, navigation, panel primitives, and every
+   panel's shared controls. Namespaced under `.settings-*` so nothing
+   leaks elsewhere.
+
+   Accent variables are INHERITED from :root so the user-selected accent
+   (set by SettingsProvider) flows through this modal automatically. */
 
 /* ============================================================
    Overlay + modal shell
    ============================================================ */
 .settings-overlay {
-  --accent: #F59E0B;
-  --accent-2: #FDE68A;
-  --accent-soft: rgba(245,158,11,.10);
-  --accent-soft2: rgba(245,158,11,.28);
+  /* Non-themed tokens remain scoped to the overlay. */
   --line: rgba(255,255,255,.085);
   --line-soft: rgba(255,255,255,.05);
   --ink-1: #E7E9EE;
@@ -52,7 +52,6 @@
   -webkit-font-smoothing: antialiased;
 }
 
-/* Amber gradient hairline on top of the entire modal */
 .settings-modal::before {
   content: '';
   position: absolute;
@@ -144,7 +143,7 @@
 }
 .settings-tab.is-active {
   color: var(--accent);
-  background: linear-gradient(90deg, rgba(245,158,11,.14), rgba(245,158,11,.04) 75%, transparent);
+  background: linear-gradient(90deg, var(--accent-soft), var(--accent-soft) 40%, transparent 92%);
   border-color: var(--accent-soft2);
   font-weight: 700;
 }
@@ -157,19 +156,16 @@
   width: 3px;
   border-radius: 0 3px 3px 0;
   background: linear-gradient(180deg, var(--accent), var(--accent-2));
-  box-shadow: 0 0 10px rgba(245,158,11,.75);
+  box-shadow: 0 0 10px var(--accent-soft2);
 }
 .settings-tab:focus-visible {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(245,158,11,.18);
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
-.settings-tab svg {
-  flex-shrink: 0;
-  opacity: .85;
-}
+.settings-tab svg { flex-shrink: 0; opacity: .85; }
 .settings-tab.is-active svg {
   opacity: 1;
-  filter: drop-shadow(0 0 6px rgba(245,158,11,.6));
+  filter: drop-shadow(0 0 6px var(--accent-soft2));
 }
 
 /* ============================================================
@@ -239,12 +235,12 @@
 }
 .settings-close:hover {
   color: var(--accent);
-  background: rgba(245,158,11,.08);
+  background: var(--accent-soft);
   border-color: var(--accent-soft2);
 }
 .settings-close:focus-visible {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(245,158,11,.18);
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
 .settings-pane-body {
@@ -259,12 +255,11 @@
   border-radius: 99px;
 }
 .settings-pane-body::-webkit-scrollbar-thumb:hover {
-  background: rgba(245,158,11,.35);
+  background: var(--accent-soft2);
 }
 
 /* ============================================================
    Reusable section primitives
-   (used by AccountPanel today, and by Phase 2 panels later)
    ============================================================ */
 .settings-section {
   padding: 16px 18px;
@@ -273,7 +268,7 @@
   border: 1px solid var(--line-soft);
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
   margin-bottom: 16px;
 }
 .settings-section:last-child { margin-bottom: 0; }
@@ -289,6 +284,16 @@
   line-height: 1;
 }
 
+.settings-hint {
+  margin: 0;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 11.5px;
+  color: var(--ink-2);
+  line-height: 1.65;
+  letter-spacing: .01em;
+}
+
+/* ---------- Read-only field rows (Account panel) ---------- */
 .settings-field-row {
   display: flex;
   align-items: center;
@@ -300,9 +305,8 @@
   border-radius: 10px;
   transition: border-color .2s ease;
 }
-.settings-field-row:hover {
-  border-color: rgba(255,255,255,.12);
-}
+.settings-field-row:hover { border-color: rgba(255,255,255,.12); }
+
 .settings-field-label {
   font-family: 'IBM Plex Mono', ui-monospace, monospace;
   font-size: 10px;
@@ -320,6 +324,160 @@
   text-align: right;
   word-break: break-all;
   min-width: 0;
+}
+
+/* ---------- Interactive option rows ---------- */
+.settings-options-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 14px;
+  background: rgba(255,255,255,.02);
+  border: 1px solid var(--line-soft);
+  border-radius: 10px;
+  transition: border-color .2s ease;
+}
+.settings-options-row + .settings-options-row { margin-top: 8px; }
+.settings-options-row:hover { border-color: rgba(255,255,255,.12); }
+
+.settings-options-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  flex: 1;
+}
+.settings-options-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-1);
+  letter-spacing: -.005em;
+  line-height: 1.3;
+}
+.settings-options-desc {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 11px;
+  color: var(--ink-2);
+  line-height: 1.55;
+  letter-spacing: .01em;
+}
+
+/* ============================================================
+   Controls
+   ============================================================ */
+
+/* ---------- Toggle switch ---------- */
+.settings-switch {
+  position: relative;
+  width: 42px;
+  height: 24px;
+  padding: 0;
+  border-radius: 99px;
+  border: 1px solid rgba(255,255,255,.1);
+  background: rgba(255,255,255,.08);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background-color .18s ease, border-color .18s ease;
+  outline: none;
+}
+.settings-switch::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #E7E9EE;
+  box-shadow: 0 2px 6px rgba(0,0,0,.4);
+  transition: transform .18s cubic-bezier(.2,.8,.25,1), background-color .18s ease;
+}
+.settings-switch.is-on {
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  border-color: var(--accent-soft2);
+}
+.settings-switch.is-on::after {
+  background: #0D1117;
+  transform: translateX(18px);
+}
+.settings-switch:focus-visible {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+/* ---------- Segmented control ---------- */
+.settings-segmented {
+  display: inline-flex;
+  padding: 3px;
+  gap: 2px;
+  background: rgba(0,0,0,.32);
+  border: 1px solid var(--line-soft);
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+.settings-segmented-btn {
+  padding: 6px 12px;
+  border-radius: 7px;
+  border: none;
+  background: transparent;
+  color: var(--ink-2);
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .02em;
+  cursor: pointer;
+  transition: all .18s ease;
+  white-space: nowrap;
+}
+.settings-segmented-btn:hover:not(.is-active) {
+  color: var(--ink-1);
+  background: rgba(255,255,255,.04);
+}
+.settings-segmented-btn.is-active {
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: #0D1117;
+  font-weight: 700;
+  box-shadow: 0 4px 12px -4px var(--accent-soft);
+}
+.settings-segmented-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+/* ---------- Accent swatches ---------- */
+.settings-colors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.settings-color {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 10px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(13,17,23,.75);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.35);
+  transition: transform .18s cubic-bezier(.2,.8,.25,1), border-color .18s, box-shadow .2s;
+  outline: none;
+}
+.settings-color:hover { transform: scale(1.08); }
+.settings-color.is-active {
+  border-color: #FFFFFF;
+  box-shadow:
+    0 0 0 3px rgba(255,255,255,.14),
+    0 0 18px var(--swatch-color, transparent),
+    inset 0 1px 0 rgba(255,255,255,.35);
+}
+.settings-color:focus-visible {
+  border-color: #FFFFFF;
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
 /* ============================================================
@@ -344,29 +502,35 @@
   white-space: nowrap;
   outline: none;
   width: fit-content;
+  text-decoration: none;
 }
-.settings-btn:hover:not(:disabled) {
+.settings-btn:hover:not(:disabled):not([aria-disabled="true"]) {
   transform: translateY(-1px);
   border-color: rgba(255,255,255,.24);
   background: rgba(255,255,255,.06);
 }
 .settings-btn:active:not(:disabled) { transform: translateY(0) scale(.98); }
-.settings-btn:disabled { opacity: .5; cursor: not-allowed; }
+.settings-btn:disabled,
+.settings-btn[aria-disabled="true"] {
+  opacity: .45;
+  cursor: not-allowed;
+  pointer-events: none;
+}
 .settings-btn:focus-visible {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(245,158,11,.18);
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
 .settings-btn-primary {
   border-color: var(--accent-soft2);
-  background: rgba(245,158,11,.08);
+  background: var(--accent-soft);
   color: var(--accent);
 }
 .settings-btn-primary:hover:not(:disabled) {
-  background: rgba(245,158,11,.16);
+  background: var(--accent-soft2);
   border-color: var(--accent);
   color: var(--accent-2);
-  box-shadow: 0 0 20px -6px rgba(245,158,11,.5);
+  box-shadow: 0 0 20px -6px var(--accent-soft2);
 }
 
 .settings-btn-danger {
@@ -379,6 +543,45 @@
   border-color: rgba(239,68,68,.55);
   color: #fca5a5;
   box-shadow: 0 0 20px -6px rgba(239,68,68,.5);
+}
+
+/* ============================================================
+   Key/value grid (About panel)
+   ============================================================ */
+.settings-kv {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: 8px 16px;
+  margin: 0;
+  padding: 14px 16px;
+  background: rgba(255,255,255,.02);
+  border: 1px solid var(--line-soft);
+  border-radius: 12px;
+}
+.settings-kv dt {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .02em;
+  color: var(--ink-3);
+}
+.settings-kv dd {
+  margin: 0;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 12px;
+  color: var(--ink-1);
+  word-break: break-all;
+}
+
+/* ============================================================
+   Danger zone
+   ============================================================ */
+.settings-danger-zone {
+  border-color: rgba(239,68,68,.28) !important;
+  background: rgba(239,68,68,.03) !important;
+}
+.settings-danger-zone .settings-section-title {
+  color: #f87171;
 }
 
 /* ============================================================
@@ -398,6 +601,14 @@
 }
 
 /* ============================================================
+   Spinner
+   ============================================================ */
+.settings-spin {
+  animation: settingsSpin .9s linear infinite;
+}
+@keyframes settingsSpin { to { transform: rotate(360deg); } }
+
+/* ============================================================
    Account panel
    ============================================================ */
 .settings-account-head {
@@ -415,7 +626,7 @@
   width: 56px;
   height: 56px;
   border-radius: 50%;
-  background: linear-gradient(135deg, rgba(245,158,11,.18), rgba(245,158,11,.05));
+  background: linear-gradient(135deg, var(--accent-soft), rgba(255,255,255,.03));
   border: 1px solid var(--accent-soft2);
   display: flex;
   align-items: center;
@@ -425,7 +636,7 @@
   font-size: 18px;
   color: var(--accent);
   object-fit: cover;
-  box-shadow: 0 0 24px -8px rgba(245,158,11,.5);
+  box-shadow: 0 0 24px -8px var(--accent-soft2);
   flex-shrink: 0;
 }
 
@@ -527,7 +738,7 @@
 }
 
 /* ============================================================
-   Placeholder panel
+   Placeholder (kept for future tabs)
    ============================================================ */
 .settings-placeholder {
   display: flex;
@@ -547,7 +758,7 @@
   align-items: center;
   padding: 5px 12px;
   border-radius: 99px;
-  background: rgba(245,158,11,.08);
+  background: var(--accent-soft);
   border: 1px solid var(--accent-soft2);
   color: var(--accent);
   font-family: 'IBM Plex Mono', ui-monospace, monospace;
@@ -596,11 +807,15 @@
   .settings-modal { animation: none !important; }
   .settings-tab,
   .settings-close,
-  .settings-btn { transition: none !important; }
+  .settings-btn,
+  .settings-switch,
+  .settings-color,
+  .settings-segmented-btn { transition: none !important; }
+  .settings-spin { animation: none !important; }
 }
 
 /* ============================================================
-   Mobile — stack rail above pane
+   Mobile
    ============================================================ */
 @media (max-width: 720px) {
   .settings-modal {
@@ -617,9 +832,7 @@
     gap: 10px;
   }
 
-  .settings-rail-head {
-    padding: 0 4px 10px;
-  }
+  .settings-rail-head { padding: 0 4px 10px; }
 
   .settings-rail-nav {
     flex-direction: row;
@@ -638,12 +851,25 @@
   }
   .settings-tab.is-active::before { display: none; }
 
-  .settings-pane-head {
-    padding: 16px 18px 12px;
-  }
+  .settings-pane-head { padding: 16px 18px 12px; }
   .settings-pane-title { font-size: 17px; }
 
-  .settings-pane-body {
-    padding: 16px 18px 22px;
+  .settings-pane-body { padding: 16px 18px 22px; }
+
+  .settings-options-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
   }
+  .settings-options-row > .settings-segmented,
+  .settings-options-row > .settings-switch,
+  .settings-options-row > .settings-btn {
+    align-self: flex-start;
+  }
+
+  .settings-kv {
+    grid-template-columns: 1fr;
+    gap: 3px 0;
+  }
+  .settings-kv dt { margin-top: 6px; }
 }
