@@ -1,0 +1,649 @@
+/* apps/web/src/app/layout/Settings/SettingsModal.css
+   Global settings modal — shell, navigation, panel primitives, and the
+   account panel. All classes are namespaced under `.settings-*` so nothing
+   leaks into the rest of the app. */
+
+/* ============================================================
+   Overlay + modal shell
+   ============================================================ */
+.settings-overlay {
+  --accent: #F59E0B;
+  --accent-2: #FDE68A;
+  --accent-soft: rgba(245,158,11,.10);
+  --accent-soft2: rgba(245,158,11,.28);
+  --line: rgba(255,255,255,.085);
+  --line-soft: rgba(255,255,255,.05);
+  --ink-1: #E7E9EE;
+  --ink-2: #8892A3;
+  --ink-3: #545E6E;
+  --win: #22c55e;
+  --loss: #ef4444;
+
+  position: fixed;
+  inset: 0;
+  z-index: 1500;
+  background: rgba(4,6,9,.72);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  animation: settingsFade .18s ease;
+}
+
+.settings-modal {
+  position: relative;
+  width: 100%;
+  max-width: 960px;
+  height: min(640px, calc(100vh - 40px));
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  background: linear-gradient(180deg, #12161F, #0C1017);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  box-shadow:
+    0 40px 100px -30px rgba(0,0,0,.95),
+    0 0 0 1px var(--accent-soft);
+  color: var(--ink-1);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
+  overflow: hidden;
+  animation: settingsPop .28s cubic-bezier(.2,.8,.25,1);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Amber gradient hairline on top of the entire modal */
+.settings-modal::before {
+  content: '';
+  position: absolute;
+  left: 0; right: 0; top: 0; height: 2px;
+  background: linear-gradient(90deg, transparent, var(--accent), var(--accent-2), var(--accent), transparent);
+  background-size: 200% 100%;
+  animation: settingsGrad 4s linear infinite;
+  pointer-events: none;
+  z-index: 3;
+}
+
+/* ============================================================
+   Left rail
+   ============================================================ */
+.settings-rail {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: rgba(0,0,0,.22);
+  border-right: 1px solid var(--line-soft);
+  padding: 20px 10px 14px;
+  gap: 14px;
+}
+
+.settings-rail-head {
+  padding: 0 10px 12px;
+  border-bottom: 1px solid var(--line-soft);
+  flex-shrink: 0;
+}
+.settings-rail-eyebrow {
+  display: block;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 4px;
+  line-height: 1;
+}
+.settings-rail-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -.015em;
+  color: var(--ink-1);
+  line-height: 1.2;
+}
+
+.settings-rail-nav {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-right: 2px;
+}
+.settings-rail-nav::-webkit-scrollbar { width: 6px; }
+.settings-rail-nav::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,.08);
+  border-radius: 99px;
+}
+
+.settings-tab {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 12px;
+  border-radius: 9px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--ink-2);
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .02em;
+  cursor: pointer;
+  text-align: left;
+  transition: background-color .16s ease, color .16s ease, border-color .16s ease;
+  outline: none;
+  white-space: nowrap;
+}
+.settings-tab:hover {
+  color: var(--ink-1);
+  background: rgba(255,255,255,.04);
+}
+.settings-tab.is-active {
+  color: var(--accent);
+  background: linear-gradient(90deg, rgba(245,158,11,.14), rgba(245,158,11,.04) 75%, transparent);
+  border-color: var(--accent-soft2);
+  font-weight: 700;
+}
+.settings-tab.is-active::before {
+  content: '';
+  position: absolute;
+  left: -1px;
+  top: 7px;
+  bottom: 7px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: linear-gradient(180deg, var(--accent), var(--accent-2));
+  box-shadow: 0 0 10px rgba(245,158,11,.75);
+}
+.settings-tab:focus-visible {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(245,158,11,.18);
+}
+.settings-tab svg {
+  flex-shrink: 0;
+  opacity: .85;
+}
+.settings-tab.is-active svg {
+  opacity: 1;
+  filter: drop-shadow(0 0 6px rgba(245,158,11,.6));
+}
+
+/* ============================================================
+   Right pane
+   ============================================================ */
+.settings-pane {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+}
+
+.settings-pane-head {
+  flex-shrink: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 22px 26px 16px;
+  border-bottom: 1px solid var(--line-soft);
+}
+.settings-pane-headtext { min-width: 0; }
+.settings-pane-eyebrow {
+  display: block;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 6px;
+  line-height: 1;
+}
+.settings-pane-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -.02em;
+  color: var(--ink-1);
+  line-height: 1.2;
+}
+.settings-pane-sub {
+  margin: 6px 0 0;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--ink-2);
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  letter-spacing: .005em;
+  max-width: 560px;
+}
+
+.settings-close {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 9px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--ink-2);
+  cursor: pointer;
+  transition: all .18s ease;
+  outline: none;
+}
+.settings-close:hover {
+  color: var(--accent);
+  background: rgba(245,158,11,.08);
+  border-color: var(--accent-soft2);
+}
+.settings-close:focus-visible {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(245,158,11,.18);
+}
+
+.settings-pane-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 22px 26px 26px;
+}
+.settings-pane-body::-webkit-scrollbar { width: 8px; }
+.settings-pane-body::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,.08);
+  border-radius: 99px;
+}
+.settings-pane-body::-webkit-scrollbar-thumb:hover {
+  background: rgba(245,158,11,.35);
+}
+
+/* ============================================================
+   Reusable section primitives
+   (used by AccountPanel today, and by Phase 2 panels later)
+   ============================================================ */
+.settings-section {
+  padding: 16px 18px;
+  border-radius: 14px;
+  background: rgba(255,255,255,.02);
+  border: 1px solid var(--line-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.settings-section:last-child { margin-bottom: 0; }
+
+.settings-section-title {
+  margin: 0;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--accent);
+  line-height: 1;
+}
+
+.settings-field-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  background: rgba(255,255,255,.02);
+  border: 1px solid var(--line-soft);
+  border-radius: 10px;
+  transition: border-color .2s ease;
+}
+.settings-field-row:hover {
+  border-color: rgba(255,255,255,.12);
+}
+.settings-field-label {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  flex-shrink: 0;
+}
+.settings-field-value {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-1);
+  text-align: right;
+  word-break: break-all;
+  min-width: 0;
+}
+
+/* ============================================================
+   Buttons
+   ============================================================ */
+.settings-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 9px 16px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,.14);
+  background: rgba(255,255,255,.035);
+  color: var(--ink-1);
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: .02em;
+  cursor: pointer;
+  transition: all .22s cubic-bezier(.2,.8,.25,1);
+  white-space: nowrap;
+  outline: none;
+  width: fit-content;
+}
+.settings-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: rgba(255,255,255,.24);
+  background: rgba(255,255,255,.06);
+}
+.settings-btn:active:not(:disabled) { transform: translateY(0) scale(.98); }
+.settings-btn:disabled { opacity: .5; cursor: not-allowed; }
+.settings-btn:focus-visible {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(245,158,11,.18);
+}
+
+.settings-btn-primary {
+  border-color: var(--accent-soft2);
+  background: rgba(245,158,11,.08);
+  color: var(--accent);
+}
+.settings-btn-primary:hover:not(:disabled) {
+  background: rgba(245,158,11,.16);
+  border-color: var(--accent);
+  color: var(--accent-2);
+  box-shadow: 0 0 20px -6px rgba(245,158,11,.5);
+}
+
+.settings-btn-danger {
+  border-color: rgba(239,68,68,.32);
+  background: rgba(239,68,68,.05);
+  color: #f87171;
+}
+.settings-btn-danger:hover:not(:disabled) {
+  background: rgba(239,68,68,.12);
+  border-color: rgba(239,68,68,.55);
+  color: #fca5a5;
+  box-shadow: 0 0 20px -6px rgba(239,68,68,.5);
+}
+
+/* ============================================================
+   Error banner
+   ============================================================ */
+.settings-error {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(239,68,68,.08);
+  border: 1px solid rgba(239,68,68,.28);
+  color: #fca5a5;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 11.5px;
+  line-height: 1.55;
+  letter-spacing: .01em;
+}
+
+/* ============================================================
+   Account panel
+   ============================================================ */
+.settings-account-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 18px;
+  margin-bottom: 16px;
+  border-radius: 14px;
+  background: rgba(255,255,255,.02);
+  border: 1px solid var(--line-soft);
+}
+
+.settings-account-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(245,158,11,.18), rgba(245,158,11,.05));
+  border: 1px solid var(--accent-soft2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-weight: 700;
+  font-size: 18px;
+  color: var(--accent);
+  object-fit: cover;
+  box-shadow: 0 0 24px -8px rgba(245,158,11,.5);
+  flex-shrink: 0;
+}
+
+.settings-account-headmeta {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.settings-account-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink-1);
+  letter-spacing: -.01em;
+  line-height: 1.2;
+}
+.settings-account-email {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 11.5px;
+  color: var(--ink-2);
+  letter-spacing: .01em;
+  word-break: break-all;
+}
+
+.settings-verified-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 99px;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  border: 1px solid;
+  white-space: nowrap;
+}
+.settings-verified-badge.is-verified {
+  color: #4ade80;
+  background: rgba(34,197,94,.10);
+  border-color: rgba(34,197,94,.28);
+}
+.settings-verified-badge.is-unverified {
+  color: #f87171;
+  background: rgba(239,68,68,.10);
+  border-color: rgba(239,68,68,.28);
+}
+
+/* ---------- Provider card (Google) ---------- */
+.settings-provider-card {
+  padding: 16px;
+  border-radius: 12px;
+  background: rgba(255,255,255,.02);
+  border: 1px solid var(--line-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.settings-provider-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.settings-provider-name {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--ink-1);
+  letter-spacing: -.005em;
+}
+.settings-provider-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: auto;
+  padding: 3px 9px;
+  border-radius: 99px;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  border: 1px solid;
+}
+.settings-provider-pill.is-connected {
+  color: #4ade80;
+  background: rgba(34,197,94,.08);
+  border-color: rgba(34,197,94,.28);
+}
+
+.settings-provider-desc {
+  margin: 0;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 12px;
+  color: var(--ink-2);
+  line-height: 1.65;
+  letter-spacing: .01em;
+}
+
+/* ============================================================
+   Placeholder panel
+   ============================================================ */
+.settings-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 60px 24px;
+  text-align: center;
+  border: 1px dashed rgba(255,255,255,.10);
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,.005));
+  min-height: 340px;
+}
+.settings-placeholder-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 12px;
+  border-radius: 99px;
+  background: rgba(245,158,11,.08);
+  border: 1px solid var(--accent-soft2);
+  color: var(--accent);
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+.settings-placeholder-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--ink-1);
+  letter-spacing: -.01em;
+}
+.settings-placeholder-desc {
+  margin: 0;
+  max-width: 420px;
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--ink-2);
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  letter-spacing: .01em;
+}
+
+/* ============================================================
+   Animations
+   ============================================================ */
+@keyframes settingsFade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes settingsPop {
+  from { opacity: 0; transform: translateY(-14px) scale(.98); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes settingsGrad {
+  0%   { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settings-modal::before { animation: none !important; }
+  .settings-overlay,
+  .settings-modal { animation: none !important; }
+  .settings-tab,
+  .settings-close,
+  .settings-btn { transition: none !important; }
+}
+
+/* ============================================================
+   Mobile — stack rail above pane
+   ============================================================ */
+@media (max-width: 720px) {
+  .settings-modal {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+    height: min(720px, calc(100vh - 32px));
+    max-width: 100%;
+  }
+
+  .settings-rail {
+    border-right: none;
+    border-bottom: 1px solid var(--line-soft);
+    padding: 14px 12px 10px;
+    gap: 10px;
+  }
+
+  .settings-rail-head {
+    padding: 0 4px 10px;
+  }
+
+  .settings-rail-nav {
+    flex-direction: row;
+    overflow-x: auto;
+    overflow-y: hidden;
+    gap: 4px;
+    padding: 2px 0 4px;
+    scrollbar-width: none;
+  }
+  .settings-rail-nav::-webkit-scrollbar { display: none; }
+
+  .settings-tab {
+    flex-shrink: 0;
+    padding: 7px 12px;
+    font-size: 11.5px;
+  }
+  .settings-tab.is-active::before { display: none; }
+
+  .settings-pane-head {
+    padding: 16px 18px 12px;
+  }
+  .settings-pane-title { font-size: 17px; }
+
+  .settings-pane-body {
+    padding: 16px 18px 22px;
+  }
+}

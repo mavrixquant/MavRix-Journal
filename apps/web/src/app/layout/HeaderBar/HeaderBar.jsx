@@ -61,6 +61,8 @@ function PageTitleBlock() {
 export default function HeaderBar({
   onMobileMenuClick,
   onAccountClick,
+  onSettingsClick,
+  onThemeClick,
   onLogout,
 }) {
   const { dispatch } = useAppContext();
@@ -170,10 +172,12 @@ export default function HeaderBar({
           icon={<Palette size={16} />}
           label="Theme"
           variant="accent"
+          onClick={onThemeClick}
         />
         <IconButton
           icon={<Settings size={16} />}
           label="Settings"
+          onClick={onSettingsClick}
         />
         <IconButton
           icon={<FileText size={16} />}

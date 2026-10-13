@@ -10,7 +10,7 @@ import Sidebar, {
 } from './Sidebar/Sidebar';
 import HeaderBar from './HeaderBar/HeaderBar';
 import TopStrip from './TopStrip';
-import AccountModal from '@/features/auth/components/AccountModal';
+import SettingsModal from './Settings/SettingsModal';
 import { PageSkeleton } from '@/shared/ui/page-skeleton';
 import { TooltipProvider } from '@/shared/ui/tooltip';
 import { Sheet, SheetContent, SheetTitle } from '@/shared/ui/sheet';
@@ -30,7 +30,11 @@ export default function AppLayout() {
   });
 
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
+
+  // Single settings modal with a controlled initial tab. The tab is only
+  // honoured on OPEN — a user switching tabs inside the modal keeps their
+  // choice until they close and reopen from a different entry point.
+  const [settings, setSettings] = useState({ open: false, tab: 'account' });
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, collapsed ? '1' : '0');
@@ -41,6 +45,12 @@ export default function AppLayout() {
   // Single SSE connection per app. currentUserId is used by the chat bridge
   // to decide whether an inbound chat:message:new needs a delivery ack.
   useSSEBridge({ enabled: !!user, currentUserId: user?.id });
+
+  const openSettings = (tab = 'account') =>
+    setSettings({ open: true, tab });
+
+  const closeSettings = () =>
+    setSettings((s) => ({ ...s, open: false }));
 
   const handleLogout = async () => {
     await logout();
@@ -87,7 +97,9 @@ export default function AppLayout() {
           <HeaderBar
             collapsed={collapsed}
             onMobileMenuClick={() => setMobileOpen(true)}
-            onAccountClick={() => setIsAccountModalOpen(true)}
+            onAccountClick={() => openSettings('account')}
+            onSettingsClick={() => openSettings('preferences')}
+            onThemeClick={() => openSettings('appearance')}
             onLogout={handleLogout}
           />
 
@@ -98,9 +110,10 @@ export default function AppLayout() {
           </main>
         </div>
 
-        <AccountModal
-          isOpen={isAccountModalOpen}
-          onClose={() => setIsAccountModalOpen(false)}
+        <SettingsModal
+          isOpen={settings.open}
+          initialTab={settings.tab}
+          onClose={closeSettings}
         />
       </PageHeaderProvider>
     </TooltipProvider>
