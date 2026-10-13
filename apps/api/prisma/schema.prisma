@@ -39,6 +39,7 @@ model User {
   strategies    Strategy[]
   conversations ConversationParticipant[]
   messages      Message[]
+  ownedGroups   Conversation[]            @relation("GroupOwner")
 
   @@index([role])
   @@index([isBanned])
@@ -229,7 +230,13 @@ model Strategy {
 }
 
 // ---------------------------------------------------------------------------
-// Chat — Direct Messages (DMs) only.
+// Chat — Direct Messages + Groups.
+//
+// One Conversation row per DM or per group. The `type` column distinguishes
+// them:
+//
+//   type='dm'    → dmKey = sorted "aId:bId" (unique). Group columns null.
+//   type='group' → dmKey = null. Group columns populated.
 //
 // Read receipts:
 //   - Message.deliveredAt — set by the non-sender's device when it receives
@@ -238,9 +245,22 @@ model Strategy {
 //   - Message.readAt — set when the non-sender opens the conversation
 //     (markRead). Also triggers a broadcast to the sender.
 //
-// Both columns are nullable. For a fresh DM, they're null until the peer's
-// device acknowledges. For 1:1 DMs, "the non-sender" is unambiguous — when
-// Discussions arrive later, this migrates to a per-user MessageReceipt table.
+// Both columns are nullable. For a fresh conversation, they're null until
+// the peer's device acknowledges.
+//
+// Group-specific columns on Conversation:
+//   name         — display name (# header)
+//   description  — short blurb shown in discovery + settings
+//   visibility   — 'public' | 'private' | null (null = DM)
+//   color        — accent for the avatar + name chip
+//   iconEmoji    — optional emoji shown inside the avatar circle
+//   createdById  — FK to User. Null for DMs.
+//   memberCount  — denormalized participant count. Kept in sync inside the
+//                  same transaction as every membership change.
+//
+// Group-specific columns on ConversationParticipant:
+//   role         — 'owner' | 'moderator' | 'member'. Default 'member'.
+//                  DMs leave this at 'member'.
 // ---------------------------------------------------------------------------
 model Conversation {
   id              String   @id @default(cuid())
@@ -252,10 +272,22 @@ model Conversation {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
+  // Group-only metadata. All nullable so existing DMs are unaffected.
+  name        String?
+  description String?
+  visibility  String? // 'public' | 'private' | null (DM)
+  color       String? @default("#F59E0B")
+  iconEmoji   String?
+  createdById String?
+  memberCount Int     @default(2)
+
+  createdBy User? @relation("GroupOwner", fields: [createdById], references: [id], onDelete: SetNull)
+
   participants ConversationParticipant[]
   messages     Message[]
 
   @@index([lastMessageAt])
+  @@index([type, visibility])
   @@map("conversations")
 }
 
@@ -271,12 +303,16 @@ model ConversationParticipant {
   isMuted        Boolean  @default(false)
   isArchived     Boolean  @default(false)
 
+  // 'owner' | 'moderator' | 'member'. DMs leave this at 'member'.
+  role String @default("member")
+
   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([conversationId, userId])
   @@index([userId, isArchived])
   @@index([userId, lastReadAt])
+  @@index([conversationId, role])
   @@map("conversation_participants")
 }
 
