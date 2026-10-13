@@ -2,7 +2,9 @@
 //
 // Right pane of the chat UI. Renders:
 //   - header (peer info + typing indicator + mobile back button)
+//     For groups: GroupAvatar + name + member count + settings cog (admins only)
 //   - infinite-scroll message list (sentinel at the top loads older pages)
+//     For groups: sender avatar + name above every peer bubble
 //   - composer
 //
 // Read receipts (ticks) on OWN messages only:
@@ -14,7 +16,15 @@
 // Message actions (Edit / Delete) via right-click / long-press only.
 
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
-import { ArrowLeft, Loader2, Pencil, Check, CheckCheck, Clock } from 'lucide-react';
+import {
+  ArrowLeft,
+  Loader2,
+  Pencil,
+  Check,
+  CheckCheck,
+  Clock,
+  Settings,
+} from 'lucide-react';
 
 import { useAuth } from '@/app/providers/AuthProvider';
 import {
@@ -30,6 +40,8 @@ import {
 
 import MessageComposer from './MessageComposer';
 import MessageContextMenu from './MessageContextMenu';
+import GroupAvatar from './GroupAvatar';
+import GroupSettingsModal from './GroupSettingsModal';
 
 const EDIT_WINDOW_MS = 15 * 60 * 1000;
 const LONG_PRESS_MS = 550;
@@ -84,10 +96,6 @@ function formatDayLabel(iso) {
   return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 }
 
-/**
- * Read-receipt tick icon for an own message.
- * Pure — takes the message, returns the right icon.
- */
 function MessageTicks({ msg }) {
   if (msg._optimistic) {
     return <Clock size={12} className="chat-tick is-sending" aria-label="Sending" />;
@@ -103,7 +111,7 @@ function MessageTicks({ msg }) {
 
 /* ------------------------------------------------------------------ */
 
-export default function MessageThread({ conversationId, onBack }) {
+export default function MessageThread({ conversationId, onBack, onConversationClosed }) {
   const { user } = useAuth();
   const currentUserId = user?.id;
 
@@ -126,6 +134,23 @@ export default function MessageThread({ conversationId, onBack }) {
   const editMessage = useEditMessage();
   const deleteMessage = useDeleteMessage();
   const sendTyping = useSendTyping();
+
+  const isGroup = !!conversation?.isGroup;
+
+  /* ---------------- Settings modal state ---------------- */
+  const [settingsOpen, setSettingsOpen] = useState(false);
+
+  // Who can open the group settings modal?
+  //   superadmin → any group
+  //   admin      → public groups + groups they created
+  const canManageGroup =
+    isGroup &&
+    conversation &&
+    (
+      user?.role === 'superadmin' ||
+      (user?.role === 'admin' && conversation.visibility === 'public') ||
+      conversation.createdById === currentUserId
+    );
 
   /* ---------------- Flatten paginated messages ---------------- */
 
@@ -339,13 +364,24 @@ export default function MessageThread({ conversationId, onBack }) {
     [conversationId, sendTyping]
   );
 
-  /* ---------------- Peer info ---------------- */
+  /* ---------------- Header content ---------------- */
 
   const peer = conversation?.peer;
-  const peerName = displayNameOf(peer);
+  const headerName = isGroup
+    ? (conversation?.name || 'Untitled group')
+    : displayNameOf(peer);
+
+  const threadSubText = (() => {
+    if (peerTyping) return 'typing…';
+    if (isGroup) {
+      const mc = conversation?.memberCount ?? 0;
+      const vis = conversation?.visibility === 'private' ? 'Private' : 'Public';
+      return `${mc} member${mc === 1 ? '' : 's'} · ${vis}`;
+    }
+    return peer?.email || '';
+  })();
 
   const threadSubClass = peerTyping ? 'chat-thread-sub is-typing' : 'chat-thread-sub';
-  const threadSubText = peerTyping ? 'typing...' : (peer?.email || '');
 
   /* ---------------- Early returns ---------------- */
 
@@ -377,14 +413,30 @@ export default function MessageThread({ conversationId, onBack }) {
           <ArrowLeft size={15} />
         </button>
 
-        <div className="chat-avatar" style={{ width: 36, height: 36, fontSize: 12 }}>
-          {peer?.photoUrl ? <img src={peer.photoUrl} alt="" /> : initialsOf(peer)}
-        </div>
+        {isGroup ? (
+          <GroupAvatar group={conversation} size={36} />
+        ) : (
+          <div className="chat-avatar" style={{ width: 36, height: 36, fontSize: 12 }}>
+            {peer?.photoUrl ? <img src={peer.photoUrl} alt="" /> : initialsOf(peer)}
+          </div>
+        )}
 
         <div className="chat-thread-peer">
-          <span className="chat-thread-name">{peerName}</span>
+          <span className="chat-thread-name">{headerName}</span>
           <span className={threadSubClass}>{threadSubText}</span>
         </div>
+
+        {canManageGroup && (
+          <button
+            type="button"
+            className="chat-thread-settings"
+            onClick={() => setSettingsOpen(true)}
+            title="Group settings"
+            aria-label="Group settings"
+          >
+            <Settings size={15} />
+          </button>
+        )}
       </div>
 
       {/* ---------- Messages ---------- */}
@@ -422,8 +474,9 @@ export default function MessageThread({ conversationId, onBack }) {
             </div>
             <h3>Say hi 👋</h3>
             <p>
-              This is the beginning of your conversation with {peerName}.
-              Send a message to get started.
+              {isGroup
+                ? `This is the beginning of ${headerName}. Send a message to get started.`
+                : `This is the beginning of your conversation with ${headerName}. Send a message to get started.`}
             </p>
           </div>
         )}
@@ -436,11 +489,6 @@ export default function MessageThread({ conversationId, onBack }) {
           const isDeleted = !!msg.deleted;
           const isEditing = editingId === msg.id;
 
-          // Timestamp grouping — hide the time on every message EXCEPT the
-          // last in a run of messages that share the same HH:MM, same sender,
-          // and same calendar day. Different senders are never merged into
-          // one visual group even if the minute matches — otherwise the
-          // earlier message would render with no time at all.
           const sameDayAsNext =
             next && dayKey(next.createdAt) === dayKey(msg.createdAt);
           const sameMinuteAsNext =
@@ -454,6 +502,18 @@ export default function MessageThread({ conversationId, onBack }) {
           const showTicks = isOwn && !isDeleted;
           const showMetaRow = isLastInGroup || showEditedBadge || showTicks;
 
+          // Show sender avatar + name above every peer bubble in groups.
+          // Own messages don't need a label — it's implied.
+          const showSenderRow = isGroup && !isOwn && !isDeleted;
+
+          const msgCls = [
+            'chat-msg',
+            isOwn ? 'is-own' : 'is-peer',
+            isDeleted ? 'is-deleted' : '',
+            isGroup ? 'is-group' : '',
+            msg._optimistic ? 'chat-msg-optimistic' : '',
+          ].filter(Boolean).join(' ');
+
           return (
             <div key={msg.id} style={{ display: 'contents' }}>
               {showDaySep && (
@@ -461,13 +521,28 @@ export default function MessageThread({ conversationId, onBack }) {
               )}
 
               <div
-                className={`chat-msg ${isOwn ? 'is-own' : 'is-peer'} ${isDeleted ? 'is-deleted' : ''} ${msg._optimistic ? 'chat-msg-optimistic' : ''}`}
+                className={msgCls}
                 onContextMenu={(e) => handleMessageContextMenu(msg, e)}
                 onTouchStart={(e) => handleMessageTouchStart(msg, e)}
                 onTouchMove={cancelLongPress}
                 onTouchEnd={cancelLongPress}
                 onTouchCancel={cancelLongPress}
               >
+                {showSenderRow && (
+                  <div className="chat-msg-sender">
+                    <span className="chat-msg-sender-avatar">
+                      {msg.sender?.photoUrl ? (
+                        <img src={msg.sender.photoUrl} alt="" />
+                      ) : (
+                        initialsOf(msg.sender)
+                      )}
+                    </span>
+                    <span className="chat-msg-sender-name">
+                      {displayNameOf(msg.sender)}
+                    </span>
+                  </div>
+                )}
+
                 {isEditing ? (
                   <div className="chat-edit-inline">
                     <textarea
@@ -546,6 +621,16 @@ export default function MessageThread({ conversationId, onBack }) {
           onDeleteMe={() => handleDeleteMe(ctxMenu.message)}
           onDeleteAll={() => handleDeleteAll(ctxMenu.message)}
           onClose={closeContextMenu}
+        />
+      )}
+
+      {/* ---------- Group settings modal (admins only) ---------- */}
+      {isGroup && canManageGroup && (
+        <GroupSettingsModal
+          isOpen={settingsOpen}
+          onClose={() => setSettingsOpen(false)}
+          conversation={conversation}
+          onConversationClosed={onConversationClosed}
         />
       )}
 

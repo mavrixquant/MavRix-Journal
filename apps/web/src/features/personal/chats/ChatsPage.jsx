@@ -48,7 +48,6 @@ export default function ChatsPage() {
     [conversations, selectedId]
   );
 
-  // Tab counts — computed once here so the list doesn't need to.
   const counts = useMemo(() => {
     let dmCount = 0;
     let groupCount = 0;
@@ -77,7 +76,14 @@ export default function ChatsPage() {
     setMobileThreadOpen(true);
   };
 
-  // Publish title + subtitle to the global header bar.
+  // Called by MessageThread when the current conversation is gone
+  // (left, deleted, or removed by an admin). Clears selection so the
+  // empty state renders instead of a broken thread.
+  const handleConversationClosed = () => {
+    setSelectedId(null);
+    setMobileThreadOpen(false);
+  };
+
   usePageHeader({
     title: 'Chats',
     subtitle: 'Private DMs and team groups · visible only to participants',
@@ -85,7 +91,6 @@ export default function ChatsPage() {
 
   if (isLoading) return <PageSkeleton />;
 
-  // Root class drives which pane is visible on mobile.
   let rootClass = 'chat-root';
   if (!selectedId) rootClass += ' is-mobile-list-open';
   else if (mobileThreadOpen) rootClass += ' is-mobile-thread-open';
@@ -111,6 +116,7 @@ export default function ChatsPage() {
           <MessageThread
             conversationId={selectedId}
             onBack={handleMobileBack}
+            onConversationClosed={handleConversationClosed}
           />
         ) : (
           <div className="chat-thread">
@@ -128,21 +134,18 @@ export default function ChatsPage() {
         )}
       </div>
 
-      {/* ---------- New-DM modal ---------- */}
       <NewChatModal
         isOpen={newChatOpen}
         onClose={() => setNewChatOpen(false)}
         onCreated={handleCreated}
       />
 
-      {/* ---------- Discover public groups modal ---------- */}
       <GroupDiscoverModal
         isOpen={discoverOpen}
         onClose={() => setDiscoverOpen(false)}
         onJoined={handleCreated}
       />
 
-      {/* ---------- Create group modal (admin / superadmin only) ---------- */}
       {isAdmin && (
         <CreateGroupModal
           isOpen={createGroupOpen}
