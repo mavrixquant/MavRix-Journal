@@ -6,12 +6,17 @@
 //
 // Uses GROUP_COLORS + GROUP_DEFAULT_COLOR + GROUP_VISIBILITIES from
 // @mavrix/shared so the palette stays in sync with the rest of the app.
+//
+// NOTE: useCreateGroup lives in @/shared/api/chat.js (not features/admin/api.js)
+// because that file targets /api/admin/groups/* but is called from the chat
+// feature, and the feature-boundary ESLint rule forbids
+// features/personal/* → features/admin/* imports.
 
 import { useEffect, useState } from 'react';
 import { X, Hash, Lock } from 'lucide-react';
 import Portal from '@/shared/components/Portal';
 import { useAuth } from '@/app/providers/AuthProvider';
-import { useAdminCreateGroup } from '@/features/admin/api';
+import { useCreateGroup } from '@/shared/api/chat';
 import {
   GROUP_COLORS,
   GROUP_DEFAULT_COLOR,
@@ -174,7 +179,6 @@ const CSS = `
   .cgm-input:disabled,
   .cgm-textarea:disabled { opacity: .55; cursor: not-allowed; }
 
-  /* Visibility radio tiles */
   .cgm-vis-row {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -243,7 +247,6 @@ const CSS = `
     letter-spacing: .02em;
   }
 
-  /* Color swatches */
   .cgm-colors {
     display: flex;
     flex-wrap: wrap;
@@ -382,7 +385,7 @@ export default function CreateGroupModal({ isOpen, onClose, onCreated }) {
   });
   const [error, setError] = useState('');
 
-  const createMutation = useAdminCreateGroup();
+  const createMutation = useCreateGroup();
   const saving = createMutation.isPending;
 
   useEffect(() => {

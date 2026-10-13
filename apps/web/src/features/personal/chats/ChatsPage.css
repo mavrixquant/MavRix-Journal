@@ -36,7 +36,7 @@
   display: grid;
   grid-template-columns: 320px 1fr;
   gap: 14px;
-  height: calc(100vh - 120px);
+  height: calc(100vh - 190px);
   min-height: 520px;
 }
 
@@ -59,6 +59,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
   padding: 14px 16px 12px;
   border-bottom: 1px solid var(--line-soft);
 }
@@ -68,6 +69,13 @@
   letter-spacing: -.005em;
   color: var(--ink-1);
 }
+
+.chat-list-actions {
+  display: inline-flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
 .chat-new-btn {
   display: inline-flex;
   align-items: center;
@@ -87,6 +95,14 @@
   background: rgba(245,158,11,.08);
   border-color: var(--accent-soft2);
   transform: translateY(-1px);
+}
+.chat-new-btn.is-accent {
+  color: var(--accent);
+  border-color: var(--accent-soft2);
+  background: rgba(245,158,11,.06);
+}
+.chat-new-btn.is-accent:hover {
+  background: rgba(245,158,11,.14);
 }
 
 .chat-list-items {
@@ -459,7 +475,6 @@
   opacity: .7;
 }
 
-/* ---- Read-receipt ticks (own messages only) ---- */
 .chat-tick {
   flex-shrink: 0;
   transition: color .2s ease;
@@ -472,7 +487,6 @@
   filter: drop-shadow(0 0 4px rgba(53,196,161,.45));
 }
 
-/* ---- Inline edit ---- */
 .chat-edit-inline {
   display: flex;
   flex-direction: column;
@@ -903,4 +917,131 @@
   .chat-newchat-user,
   .chat-ctx-item,
   .chat-tick { transition: none !important; }
+}
+
+/* ============================================================
+   PHASE 6C ADDITIONS — tabs, groups, section headers
+   ============================================================ */
+
+/* ---------- Segmented tabs (All / DMs / Groups) ---------- */
+.chat-tabs {
+  flex-shrink: 0;
+  display: flex;
+  gap: 3px;
+  padding: 4px;
+  margin: 0 12px 8px;
+  background: rgba(0,0,0,.32);
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,.06);
+}
+
+.chat-tab {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 7px 8px;
+  border-radius: 7px;
+  border: none;
+  background: transparent;
+  color: var(--ink-2);
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .02em;
+  cursor: pointer;
+  transition: all .18s;
+  white-space: nowrap;
+}
+.chat-tab:hover:not(.is-active) {
+  color: var(--ink-1);
+  background: rgba(255,255,255,.04);
+}
+.chat-tab.is-active {
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: #0D1117;
+  font-weight: 700;
+  box-shadow: 0 6px 16px -8px rgba(245,158,11,.6);
+}
+
+.chat-tab-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 5px;
+  border-radius: 8px;
+  background: rgba(255,255,255,.06);
+  color: var(--ink-3);
+  font-size: 9.5px;
+  font-weight: 700;
+}
+.chat-tab.is-active .chat-tab-count {
+  background: rgba(13,17,23,.22);
+  color: #0D1117;
+}
+
+/* ---------- Section headers inside the list ---------- */
+.chat-list-section {
+  flex-shrink: 0;
+  padding: 10px 10px 4px;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  user-select: none;
+}
+.chat-list-section:first-child { padding-top: 2px; }
+
+/* ---------- Group rows ---------- */
+.chat-list-row.is-group .chat-list-name {
+  font-weight: 700;
+}
+
+.chat-list-vis {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+  color: var(--ink-3);
+}
+.chat-list-row.is-active .chat-list-vis {
+  color: rgba(245,158,11,.75);
+}
+
+/* ---------- Empty state per filtered tab ---------- */
+.chat-list-empty-filtered {
+  padding: 40px 16px;
+  text-align: center;
+  color: var(--ink-3);
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 12px;
+  line-height: 1.7;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.chat-list-empty-filtered strong {
+  color: var(--ink-2);
+  font-weight: 600;
+  font-size: 13px;
+  display: block;
+}
+.chat-list-empty-filtered p {
+  margin: 0;
+  max-width: 220px;
+}
+.chat-list-empty-filtered .chat-list-empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 4px;
 }
