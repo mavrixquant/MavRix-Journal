@@ -1780,6 +1780,219 @@
             },
             "url": "{{baseUrl}}/api/admin/settings"
           }
+        },
+        {
+          "name": "Groups — list",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/groups?limit=25",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "groups"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "25"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('has groups array', () => pm.expect(json.groups).to.be.an('array'));",
+                  "if (json.groups.length > 0) pm.environment.set('groupId', json.groups[0].id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Groups — create public",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Smoke Public Group\",\n  \"description\": \"Created by Postman smoke test\",\n  \"visibility\": \"public\",\n  \"color\": \"#F59E0B\"\n}"
+            },
+            "url": "{{baseUrl}}/api/admin/groups"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "if (json.group?.id) pm.environment.set('groupId', json.group.id);",
+                  "pm.test('visibility public', () => pm.expect(json.group.visibility).to.eql('public'));",
+                  "pm.test('memberCount 1', () => pm.expect(json.group.memberCount).to.eql(1));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Groups — create private (superadmin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Smoke Private Group\",\n  \"description\": \"Superadmin only\",\n  \"visibility\": \"private\",\n  \"color\": \"#4C8BF5\"\n}"
+            },
+            "url": "{{baseUrl}}/api/admin/groups"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 or 403', () => pm.expect([201, 403]).to.include(pm.response.code));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Groups — detail",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/groups/{{groupId}}"
+          }
+        },
+        {
+          "name": "Groups — update",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"Updated by Postman\"\n}"
+            },
+            "url": "{{baseUrl}}/api/admin/groups/{{groupId}}"
+          }
+        },
+        {
+          "name": "Groups — add member",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{groupMemberUserId}}\"\n}"
+            },
+            "url": "{{baseUrl}}/api/admin/groups/{{groupId}}/members"
+          }
+        },
+        {
+          "name": "Groups — set member role",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"member\"\n}"
+            },
+            "url": "{{baseUrl}}/api/admin/groups/{{groupId}}/members/{{groupMemberUserId}}"
+          }
+        },
+        {
+          "name": "Groups — remove member",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/groups/{{groupId}}/members/{{groupMemberUserId}}"
+          }
+        },
+        {
+          "name": "Groups — delete",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/groups/{{groupId}}"
+          }
         }
       ]
     },
@@ -2133,6 +2346,101 @@
               ]
             }
           }
+        },
+        {
+          "name": "Groups — discover (public, not joined)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/chat/groups/discover?limit=50",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "chat",
+                "groups",
+                "discover"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "50"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Groups — join public",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/chat/groups/{{groupId}}/join"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "if (json.conversation?.id) pm.environment.set('conversationId', json.conversation.id);",
+                  "pm.test('isGroup true', () => pm.expect(json.conversation.isGroup).to.eql(true));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Groups — leave",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/chat/groups/{{groupId}}/leave"
+          }
+        },
+        {
+          "name": "Groups — members",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/chat/groups/{{groupId}}/members"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('has members array', () => pm.expect(pm.response.json().members).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
         }
       ]
     }
