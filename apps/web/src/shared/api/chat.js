@@ -1,18 +1,25 @@
 // apps/web/src/shared/api/chat.js
 //
-// React Query hooks + fetchers for the chat feature.
+// React Query hooks + fetchers for the chat feature (DMs + groups).
 //
 // Cache keys:
 //   ['chat', 'conversations']                - my conversation list
 //   ['chat', 'conversation', conversationId] - one conversation's metadata
 //   ['chat', 'messages', conversationId]     - infinite message history
 //   ['chat', 'users', 'search', q]           - user search (caller debounces)
+//   ['chat', 'groups', 'discover', filterKey] - public groups I'm not in
+//   ['chat', 'groups', 'members', groupId]   - members of a group I'm in
 //
 // Pagination model: useInfiniteQuery where pages[0] holds the NEWEST page.
 // Within each page, messages are ascending (oldest -> newest).
 //
 // SSE integration: shared/api/sse.js mutates the messages cache directly
 // on chat:message:new / :edited / :deleted / :delivered / chat:read.
+//
+// Groups:
+//   Public groups can be discovered + self-joined by any verified user.
+//   Private groups are invite-only — created and managed via
+//   /api/admin/groups/* (see features/admin/api.js).
 
 import {
   useQuery,
@@ -39,6 +46,8 @@ export const chatKeys = {
   conversation: (id) => ['chat', 'conversation', id],
   messages: (id) => ['chat', 'messages', id],
   userSearch: (q) => ['chat', 'users', 'search', q],
+  discoverGroups: (filterKey) => ['chat', 'groups', 'discover', filterKey],
+  groupMembers: (groupId) => ['chat', 'groups', 'members', groupId],
 };
 
 /* ------------------------------------------------------------------ */
@@ -137,6 +146,39 @@ export async function searchUsers(q) {
   return data.users;
 }
 
+/* ---------------- Groups (user-facing) ---------------- */
+
+export async function fetchDiscoverableGroups({ q, limit } = {}) {
+  const params = new URLSearchParams();
+  if (q) params.set('q', q);
+  if (limit) params.set('limit', String(limit));
+  const qs = params.toString();
+  const data = await apiJson(`/api/chat/groups/discover${qs ? `?${qs}` : ''}`);
+  return data.groups;
+}
+
+export async function joinGroup(groupId) {
+  const data = await apiJson(
+    `/api/chat/groups/${encodeURIComponent(groupId)}/join`,
+    { method: 'POST' }
+  );
+  return data.conversation;
+}
+
+export async function leaveGroup(groupId) {
+  return apiJson(
+    `/api/chat/groups/${encodeURIComponent(groupId)}/leave`,
+    { method: 'POST' }
+  );
+}
+
+export async function fetchGroupMembers(groupId) {
+  const data = await apiJson(
+    `/api/chat/groups/${encodeURIComponent(groupId)}/members`
+  );
+  return data.members;
+}
+
 /* ------------------------------------------------------------------ */
 /*  Hooks - reads                                                      */
 /* ------------------------------------------------------------------ */
@@ -184,6 +226,40 @@ export function useChatUserSearch(q) {
     enabled,
     staleTime: 30_000,
     placeholderData: (prev) => prev,
+  });
+}
+
+/**
+ * Public groups the caller is NOT already a member of.
+ *
+ * @param {object}  opts
+ * @param {string}  [opts.q]        — substring match on group name
+ * @param {number}  [opts.limit]    — max results (default 50, cap 100)
+ * @param {boolean} [opts.enabled]  — pass false to disable the query
+ */
+export function useDiscoverableGroups({ q = '', limit, enabled = true } = {}) {
+  const sseFallback = useSSEFallback();
+  const filterKey = `${q || ''}|${limit ?? ''}`;
+  return useQuery({
+    queryKey: chatKeys.discoverGroups(filterKey),
+    queryFn: () => fetchDiscoverableGroups({ q, limit }),
+    enabled,
+    staleTime: 20_000,
+    refetchInterval: sseFallback ? 60_000 : false,
+    placeholderData: (prev) => prev,
+  });
+}
+
+/**
+ * Members of a group the caller belongs to.
+ * Disabled when `groupId` is null.
+ */
+export function useGroupMembers(groupId, { enabled = true } = {}) {
+  return useQuery({
+    queryKey: chatKeys.groupMembers(groupId),
+    queryFn: () => fetchGroupMembers(groupId),
+    enabled: enabled && !!groupId,
+    staleTime: 30_000,
   });
 }
 
@@ -423,6 +499,53 @@ export function useDeleteMessage() {
 
     onSettled: () => {
       qc.invalidateQueries({ queryKey: chatKeys.conversations() });
+    },
+  });
+}
+
+/**
+ * Join a public group. On success:
+ *   • prepends the new conversation into the sidebar list
+ *   • invalidates the discovery list (this group is no longer discoverable)
+ *   • invalidates the member cache for this group
+ */
+export function useJoinGroup() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (groupId) => joinGroup(groupId),
+    onSuccess: (conv) => {
+      qc.setQueryData(chatKeys.conversations(), (old) => {
+        if (!Array.isArray(old)) return [conv];
+        if (old.some((c) => c.id === conv.id)) return old;
+        return [conv, ...old];
+      });
+      qc.invalidateQueries({ queryKey: chatKeys.conversations() });
+      qc.invalidateQueries({ queryKey: ['chat', 'groups', 'discover'] });
+      qc.invalidateQueries({ queryKey: chatKeys.groupMembers(conv.id) });
+    },
+  });
+}
+
+/**
+ * Leave a group. On success:
+ *   • removes the conversation from the sidebar list
+ *   • drops the messages + member caches for that group
+ *   • invalidates the discovery list (this group becomes discoverable again)
+ */
+export function useLeaveGroup() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (groupId) => leaveGroup(groupId),
+    onSuccess: (_r, groupId) => {
+      qc.setQueryData(chatKeys.conversations(), (old) => {
+        if (!Array.isArray(old)) return old;
+        return old.filter((c) => c.id !== groupId);
+      });
+      qc.removeQueries({ queryKey: chatKeys.messages(groupId) });
+      qc.removeQueries({ queryKey: chatKeys.groupMembers(groupId) });
+      qc.removeQueries({ queryKey: chatKeys.conversation(groupId) });
+      qc.invalidateQueries({ queryKey: chatKeys.conversations() });
+      qc.invalidateQueries({ queryKey: ['chat', 'groups', 'discover'] });
     },
   });
 }
