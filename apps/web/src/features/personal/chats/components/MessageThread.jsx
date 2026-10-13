@@ -32,6 +32,7 @@ import {
 } from 'lucide-react';
 
 import { useAuth } from '@/app/providers/AuthProvider';
+import { formatTime, formatDayLabel, dayKey } from '@/shared/format/datetime';
 import { useSettings } from '@/app/layout/Settings/SettingsProvider';
 import {
   useChatMessages,
@@ -75,37 +76,7 @@ function displayNameOf(user) {
   return user.email || 'Unknown';
 }
 
-function formatTime(iso, timeFormat = '12h') {
-  if (!iso) return '';
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '';
-  const is24h = timeFormat === '24h';
-  return d.toLocaleTimeString('en-US', {
-    hour: is24h ? '2-digit' : 'numeric',
-    minute: '2-digit',
-    hour12: !is24h,
-  });
-}
 
-function dayKey(iso) {
-  if (!iso) return '';
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '';
-  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
-}
-
-function formatDayLabel(iso) {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '';
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const msgDay = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  const diff = Math.round((today - msgDay) / 86400000);
-  if (diff === 0) return 'Today';
-  if (diff === 1) return 'Yesterday';
-  if (diff < 7) return d.toLocaleDateString('en-US', { weekday: 'long' });
-  return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-}
 
 function MessageTicks({ msg }) {
   if (msg._optimistic) {
@@ -130,6 +101,7 @@ export default function MessageThread({ conversationId, onBack, onConversationCl
   // Preference reads
   const timeFormat = settings.preferences.timeFormat;
   const sendReadReceipts = settings.chats.sendReadReceipts;
+  const timezone = settings.preferences.timezone;
   const showTypingInThread = settings.chats.showTypingInThread;
 
   const { data: conversation, isLoading: convoLoading } =
@@ -504,15 +476,15 @@ export default function MessageThread({ conversationId, onBack, onConversationCl
         {messages.map((msg, idx) => {
           const prev = messages[idx - 1];
           const next = messages[idx + 1];
-          const showDaySep = !prev || dayKey(prev.createdAt) !== dayKey(msg.createdAt);
+          const showDaySep = !prev || dayKey(prev.createdAt, timezone) !== dayKey(msg.createdAt, timezone);
           const isOwn = msg.senderId === currentUserId;
           const isDeleted = !!msg.deleted;
           const isEditing = editingId === msg.id;
 
           const sameDayAsNext =
-            next && dayKey(next.createdAt) === dayKey(msg.createdAt);
+            next && dayKey(next.createdAt) === dayKey(msg.createdAt, timezone);
           const sameMinuteAsNext =
-            next && formatTime(next.createdAt, timeFormat) === formatTime(msg.createdAt, timeFormat);
+            next && formatTime(next.createdAt, timeFormat) === formatTime(msg.createdAt, timeFormat, timezone);
           const sameSenderAsNext =
             next && next.senderId === msg.senderId;
           const isLastInGroup =
@@ -535,7 +507,7 @@ export default function MessageThread({ conversationId, onBack, onConversationCl
           return (
             <div key={msg.id} style={{ display: 'contents' }}>
               {showDaySep && (
-                <div className="chat-day-sep">{formatDayLabel(msg.createdAt)}</div>
+                <div className="chat-day-sep">{formatDayLabel(msg.createdAt, timezone)}</div>
               )}
 
               <div
@@ -594,7 +566,7 @@ export default function MessageThread({ conversationId, onBack, onConversationCl
 
                     {showMetaRow && (
                       <div className="chat-msg-meta">
-                        {isLastInGroup && <span>{formatTime(msg.createdAt, timeFormat)}</span>}
+                        {isLastInGroup && <span>{formatTime(msg.createdAt, timeFormat, timezone)}</span>}
                         {showEditedBadge && (
                           <span className="chat-msg-edited">
                             {isLastInGroup ? '· edited' : 'edited'}

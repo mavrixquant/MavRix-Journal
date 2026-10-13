@@ -49,6 +49,7 @@ export const DEFAULT_SETTINGS = Object.freeze({
   },
   preferences: {
     defaultLanding: 'journal',
+    timezone: 'auto',
     timeFormat: '24h',
     dateFormat: 'iso',
     confirmDestructive: true,

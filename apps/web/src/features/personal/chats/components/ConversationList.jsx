@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 
 import { useTypingConversations } from '@/shared/api/chat';
+import { formatRelative } from '@/shared/format/datetime';
 import { useSettings } from '@/app/layout/Settings/SettingsProvider';
 import GroupAvatar from './GroupAvatar';
 
@@ -54,28 +55,7 @@ function displayNameOf(user) {
   return user.email || 'Unknown';
 }
 
-function formatRelative(iso, timeFormat = '12h') {
-  if (!iso) return '';
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '';
 
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const msgDay = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  const diffDays = Math.round((today - msgDay) / 86400000);
-
-  if (diffDays === 0) {
-    const is24h = timeFormat === '24h';
-    return d.toLocaleTimeString('en-US', {
-      hour: is24h ? '2-digit' : 'numeric',
-      minute: '2-digit',
-      hour12: !is24h,
-    });
-  }
-  if (diffDays === 1) return 'Yesterday';
-  if (diffDays < 7) return d.toLocaleDateString('en-US', { weekday: 'short' });
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-}
 
 function sortConversations(arr) {
   return [...arr].sort((a, b) => {
@@ -158,6 +138,7 @@ export default function ConversationList({
   const { settings } = useSettings();
   const showTypingInList = settings.notifications.showTypingInList;
   const timeFormat = settings.preferences.timeFormat;
+  const timezone = settings.preferences.timezone;
 
   const typingSet = useTypingConversations(currentUserId);
 
@@ -211,7 +192,7 @@ export default function ConversationList({
         <div className="chat-list-body">
           <div className="chat-list-row-top">
             <span className="chat-list-name">{displayNameOf(peer)}</span>
-            <span className="chat-list-time">{formatRelative(c.lastMessageAt, timeFormat)}</span>
+            <span className="chat-list-time">{formatRelative(c.lastMessageAt, timeFormat, timezone)}</span>
           </div>
           <div className="chat-list-row-bottom">
             <span className={`chat-list-preview${isTyping ? ' is-typing' : ''}`}>
@@ -248,7 +229,7 @@ export default function ConversationList({
         <div className="chat-list-body">
           <div className="chat-list-row-top">
             <span className="chat-list-name">{c.name || 'Untitled group'}</span>
-            <span className="chat-list-time">{formatRelative(c.lastMessageAt, timeFormat)}</span>
+            <span className="chat-list-time">{formatRelative(c.lastMessageAt, timeFormat, timezone)}</span>
           </div>
           <div className="chat-list-row-bottom">
             <span className={`chat-list-preview${isTyping ? ' is-typing' : ''}`}>

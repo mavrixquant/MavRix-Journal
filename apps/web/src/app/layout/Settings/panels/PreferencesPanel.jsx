@@ -1,6 +1,20 @@
 // apps/web/src/app/layout/Settings/panels/PreferencesPanel.jsx
 
+import { useMemo, useState } from 'react';
+import { Check, ChevronDown, Globe, Search } from 'lucide-react';
+import { Command } from 'cmdk';
+
 import { useSettings } from '../SettingsProvider';
+import {
+  getAllTimezones,
+  getTimezoneOffsetString,
+  browserTimezoneLabel,
+} from '@/shared/format/datetime';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/shared/ui/popover';
 
 const LANDING = [
   { value: 'journal',    label: 'Journal'    },
@@ -18,6 +32,10 @@ const DATE_FORMAT = [
   { value: 'us',  label: 'US'   },
   { value: 'eu',  label: 'EU'   },
 ];
+
+/* ------------------------------------------------------------------ */
+/*  Segmented control                                                  */
+/* ------------------------------------------------------------------ */
 
 function Segmented({ value, options, onChange }) {
   return (
@@ -37,6 +55,10 @@ function Segmented({ value, options, onChange }) {
   );
 }
 
+/* ------------------------------------------------------------------ */
+/*  Toggle                                                             */
+/* ------------------------------------------------------------------ */
+
 function Toggle({ on, onChange, label }) {
   return (
     <button
@@ -50,9 +72,112 @@ function Toggle({ on, onChange, label }) {
   );
 }
 
+/* ------------------------------------------------------------------ */
+/*  Timezone picker — custom Radix Popover + cmdk                      */
+/* ------------------------------------------------------------------ */
+
+function TimezonePicker({ value, onChange }) {
+  const [open, setOpen] = useState(false);
+
+  // Zones are computed once on mount. `Intl.supportedValuesOf` is a
+  // synchronous, cheap call — no need to memoize across renders.
+  const zones = useMemo(() => getAllTimezones(), []);
+  const browserTz = browserTimezoneLabel();
+  const isAuto = !value || value === 'auto';
+
+  const currentCity = isAuto ? `Auto (browser)` : (value.split('/').pop() || value).replace(/_/g, ' ');
+  const currentOffset = getTimezoneOffsetString(isAuto ? browserTz : value);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="settings-tz-trigger"
+          aria-label="Time zone"
+          aria-haspopup="listbox"
+          aria-expanded={open}
+        >
+          <Globe size={13} className="settings-tz-trigger-icon" />
+          <span className="settings-tz-trigger-label">{currentCity}</span>
+          <span className="settings-tz-trigger-offset">{currentOffset}</span>
+          <ChevronDown size={12} className="settings-tz-trigger-chevron" />
+        </button>
+      </PopoverTrigger>
+
+      <PopoverContent
+        align="end"
+        sideOffset={6}
+        className="settings-tz-pop"
+      >
+        <Command className="settings-tz-cmd">
+          <div className="settings-tz-search">
+            <Search size={12} />
+            <Command.Input
+              className="settings-tz-input"
+              placeholder="Search city, region, or offset…"
+              autoComplete="off"
+              spellCheck={false}
+            />
+          </div>
+
+          <Command.List className="settings-tz-list">
+            <Command.Empty className="settings-tz-empty">
+              No timezones match.
+            </Command.Empty>
+
+            {/* ---- Auto ---- */}
+            <Command.Item
+              value={`auto browser ${browserTz} ${getTimezoneOffsetString(browserTz)}`}
+              onSelect={() => { onChange('auto'); setOpen(false); }}
+              className={`settings-tz-item is-auto${isAuto ? ' is-current' : ''}`}
+            >
+              <span className="settings-tz-item-body">
+                <span className="settings-tz-item-city">Auto (browser)</span>
+                <span className="settings-tz-item-sub">{browserTz}</span>
+              </span>
+              <span className="settings-tz-item-offset">
+                {getTimezoneOffsetString(browserTz)}
+              </span>
+              {isAuto && <Check size={12} className="settings-tz-item-check" />}
+            </Command.Item>              {zones.map((z) => {
+                const isCurrent = value === z.value;
+                return (
+                  <Command.Item
+                    key={z.value}
+                    value={`${z.city} ${z.region} ${z.offset} ${z.value}`}
+                    onSelect={() => { onChange(z.value); setOpen(false); }}
+                    className={`settings-tz-item${isCurrent ? ' is-current' : ''}`}
+                  >
+                    <span className="settings-tz-item-body">
+                      <span className="settings-tz-item-city">{z.city}</span>
+                      <span className="settings-tz-item-sub">{z.value}</span>
+                    </span>
+                    <span className="settings-tz-item-offset">{z.offset}</span>
+                    {isCurrent && (
+                      <Check size={12} className="settings-tz-item-check" />
+                    )}
+                  </Command.Item>
+                );
+              })}          </Command.List>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Panel                                                              */
+/* ------------------------------------------------------------------ */
+
 export default function PreferencesPanel() {
   const { settings, update } = useSettings();
   const p = settings.preferences;
+
+  const isAutoTz = !p.timezone || p.timezone === 'auto';
+  const tzHint = isAutoTz
+    ? `Following your browser · ${browserTimezoneLabel()}`
+    : 'Timestamps are shown in this time zone.';
 
   return (
     <>
@@ -79,8 +204,20 @@ export default function PreferencesPanel() {
       <section className="settings-section">
         <h4 className="settings-section-title">Time &amp; date</h4>
         <p className="settings-hint">
-          Display formats for timestamps across the app.
+          Display formats and timezone for timestamps across the app.
         </p>
+
+        {/* ---- Time zone (above Time format) ---- */}
+        <div className="settings-options-row">
+          <div className="settings-options-text">
+            <span className="settings-options-label">Time zone</span>
+            <span className="settings-options-desc">{tzHint}</span>
+          </div>
+          <TimezonePicker
+            value={p.timezone || 'auto'}
+            onChange={(v) => update('preferences', { timezone: v })}
+          />
+        </div>
 
         <div className="settings-options-row">
           <div className="settings-options-text">
