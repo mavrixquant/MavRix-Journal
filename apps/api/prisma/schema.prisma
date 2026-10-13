@@ -34,6 +34,8 @@ model User {
 
   tokenVersion Int @default(0)
 
+  preferences Json @default("{}")
+
   accounts      Account[]
   layouts       UserLayout[]
   strategies    Strategy[]
@@ -338,3 +340,4 @@ model Message {
   @@index([senderId])
   @@map("messages")
 }
+

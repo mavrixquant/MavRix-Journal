@@ -1,8 +1,10 @@
-﻿import { Router } from 'express';
+// apps/api/src/routes/users.routes.js
+import { Router } from 'express';
 import { z } from 'zod';
 import { layoutSchema, layoutItemSchema } from '@mavrix/shared/validators';
 import { requireAuth } from '../middleware/auth.js';
 import * as usersController from '../controllers/users.controller.js';
+import * as preferencesController from '../controllers/preferences.controller.js';
 
 export const usersRoutes = Router();
 
@@ -20,6 +22,13 @@ const layoutUpdateSchema = z.object({
   name: z.string().trim().min(1).max(24).optional(),
   layout: z.array(layoutItemSchema).optional(),
 });
+
+/* ---------------- Preferences ---------------- */
+
+usersRoutes.get('/preferences', preferencesController.get);
+usersRoutes.put('/preferences', preferencesController.put);
+
+/* ---------------- Layouts ---------------- */
 
 usersRoutes.get('/layouts', usersController.listLayouts);
 usersRoutes.post('/layouts', validate(layoutSchema), usersController.createLayout);
