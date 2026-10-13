@@ -4,6 +4,9 @@ import {
   ACCOUNT_TYPES, CURRENCIES, RISK_TYPES, RISK_UNITS,
   SL_UNITS, COMMISSION_MODES, DIRECTIONS,
   STRATEGY_STATUSES, STRATEGY_DIRECTIONS, STRATEGY_COLORS,
+  GROUP_VISIBILITIES, GROUP_ROLES, GROUP_COLORS,
+  GROUP_NAME_MAX, GROUP_DESCRIPTION_MAX, GROUP_ICON_EMOJI_MAX,
+  GROUP_DISCOVER_DEFAULT_LIMIT, GROUP_DISCOVER_MAX_LIMIT,
 } from './constants.js';
 import { IMPACT_LEVELS, MAX_CALENDAR_EVENTS_PER_REQUEST } from './calendar.js';
 
@@ -81,6 +84,66 @@ export const strategySchema = z.object({
 });
 
 export const strategyUpdateSchema = strategySchema.partial();
+
+/* ------------------------------------------------------------------ */
+/*  Chat groups                                                        */
+/*                                                                     */
+/*  Groups reuse the strategy colour palette. `iconEmoji` is optional  */
+/*  and stored as a short string (typically one emoji, but we allow    */
+/*  a few code points so combined emoji pass through cleanly).         */
+/* ------------------------------------------------------------------ */
+
+const groupColorEnum = z.enum(GROUP_COLORS.map((c) => c.hex));
+
+// POST /api/admin/groups
+//
+// `initialMemberIds` is optional — the creator automatically becomes the
+// group owner via the service layer. Any ids listed here are added as
+// members in the same transaction.
+export const createGroupSchema = z.object({
+  name: z.string().trim().min(1).max(GROUP_NAME_MAX),
+  description: z.string().trim().max(GROUP_DESCRIPTION_MAX).optional().default(''),
+  visibility: z.enum(GROUP_VISIBILITIES).optional().default('public'),
+  color: groupColorEnum.optional().default('#F59E0B'),
+  iconEmoji: z.string().trim().max(GROUP_ICON_EMOJI_MAX).nullable().optional(),
+  initialMemberIds: z.array(z.string().min(1).max(64)).max(500).optional().default([]),
+});
+
+// PATCH /api/admin/groups/:id
+export const updateGroupSchema = z.object({
+  name: z.string().trim().min(1).max(GROUP_NAME_MAX).optional(),
+  description: z.string().trim().max(GROUP_DESCRIPTION_MAX).optional(),
+  visibility: z.enum(GROUP_VISIBILITIES).optional(),
+  color: groupColorEnum.optional(),
+  iconEmoji: z.string().trim().max(GROUP_ICON_EMOJI_MAX).nullable().optional(),
+});
+
+// POST /api/admin/groups/:id/members
+export const groupMemberAddSchema = z.object({
+  userId: z.string().min(1).max(64),
+});
+
+// PATCH /api/admin/groups/:id/members/:userId
+//
+// Changing a member's role is how a group owner is transferred. The
+// service layer enforces "exactly one owner per group" in a transaction.
+export const groupMemberRoleSchema = z.object({
+  role: z.enum(GROUP_ROLES),
+});
+
+// GET /api/chat/groups/discover
+//
+// Public groups the caller is NOT already in. `q` filters by name.
+export const groupDiscoverQuerySchema = z.object({
+  q: z.string().trim().max(100).optional().default(''),
+  limit: z.preprocess(
+    (v) =>
+      v === undefined || v === null || v === ''
+        ? GROUP_DISCOVER_DEFAULT_LIMIT
+        : Number(v),
+    z.number().int().min(1).max(GROUP_DISCOVER_MAX_LIMIT)
+  ),
+});
 
 /* ------------------------------------------------------------------ */
 /*  Trade                                                              */

@@ -72,6 +72,40 @@ export const STRATEGY_COLORS = [
 export const STRATEGY_DEFAULT_COLOR = '#F59E0B';
 
 /* ------------------------------------------------------------------ */
+/*  Chat groups                                                        */
+/*                                                                     */
+/*  Groups live in the same Conversation/Message tables as DMs. Only   */
+/*  the parent Conversation.type differs ('group' vs 'dm').            */
+/*                                                                     */
+/*  Visibility:                                                        */
+/*    'public'  → discoverable and self-joinable by any verified user  */
+/*    'private' → invite-only; only members and superadmins can see it */
+/*  DMs leave Conversation.visibility = null.                          */
+/*                                                                     */
+/*  Roles (per ConversationParticipant row):                           */
+/*    'owner'     → the creator; can edit/delete their own group       */
+/*    'moderator' → reserved for a future UI; behaves like member now  */
+/*    'member'    → default                                           */
+/*  DMs leave ConversationParticipant.role = 'member'.                 */
+/* ------------------------------------------------------------------ */
+
+export const GROUP_VISIBILITIES = ['public', 'private'];
+export const GROUP_ROLES = ['owner', 'moderator', 'member'];
+
+// Reuse the strategy palette so the whole app has one colour language.
+export const GROUP_COLORS = STRATEGY_COLORS;
+export const GROUP_DEFAULT_COLOR = '#F59E0B';
+
+// Field length caps. Mirrored by the Zod schemas in validators.js.
+export const GROUP_NAME_MAX = 60;
+export const GROUP_DESCRIPTION_MAX = 500;
+export const GROUP_ICON_EMOJI_MAX = 8;
+
+// Discovery list bounds. The API route caps `limit` at MAX.
+export const GROUP_DISCOVER_DEFAULT_LIMIT = 50;
+export const GROUP_DISCOVER_MAX_LIMIT = 100;
+
+/* ------------------------------------------------------------------ */
 /*  Custom column configs                                              */
 /*                                                                     */
 /*  A columnConfigs JSON blob can be in one of two shapes:             */
