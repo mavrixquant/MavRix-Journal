@@ -2,7 +2,7 @@
 import {
   LayoutDashboard, Users, Wallet, TrendingUp,
   Calendar, Radio, MessageSquare, Layers, Brain,
-  ScrollText, Settings, Activity,
+  MessagesSquare, ScrollText, Settings, Activity,
 } from 'lucide-react';
 
 export const ADMIN_NAV = [
@@ -19,6 +19,7 @@ export const ADMIN_NAV = [
       { to: '/admin/accounts',   label: 'Accounts',   icon: Wallet },
       { to: '/admin/trades',     label: 'Trades',     icon: TrendingUp },
       { to: '/admin/strategies', label: 'Strategies', icon: Brain },
+      { to: '/admin/groups',     label: 'Groups',     icon: MessagesSquare },
     ],
   },
   {

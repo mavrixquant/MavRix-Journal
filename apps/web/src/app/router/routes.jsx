@@ -50,6 +50,7 @@ const AdminUserDetailPage   = lazy(() => import('@/features/admin/pages/AdminUse
 const AdminAccountsPage     = lazy(() => import('@/features/admin/pages/AdminAccountsPage'));
 const AdminTradesPage       = lazy(() => import('@/features/admin/pages/AdminTradesPage'));
 const AdminStrategiesPage   = lazy(() => import('@/features/admin/pages/AdminStrategiesPage'));
+const AdminGroupsPage       = lazy(() => import('@/features/admin/pages/AdminGroupsPage'));
 const AdminAuditPage        = lazy(() => import('@/features/admin/pages/AdminAuditPage'));
 const AdminSessionsPage     = lazy(() => import('@/features/admin/pages/AdminSessionsPage'));
 const AdminSystemPage       = lazy(() => import('@/features/admin/pages/AdminSystemPage'));
@@ -95,6 +96,7 @@ export function AppRoutes() {
         <Route path="accounts"  element={<AdminAccountsPage />} />
         <Route path="trades"    element={<AdminTradesPage />} />
         <Route path="strategies" element={<AdminStrategiesPage />} />
+        <Route path="groups"    element={<AdminGroupsPage />} />
         <Route path="audit"     element={<AdminAuditPage />} />
         <Route path="sessions"  element={<AdminSessionsPage />} />
         <Route path="system"    element={<AdminSystemPage />} />
