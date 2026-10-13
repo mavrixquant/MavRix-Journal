@@ -50,10 +50,6 @@ import Alert from '@/shared/components/Alert';
 /* ------------------------------------------------------------------ */
 const CSS = `
   .jm-root {
-    --accent: #F59E0B;
-    --accent-2: #FDE68A;
-    --accent-soft: rgba(245,158,11,.10);
-    --accent-soft2: rgba(245,158,11,.28);
     --line: rgba(255,255,255,.085);
     --line-soft: rgba(255,255,255,.05);
     --ink-1: #E7E9EE;
@@ -122,7 +118,7 @@ const CSS = `
   .jm-kpi-value.amber { color: var(--accent); }
 
   .jm-kpi.is-anchor {
-    background: linear-gradient(180deg, rgba(245,158,11,.05), rgba(245,158,11,.015));
+    background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 5%, transparent), color-mix(in srgb, var(--accent) 1.5%, transparent));
     border-color: var(--accent-soft2);
   }
 
@@ -155,7 +151,7 @@ const CSS = `
   }
   .jm-icon-btn:hover:not(:disabled) {
     color: var(--accent);
-    background: rgba(245,158,11,.06);
+    background: color-mix(in srgb, var(--accent) 6%, transparent);
     border-color: var(--accent-soft2);
     transform: translateY(-1px);
   }
@@ -178,7 +174,7 @@ const CSS = `
     letter-spacing: .02em;
     cursor: pointer;
     box-shadow:
-      0 10px 30px -8px rgba(245,158,11,.55),
+      0 10px 30px -8px color-mix(in srgb, var(--accent) 55%, transparent),
       inset 0 1px 0 rgba(255,255,255,.4);
     transition: transform .25s cubic-bezier(.175,.885,.32,1.275), box-shadow .3s;
     white-space: nowrap;
@@ -186,7 +182,7 @@ const CSS = `
   }
   .jm-btn-primary:hover:not(:disabled) {
     transform: translateY(-2px);
-    box-shadow: 0 16px 42px -10px rgba(245,158,11,.7), inset 0 1px 0 rgba(255,255,255,.5);
+    box-shadow: 0 16px 42px -10px color-mix(in srgb, var(--accent) 70%, transparent), inset 0 1px 0 rgba(255,255,255,.5);
   }
   .jm-btn-primary:disabled {
     opacity: .5;
@@ -222,7 +218,7 @@ const CSS = `
   }
   .jm-row-btn:hover {
     color: var(--accent);
-    background: rgba(245,158,11,.10);
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
     border-color: var(--accent-soft2);
     transform: translateY(-1px);
   }
@@ -234,7 +230,7 @@ const CSS = `
   }
   .jm-row-btn:focus-visible {
     outline: none;
-    box-shadow: 0 0 0 3px rgba(245,158,11,.22);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
   }
   .jm-row-btn.is-danger:focus-visible {
     box-shadow: 0 0 0 3px rgba(239,68,68,.22);
@@ -294,7 +290,7 @@ const CSS = `
     width: 56px;
     height: 56px;
     border-radius: 16px;
-    background: linear-gradient(135deg, rgba(245,158,11,.14), rgba(245,158,11,.04));
+    background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 14%, transparent), color-mix(in srgb, var(--accent) 4%, transparent));
     border: 1px solid var(--accent-soft2);
     color: var(--accent);
     display: inline-flex;
@@ -302,7 +298,7 @@ const CSS = `
     justify-content: center;
     font-size: 20px;
     margin-bottom: 16px;
-    box-shadow: 0 0 30px -10px rgba(245,158,11,.55);
+    box-shadow: 0 0 30px -10px color-mix(in srgb, var(--accent) 55%, transparent);
   }
   .jm-empty h3 {
     margin: 0 0 6px;

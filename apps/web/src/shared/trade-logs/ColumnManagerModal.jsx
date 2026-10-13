@@ -149,9 +149,7 @@ const CSS = `
     animation: cmFade .18s ease;
   }
   .cm-modal {
-    --accent: #F59E0B; --accent-2: #FDE68A;
-    --accent-soft: rgba(245,158,11,.10);
-    --accent-soft2: rgba(245,158,11,.28);
+    --accent: var(--accent); --accent-2: var(--accent-2);
     --line: rgba(255,255,255,.085);
     --line-soft: rgba(255,255,255,.05);
     --ink-1: #E7E9EE; --ink-2: #8892A3; --ink-3: #545E6E;
@@ -197,7 +195,7 @@ const CSS = `
     transition: all .2s;
   }
   .cm-close:hover:not(:disabled) {
-    color: var(--accent); background: rgba(245,158,11,.08);
+    color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent);
   }
   .cm-close:disabled { opacity: .35; cursor: not-allowed; }
   .cm-body {
@@ -240,7 +238,7 @@ const CSS = `
   }
   .cm-input:focus, .cm-select:focus {
     border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(245,158,11,.15);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent);
   }
   .cm-input:disabled, .cm-select:disabled {
     opacity: .55; cursor: not-allowed;
@@ -258,7 +256,7 @@ const CSS = `
     font-family: 'IBM Plex Mono', ui-monospace, monospace;
     letter-spacing: .02em; cursor: pointer;
     display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-    box-shadow: 0 8px 20px -10px rgba(245,158,11,.6),
+    box-shadow: 0 8px 20px -10px color-mix(in srgb, var(--accent) 60%, transparent),
                 inset 0 1px 0 rgba(255,255,255,.4);
     transition: all .2s; white-space: nowrap; min-width: 84px;
   }
@@ -278,11 +276,11 @@ const CSS = `
   .cm-row:hover { border-color: rgba(255,255,255,.12); }
   .cm-row.is-busy {
     border-color: var(--accent-soft2);
-    background: rgba(245,158,11,.05);
+    background: color-mix(in srgb, var(--accent) 5%, transparent);
   }
   .cm-row.is-renaming {
     border-color: var(--accent-soft2);
-    background: rgba(245,158,11,.04);
+    background: color-mix(in srgb, var(--accent) 4%, transparent);
   }
 
   .cm-row-head {
@@ -314,7 +312,7 @@ const CSS = `
     transition: all .18s;
   }
   .cm-icon-btn:hover:not(:disabled) {
-    color: var(--accent); background: rgba(245,158,11,.08);
+    color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent);
     border-color: var(--accent-soft2);
   }
   .cm-icon-btn:disabled { opacity: .5; cursor: not-allowed; }
@@ -346,7 +344,7 @@ const CSS = `
   }
   .cm-rename-input:focus {
     border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(245,158,11,.15);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent);
   }
   .cm-rename-error {
     margin-top: 6px;
@@ -392,7 +390,7 @@ const CSS = `
   .cm-details-toggle:hover:not(:disabled) {
     color: var(--accent);
     border-color: var(--accent-soft2);
-    background: rgba(245,158,11,.05);
+    background: color-mix(in srgb, var(--accent) 5%, transparent);
   }
   .cm-details-toggle:disabled {
     opacity: .5; cursor: not-allowed;
@@ -447,7 +445,7 @@ const CSS = `
     width: 16px; height: 16px;
     border-radius: 50%;
     border: none;
-    background: rgba(245,158,11,.18);
+    background: color-mix(in srgb, var(--accent) 18%, transparent);
     color: inherit;
     cursor: pointer;
     padding: 0;
@@ -455,7 +453,7 @@ const CSS = `
     transition: all .15s;
   }
   .cm-opt-chip-remove:hover:not(:disabled) {
-    background: rgba(245,158,11,.38); color: #fff;
+    background: color-mix(in srgb, var(--accent) 38%, transparent); color: #fff;
   }
   .cm-opt-chip-remove:disabled {
     opacity: .4; cursor: not-allowed;
@@ -484,7 +482,7 @@ const CSS = `
   }
   .cm-options-add input:focus {
     border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(245,158,11,.15);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent);
   }
   .cm-options-add button {
     display: inline-flex; align-items: center; gap: 5px;
@@ -501,7 +499,7 @@ const CSS = `
   }
   .cm-options-add button:hover:not(:disabled) {
     color: var(--accent);
-    background: rgba(245,158,11,.08);
+    background: color-mix(in srgb, var(--accent) 8%, transparent);
     border-color: var(--accent-soft2);
   }
   .cm-options-add button:disabled {
@@ -527,7 +525,7 @@ const CSS = `
     width: 6px; height: 6px;
     border-radius: 50%;
     background: var(--accent);
-    box-shadow: 0 0 8px rgba(245,158,11,.5);
+    box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 50%, transparent);
     flex-shrink: 0;
   }
   .cm-value-text {
@@ -558,7 +556,7 @@ const CSS = `
   }
   .cm-value-btn:hover:not(:disabled) {
     color: var(--accent);
-    background: rgba(245,158,11,.10);
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
     border-color: var(--accent-soft2);
   }
   .cm-value-btn.is-danger:hover:not(:disabled) {
@@ -574,9 +572,9 @@ const CSS = `
     margin-top: 10px;
     padding: 10px 12px;
     border-radius: 10px;
-    background: rgba(245,158,11,.08);
+    background: color-mix(in srgb, var(--accent) 8%, transparent);
     border: 1px solid var(--accent-soft2);
-    color: #FDE68A;
+    color: var(--accent-2);
     font-family: 'IBM Plex Mono', ui-monospace, monospace;
     font-size: 11.5px;
     line-height: 1.6;
@@ -685,12 +683,12 @@ const CSS = `
     border: none;
     font-weight: 700;
     box-shadow:
-      0 10px 30px -8px rgba(245,158,11,.55),
+      0 10px 30px -8px color-mix(in srgb, var(--accent) 55%, transparent),
       inset 0 1px 0 rgba(255,255,255,.4);
   }
   .cm-btn-primary:hover:not(:disabled) {
     transform: translateY(-1px);
-    box-shadow: 0 16px 42px -10px rgba(245,158,11,.7),
+    box-shadow: 0 16px 42px -10px color-mix(in srgb, var(--accent) 70%, transparent),
                 inset 0 1px 0 rgba(255,255,255,.5);
   }
 

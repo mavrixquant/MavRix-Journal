@@ -1,10 +1,6 @@
 /* apps/web/src/app/shell/Sidebar.css */
 
 .sb-root {
-  --accent: #F59E0B;
-  --accent-2: #FDE68A;
-  --accent-soft: rgba(245,158,11,.10);
-  --accent-soft2: rgba(245,158,11,.28);
   --line: rgba(255,255,255,.085);
   --line-soft: rgba(255,255,255,.05);
   --ink-1: #E7E9EE;
@@ -60,7 +56,7 @@
   inset: 0;
   background: radial-gradient(
     120% 100% at 22% 0%,
-    rgba(245,158,11,.07),
+    color-mix(in srgb, var(--accent) 7%, transparent),
     transparent 62%
   );
   pointer-events: none;
@@ -93,8 +89,8 @@
   height: 80px;
   background: radial-gradient(
     closest-side,
-    rgba(245,158,11,.20),
-    rgba(245,158,11,.05) 45%,
+    color-mix(in srgb, var(--accent) 20%, transparent),
+    color-mix(in srgb, var(--accent) 5%, transparent) 45%,
     transparent 75%
   );
   pointer-events: none;
@@ -107,11 +103,11 @@
   max-width: 100%;
   object-fit: contain;
   display: block;
-  filter: drop-shadow(0 2px 12px rgba(245,158,11,.28));
+  filter: drop-shadow(0 2px 12px color-mix(in srgb, var(--accent) 28%, transparent));
   transition: filter .35s ease;
 }
 .sb-root:hover .sb-logo {
-  filter: drop-shadow(0 2px 18px rgba(245,158,11,.46));
+  filter: drop-shadow(0 2px 18px color-mix(in srgb, var(--accent) 46%, transparent));
 }
 
 /* ---------- Collapse / expand toggle ---------- */
@@ -142,10 +138,10 @@
 }
 .sb-toggle:hover {
   color: var(--accent);
-  background: linear-gradient(135deg, rgba(245,158,11,.14), rgba(245,158,11,.05));
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 14%, transparent), color-mix(in srgb, var(--accent) 5%, transparent));
   border-color: var(--accent-soft2);
   box-shadow:
-    0 0 22px -6px rgba(245,158,11,.6),
+    0 0 22px -6px color-mix(in srgb, var(--accent) 60%, transparent),
     inset 0 1px 0 rgba(255,255,255,.06);
   transform: translateY(-1px);
 }
@@ -154,7 +150,7 @@
 .sb-toggle:focus-visible {
   outline: none;
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(245,158,11,.20);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent);
 }
 
 .sb-toggle.is-expand {
@@ -162,15 +158,15 @@
   height: 46px;
   border-radius: 13px;
   color: var(--ink-2);
-  background: linear-gradient(135deg, rgba(245,158,11,.06), rgba(255,255,255,.02));
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 6%, transparent), rgba(255,255,255,.02));
   border-color: rgba(255,255,255,.09);
 }
 .sb-toggle.is-expand:hover {
   color: var(--accent);
   border-color: var(--accent-soft2);
-  background: linear-gradient(135deg, rgba(245,158,11,.18), rgba(245,158,11,.06));
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 18%, transparent), color-mix(in srgb, var(--accent) 6%, transparent));
   box-shadow:
-    0 0 30px -6px rgba(245,158,11,.7),
+    0 0 30px -6px color-mix(in srgb, var(--accent) 70%, transparent),
     inset 0 1px 0 rgba(255,255,255,.10);
 }
 .sb-toggle.is-expand:hover svg { transform: scale(1.12); }
@@ -285,11 +281,11 @@
 
 .sb-item.is-active {
   color: var(--accent);
-  background: linear-gradient(90deg, rgba(245,158,11,.16), rgba(245,158,11,.05) 75%, transparent);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 16%, transparent), color-mix(in srgb, var(--accent) 5%, transparent) 75%, transparent);
   border-color: var(--accent-soft2);
   font-weight: 600;
   box-shadow:
-    0 6px 18px -12px rgba(245,158,11,.7),
+    0 6px 18px -12px color-mix(in srgb, var(--accent) 70%, transparent),
     inset 0 1px 0 rgba(255,255,255,.05);
 }
 .sb-item.is-active::before {
@@ -301,7 +297,7 @@
   width: 3px;
   border-radius: 0 3px 3px 0;
   background: linear-gradient(180deg, var(--accent), var(--accent-2));
-  box-shadow: 0 0 12px rgba(245,158,11,.75);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 75%, transparent);
 }
 
 .sb-icon {
@@ -317,7 +313,7 @@
 .sb-item:hover .sb-icon { opacity: 1; transform: scale(1.08); }
 .sb-item.is-active .sb-icon {
   opacity: 1;
-  filter: drop-shadow(0 0 6px rgba(245,158,11,.65));
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--accent) 65%, transparent));
 }
 
 .sb-label {
@@ -340,10 +336,10 @@
 }
 .sb-root.is-collapsed .sb-item.is-active {
   color: var(--accent);
-  background: linear-gradient(135deg, rgba(245,158,11,.30), rgba(245,158,11,.12));
-  border-color: rgba(245,158,11,.55);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 30%, transparent), color-mix(in srgb, var(--accent) 12%, transparent));
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
   box-shadow:
-    0 0 26px -8px rgba(245,158,11,.85),
+    0 0 26px -8px color-mix(in srgb, var(--accent) 85%, transparent),
     inset 0 1px 0 rgba(255,255,255,.10);
 }
 .sb-root.is-collapsed .sb-item.is-active::before { display: none; }
@@ -355,21 +351,18 @@
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: #FDE68A;
+  background: var(--accent-2);
   box-shadow:
-    0 0 10px rgba(245,158,11,.95),
+    0 0 10px color-mix(in srgb, var(--accent) 95%, transparent),
     0 0 4px rgba(253,230,138,.9);
 }
 .sb-root.is-collapsed .sb-icon { width: auto; opacity: 1; }
 .sb-root.is-collapsed .sb-item.is-active .sb-icon {
-  filter: drop-shadow(0 0 10px rgba(245,158,11,.9));
+  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--accent) 90%, transparent));
 }
 
 /* ---------- Collapsed: hover flyout ---------- */
 .sb-flyout {
-  --accent: #F59E0B;
-  --accent-2: #FDE68A;
-  --accent-soft2: rgba(245,158,11,.28);
   --line: rgba(255,255,255,.085);
   --line-soft: rgba(255,255,255,.05);
   --ink-1: #E7E9EE;
@@ -383,7 +376,7 @@
   border-radius: 12px;
   box-shadow:
     0 24px 60px -20px rgba(0,0,0,.9),
-    0 0 0 1px rgba(245,158,11,.08);
+    0 0 0 1px color-mix(in srgb, var(--accent) 8%, transparent);
   color: var(--ink-1);
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
   z-index: 60;
@@ -426,7 +419,7 @@
 }
 .sb-flyout-item.is-active {
   color: var(--accent);
-  background: linear-gradient(90deg, rgba(245,158,11,.16), rgba(245,158,11,.05) 75%, transparent);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 16%, transparent), color-mix(in srgb, var(--accent) 5%, transparent) 75%, transparent);
   border-color: var(--accent-soft2);
   font-weight: 600;
   box-shadow: inset 0 1px 0 rgba(255,255,255,.05);
@@ -440,7 +433,7 @@
   width: 3px;
   border-radius: 0 3px 3px 0;
   background: linear-gradient(180deg, var(--accent), var(--accent-2));
-  box-shadow: 0 0 12px rgba(245,158,11,.75);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 75%, transparent);
 }
 .sb-flyout-item .sb-icon { width: 14px; }
 

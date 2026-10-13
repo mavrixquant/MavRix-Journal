@@ -462,10 +462,6 @@ const UPL_CSS = `
   }
 
   .upl-modal {
-    --accent: #F59E0B;
-    --accent-2: #FDE68A;
-    --accent-soft: rgba(245,158,11,.10);
-    --accent-soft2: rgba(245,158,11,.28);
     --line: rgba(255,255,255,.085);
     --line-soft: rgba(255,255,255,.05);
     --ink-1: #E7E9EE;
@@ -527,7 +523,7 @@ const UPL_CSS = `
     border-radius: 8px;
     transition: all .2s;
   }
-  .upl-close:hover { color: var(--accent); background: rgba(245,158,11,.08); }
+  .upl-close:hover { color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent); }
   .upl-close:disabled { opacity: .4; cursor: not-allowed; }
 
   .upl-body {
@@ -560,8 +556,8 @@ const UPL_CSS = `
   }
   .upl-drop:hover {
     border-color: var(--accent-soft2);
-    background: rgba(245,158,11,.04);
-    box-shadow: 0 0 30px -12px rgba(245,158,11,.5);
+    background: color-mix(in srgb, var(--accent) 4%, transparent);
+    box-shadow: 0 0 30px -12px color-mix(in srgb, var(--accent) 50%, transparent);
   }
   .upl-drop-icon {
     width: 56px;
@@ -570,10 +566,10 @@ const UPL_CSS = `
     display: flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(135deg, rgba(245,158,11,.18), rgba(245,158,11,.05));
+    background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 18%, transparent), color-mix(in srgb, var(--accent) 5%, transparent));
     border: 1px solid var(--accent-soft2);
     color: var(--accent);
-    box-shadow: 0 0 30px -10px rgba(245,158,11,.6);
+    box-shadow: 0 0 30px -10px color-mix(in srgb, var(--accent) 60%, transparent);
     font-size: 22px;
     transition: transform .3s cubic-bezier(.2,.8,.25,1);
   }
@@ -726,7 +722,7 @@ const UPL_CSS = `
   .upl-col-row:hover { border-color: rgba(255,255,255,.12); }
   .upl-col-row.is-renaming {
     border-color: var(--accent-soft2);
-    background: rgba(245,158,11,.04);
+    background: color-mix(in srgb, var(--accent) 4%, transparent);
   }
 
   .upl-col-head {
@@ -776,7 +772,7 @@ const UPL_CSS = `
   }
   .upl-col-action:hover {
     color: var(--accent);
-    background: rgba(245,158,11,.10);
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
     border-color: var(--accent-soft2);
   }
   .upl-col-action.is-danger:hover {
@@ -809,7 +805,7 @@ const UPL_CSS = `
   }
   .upl-rename-input:focus {
     border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(245,158,11,.15);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent);
   }
   .upl-rename-error {
     margin-top: 6px;
@@ -845,7 +841,7 @@ const UPL_CSS = `
     transition: color .15s;
   }
   .upl-col-types label:hover { color: var(--accent); }
-  .upl-col-types input[type="radio"] { accent-color: #F59E0B; }
+  .upl-col-types input[type="radio"] { accent-color: var(--accent); }
   .upl-locked-pill {
     font-family: 'IBM Plex Mono', ui-monospace, monospace;
     font-size: 11px;
@@ -908,7 +904,7 @@ const UPL_CSS = `
     height: 16px;
     border-radius: 50%;
     border: none;
-    background: rgba(245,158,11,.18);
+    background: color-mix(in srgb, var(--accent) 18%, transparent);
     color: inherit;
     cursor: pointer;
     padding: 0;
@@ -916,7 +912,7 @@ const UPL_CSS = `
     transition: all .15s;
   }
   .upl-opt-chip-remove:hover {
-    background: rgba(245,158,11,.38);
+    background: color-mix(in srgb, var(--accent) 38%, transparent);
     color: #fff;
   }
   .upl-options-empty {
@@ -945,7 +941,7 @@ const UPL_CSS = `
   }
   .upl-options-add input:focus {
     border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(245,158,11,.15);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent);
   }
   .upl-options-add button {
     display: inline-flex;
@@ -966,7 +962,7 @@ const UPL_CSS = `
   }
   .upl-options-add button:hover:not(:disabled) {
     color: var(--accent);
-    background: rgba(245,158,11,.08);
+    background: color-mix(in srgb, var(--accent) 8%, transparent);
     border-color: var(--accent-soft2);
   }
   .upl-options-add button:disabled {
@@ -1052,7 +1048,7 @@ const UPL_CSS = `
     letter-spacing: .02em;
     cursor: pointer;
     box-shadow:
-      0 10px 30px -8px rgba(245,158,11,.55),
+      0 10px 30px -8px color-mix(in srgb, var(--accent) 55%, transparent),
       inset 0 1px 0 rgba(255,255,255,.4);
     transition: transform .25s cubic-bezier(.175,.885,.32,1.275), box-shadow .3s;
   }
@@ -1066,11 +1062,11 @@ const UPL_CSS = `
   }
   .upl-btn-primary:hover:not(:disabled) {
     transform: translateY(-2px);
-    box-shadow: 0 16px 42px -10px rgba(245,158,11,.7), inset 0 1px 0 rgba(255,255,255,.5);
+    box-shadow: 0 16px 42px -10px color-mix(in srgb, var(--accent) 70%, transparent), inset 0 1px 0 rgba(255,255,255,.5);
   }
   .upl-btn-primary:active:not(:disabled) { transform: translateY(0) scale(.98); }
   .upl-btn-primary:disabled {
-    background: linear-gradient(135deg, rgba(245,158,11,.32), rgba(253,230,138,.28));
+    background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 32%, transparent), rgba(253,230,138,.28));
     color: rgba(10,13,19,.55);
     box-shadow: none;
     cursor: not-allowed;

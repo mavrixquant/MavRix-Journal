@@ -3,10 +3,6 @@
    AccountsMain.css (both files are loaded whenever the modal is shown). */
 
 .acc-overlay {
-  --accent: #F59E0B;
-  --accent-2: #FDE68A;
-  --accent-soft: rgba(245,158,11,.10);
-  --accent-soft2: rgba(245,158,11,.28);
   --line: rgba(255,255,255,.085);
   --line-soft: rgba(255,255,255,.05);
   --ink-1: #E7E9EE;
@@ -84,7 +80,7 @@
 }
 .acc-modal-close:hover {
   color: var(--accent);
-  background: rgba(245,158,11,.08);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
 }
 .acc-modal-body {
   padding: 20px 22px;
@@ -133,7 +129,7 @@
 .acc-input:hover { border-color: rgba(255,255,255,.2); }
 .acc-input:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(245,158,11,.15);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent);
 }
 select.acc-input {
   appearance: none;

@@ -23,14 +23,12 @@ import { useSyncCalendar } from '@/shared/api/calendar';
 
 const CSS = `
   .cf-root {
-    --accent: #F59E0B;
-    --accent-2: #FDE68A;
     --line: rgba(255,255,255,.085);
     --line-soft: rgba(255,255,255,.05);
     --ink-1: #E7E9EE;
     --ink-2: #8892A3;
     --ink-3: #545E6E;
-    --impact-high: #F59E0B;
+    --impact-high: var(--accent);
     --impact-medium: #60A5FA;
     --impact-low: #545E6E;
     display: flex;
@@ -79,8 +77,8 @@ const CSS = `
     background: rgba(255,255,255,.05);
   }
   .cf-chip.is-active {
-    background: linear-gradient(135deg, rgba(245,158,11,.18), rgba(245,158,11,.06));
-    border-color: rgba(245,158,11,.45);
+    background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 18%, transparent), color-mix(in srgb, var(--accent) 6%, transparent));
+    border-color: color-mix(in srgb, var(--accent) 45%, transparent);
     color: var(--accent);
   }
   .cf-chip .cf-chip-count {
@@ -89,7 +87,7 @@ const CSS = `
     font-weight: 500;
   }
   .cf-chip.is-active .cf-chip-count {
-    color: rgba(245,158,11,.7);
+    color: color-mix(in srgb, var(--accent) 70%, transparent);
   }
 
   /* ---------- Impact segmented control ---------- */
@@ -129,7 +127,7 @@ const CSS = `
     border-radius: 50%;
     flex-shrink: 0;
   }
-  .cf-impact-dot.high   { background: var(--impact-high);   box-shadow: 0 0 8px rgba(245,158,11,.6); }
+  .cf-impact-dot.high   { background: var(--impact-high);   box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 60%, transparent); }
   .cf-impact-dot.medium { background: var(--impact-medium); box-shadow: 0 0 8px rgba(96,165,250,.5); }
   .cf-impact-dot.low    { background: var(--impact-low);    }
 
@@ -154,7 +152,7 @@ const CSS = `
   .cf-date-input:hover { border-color: rgba(255,255,255,.2); }
   .cf-date-input:focus {
     border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(245,158,11,.15);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent);
   }
 
   /* ---------- Buttons ---------- */
@@ -187,15 +185,15 @@ const CSS = `
     color: #0D1117;
     border-color: transparent;
     font-weight: 700;
-    box-shadow: 0 6px 18px -8px rgba(245,158,11,.55);
+    box-shadow: 0 6px 18px -8px color-mix(in srgb, var(--accent) 55%, transparent);
   }
   .cf-btn.is-sync {
-    border-color: rgba(245,158,11,.35);
-    background: rgba(245,158,11,.06);
+    border-color: color-mix(in srgb, var(--accent) 35%, transparent);
+    background: color-mix(in srgb, var(--accent) 6%, transparent);
     color: var(--accent);
   }
   .cf-btn.is-sync:hover:not(:disabled) {
-    background: rgba(245,158,11,.12);
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
     border-color: var(--accent);
   }
   .cf-btn.is-sync .cf-sync-icon.spinning {
@@ -233,7 +231,7 @@ const CSS = `
     background: linear-gradient(135deg, var(--accent), var(--accent-2));
     color: #0D1117;
     font-weight: 700;
-    box-shadow: 0 6px 16px -8px rgba(245,158,11,.6);
+    box-shadow: 0 6px 16px -8px color-mix(in srgb, var(--accent) 60%, transparent);
   }
 
   .cf-clear {

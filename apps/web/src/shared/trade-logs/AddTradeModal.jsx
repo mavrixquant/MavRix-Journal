@@ -92,9 +92,7 @@ const CSS = `
     animation: atFade .18s ease;
   }
   .at-modal {
-    --accent: #F59E0B; --accent-2: #FDE68A;
-    --accent-soft: rgba(245,158,11,.10);
-    --accent-soft2: rgba(245,158,11,.28);
+    --accent: var(--accent); --accent-2: var(--accent-2);
     --line: rgba(255,255,255,.085);
     --line-soft: rgba(255,255,255,.05);
     --ink-1: #E7E9EE; --ink-2: #8892A3; --ink-3: #545E6E;
@@ -134,7 +132,7 @@ const CSS = `
     font-size: 15px; cursor: pointer; padding: 6px; border-radius: 8px;
     transition: all .2s;
   }
-  .at-close:hover:not(:disabled) { color: var(--accent); background: rgba(245,158,11,.08); }
+  .at-close:hover:not(:disabled) { color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent); }
   .at-close:disabled { opacity: .35; cursor: not-allowed; }
   .at-body {
     padding: 20px 22px; overflow-y: auto; flex: 1;
@@ -170,7 +168,7 @@ const CSS = `
   }
   .at-input:focus, .at-select:focus, .at-textarea:focus {
     border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(245,158,11,.15);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent);
   }
   .at-input:disabled, .at-select:disabled, .at-textarea:disabled {
     opacity: .55; cursor: not-allowed;
@@ -239,7 +237,7 @@ const CSS = `
     border: none; overflow: hidden;
     background: linear-gradient(135deg, var(--accent), var(--accent-2));
     color: #0D1117; font-weight: 700;
-    box-shadow: 0 10px 30px -8px rgba(245,158,11,.55),
+    box-shadow: 0 10px 30px -8px color-mix(in srgb, var(--accent) 55%, transparent),
                 inset 0 1px 0 rgba(255,255,255,.4);
   }
   .at-btn-primary::after {
@@ -250,12 +248,12 @@ const CSS = `
   }
   .at-btn-primary:hover:not(:disabled) {
     transform: translateY(-2px);
-    box-shadow: 0 16px 42px -10px rgba(245,158,11,.7),
+    box-shadow: 0 16px 42px -10px color-mix(in srgb, var(--accent) 70%, transparent),
                 inset 0 1px 0 rgba(255,255,255,.5);
   }
   .at-btn-primary:disabled {
     background: linear-gradient(135deg,
-                rgba(245,158,11,.32), rgba(253,230,138,.28));
+                color-mix(in srgb, var(--accent) 32%, transparent), rgba(253,230,138,.28));
     color: rgba(10,13,19,.55); box-shadow: none;
   }
   .at-btn-primary:disabled::after { display: none; }

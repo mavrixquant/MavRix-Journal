@@ -46,10 +46,6 @@ import {
 
 const CSS = `
   .agm-modal {
-    --accent: #F59E0B;
-    --accent-2: #FDE68A;
-    --accent-soft: rgba(245,158,11,.10);
-    --accent-soft2: rgba(245,158,11,.28);
     --line: rgba(255,255,255,.085);
     --line-soft: rgba(255,255,255,.05);
     --ink-1: #E7E9EE;
@@ -116,7 +112,7 @@ const CSS = `
     transition: all .2s;
     flex-shrink: 0;
   }
-  .agm-close:hover:not(:disabled) { color: var(--accent); background: rgba(245,158,11,.08); }
+  .agm-close:hover:not(:disabled) { color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent); }
   .agm-close:disabled { opacity: .35; cursor: not-allowed; }
 
   .agm-tabs {
@@ -148,7 +144,7 @@ const CSS = `
     background: linear-gradient(135deg, var(--accent), var(--accent-2));
     color: #0D1117;
     font-weight: 700;
-    box-shadow: 0 6px 16px -8px rgba(245,158,11,.6);
+    box-shadow: 0 6px 16px -8px color-mix(in srgb, var(--accent) 60%, transparent);
   }
 
   .agm-body {
@@ -199,7 +195,7 @@ const CSS = `
   .agm-input::placeholder, .agm-textarea::placeholder { color: var(--ink-3); }
   .agm-input:focus, .agm-textarea:focus {
     border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(245,158,11,.15);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent);
   }
   .agm-input:disabled, .agm-textarea:disabled { opacity: .55; cursor: not-allowed; }
 
@@ -217,7 +213,7 @@ const CSS = `
     text-align: left;
   }
   .agm-vis-tile:hover:not(:disabled) { border-color: rgba(255,255,255,.16); background: rgba(255,255,255,.04); }
-  .agm-vis-tile.is-active { border-color: var(--accent-soft2); background: rgba(245,158,11,.08); }
+  .agm-vis-tile.is-active { border-color: var(--accent-soft2); background: color-mix(in srgb, var(--accent) 8%, transparent); }
   .agm-vis-tile:disabled { opacity: .4; cursor: not-allowed; }
   .agm-vis-icon {
     flex-shrink: 0;
@@ -230,7 +226,7 @@ const CSS = `
     margin-top: 1px;
   }
   .agm-vis-tile.is-active .agm-vis-icon {
-    background: rgba(245,158,11,.14);
+    background: color-mix(in srgb, var(--accent) 14%, transparent);
     border-color: var(--accent-soft2);
     color: var(--accent);
   }
@@ -288,7 +284,7 @@ const CSS = `
   .agm-search input::placeholder { color: var(--ink-3); }
   .agm-search input:focus {
     border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(245,158,11,.15);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent);
   }
 
   .agm-add-results {
@@ -331,7 +327,7 @@ const CSS = `
     flex-shrink: 0;
     width: 34px; height: 34px;
     border-radius: 50%;
-    background: linear-gradient(135deg, rgba(245,158,11,.20), rgba(245,158,11,.05));
+    background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 20%, transparent), color-mix(in srgb, var(--accent) 5%, transparent));
     border: 1px solid var(--accent-soft2);
     color: var(--accent);
     font-family: 'IBM Plex Mono', ui-monospace, monospace;
@@ -363,7 +359,7 @@ const CSS = `
     border: 1px solid;
     white-space: nowrap;
   }
-  .agm-role-chip.is-owner { color: var(--accent); background: rgba(245,158,11,.10); border-color: var(--accent-soft2); }
+  .agm-role-chip.is-owner { color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); border-color: var(--accent-soft2); }
   .agm-role-chip.is-moderator { color: #60a5fa; background: rgba(96,165,250,.10); border-color: rgba(96,165,250,.32); }
   .agm-role-chip.is-member { color: var(--ink-2); background: rgba(255,255,255,.03); border-color: rgba(255,255,255,.10); }
 
@@ -382,7 +378,7 @@ const CSS = `
   }
   .agm-icon-btn:hover:not(:disabled) {
     color: var(--accent);
-    background: rgba(245,158,11,.10);
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
     border-color: var(--accent-soft2);
   }
   .agm-icon-btn.is-danger:hover:not(:disabled) {
@@ -447,11 +443,11 @@ const CSS = `
     color: #0D1117;
     border: none;
     font-weight: 700;
-    box-shadow: 0 10px 30px -8px rgba(245,158,11,.55), inset 0 1px 0 rgba(255,255,255,.4);
+    box-shadow: 0 10px 30px -8px color-mix(in srgb, var(--accent) 55%, transparent), inset 0 1px 0 rgba(255,255,255,.4);
   }
   .agm-btn-primary:hover:not(:disabled) {
     transform: translateY(-2px);
-    box-shadow: 0 16px 42px -10px rgba(245,158,11,.7), inset 0 1px 0 rgba(255,255,255,.5);
+    box-shadow: 0 16px 42px -10px color-mix(in srgb, var(--accent) 70%, transparent), inset 0 1px 0 rgba(255,255,255,.5);
   }
   .agm-btn-danger {
     background: rgba(239,68,68,.06);
@@ -505,7 +501,7 @@ const EMPTY_FORM = {
   name: '',
   description: '',
   visibility: 'public',
-  color: '#F59E0B',
+  color: 'var(--accent)',
   iconEmoji: '',
 };
 
@@ -563,7 +559,7 @@ export default function AdminGroupModal({ isOpen, onClose, groupId = null }) {
         name: group.name || '',
         description: group.description || '',
         visibility: group.visibility || 'public',
-        color: group.color || '#F59E0B',
+        color: group.color || 'var(--accent)',
         iconEmoji: group.iconEmoji || '',
       });
     }

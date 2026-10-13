@@ -44,9 +44,7 @@ const simulationConfigsEqual = (a, b) => {
 /* ------------------------------------------------------------------ */
 const SIM_CSS = `
   .sim-page {
-    --accent: #F59E0B; --accent-2: #FDE68A;
-    --accent-soft: rgba(245,158,11,.10);
-    --accent-soft2: rgba(245,158,11,.28);
+    --accent: var(--accent); --accent-2: var(--accent-2);
     --line: rgba(255,255,255,.085);
     --line-soft: rgba(255,255,255,.05);
     --ink-1: #E7E9EE; --ink-2: #8892A3; --ink-3: #545E6E;
@@ -78,27 +76,27 @@ const SIM_CSS = `
     position: relative; max-width: 520px; width: 100%;
     padding: 56px 40px 48px; border-radius: 26px;
     background:
-      radial-gradient(400px 220px at 50% 0%, rgba(245,158,11,.12), transparent 70%),
+      radial-gradient(400px 220px at 50% 0%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 70%),
       linear-gradient(180deg, rgba(15,18,25,.72), rgba(15,18,25,.55));
     border: 1px solid rgba(255,255,255,.1);
-    box-shadow: 0 40px 90px -50px rgba(245,158,11,.5), inset 0 1px 0 rgba(255,255,255,.04);
+    box-shadow: 0 40px 90px -50px color-mix(in srgb, var(--accent) 50%, transparent), inset 0 1px 0 rgba(255,255,255,.04);
     display: flex; flex-direction: column; align-items: center; text-align: center;
     overflow: hidden;
   }
   .sim-empty::before {
     content: ''; position: absolute; left: -40%; top: -40%;
     width: 180%; height: 180%;
-    background: radial-gradient(circle at 50% 50%, rgba(245,158,11,.08), transparent 45%);
+    background: radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--accent) 8%, transparent), transparent 45%);
     animation: simFloat 8s ease-in-out infinite; pointer-events: none;
   }
   .sim-empty > * { position: relative; z-index: 1; }
   .sim-empty-icon {
     width: 64px; height: 64px; border-radius: 18px;
-    background: linear-gradient(135deg, rgba(245,158,11,.18), rgba(245,158,11,.05));
+    background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 18%, transparent), color-mix(in srgb, var(--accent) 5%, transparent));
     border: 1px solid var(--accent-soft2); color: var(--accent);
     display: flex; align-items: center; justify-content: center;
     margin-bottom: 22px;
-    box-shadow: 0 0 40px -8px rgba(245,158,11,.5); font-size: 24px;
+    box-shadow: 0 0 40px -8px color-mix(in srgb, var(--accent) 50%, transparent); font-size: 24px;
   }
   .sim-empty h3 { margin: 0 0 10px; font-size: 20px; font-weight: 700; color: var(--ink-1); letter-spacing: -.02em; }
   .sim-empty p {
@@ -128,7 +126,7 @@ const SIM_CSS = `
   }
   .sim-info-icon {
     width: 48px; height: 48px; border-radius: 14px;
-    background: rgba(245,158,11,.10); border: 1px solid var(--accent-soft2);
+    background: color-mix(in srgb, var(--accent) 10%, transparent); border: 1px solid var(--accent-soft2);
     color: var(--accent);
     display: inline-flex; align-items: center; justify-content: center;
     font-size: 20px; margin-bottom: 4px;
@@ -695,9 +693,9 @@ export default function SimulatorPage() {
               gap: 10,
               padding: '11px 14px',
               borderRadius: 12,
-              background: 'rgba(245,158,11,.08)',
-              border: '1px solid rgba(245,158,11,.28)',
-              color: '#FDE68A',
+              background: 'color-mix(in srgb, var(--accent) 8%, transparent)',
+              border: '1px solid color-mix(in srgb, var(--accent) 28%, transparent)',
+              color: 'var(--accent-2)',
               fontFamily: "'IBM Plex Mono', monospace",
               fontSize: 11.5,
               lineHeight: 1.5,

@@ -18,9 +18,7 @@ const METHODS = [
 
 const CTRL_CSS = `
   .sim-ctrl {
-    --accent: #F59E0B; --accent-2: #FDE68A;
-    --accent-soft: rgba(245,158,11,.10);
-    --accent-soft2: rgba(245,158,11,.28);
+    --accent: var(--accent); --accent-2: var(--accent-2);
     --line: rgba(255,255,255,.085);
     --line-soft: rgba(255,255,255,.05);
     --ink-1: #E7E9EE; --ink-2: #8892A3; --ink-3: #545E6E;
@@ -62,7 +60,7 @@ const CTRL_CSS = `
   .sim-ctrl-input:hover, .sim-ctrl-select:hover { border-color: rgba(255,255,255,.2); }
   .sim-ctrl-input:focus, .sim-ctrl-select:focus {
     border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(245,158,11,.15);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent);
   }
   .sim-ctrl-input.is-invalid {
     border-color: rgba(239,68,68,.7);
@@ -103,7 +101,7 @@ const CTRL_CSS = `
   .sim-ctrl-seg-btn.is-active {
     background: linear-gradient(135deg, var(--accent), var(--accent-2));
     color: #0D1117;
-    box-shadow: 0 6px 16px -8px rgba(245,158,11,.6), inset 0 1px 0 rgba(255,255,255,.4);
+    box-shadow: 0 6px 16px -8px color-mix(in srgb, var(--accent) 60%, transparent), inset 0 1px 0 rgba(255,255,255,.4);
   }
   .sim-ctrl-seg-btn.is-active .hint { color: rgba(13,17,23,.65); }
   .sim-ctrl-seg-btn:disabled { opacity: .5; cursor: not-allowed; }
@@ -115,7 +113,7 @@ const CTRL_CSS = `
     cursor: pointer; transition: all .22s cubic-bezier(.2,.8,.25,1);
   }
   .sim-ctrl-icon-btn:hover:not(:disabled) {
-    color: var(--accent); background: rgba(245,158,11,.08);
+    color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent);
     border-color: var(--accent-soft2); transform: translateY(-1px);
   }
   .sim-ctrl-icon-btn:active:not(:disabled) { transform: translateY(0) scale(.94); }
@@ -146,7 +144,7 @@ const CTRL_CSS = `
     font-family: 'IBM Plex Mono', ui-monospace, monospace;
     font-size: 12px; font-weight: 700; letter-spacing: .02em;
     cursor: pointer;
-    box-shadow: 0 10px 30px -8px rgba(245,158,11,.55), inset 0 1px 0 rgba(255,255,255,.4);
+    box-shadow: 0 10px 30px -8px color-mix(in srgb, var(--accent) 55%, transparent), inset 0 1px 0 rgba(255,255,255,.4);
     transition: transform .25s cubic-bezier(.175,.885,.32,1.275), box-shadow .3s;
     white-space: nowrap;
   }
@@ -157,11 +155,11 @@ const CTRL_CSS = `
   }
   .sim-ctrl-btn-primary:hover:not(:disabled) {
     transform: translateY(-2px);
-    box-shadow: 0 16px 42px -10px rgba(245,158,11,.7), inset 0 1px 0 rgba(255,255,255,.5);
+    box-shadow: 0 16px 42px -10px color-mix(in srgb, var(--accent) 70%, transparent), inset 0 1px 0 rgba(255,255,255,.5);
   }
   .sim-ctrl-btn-primary:active:not(:disabled) { transform: translateY(0) scale(.98); }
   .sim-ctrl-btn-primary:disabled {
-    background: linear-gradient(135deg, rgba(245,158,11,.35), rgba(253,230,138,.3));
+    background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 35%, transparent), rgba(253,230,138,.3));
     color: rgba(10,13,19,.6); box-shadow: none; cursor: not-allowed;
   }
   .sim-ctrl-btn-primary:disabled::after { display: none; }
@@ -408,7 +406,7 @@ export default function SimulatorControls({
                 fontSize: 10.5,
                 fontWeight: 700,
                 letterSpacing: '.04em',
-                color: '#F59E0B',
+                color: 'var(--accent)',
                 whiteSpace: 'nowrap',
               }}
               title={`${workerProgress.toFixed(0)}% complete`}

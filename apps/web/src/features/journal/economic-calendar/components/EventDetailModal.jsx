@@ -32,14 +32,12 @@ const CSS = `
     animation: edmFade .18s ease;
   }
   .edm-modal {
-    --accent: #F59E0B;
-    --accent-2: #FDE68A;
     --line: rgba(255,255,255,.085);
     --line-soft: rgba(255,255,255,.05);
     --ink-1: #E7E9EE;
     --ink-2: #8892A3;
     --ink-3: #545E6E;
-    --impact-high: #F59E0B;
+    --impact-high: var(--accent);
     --impact-medium: #60A5FA;
     --impact-low: #545E6E;
     --win: #22c55e;
@@ -49,7 +47,7 @@ const CSS = `
     background: linear-gradient(180deg, #12161F, #0C1017);
     border: 1px solid var(--line);
     border-radius: 18px;
-    box-shadow: 0 40px 100px -30px rgba(0,0,0,.95), 0 0 0 1px rgba(245,158,11,.10);
+    box-shadow: 0 40px 100px -30px rgba(0,0,0,.95), 0 0 0 1px color-mix(in srgb, var(--accent) 10%, transparent);
     color: var(--ink-1);
     font-family: Inter, ui-sans-serif, system-ui, sans-serif;
     display: flex;
@@ -88,10 +86,10 @@ const CSS = `
     font-weight: 700;
   }
   .edm-impact.high {
-    background: rgba(245,158,11,.12);
-    border: 1px solid rgba(245,158,11,.35);
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
     color: var(--impact-high);
-    box-shadow: 0 0 24px -8px rgba(245,158,11,.6);
+    box-shadow: 0 0 24px -8px color-mix(in srgb, var(--accent) 60%, transparent);
   }
   .edm-impact.medium {
     background: rgba(96,165,250,.12);
@@ -150,7 +148,7 @@ const CSS = `
   }
   .edm-close:hover {
     color: var(--accent);
-    background: rgba(245,158,11,.08);
+    background: color-mix(in srgb, var(--accent) 8%, transparent);
   }
   .edm-body {
     padding: 20px 22px;
@@ -242,8 +240,8 @@ const CSS = `
   }
   .edm-link:hover {
     color: var(--accent);
-    border-color: rgba(245,158,11,.35);
-    background: rgba(245,158,11,.06);
+    border-color: color-mix(in srgb, var(--accent) 35%, transparent);
+    background: color-mix(in srgb, var(--accent) 6%, transparent);
   }
 
   @keyframes edmFade { from { opacity: 0; } to { opacity: 1; } }

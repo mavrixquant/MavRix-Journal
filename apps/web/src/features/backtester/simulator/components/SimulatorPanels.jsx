@@ -48,9 +48,7 @@ const METHOD_META = {
 
 const PAN_CSS = `
   .sim-panels {
-    --accent: #F59E0B; --accent-2: #FDE68A;
-    --accent-soft: rgba(245,158,11,.10);
-    --accent-soft2: rgba(245,158,11,.28);
+    --accent: var(--accent); --accent-2: var(--accent-2);
     --line: rgba(255,255,255,.085);
     --line-soft: rgba(255,255,255,.05);
     --ink-1: #E7E9EE; --ink-2: #8892A3; --ink-3: #545E6E;
@@ -82,7 +80,7 @@ const PAN_CSS = `
   .sim-tab.is-active {
     background: linear-gradient(135deg, var(--accent), var(--accent-2));
     color: #0D1117; font-weight: 700;
-    box-shadow: 0 8px 20px -10px rgba(245,158,11,.6), inset 0 1px 0 rgba(255,255,255,.4);
+    box-shadow: 0 8px 20px -10px color-mix(in srgb, var(--accent) 60%, transparent), inset 0 1px 0 rgba(255,255,255,.4);
   }
   .sim-panel {
     position: relative; border-radius: 18px;
@@ -112,7 +110,7 @@ const PAN_CSS = `
   .sim-panel-title::before {
     content: ''; width: 3px; height: 14px; border-radius: 3px;
     background: linear-gradient(180deg, var(--accent), var(--accent-2));
-    box-shadow: 0 0 10px rgba(245,158,11,.6); flex-shrink: 0;
+    box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 60%, transparent); flex-shrink: 0;
   }
   .sim-panel-note {
     font-family: 'IBM Plex Mono', ui-monospace, monospace;
@@ -222,7 +220,7 @@ const PAN_CSS = `
   .sim-ul li::before {
     content: ''; flex-shrink: 0; width: 5px; height: 5px;
     border-radius: 50%; background: var(--accent);
-    box-shadow: 0 0 8px rgba(245,158,11,.5); margin-top: 7px;
+    box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 50%, transparent); margin-top: 7px;
   }
   .sim-ul li b { color: var(--ink-1); font-weight: 700; }
   .sim-ul li b.pos { color: var(--win); }
@@ -678,20 +676,20 @@ function BandsPanel({ result, actualCurve, isMoney, resultIsStale }) {
       </div>
       <div className="sim-legend">
         <span className="sim-legend-item">
-          <span className="sim-legend-line" style={{ background: '#F59E0B' }} />Median path
+          <span className="sim-legend-line" style={{ background: 'var(--accent)' }} />Median path
         </span>
         <span className="sim-legend-item">
-          <span className="sim-legend-band" style={{ background: 'rgba(245,158,11,.18)' }} />25–75% band
+          <span className="sim-legend-band" style={{ background: 'color-mix(in srgb, var(--accent) 18%, transparent)' }} />25–75% band
         </span>
         <span className="sim-legend-item">
-          <span className="sim-legend-band" style={{ background: 'rgba(245,158,11,.08)' }} />5–95% band
+          <span className="sim-legend-band" style={{ background: 'color-mix(in srgb, var(--accent) 8%, transparent)' }} />5–95% band
         </span>
         <span className="sim-legend-item">
           <span className="sim-legend-line" style={{ background: '#4C8BF5' }} />Your actual path
         </span>
         {sampledShown > 0 && (
           <span className="sim-legend-item">
-            <span className="sim-legend-line" style={{ background: 'rgba(245,158,11,.4)' }} />Individual paths
+            <span className="sim-legend-line" style={{ background: 'color-mix(in srgb, var(--accent) 40%, transparent)' }} />Individual paths
           </span>
         )}
       </div>
@@ -745,7 +743,7 @@ function DrawdownPanel({
         <span className="sim-legend-item">
           <span
             className="sim-legend-line"
-            style={{ background: '#F59E0B' }}
+            style={{ background: 'var(--accent)' }}
           />
           Median DD
         </span>
@@ -753,7 +751,7 @@ function DrawdownPanel({
         <span className="sim-legend-item">
           <span
             className="sim-legend-band"
-            style={{ background: 'rgba(245,158,11,.18)' }}
+            style={{ background: 'color-mix(in srgb, var(--accent) 18%, transparent)' }}
           />
           25–75% band
         </span>
@@ -761,7 +759,7 @@ function DrawdownPanel({
         <span className="sim-legend-item">
           <span
             className="sim-legend-band"
-            style={{ background: 'rgba(245,158,11,.08)' }}
+            style={{ background: 'color-mix(in srgb, var(--accent) 8%, transparent)' }}
           />
           5–95% band
         </span>
@@ -829,7 +827,7 @@ function DrawdownPanel({
         <div className="sim-chart-sm">
           <DistributionChart
             values={result.recoveryTrades.filter(v => v >= 0)}
-            color="#F59E0B"
+            color="var(--accent)"
             height={320}
             tooltipSuffix="trades peak→recovery"
           />
@@ -867,11 +865,11 @@ function RatiosPanel({ result }) {
   }
 
   const items = [
-    { title: 'Trade Sharpe (unannualized)', values: result.sharpes, color: '#F59E0B' },
-    { title: 'Trade Sortino (unannualized)', values: result.sortinos, color: '#F59E0B' },
+    { title: 'Trade Sharpe (unannualized)', values: result.sharpes, color: 'var(--accent)' },
+    { title: 'Trade Sortino (unannualized)', values: result.sortinos, color: 'var(--accent)' },
     { title: 'Profit Factor', values: result.profitFactors, color: '#22c55e' },
     { title: 'Expectancy', values: result.expectancies, color: '#22c55e' },
-    { title: 'Win Rate (%)', values: result.winRates.map(v => v * 100), color: '#F59E0B' },
+    { title: 'Win Rate (%)', values: result.winRates.map(v => v * 100), color: 'var(--accent)' },
   ];
   const infinitePfCount = result.infinitePfCount || 0;
 

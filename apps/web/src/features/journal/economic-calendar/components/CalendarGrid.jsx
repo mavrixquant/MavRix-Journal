@@ -16,14 +16,12 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 const CSS = `
   .cg-root {
-    --accent: #F59E0B;
-    --accent-2: #FDE68A;
     --line: rgba(255,255,255,.085);
     --line-soft: rgba(255,255,255,.05);
     --ink-1: #E7E9EE;
     --ink-2: #8892A3;
     --ink-3: #545E6E;
-    --impact-high: #F59E0B;
+    --impact-high: var(--accent);
     --impact-medium: #60A5FA;
     --impact-low: #545E6E;
     font-family: Inter, ui-sans-serif, system-ui, sans-serif;
@@ -63,8 +61,8 @@ const CSS = `
   }
   .cg-nav-btn:hover {
     color: var(--accent);
-    border-color: rgba(245,158,11,.35);
-    background: rgba(245,158,11,.06);
+    border-color: color-mix(in srgb, var(--accent) 35%, transparent);
+    background: color-mix(in srgb, var(--accent) 6%, transparent);
   }
   .cg-dow-row {
     display: grid;
@@ -103,13 +101,13 @@ const CSS = `
     text-align: left;
   }
   .cg-cell:hover {
-    border-color: rgba(245,158,11,.35);
-    background: rgba(245,158,11,.04);
+    border-color: color-mix(in srgb, var(--accent) 35%, transparent);
+    background: color-mix(in srgb, var(--accent) 4%, transparent);
     transform: translateY(-1px);
   }
   .cg-cell.is-today {
-    border-color: rgba(245,158,11,.55);
-    box-shadow: 0 0 0 1px rgba(245,158,11,.35);
+    border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent);
   }
   .cg-cell.is-outside {
     opacity: .35;
@@ -142,7 +140,7 @@ const CSS = `
     border-radius: 50%;
     flex-shrink: 0;
   }
-  .cg-dot.high   { background: var(--impact-high);   box-shadow: 0 0 6px rgba(245,158,11,.55); }
+  .cg-dot.high   { background: var(--impact-high);   box-shadow: 0 0 6px color-mix(in srgb, var(--accent) 55%, transparent); }
   .cg-dot.medium { background: var(--impact-medium); }
   .cg-dot.low    { background: var(--impact-low); }
   .cg-more {

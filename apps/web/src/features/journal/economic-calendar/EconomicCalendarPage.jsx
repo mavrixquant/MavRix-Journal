@@ -37,8 +37,6 @@ import EventDetailModal from './components/EventDetailModal';
 
 const CSS = `
   .ec-root {
-    --accent: #F59E0B;
-    --accent-2: #FDE68A;
     --line: rgba(255,255,255,.085);
     --line-soft: rgba(255,255,255,.05);
     --ink-1: #E7E9EE;

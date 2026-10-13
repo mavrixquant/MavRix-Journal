@@ -53,10 +53,6 @@ function formatDateShort(isoDate) {
 
 const CSS = `
   .gxp-root {
-    --accent: #F59E0B;
-    --accent-2: #FDE68A;
-    --accent-soft: rgba(245,158,11,.10);
-    --accent-soft2: rgba(245,158,11,.28);
     --line: rgba(255,255,255,.085);
     --line-soft: rgba(255,255,255,.05);
     --ink-1: #E7E9EE;
@@ -166,7 +162,7 @@ const CSS = `
     border-color: rgba(255,255,255,.06);
   }
   .gxp-date.is-active {
-    background: linear-gradient(90deg, rgba(245,158,11,.16), rgba(245,158,11,.05) 75%, transparent);
+    background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 16%, transparent), color-mix(in srgb, var(--accent) 5%, transparent) 75%, transparent);
     border-color: var(--accent-soft2);
     color: var(--accent);
     box-shadow: inset 0 1px 0 rgba(255,255,255,.05);
@@ -180,7 +176,7 @@ const CSS = `
     width: 3px;
     border-radius: 0 3px 3px 0;
     background: linear-gradient(180deg, var(--accent), var(--accent-2));
-    box-shadow: 0 0 12px rgba(245,158,11,.75);
+    box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 75%, transparent);
   }
 
   .gxp-date-label {
@@ -199,9 +195,9 @@ const CSS = `
     letter-spacing: .02em;
     color: var(--ink-3);
   }
-  .gxp-date.is-active .gxp-date-meta { color: rgba(245,158,11,.75); }
+  .gxp-date.is-active .gxp-date-meta { color: color-mix(in srgb, var(--accent) 75%, transparent); }
   .gxp-date-meta-sep { opacity: .5; }
-  .gxp-date-meta-bl  { color: #F59E0B; }
+  .gxp-date-meta-bl  { color: var(--accent); }
   .gxp-date-meta-gex { color: #378ADD; }
 
   /* ---------- Main column ---------- */
@@ -304,7 +300,7 @@ const CSS = `
   .gxp-copy-btn:hover {
     color: var(--accent);
     border-color: var(--accent-soft2);
-    background: rgba(245,158,11,.06);
+    background: color-mix(in srgb, var(--accent) 6%, transparent);
   }
   .gxp-copy-btn.is-copied {
     color: #4ade80;
@@ -358,14 +354,14 @@ const CSS = `
     width: 60px;
     height: 60px;
     border-radius: 16px;
-    background: linear-gradient(135deg, rgba(245,158,11,.14), rgba(245,158,11,.04));
+    background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 14%, transparent), color-mix(in srgb, var(--accent) 4%, transparent));
     border: 1px solid var(--accent-soft2);
     display: flex;
     align-items: center;
     justify-content: center;
     margin-bottom: 8px;
     color: var(--accent);
-    box-shadow: 0 0 30px -10px rgba(245,158,11,.55);
+    box-shadow: 0 0 30px -10px color-mix(in srgb, var(--accent) 55%, transparent);
   }
   .gxp-empty-state h3 {
     margin: 0;
@@ -532,7 +528,7 @@ export default function GexPage() {
                   {/* ───────── 2. Price ladder (BELOW) ───────── */}
                   <div className="gxp-card">
                     <div className="gxp-card-head">
-                      <Layers size={14} style={{ color: '#F59E0B' }} />
+                      <Layers size={14} style={{ color: 'var(--accent)' }} />
                       <span className="gxp-card-title">
                         {formatDateLong(day.date)}
                       </span>
@@ -541,7 +537,7 @@ export default function GexPage() {
                         {day.blCount > 0 && (
                           <>
                             <span className="gxp-card-sub-sep">·</span>
-                            <span style={{ color: '#F59E0B' }}>{day.blCount} BL</span>
+                            <span style={{ color: 'var(--accent)' }}>{day.blCount} BL</span>
                           </>
                         )}
                         {day.gexCount > 0 && (

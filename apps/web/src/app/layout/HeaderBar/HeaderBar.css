@@ -1,10 +1,6 @@
 /* apps/web/src/app/layout/HeaderBar/HeaderBar.css */
 
 .hb-root {
-  --accent: #F59E0B;
-  --accent-2: #FDE68A;
-  --accent-soft: rgba(245,158,11,.10);
-  --accent-soft2: rgba(245,158,11,.28);
   --line: rgba(255,255,255,.085);
   --line-soft: rgba(255,255,255,.05);
   --ink-1: #E7E9EE;
@@ -138,8 +134,8 @@
 }
 .hb-page-badge.is-demo {
   color: var(--accent);
-  background: rgba(245,158,11,.08);
-  border-color: rgba(245,158,11,.30);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 30%, transparent);
 }
 .hb-page-badge.is-backtest {
   color: #60a5fa;
@@ -186,13 +182,13 @@
   background-color: rgba(20,25,35,.9);
 }
 .hb-account-trigger[data-state="open"] {
-  border-color: rgba(245,158,11,.45);
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
   background-color: rgba(20,25,35,.95);
-  box-shadow: 0 0 0 3px rgba(245,158,11,.12);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 12%, transparent);
 }
 .hb-account-trigger:focus-visible {
-  border-color: rgba(245,158,11,.45);
-  box-shadow: 0 0 0 3px rgba(245,158,11,.14);
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent);
 }
 .hb-account-trigger[data-disabled] {
   opacity: .5;
@@ -289,8 +285,8 @@
   background: rgba(255,255,255,.10);
 }
 .hb-icon-btn:focus-visible {
-  border-color: rgba(245,158,11,.5);
-  box-shadow: 0 0 0 3px rgba(245,158,11,.14);
+  border-color: color-mix(in srgb, var(--accent) 50%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent);
 }
 .hb-icon-btn svg {
   flex-shrink: 0;
@@ -302,14 +298,14 @@
 
 .hb-icon-btn.is-accent:hover {
   color: var(--accent);
-  background: rgba(245,158,11,.08);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
 }
 .hb-icon-btn.is-accent:active {
-  background: rgba(245,158,11,.14);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
 }
 .hb-icon-btn.is-accent:focus-visible {
-  border-color: rgba(245,158,11,.55);
-  box-shadow: 0 0 0 3px rgba(245,158,11,.16);
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent);
 }
 
 .hb-icon-btn.is-danger {
@@ -360,15 +356,15 @@
   background: rgba(255,255,255,.10);
 }
 .hb-user-pill:focus-visible {
-  border-color: rgba(245,158,11,.5);
-  box-shadow: 0 0 0 3px rgba(245,158,11,.14);
+  border-color: color-mix(in srgb, var(--accent) 50%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent);
 }
 
 .hb-user-avatar {
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: linear-gradient(135deg, rgba(245,158,11,.22), rgba(245,158,11,.06));
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 22%, transparent), color-mix(in srgb, var(--accent) 6%, transparent));
   border: 1px solid var(--accent-soft2);
   color: var(--accent);
   font-family: 'IBM Plex Mono', ui-monospace, monospace;
@@ -430,7 +426,7 @@
   background: linear-gradient(180deg, #12161F 0%, #0C1017 100%);
   box-shadow:
     0 24px 60px -20px rgba(0,0,0,.95),
-    0 0 0 1px rgba(245,158,11,.06),
+    0 0 0 1px color-mix(in srgb, var(--accent) 6%, transparent),
     inset 0 1px 0 rgba(255,255,255,.03);
   color: var(--ink-1);
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
@@ -496,12 +492,12 @@
   background: rgba(255,255,255,.05);
 }
 .hb-select-item[data-state="checked"] {
-  background: rgba(245,158,11,.06);
-  border-color: rgba(245,158,11,.20);
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 20%, transparent);
 }
 .hb-select-item[data-state="checked"][data-highlighted] {
-  background: rgba(245,158,11,.10);
-  border-color: rgba(245,158,11,.32);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 32%, transparent);
 }
 
 .hb-select-item-icon {
@@ -522,8 +518,8 @@
   transition: all .12s ease;
 }
 .hb-select-item[data-state="checked"] .hb-select-item-icon {
-  background: rgba(245,158,11,.12);
-  border-color: rgba(245,158,11,.32);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 32%, transparent);
   color: var(--accent);
 }
 
@@ -578,8 +574,8 @@
 }
 .hb-select-item-type.is-demo {
   color: var(--accent);
-  background: rgba(245,158,11,.08);
-  border-color: rgba(245,158,11,.28);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 28%, transparent);
 }
 .hb-select-item-type.is-backtest {
   color: #60a5fa;

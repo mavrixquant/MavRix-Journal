@@ -52,10 +52,6 @@ import CategoryBarChart from '@/features/dashboard/components/charts/CategoryBar
 /* ------------------------------------------------------------------ */
 const CSS = `
   .analyse-root {
-    --accent: #F59E0B;
-    --accent-2: #FDE68A;
-    --accent-soft: rgba(245,158,11,.10);
-    --accent-soft2: rgba(245,158,11,.28);
     --line: rgba(255,255,255,.085);
     --line-soft: rgba(255,255,255,.05);
     --ink-1: #E7E9EE;
@@ -169,10 +165,10 @@ const CSS = `
     transition: border-color .3s ease, box-shadow .3s ease;
   }
   .as-panel:hover {
-    border-color: rgba(245,158,11,.20);
+    border-color: color-mix(in srgb, var(--accent) 20%, transparent);
     box-shadow:
       0 24px 60px -30px rgba(0,0,0,.95),
-      0 0 32px -14px rgba(245,158,11,.22),
+      0 0 32px -14px color-mix(in srgb, var(--accent) 22%, transparent),
       inset 0 1px 0 rgba(255,255,255,.04);
   }
   .as-panel-head {
@@ -255,12 +251,12 @@ const CSS = `
   .af-btn:active { transform: translateY(0) scale(.98); }
   .af-btn.is-active {
     border-color: var(--accent-soft2);
-    background: rgba(245,158,11,.10);
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
     color: var(--accent);
-    box-shadow: 0 0 20px -8px rgba(245,158,11,.4);
+    box-shadow: 0 0 20px -8px color-mix(in srgb, var(--accent) 40%, transparent);
   }
   .af-btn.is-active:hover {
-    background: rgba(245,158,11,.16);
+    background: color-mix(in srgb, var(--accent) 16%, transparent);
     border-color: var(--accent);
   }
   .af-btn svg { flex-shrink: 0; }
@@ -339,7 +335,7 @@ const CSS = `
     height: 18px;
     border-radius: 50%;
     border: none;
-    background: rgba(245,158,11,.15);
+    background: color-mix(in srgb, var(--accent) 15%, transparent);
     color: inherit;
     cursor: pointer;
     padding: 0;
@@ -347,7 +343,7 @@ const CSS = `
     transition: all .15s;
   }
   .af-chip-x:hover {
-    background: rgba(245,158,11,.32);
+    background: color-mix(in srgb, var(--accent) 32%, transparent);
     color: #FFFFFF;
   }
 
@@ -367,14 +363,14 @@ const CSS = `
     width: 60px;
     height: 60px;
     border-radius: 16px;
-    background: linear-gradient(135deg, rgba(245,158,11,.14), rgba(245,158,11,.04));
+    background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 14%, transparent), color-mix(in srgb, var(--accent) 4%, transparent));
     border: 1px solid var(--accent-soft2);
     display: flex;
     align-items: center;
     justify-content: center;
     margin-bottom: 8px;
     color: var(--accent);
-    box-shadow: 0 0 30px -10px rgba(245,158,11,.55);
+    box-shadow: 0 0 30px -10px color-mix(in srgb, var(--accent) 55%, transparent);
   }
   .an-empty h3 {
     margin: 0;

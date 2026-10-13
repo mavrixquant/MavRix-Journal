@@ -52,10 +52,6 @@ const DEFAULT_NAME_PATTERN = /^Layout \d+$/;
 /* ------------------------------------------------------------------ */
 const CSS = `
   .dash-root {
-    --accent: #F59E0B;
-    --accent-2: #FDE68A;
-    --accent-soft: rgba(245,158,11,.10);
-    --accent-soft2: rgba(245,158,11,.28);
     --ink-1: #F3F4F6;
     --ink-2: rgba(255,255,255,.62);
     --ink-3: rgba(255,255,255,.42);
@@ -107,8 +103,8 @@ const CSS = `
     border-color: var(--accent-soft2);
     box-shadow:
       0 24px 60px -30px rgba(0,0,0,.95),
-      0 0 0 1px rgba(245,158,11,.15),
-      0 0 50px -20px rgba(245,158,11,.35);
+      0 0 0 1px color-mix(in srgb, var(--accent) 15%, transparent),
+      0 0 50px -20px color-mix(in srgb, var(--accent) 35%, transparent);
   }
   .dash-panel.dash-hidden {
     opacity: .32;
@@ -158,7 +154,7 @@ const CSS = `
     transition: all .22s cubic-bezier(.2,.8,.25,1);
   }
   .dash-editor-toggle:hover {
-    border-color: rgba(245,158,11,.5);
+    border-color: color-mix(in srgb, var(--accent) 50%, transparent);
     color: var(--accent);
   }
   .dash-editor-toggle.on {
@@ -180,8 +176,8 @@ const CSS = `
     position: absolute;
     right: 6px; bottom: 6px;
     width: 12px; height: 12px;
-    border-right: 2px solid rgba(245,158,11,.4);
-    border-bottom: 2px solid rgba(245,158,11,.4);
+    border-right: 2px solid color-mix(in srgb, var(--accent) 40%, transparent);
+    border-bottom: 2px solid color-mix(in srgb, var(--accent) 40%, transparent);
     border-radius: 0 0 3px 0;
   }
   .dash-grid .react-grid-item > .react-resizable-handle:hover::after {
@@ -192,8 +188,8 @@ const CSS = `
     display: none !important;
   }
   .dash-grid .react-grid-item.react-grid-placeholder {
-    background: linear-gradient(180deg, rgba(245,158,11,.18), rgba(245,158,11,.06)) !important;
-    border: 1px dashed rgba(245,158,11,.55);
+    background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 18%, transparent), color-mix(in srgb, var(--accent) 6%, transparent)) !important;
+    border: 1px dashed color-mix(in srgb, var(--accent) 55%, transparent);
     border-radius: 18px;
     opacity: 1;
   }
@@ -296,7 +292,7 @@ const CSS = `
   .dash-layout-add:hover {
     border-color: var(--accent);
     color: var(--accent);
-    background: rgba(245,158,11,.08);
+    background: color-mix(in srgb, var(--accent) 8%, transparent);
   }
   .dash-layout-add:disabled {
     opacity: .35;
@@ -339,7 +335,7 @@ const CSS = `
     background: linear-gradient(135deg, var(--accent), var(--accent-2));
     color: #0D1117;
     box-shadow:
-      0 10px 30px -8px rgba(245,158,11,.55),
+      0 10px 30px -8px color-mix(in srgb, var(--accent) 55%, transparent),
       inset 0 1px 0 rgba(255,255,255,.4);
   }
   .dash-tb-primary:hover {
@@ -362,7 +358,7 @@ const CSS = `
   }
   .dash-section-title .line {
     flex: 1; height: 1px;
-    background: linear-gradient(90deg, rgba(245,158,11,.35), rgba(255,255,255,.06) 40%, transparent);
+    background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 35%, transparent), rgba(255,255,255,.06) 40%, transparent);
   }
   .dash-tradelog {
     background: linear-gradient(180deg, var(--glass-1), var(--glass-2));
@@ -385,10 +381,10 @@ const CSS = `
     padding: 56px 40px 48px;
     border-radius: 26px;
     background:
-      radial-gradient(400px 220px at 50% 0%, rgba(245,158,11,.12), transparent 70%),
+      radial-gradient(400px 220px at 50% 0%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 70%),
       linear-gradient(180deg, var(--glass-1), var(--glass-2));
     border: 1px solid rgba(255,255,255,.1);
-    box-shadow: 0 40px 90px -50px rgba(245,158,11,.5);
+    box-shadow: 0 40px 90px -50px color-mix(in srgb, var(--accent) 50%, transparent);
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -397,7 +393,7 @@ const CSS = `
   .dash-empty-icon {
     width: 64px; height: 64px;
     border-radius: 18px;
-    background: linear-gradient(135deg, rgba(245,158,11,.18), rgba(245,158,11,.05));
+    background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 18%, transparent), color-mix(in srgb, var(--accent) 5%, transparent));
     border: 1px solid var(--accent-soft2);
     display: flex;
     align-items: center;
@@ -716,7 +712,7 @@ export default function DashboardPage() {
             <div className="dash-empty-icon">
               <svg
                 width="28" height="28" viewBox="0 0 24 24" fill="none"
-                stroke="#F59E0B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
               >
                 <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
                 <line x1="3" y1="9" x2="21" y2="9" />
@@ -735,7 +731,7 @@ export default function DashboardPage() {
           {editMode && draftLayouts && (
             <div className="dash-edit-toolbar">
               <FaGripVertical
-                style={{ color: '#F59E0B', flexShrink: 0 }}
+                style={{ color: 'var(--accent)', flexShrink: 0 }}
                 size={16}
               />
 
@@ -745,7 +741,7 @@ export default function DashboardPage() {
                 </div>
                 <div style={{ fontSize: 11, color: '#8892A3', marginTop: 3 }}>
                   Drag · resize · toggle ·{' '}
-                  <b style={{ color: '#F59E0B' }}>double-click a tab to rename</b>
+                  <b style={{ color: 'var(--accent)' }}>double-click a tab to rename</b>
                 </div>
               </div>
 

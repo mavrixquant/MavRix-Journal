@@ -16,14 +16,12 @@ import { useMemo } from 'react';
 
 const CSS = `
   .el-root {
-    --accent: #F59E0B;
-    --accent-2: #FDE68A;
     --line: rgba(255,255,255,.085);
     --line-soft: rgba(255,255,255,.05);
     --ink-1: #E7E9EE;
     --ink-2: #8892A3;
     --ink-3: #545E6E;
-    --impact-high: #F59E0B;
+    --impact-high: var(--accent);
     --impact-medium: #60A5FA;
     --impact-low: #545E6E;
     --win: #22c55e;
@@ -114,7 +112,7 @@ const CSS = `
     height: 6px;
     border-radius: 50%;
     background: var(--accent);
-    box-shadow: 0 0 8px rgba(245,158,11,.7);
+    box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 70%, transparent);
     animation: elPulse 1.8s ease-in-out infinite;
     flex-shrink: 0;
   }
@@ -139,7 +137,7 @@ const CSS = `
     border-radius: 50%;
     flex-shrink: 0;
   }
-  .el-cur-dot.high   { background: var(--impact-high);   box-shadow: 0 0 6px rgba(245,158,11,.5); }
+  .el-cur-dot.high   { background: var(--impact-high);   box-shadow: 0 0 6px color-mix(in srgb, var(--accent) 50%, transparent); }
   .el-cur-dot.medium { background: var(--impact-medium); }
   .el-cur-dot.low    { background: var(--impact-low); }
 
