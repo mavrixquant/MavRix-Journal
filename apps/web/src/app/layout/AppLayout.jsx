@@ -19,6 +19,18 @@ import { useSSEBridge } from '@/shared/api/sse';
 import { PageHeaderProvider } from './PageHeaderProvider';
 
 const STORAGE_KEY = 'mavrix:sidebar:collapsed';
+const LAST_PATH_KEY = 'mavrix:lastPath';
+
+// Only persist the "last visited" path for authenticated app areas.
+// Auth pages, admin panel, and the root redirect itself are excluded so
+// that "defaultLanding: 'last'" always lands on a real dashboard.
+const STORABLE_PREFIXES = [
+  '/journal',
+  '/backtester',
+  '/manage',
+  '/utilities',
+  '/personal',
+];
 
 export default function AppLayout() {
   const { user, logout } = useAuth();
@@ -39,6 +51,20 @@ export default function AppLayout() {
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, collapsed ? '1' : '0');
   }, [collapsed]);
+
+  // Track the last visited authenticated path so the "defaultLanding: last"
+  // preference can restore it on next sign-in.
+  useEffect(() => {
+    if (!user) return;
+    const path = location.pathname;
+    if (STORABLE_PREFIXES.some((p) => path.startsWith(p))) {
+      try {
+        localStorage.setItem(LAST_PATH_KEY, path);
+      } catch {
+        // localStorage disabled — ignore
+      }
+    }
+  }, [location.pathname, user]);
 
   useHotkey('mod+b', () => setCollapsed((v) => !v));
 

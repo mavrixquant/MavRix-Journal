@@ -6,6 +6,7 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import AppLayout from '@/app/layout/AppLayout';
 import { RequireAuth, RequireVerified, RequireGuest } from './guards';
 import { useAuth } from '@/app/providers/AuthProvider';
+import { useSettings } from '@/app/layout/Settings/SettingsProvider';
 import { RequireAdmin } from '@/features/admin/guards';
 
 /* ---- Auth pages ---- */
@@ -59,13 +60,34 @@ const AdminSettingsPage     = lazy(() => import('@/features/admin/pages/AdminSet
 const AdminBroadcastPage    = lazy(() => import('@/features/admin/pages/AdminBroadcastPage'));
 const AdminGexPage          = lazy(() => import('@/features/admin/pages/AdminGexPage'));
 
+const LAST_PATH_KEY = 'mavrix:lastPath';
+
 function RootRedirect() {
   const { user } = useAuth();
+  const { settings } = useSettings();
+
   if (!user) return <Navigate to="/login" replace />;
   if (!user.emailVerified) return <Navigate to="/verify-email" replace />;
   if (user.role === 'admin' || user.role === 'superadmin') {
     return <Navigate to="/admin" replace />;
   }
+
+  const landing = settings.preferences.defaultLanding;
+
+  if (landing === 'backtester') return <Navigate to="/backtester" replace />;
+
+  if (landing === 'last') {
+    let last = null;
+    try {
+      last = localStorage.getItem(LAST_PATH_KEY);
+    } catch {
+      // localStorage disabled — fall through to default
+    }
+    if (last && last.startsWith('/') && last !== '/') {
+      return <Navigate to={last} replace />;
+    }
+  }
+
   return <Navigate to="/journal" replace />;
 }
 

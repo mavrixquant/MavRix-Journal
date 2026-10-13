@@ -7,6 +7,11 @@
 //     For groups: sender avatar + name above every peer bubble
 //   - composer
 //
+// Preferences honoured:
+//   chats.showTypingInThread → hide "typing…" line in the header when off
+//   chats.sendReadReceipts   → skip markRead() so senders never see green ticks
+//   preferences.timeFormat   → 12h / 24h for all timestamps
+//
 // Read receipts (ticks) on OWN messages only:
 //   _optimistic       -> clock icon (sending)
 //   deliveredAt=null  -> single grey check (sent)
@@ -27,6 +32,7 @@ import {
 } from 'lucide-react';
 
 import { useAuth } from '@/app/providers/AuthProvider';
+import { useSettings } from '@/app/layout/Settings/SettingsProvider';
 import {
   useChatMessages,
   useChatConversation,
@@ -69,11 +75,16 @@ function displayNameOf(user) {
   return user.email || 'Unknown';
 }
 
-function formatTime(iso) {
+function formatTime(iso, timeFormat = '12h') {
   if (!iso) return '';
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '';
-  return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  const is24h = timeFormat === '24h';
+  return d.toLocaleTimeString('en-US', {
+    hour: is24h ? '2-digit' : 'numeric',
+    minute: '2-digit',
+    hour12: !is24h,
+  });
 }
 
 function dayKey(iso) {
@@ -113,7 +124,13 @@ function MessageTicks({ msg }) {
 
 export default function MessageThread({ conversationId, onBack, onConversationClosed }) {
   const { user } = useAuth();
+  const { settings } = useSettings();
   const currentUserId = user?.id;
+
+  // Preference reads
+  const timeFormat = settings.preferences.timeFormat;
+  const sendReadReceipts = settings.chats.sendReadReceipts;
+  const showTypingInThread = settings.chats.showTypingInThread;
 
   const { data: conversation, isLoading: convoLoading } =
     useChatConversation(conversationId);
@@ -140,9 +157,6 @@ export default function MessageThread({ conversationId, onBack, onConversationCl
   /* ---------------- Settings modal state ---------------- */
   const [settingsOpen, setSettingsOpen] = useState(false);
 
-  // Who can open the group settings modal?
-  //   superadmin → any group
-  //   admin      → public groups + groups they created
   const canManageGroup =
     isGroup &&
     conversation &&
@@ -244,16 +258,21 @@ export default function MessageThread({ conversationId, onBack, onConversationCl
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   /* ---------------- Mark read on open + new inbound ---------------- */
+  //
+  // We intentionally do NOT update lastReadCountRef when receipts are off,
+  // so if the user enables the preference later, the effect fires once with
+  // the current message count and catches up.
 
   const lastReadCountRef = useRef(0);
   useEffect(() => {
     if (!conversationId) return;
+    if (!sendReadReceipts) return;
     if (messages.length === lastReadCountRef.current) return;
     lastReadCountRef.current = messages.length;
     if (document.visibilityState !== 'visible') return;
     markRead.mutate(conversationId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [conversationId, messages.length]);
+  }, [conversationId, messages.length, sendReadReceipts]);
 
   /* ---------------- nowTs for edit-window checks ---------------- */
 
@@ -372,7 +391,7 @@ export default function MessageThread({ conversationId, onBack, onConversationCl
     : displayNameOf(peer);
 
   const threadSubText = (() => {
-    if (peerTyping) return 'typing…';
+    if (peerTyping && showTypingInThread) return 'typing…';
     if (isGroup) {
       const mc = conversation?.memberCount ?? 0;
       const vis = conversation?.visibility === 'private' ? 'Private' : 'Public';
@@ -381,7 +400,8 @@ export default function MessageThread({ conversationId, onBack, onConversationCl
     return peer?.email || '';
   })();
 
-  const threadSubClass = peerTyping ? 'chat-thread-sub is-typing' : 'chat-thread-sub';
+  const threadSubClass =
+    peerTyping && showTypingInThread ? 'chat-thread-sub is-typing' : 'chat-thread-sub';
 
   /* ---------------- Early returns ---------------- */
 
@@ -492,7 +512,7 @@ export default function MessageThread({ conversationId, onBack, onConversationCl
           const sameDayAsNext =
             next && dayKey(next.createdAt) === dayKey(msg.createdAt);
           const sameMinuteAsNext =
-            next && formatTime(next.createdAt) === formatTime(msg.createdAt);
+            next && formatTime(next.createdAt, timeFormat) === formatTime(msg.createdAt, timeFormat);
           const sameSenderAsNext =
             next && next.senderId === msg.senderId;
           const isLastInGroup =
@@ -502,8 +522,6 @@ export default function MessageThread({ conversationId, onBack, onConversationCl
           const showTicks = isOwn && !isDeleted;
           const showMetaRow = isLastInGroup || showEditedBadge || showTicks;
 
-          // Show sender avatar + name above every peer bubble in groups.
-          // Own messages don't need a label — it's implied.
           const showSenderRow = isGroup && !isOwn && !isDeleted;
 
           const msgCls = [
@@ -576,7 +594,7 @@ export default function MessageThread({ conversationId, onBack, onConversationCl
 
                     {showMetaRow && (
                       <div className="chat-msg-meta">
-                        {isLastInGroup && <span>{formatTime(msg.createdAt)}</span>}
+                        {isLastInGroup && <span>{formatTime(msg.createdAt, timeFormat)}</span>}
                         {showEditedBadge && (
                           <span className="chat-msg-edited">
                             {isLastInGroup ? '· edited' : 'edited'}

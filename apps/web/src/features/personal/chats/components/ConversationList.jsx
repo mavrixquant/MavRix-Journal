@@ -4,14 +4,14 @@
 // grouped into "Direct Messages" and "Groups" sections when the "All" tab
 // is active. Filterable via segmented tabs (All / DMs / Groups).
 //
+// Preferences honoured:
+//   notifications.showTypingInList → hide the inline "typing…" hint when off
+//   preferences.timeFormat         → 12h / 24h for today's timestamps
+//
 // Header actions:
 //   • Discover     — always visible, opens the public-groups modal
 //   • New group    — admin / superadmin only, opens the create-group modal
 //   • New DM       — always visible, opens the user-search modal
-//
-// Live "typing..." hint: uses useTypingConversations(currentUserId) which
-// returns a Set<string> of conversation IDs where a peer is typing.
-// One subscription for the whole list, not one per row.
 
 import { useMemo } from 'react';
 import {
@@ -20,7 +20,9 @@ import {
   Compass,
   Users,
 } from 'lucide-react';
+
 import { useTypingConversations } from '@/shared/api/chat';
+import { useSettings } from '@/app/layout/Settings/SettingsProvider';
 import GroupAvatar from './GroupAvatar';
 
 /* ------------------------------------------------------------------ */
@@ -52,7 +54,7 @@ function displayNameOf(user) {
   return user.email || 'Unknown';
 }
 
-function formatRelative(iso) {
+function formatRelative(iso, timeFormat = '12h') {
   if (!iso) return '';
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '';
@@ -63,7 +65,12 @@ function formatRelative(iso) {
   const diffDays = Math.round((today - msgDay) / 86400000);
 
   if (diffDays === 0) {
-    return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    const is24h = timeFormat === '24h';
+    return d.toLocaleTimeString('en-US', {
+      hour: is24h ? '2-digit' : 'numeric',
+      minute: '2-digit',
+      hour12: !is24h,
+    });
   }
   if (diffDays === 1) return 'Yesterday';
   if (diffDays < 7) return d.toLocaleDateString('en-US', { weekday: 'short' });
@@ -122,7 +129,6 @@ function EmptyTabState({ activeTab, onNewChat, onDiscover, onCreateGroup, isAdmi
     );
   }
 
-  // activeTab === 'all' and no conversations at all
   return (
     <div className="chat-list-empty">
       <p>No conversations yet.</p>
@@ -149,16 +155,18 @@ export default function ConversationList({
   onTabChange,
   counts,
 }) {
+  const { settings } = useSettings();
+  const showTypingInList = settings.notifications.showTypingInList;
+  const timeFormat = settings.preferences.timeFormat;
+
   const typingSet = useTypingConversations(currentUserId);
 
-  // Filter by tab.
   const filtered = useMemo(() => {
     if (activeTab === 'dms') return conversations.filter((c) => !c.isGroup);
     if (activeTab === 'groups') return conversations.filter((c) => c.isGroup);
     return conversations;
   }, [conversations, activeTab]);
 
-  // Split into sections (only when tab = 'all' do both sections appear).
   const { dms, groups } = useMemo(() => {
     const dmArr = [];
     const grpArr = [];
@@ -180,7 +188,7 @@ export default function ConversationList({
   const renderDmRow = (c) => {
     const peer = c.peer;
     const isOwn = c.lastMessageById === currentUserId;
-    const isTyping = typingSet.has(c.id);
+    const isTyping = showTypingInList && typingSet.has(c.id);
     const preview = c.lastMessageText
       ? (isOwn ? `You: ${c.lastMessageText}` : c.lastMessageText)
       : 'No messages yet';
@@ -203,7 +211,7 @@ export default function ConversationList({
         <div className="chat-list-body">
           <div className="chat-list-row-top">
             <span className="chat-list-name">{displayNameOf(peer)}</span>
-            <span className="chat-list-time">{formatRelative(c.lastMessageAt)}</span>
+            <span className="chat-list-time">{formatRelative(c.lastMessageAt, timeFormat)}</span>
           </div>
           <div className="chat-list-row-bottom">
             <span className={`chat-list-preview${isTyping ? ' is-typing' : ''}`}>
@@ -223,7 +231,7 @@ export default function ConversationList({
 
   const renderGroupRow = (c) => {
     const isOwn = c.lastMessageById === currentUserId;
-    const isTyping = typingSet.has(c.id);
+    const isTyping = showTypingInList && typingSet.has(c.id);
     const preview = c.lastMessageText
       ? (isOwn ? `You: ${c.lastMessageText}` : c.lastMessageText)
       : 'No messages yet';
@@ -240,7 +248,7 @@ export default function ConversationList({
         <div className="chat-list-body">
           <div className="chat-list-row-top">
             <span className="chat-list-name">{c.name || 'Untitled group'}</span>
-            <span className="chat-list-time">{formatRelative(c.lastMessageAt)}</span>
+            <span className="chat-list-time">{formatRelative(c.lastMessageAt, timeFormat)}</span>
           </div>
           <div className="chat-list-row-bottom">
             <span className={`chat-list-preview${isTyping ? ' is-typing' : ''}`}>
@@ -264,7 +272,6 @@ export default function ConversationList({
 
   return (
     <aside className="chat-list">
-      {/* ---------- Header: title + actions ---------- */}
       <div className="chat-list-header">
         <span className="chat-list-title">Conversations</span>
         <div className="chat-list-actions">
@@ -300,7 +307,6 @@ export default function ConversationList({
         </div>
       </div>
 
-      {/* ---------- Segmented tabs ---------- */}
       <div className="chat-tabs" role="tablist" aria-label="Filter conversations">
         {TABS.map((t) => (
           <button
@@ -317,7 +323,6 @@ export default function ConversationList({
         ))}
       </div>
 
-      {/* ---------- List ---------- */}
       <div className="chat-list-items">
         {showEmptyState ? (
           <EmptyTabState

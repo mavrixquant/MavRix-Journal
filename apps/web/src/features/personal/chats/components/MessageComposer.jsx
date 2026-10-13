@@ -2,13 +2,18 @@
 //
 // Composer footer for the chat thread. Handles:
 //   - auto-growing textarea
-//   - Enter to send, Shift+Enter newline
+//   - Enter to send (or Ctrl/Cmd+Enter, per user preference)
 //   - throttled typing signal (1 event per 2s while typing)
 //   - 4000 char cap (hard max enforced on the textarea)
 //   - disabled while an optimistic send is in flight
+//
+// The send-combo hint under the textarea reflects the user's
+// chats.enterToSend preference so the interaction is discoverable.
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { SendHorizontal } from 'lucide-react';
+
+import { useSettings } from '@/app/layout/Settings/SettingsProvider';
 
 const MAX_LEN = 4000;
 const TYPING_THROTTLE_MS = 2000;
@@ -21,6 +26,9 @@ export default function MessageComposer({
   disabled = false,
   isSending = false,
 }) {
+  const { settings } = useSettings();
+  const enterToSend = settings.chats.enterToSend;
+
   const [text, setText] = useState('');
   const textareaRef = useRef(null);
   const lastTypingSentRef = useRef(0);
@@ -93,13 +101,24 @@ export default function MessageComposer({
   }, [text, disabled, onSend, onTyping]);
 
   const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      submit();
-    }
+    if (e.key !== 'Enter') return;
+
+    const mod = e.ctrlKey || e.metaKey;
+    // enterToSend ON  → Enter (with or without mod) sends, Shift+Enter newline
+    // enterToSend OFF → Ctrl/Cmd+Enter sends, plain Enter newline
+    const shouldSend = enterToSend ? !e.shiftKey : mod;
+
+    if (!shouldSend) return;
+    e.preventDefault();
+    submit();
   };
 
   const canSend = text.trim().length > 0 && !disabled && !isSending;
+  const nearLimit = text.length > MAX_LEN - 200;
+
+  const sendHint = enterToSend
+    ? 'Enter to send · Shift+Enter for a new line'
+    : 'Ctrl+Enter to send · Enter for a new line';
 
   return (
     <div className="chat-composer">
@@ -116,6 +135,15 @@ export default function MessageComposer({
           maxLength={MAX_LEN}
           aria-label="Message input"
         />
+
+        <div className="chat-composer-hint">
+          <span>{sendHint}</span>
+          {nearLimit && (
+            <span className={text.length >= MAX_LEN ? 'is-warn' : ''}>
+              {text.length} / {MAX_LEN}
+            </span>
+          )}
+        </div>
       </div>
 
       <button
@@ -124,7 +152,7 @@ export default function MessageComposer({
         onClick={submit}
         disabled={!canSend}
         aria-label="Send message"
-        title="Send (Enter)"
+        title={enterToSend ? 'Send (Enter)' : 'Send (Ctrl+Enter)'}
       >
         <SendHorizontal size={16} />
       </button>
