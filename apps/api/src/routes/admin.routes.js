@@ -6,10 +6,20 @@
 //   1. requireAuth   — Bearer token + sv check
 //   2. requireAdmin  — gate the whole subtree
 //   3. per-route extra guards (requireSuperadmin) for role-changing actions
+//
+// Groups: route-level guard is requireAdmin only. Fine-grained visibility
+// (admin vs private groups) is enforced inside the service so the error
+// messages can be specific.
 
 import { Router } from 'express';
 import { z } from 'zod';
-import { gexDaySchema } from '@mavrix/shared/validators';
+import {
+  gexDaySchema,
+  createGroupSchema,
+  updateGroupSchema,
+  groupMemberAddSchema,
+  groupMemberRoleSchema,
+} from '@mavrix/shared/validators';
 import { requireAuth } from '../middleware/auth.js';
 import { requireAdmin, requireSuperadmin } from '../middleware/admin.js';
 import { rateLimit } from '../lib/rateLimit.js';
@@ -19,6 +29,7 @@ import * as tradeCtrl from '../controllers/adminTrades.controller.js';
 import * as opsCtrl from '../controllers/adminOps.controller.js';
 import * as gexCtrl from '../controllers/adminGex.controller.js';
 import * as strategyCtrl from '../controllers/adminStrategies.controller.js';
+import * as groupCtrl from '../controllers/adminGroups.controller.js';
 
 export const adminRoutes = Router();
 
@@ -90,6 +101,12 @@ const writeLimiter = rateLimit({
   message: 'Too many write operations. Slow down.',
 });
 
+const groupLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 40,
+  message: 'Too many group operations. Slow down.',
+});
+
 /* ---------------- Me / Stats / Health ---------------- */
 adminRoutes.get('/me', ctrl.me);
 adminRoutes.get('/stats', ctrl.stats);
@@ -136,6 +153,38 @@ adminRoutes.delete('/trades/:id', writeLimiter, tradeCtrl.remove);
 adminRoutes.get('/strategies', strategyCtrl.list);
 adminRoutes.get('/strategies/:id', strategyCtrl.get);
 adminRoutes.delete('/strategies/:id', requireSuperadmin, sensitive, strategyCtrl.remove);
+
+/* ---------------- Chat Groups ---------------- */
+// Route-level guard is requireAdmin. Visibility rules (admin vs private
+// groups they don't own) live in adminGroups.service.js so the error
+// messages can be specific.
+//
+// Order matters: /groups/:id/members/:userId before /groups/:id/members and
+// /groups/:id/* to avoid path shadowing.
+adminRoutes.get('/groups', groupLimiter, groupCtrl.list);
+adminRoutes.post('/groups', groupLimiter, validate(createGroupSchema), groupCtrl.create);
+
+adminRoutes.get('/groups/:id', groupLimiter, groupCtrl.get);
+adminRoutes.patch('/groups/:id', groupLimiter, validate(updateGroupSchema), groupCtrl.update);
+adminRoutes.delete('/groups/:id', groupLimiter, groupCtrl.remove);
+
+adminRoutes.post(
+  '/groups/:id/members',
+  groupLimiter,
+  validate(groupMemberAddSchema),
+  groupCtrl.addMember
+);
+adminRoutes.patch(
+  '/groups/:id/members/:userId',
+  groupLimiter,
+  validate(groupMemberRoleSchema),
+  groupCtrl.setMemberRole
+);
+adminRoutes.delete(
+  '/groups/:id/members/:userId',
+  groupLimiter,
+  groupCtrl.removeMember
+);
 
 /* ---------------- Audit ---------------- */
 adminRoutes.get('/audit', opsCtrl.audit);
