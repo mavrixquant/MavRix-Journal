@@ -66,8 +66,7 @@ export const SIDEBAR_GROUPS = [
     label: 'Personal Space',
     icon: FaComments,
     items: [
-      { to: '/personal/discussion', label: 'Discussion', icon: FaComments },
-      { to: '/personal/chats',      label: 'Chats',      icon: FaCommentDots },
+      { to: '/personal/chats', label: 'Chats', icon: FaCommentDots },
     ],
   },
 ];

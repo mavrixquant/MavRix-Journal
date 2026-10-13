@@ -40,7 +40,6 @@ const StrategyDetailPage = lazy(() => import('@/features/manage/strategies/Strat
 const GexPage = lazy(() => import('@/features/utilities/gex/GexPage'));
 
 /* ---- Personal ---- */
-const DiscussionPage = lazy(() => import('@/features/personal/discussion/DiscussionPage'));
 const ChatsPage = lazy(() => import('@/features/personal/chats/ChatsPage'));
 
 /* ---- Admin ---- */
@@ -123,7 +122,6 @@ export function AppRoutes() {
 
         <Route path="/utilities/gex" element={<GexPage />} />
 
-        <Route path="/personal/discussion" element={<DiscussionPage />} />
         <Route path="/personal/chats" element={<ChatsPage />} />
       </Route>
 
