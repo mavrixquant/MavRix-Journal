@@ -1,8 +1,12 @@
 // apps/web/src/features/admin/api.js
 //
-// React Query hooks for every admin endpoint, including group management.
+// React Query hooks for every admin endpoint.
 // All calls go through the shared apiJson wrapper which injects the Bearer
 // token and handles 401s.
+//
+// Group management hooks (create / update / delete / member mgmt) live in
+// shared/api/chat.js because they operate on chat-domain objects and are
+// called from both the admin panel and the chat UI. Import them from there.
 
 import {
   useQuery,
@@ -29,10 +33,6 @@ export const adminKeys = {
   sessions:   ['admin', 'sessions'],
   settings:   ['admin', 'settings'],
   calLogs:    ['admin', 'calendar', 'logs'],
-
-  // Groups
-  groups:     (filters) => ['admin', 'groups', filters],
-  group:      (id) => ['admin', 'group', id],
 };
 
 /* ------------------------------------------------------------------ */
@@ -316,118 +316,6 @@ export function useAdminDeleteStrategy() {
       qc.invalidateQueries({ queryKey: adminKeys.stats });
       qc.invalidateQueries({ queryKey: ['admin', 'audit'] });
     },
-  });
-}
-
-/* ------------------------------------------------------------------ */
-/*  Chat Groups                                                       */
-/*                                                                     */
-/*  Admin-side group management. Admin sees public groups + their own  */
-/*  private groups; superadmin sees everything. The server enforces    */
-/*  this — the client just passes through whatever the API returns.    */
-/* ------------------------------------------------------------------ */
-
-export function useAdminGroups(filters = {}) {
-  return useQuery({
-    queryKey: adminKeys.groups(filters),
-    queryFn: () => apiJson(`/api/admin/groups${buildQS(filters)}`),
-    staleTime: 15_000,
-    placeholderData: (prev) => prev,
-  });
-}
-
-export function useAdminGroup(groupId) {
-  return useQuery({
-    queryKey: adminKeys.group(groupId),
-    queryFn: () => apiJson(`/api/admin/groups/${groupId}`),
-    enabled: !!groupId,
-  });
-}
-
-function useInvalidateAdminGroup() {
-  const qc = useQueryClient();
-  return (groupId) => {
-    qc.invalidateQueries({ queryKey: ['admin', 'groups'] });
-    if (groupId) qc.invalidateQueries({ queryKey: adminKeys.group(groupId) });
-    qc.invalidateQueries({ queryKey: ['admin', 'audit'] });
-    // The user-side chat list also changes when membership changes.
-    qc.invalidateQueries({ queryKey: ['chat', 'conversations'] });
-    qc.invalidateQueries({ queryKey: ['chat', 'groups', 'discover'] });
-    if (groupId) {
-      qc.invalidateQueries({ queryKey: ['chat', 'groups', 'members', groupId] });
-    }
-  };
-}
-
-export function useAdminCreateGroup() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (payload) =>
-      apiJson('/api/admin/groups', {
-        method: 'POST',
-        body: JSON.stringify(payload),
-      }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['admin', 'groups'] });
-      qc.invalidateQueries({ queryKey: ['admin', 'audit'] });
-      qc.invalidateQueries({ queryKey: ['chat', 'groups', 'discover'] });
-    },
-  });
-}
-
-export function useAdminUpdateGroup() {
-  const invalidate = useInvalidateAdminGroup();
-  return useMutation({
-    mutationFn: ({ groupId, patch }) =>
-      apiJson(`/api/admin/groups/${groupId}`, {
-        method: 'PATCH',
-        body: JSON.stringify(patch),
-      }),
-    onSuccess: (_r, vars) => invalidate(vars.groupId),
-  });
-}
-
-export function useAdminDeleteGroup() {
-  const invalidate = useInvalidateAdminGroup();
-  return useMutation({
-    mutationFn: (groupId) =>
-      apiJson(`/api/admin/groups/${groupId}`, { method: 'DELETE' }),
-    onSuccess: (_r, groupId) => invalidate(groupId),
-  });
-}
-
-export function useAdminAddGroupMember() {
-  const invalidate = useInvalidateAdminGroup();
-  return useMutation({
-    mutationFn: ({ groupId, userId }) =>
-      apiJson(`/api/admin/groups/${groupId}/members`, {
-        method: 'POST',
-        body: JSON.stringify({ userId }),
-      }),
-    onSuccess: (_r, vars) => invalidate(vars.groupId),
-  });
-}
-
-export function useAdminRemoveGroupMember() {
-  const invalidate = useInvalidateAdminGroup();
-  return useMutation({
-    mutationFn: ({ groupId, userId }) =>
-      apiJson(`/api/admin/groups/${groupId}/members/${userId}`, {
-        method: 'DELETE',
-      }),
-    onSuccess: (_r, vars) => invalidate(vars.groupId),
-  });
-}
-
-export function useAdminSetGroupMemberRole() {
-  const invalidate = useInvalidateAdminGroup();
-  return useMutation({
-    mutationFn: ({ groupId, userId, role }) =>
-      apiJson(`/api/admin/groups/${groupId}/members/${userId}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ role }),
-      }),
-    onSuccess: (_r, vars) => invalidate(vars.groupId),
   });
 }
 

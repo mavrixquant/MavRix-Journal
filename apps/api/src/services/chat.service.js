@@ -36,6 +36,18 @@ const MESSAGE_PAGE_MAX = 100;
 const GROUP_DISCOVER_DEFAULT_LIMIT = 50;
 const GROUP_DISCOVER_MAX_LIMIT = 100;
 
+// Shared projection: user fields exposed on every message payload.
+// Includes enough for the group UI to render the sender's name + avatar
+// above each bubble without a second round trip. DMs carry this too —
+// harmless, and it means the same component renders both cases uniformly.
+const PUBLIC_USER_SELECT = {
+  id: true,
+  email: true,
+  firstName: true,
+  lastName: true,
+  photoUrl: true,
+};
+
 /* ------------------------------------------------------------------ */
 /*  Serializers                                                        */
 /* ------------------------------------------------------------------ */
@@ -56,6 +68,7 @@ function serializeMessage(m) {
     id: m.id,
     conversationId: m.conversationId,
     senderId: m.senderId,
+    sender: m.sender ? serializePublicUser(m.sender) : null,
     body: m.deletedAt ? null : m.body,
     replyToId: m.replyToId,
     createdAt: m.createdAt,
@@ -117,14 +130,6 @@ function serializeConversation(c, userId, participantRow) {
 /*  Guards                                                             */
 /* ------------------------------------------------------------------ */
 
-/**
- * Returns the caller's participant row for a conversation.
- * Throws 404 if the row is missing — never 403, to avoid leaking
- * conversation existence.
- *
- * The returned object includes `role`, which group-scoped callers use
- * to decide ownership / moderator actions.
- */
 async function assertParticipant(userId, conversationId) {
   const row = await prisma.conversationParticipant.findUnique({
     where: { conversationId_userId: { conversationId, userId } },
@@ -181,13 +186,7 @@ export async function searchUsers(userId, q) {
     where,
     take: 20,
     orderBy: [{ firstName: 'asc' }, { lastName: 'asc' }],
-    select: {
-      id: true,
-      email: true,
-      firstName: true,
-      lastName: true,
-      photoUrl: true,
-    },
+    select: PUBLIC_USER_SELECT,
   });
   return rows.map(serializePublicUser);
 }
@@ -220,13 +219,7 @@ export async function getOrCreateDm(userId, peerId) {
     where: { dmKey: key },
     include: {
       participants: {
-        include: {
-          user: {
-            select: {
-              id: true, email: true, firstName: true, lastName: true, photoUrl: true,
-            },
-          },
-        },
+        include: { user: { select: PUBLIC_USER_SELECT } },
       },
     },
   });
@@ -246,13 +239,7 @@ export async function getOrCreateDm(userId, peerId) {
     },
     include: {
       participants: {
-        include: {
-          user: {
-            select: {
-              id: true, email: true, firstName: true, lastName: true, photoUrl: true,
-            },
-          },
-        },
+        include: { user: { select: PUBLIC_USER_SELECT } },
       },
     },
   });
@@ -275,13 +262,7 @@ export async function listConversations(userId) {
       conversation: {
         include: {
           participants: {
-            include: {
-              user: {
-                select: {
-                  id: true, email: true, firstName: true, lastName: true, photoUrl: true,
-                },
-              },
-            },
+            include: { user: { select: PUBLIC_USER_SELECT } },
           },
         },
       },
@@ -305,13 +286,7 @@ export async function getConversation(userId, conversationId) {
     where: { id: conversationId },
     include: {
       participants: {
-        include: {
-          user: {
-            select: {
-              id: true, email: true, firstName: true, lastName: true, photoUrl: true,
-            },
-          },
-        },
+        include: { user: { select: PUBLIC_USER_SELECT } },
       },
     },
   });
@@ -363,6 +338,7 @@ export async function listMessages(userId, conversationId, { before, limit } = {
     where,
     orderBy: { createdAt: 'desc' },
     take: take + 1,
+    include: { sender: { select: PUBLIC_USER_SELECT } },
   });
 
   const hasMore = rows.length > take;
@@ -401,6 +377,7 @@ export async function sendMessage(userId, conversationId, { body, replyToId }) {
         body: trimmed,
         replyToId: replyToId || null,
       },
+      include: { sender: { select: PUBLIC_USER_SELECT } },
     });
 
     const now = new Date();
@@ -464,6 +441,7 @@ export async function editMessage(userId, messageId, { body }) {
     const row = await tx.message.update({
       where: { id: messageId },
       data: { body: trimmed, editedAt: new Date() },
+      include: { sender: { select: PUBLIC_USER_SELECT } },
     });
 
     const convo = await tx.conversation.findUnique({
@@ -686,11 +664,6 @@ export async function broadcastTyping(userId, conversationId, isTyping) {
 /*    • list the members of a group they belong to                      */
 /* ------------------------------------------------------------------ */
 
-/**
- * List every PUBLIC group that `userId` is NOT already a member of.
- * Optionally filtered by name (`q`, case-insensitive, substring).
- * Ordered by memberCount desc, then createdAt desc — busiest groups first.
- */
 export async function listDiscoverablePublicGroups(
   userId,
   { q = '', limit = GROUP_DISCOVER_DEFAULT_LIMIT } = {}
@@ -723,11 +696,7 @@ export async function listDiscoverablePublicGroups(
     orderBy: [{ memberCount: 'desc' }, { createdAt: 'desc' }],
     take: capped,
     include: {
-      createdBy: {
-        select: {
-          id: true, email: true, firstName: true, lastName: true, photoUrl: true,
-        },
-      },
+      createdBy: { select: PUBLIC_USER_SELECT },
     },
   });
 
@@ -745,14 +714,6 @@ export async function listDiscoverablePublicGroups(
   }));
 }
 
-/**
- * Self-join a PUBLIC group. Idempotent — if the caller is already a member,
- * returns the existing conversation unchanged.
- *
- * Refuses:
- *   • non-group conversation ids (404 — would otherwise leak DM existence)
- *   • private groups (403 — user must be added by an admin)
- */
 export async function joinPublicGroup(userId, groupId) {
   const group = await prisma.conversation.findUnique({
     where: { id: groupId },
@@ -786,13 +747,7 @@ export async function joinPublicGroup(userId, groupId) {
     where: { id: groupId },
     include: {
       participants: {
-        include: {
-          user: {
-            select: {
-              id: true, email: true, firstName: true, lastName: true, photoUrl: true,
-            },
-          },
-        },
+        include: { user: { select: PUBLIC_USER_SELECT } },
       },
     },
   });
@@ -801,13 +756,6 @@ export async function joinPublicGroup(userId, groupId) {
   return serializeConversation(full, userId, myRow);
 }
 
-/**
- * Leave a group. Idempotent — leaving a group you're not in succeeds.
- *
- * Refuses:
- *   • DMs (400 — DMs have no leave semantics)
- *   • the last owner leaving (400 — must transfer ownership first)
- */
 export async function leaveGroup(userId, groupId) {
   const conv = await prisma.conversation.findUnique({
     where: { id: groupId },
@@ -861,10 +809,6 @@ export async function leaveGroup(userId, groupId) {
   return { ok: true };
 }
 
-/**
- * List every member of a group the caller belongs to.
- * Ordered by role (owner → moderator → member), then join time ascending.
- */
 export async function listGroupMembers(userId, groupId) {
   await assertParticipant(userId, groupId);
 
@@ -879,11 +823,7 @@ export async function listGroupMembers(userId, groupId) {
   const rows = await prisma.conversationParticipant.findMany({
     where: { conversationId: groupId },
     include: {
-      user: {
-        select: {
-          id: true, email: true, firstName: true, lastName: true, photoUrl: true,
-        },
-      },
+      user: { select: PUBLIC_USER_SELECT },
     },
   });
 

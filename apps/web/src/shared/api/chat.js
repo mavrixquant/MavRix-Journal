@@ -10,16 +10,17 @@
 //   ['chat', 'groups', 'discover', filterKey] - public groups I'm not in
 //   ['chat', 'groups', 'members', groupId]   - members of a group I'm in
 //
+// Group *administration* hooks (create / update / delete / member mgmt) are
+// ALSO in this file — they target /api/admin/groups/* on the backend, but
+// they operate on chat-domain objects. Keeping them here (rather than in
+// features/admin/api.js) lets the chat feature call them without violating
+// the feature-boundary ESLint rule.
+//
 // Pagination model: useInfiniteQuery where pages[0] holds the NEWEST page.
 // Within each page, messages are ascending (oldest -> newest).
 //
 // SSE integration: shared/api/sse.js mutates the messages cache directly
 // on chat:message:new / :edited / :deleted / :delivered / chat:read.
-//
-// Groups:
-//   Public groups can be discovered + self-joined by any verified user.
-//   Private groups are invite-only — created and managed via
-//   /api/admin/groups/* (see features/admin/api.js).
 
 import {
   useQuery,
@@ -51,7 +52,7 @@ export const chatKeys = {
 };
 
 /* ------------------------------------------------------------------ */
-/*  Raw fetchers                                                       */
+/*  Raw fetchers — conversations                                       */
 /* ------------------------------------------------------------------ */
 
 export async function fetchConversations() {
@@ -78,6 +79,10 @@ export async function updateConversation(id, patch) {
     body: JSON.stringify(patch),
   });
 }
+
+/* ------------------------------------------------------------------ */
+/*  Raw fetchers — messages                                            */
+/* ------------------------------------------------------------------ */
 
 export async function fetchMessages(id, { before, limit = 50 } = {}) {
   const params = new URLSearchParams();
@@ -146,7 +151,9 @@ export async function searchUsers(q) {
   return data.users;
 }
 
-/* ---------------- Groups (user-facing) ---------------- */
+/* ------------------------------------------------------------------ */
+/*  Raw fetchers — groups (user-facing)                                */
+/* ------------------------------------------------------------------ */
 
 export async function fetchDiscoverableGroups({ q, limit } = {}) {
   const params = new URLSearchParams();
@@ -177,6 +184,77 @@ export async function fetchGroupMembers(groupId) {
     `/api/chat/groups/${encodeURIComponent(groupId)}/members`
   );
   return data.members;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Raw fetchers — groups (admin-scoped)                               */
+/*                                                                     */
+/*  These hit /api/admin/groups/* — the caller must have admin or      */
+/*  superadmin role. Backend re-verifies.                              */
+/* ------------------------------------------------------------------ */
+
+export async function fetchAdminGroups(filters = {}) {
+  const params = new URLSearchParams();
+  for (const [k, v] of Object.entries(filters)) {
+    if (v === undefined || v === null || v === '') continue;
+    params.set(k, String(v));
+  }
+  const qs = params.toString();
+  return apiJson(`/api/admin/groups${qs ? `?${qs}` : ''}`);
+}
+
+export async function fetchAdminGroup(groupId) {
+  const data = await apiJson(`/api/admin/groups/${encodeURIComponent(groupId)}`);
+  return data.group;
+}
+
+export async function createGroup(payload) {
+  const data = await apiJson('/api/admin/groups', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+  return data.group;
+}
+
+export async function updateGroup(groupId, patch) {
+  const data = await apiJson(`/api/admin/groups/${encodeURIComponent(groupId)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(patch),
+  });
+  return data.group;
+}
+
+export async function deleteGroup(groupId) {
+  return apiJson(`/api/admin/groups/${encodeURIComponent(groupId)}`, {
+    method: 'DELETE',
+  });
+}
+
+export async function addGroupMember(groupId, userId) {
+  return apiJson(
+    `/api/admin/groups/${encodeURIComponent(groupId)}/members`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ userId }),
+    }
+  );
+}
+
+export async function removeGroupMember(groupId, userId) {
+  return apiJson(
+    `/api/admin/groups/${encodeURIComponent(groupId)}/members/${encodeURIComponent(userId)}`,
+    { method: 'DELETE' }
+  );
+}
+
+export async function setGroupMemberRole(groupId, userId, role) {
+  return apiJson(
+    `/api/admin/groups/${encodeURIComponent(groupId)}/members/${encodeURIComponent(userId)}`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify({ role }),
+    }
+  );
 }
 
 /* ------------------------------------------------------------------ */
@@ -229,14 +307,6 @@ export function useChatUserSearch(q) {
   });
 }
 
-/**
- * Public groups the caller is NOT already a member of.
- *
- * @param {object}  opts
- * @param {string}  [opts.q]        — substring match on group name
- * @param {number}  [opts.limit]    — max results (default 50, cap 100)
- * @param {boolean} [opts.enabled]  — pass false to disable the query
- */
 export function useDiscoverableGroups({ q = '', limit, enabled = true } = {}) {
   const sseFallback = useSSEFallback();
   const filterKey = `${q || ''}|${limit ?? ''}`;
@@ -250,10 +320,6 @@ export function useDiscoverableGroups({ q = '', limit, enabled = true } = {}) {
   });
 }
 
-/**
- * Members of a group the caller belongs to.
- * Disabled when `groupId` is null.
- */
 export function useGroupMembers(groupId, { enabled = true } = {}) {
   return useQuery({
     queryKey: chatKeys.groupMembers(groupId),
@@ -307,7 +373,7 @@ export function useTypingConversations(excludeUserId) {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Hooks - mutations                                                  */
+/*  Hooks - mutations (conversations + messages)                       */
 /* ------------------------------------------------------------------ */
 
 export function useCreateConversation() {
@@ -362,6 +428,7 @@ export function useSendMessage() {
           id: tempId,
           conversationId,
           senderId: senderId || null,
+          sender: null,
           body,
           replyToId: replyToId || null,
           createdAt: new Date().toISOString(),
@@ -387,7 +454,6 @@ export function useSendMessage() {
 
     onSuccess: (message, _vars, ctx) => {
       if (!ctx) return;
-      // Idempotent against SSE echo (see message handler in sse.js).
       qc.setQueryData(chatKeys.messages(ctx.conversationId), (old) => {
         if (!old || !Array.isArray(old.pages) || old.pages.length === 0) return old;
         const [first, ...rest] = old.pages;
@@ -503,12 +569,10 @@ export function useDeleteMessage() {
   });
 }
 
-/**
- * Join a public group. On success:
- *   • prepends the new conversation into the sidebar list
- *   • invalidates the discovery list (this group is no longer discoverable)
- *   • invalidates the member cache for this group
- */
+/* ------------------------------------------------------------------ */
+/*  Hooks - group membership (user-facing)                             */
+/* ------------------------------------------------------------------ */
+
 export function useJoinGroup() {
   const qc = useQueryClient();
   return useMutation({
@@ -526,12 +590,6 @@ export function useJoinGroup() {
   });
 }
 
-/**
- * Leave a group. On success:
- *   • removes the conversation from the sidebar list
- *   • drops the messages + member caches for that group
- *   • invalidates the discovery list (this group becomes discoverable again)
- */
 export function useLeaveGroup() {
   const qc = useQueryClient();
   return useMutation({
@@ -547,6 +605,96 @@ export function useLeaveGroup() {
       qc.invalidateQueries({ queryKey: chatKeys.conversations() });
       qc.invalidateQueries({ queryKey: ['chat', 'groups', 'discover'] });
     },
+  });
+}
+
+/* ------------------------------------------------------------------ */
+/*  Hooks - group administration                                       */
+/*                                                                     */
+/*  These call /api/admin/groups/* — backend requires admin role.      */
+/*  Centralizing them here lets the chat feature call them without     */
+/*  violating the feature-boundary ESLint rule.                        */
+/* ------------------------------------------------------------------ */
+
+function useInvalidateAdminGroup() {
+  const qc = useQueryClient();
+  return (groupId) => {
+    qc.invalidateQueries({ queryKey: ['admin', 'groups'] });
+    qc.invalidateQueries({ queryKey: ['admin', 'audit'] });
+    if (groupId) qc.invalidateQueries({ queryKey: ['admin', 'group', groupId] });
+    // The user-side chat list also changes when membership changes.
+    qc.invalidateQueries({ queryKey: chatKeys.conversations() });
+    qc.invalidateQueries({ queryKey: ['chat', 'groups', 'discover'] });
+    if (groupId) qc.invalidateQueries({ queryKey: chatKeys.groupMembers(groupId) });
+  };
+}
+
+export function useAdminGroups(filters = {}) {
+  return useQuery({
+    queryKey: ['admin', 'groups', filters],
+    queryFn: () => fetchAdminGroups(filters),
+    staleTime: 15_000,
+    placeholderData: (prev) => prev,
+  });
+}
+
+export function useAdminGroup(groupId) {
+  return useQuery({
+    queryKey: ['admin', 'group', groupId],
+    queryFn: () => fetchAdminGroup(groupId),
+    enabled: !!groupId,
+  });
+}
+
+export function useCreateGroup() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: createGroup,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'groups'] });
+      qc.invalidateQueries({ queryKey: ['admin', 'audit'] });
+      qc.invalidateQueries({ queryKey: ['chat', 'groups', 'discover'] });
+    },
+  });
+}
+
+export function useUpdateGroup() {
+  const invalidate = useInvalidateAdminGroup();
+  return useMutation({
+    mutationFn: ({ groupId, patch }) => updateGroup(groupId, patch),
+    onSuccess: (_r, vars) => invalidate(vars.groupId),
+  });
+}
+
+export function useDeleteGroup() {
+  const invalidate = useInvalidateAdminGroup();
+  return useMutation({
+    mutationFn: (groupId) => deleteGroup(groupId),
+    onSuccess: (_r, groupId) => invalidate(groupId),
+  });
+}
+
+export function useAddGroupMember() {
+  const invalidate = useInvalidateAdminGroup();
+  return useMutation({
+    mutationFn: ({ groupId, userId }) => addGroupMember(groupId, userId),
+    onSuccess: (_r, vars) => invalidate(vars.groupId),
+  });
+}
+
+export function useRemoveGroupMember() {
+  const invalidate = useInvalidateAdminGroup();
+  return useMutation({
+    mutationFn: ({ groupId, userId }) => removeGroupMember(groupId, userId),
+    onSuccess: (_r, vars) => invalidate(vars.groupId),
+  });
+}
+
+export function useSetGroupMemberRole() {
+  const invalidate = useInvalidateAdminGroup();
+  return useMutation({
+    mutationFn: ({ groupId, userId, role }) => setGroupMemberRole(groupId, userId, role),
+    onSuccess: (_r, vars) => invalidate(vars.groupId),
   });
 }
 
@@ -569,12 +717,6 @@ export function useMarkRead() {
   });
 }
 
-/**
- * Fire-and-forget delivery ack. Called automatically by the SSE bridge in
- * shared/api/sse.js when an inbound `chat:message:new` arrives. Errors are
- * swallowed — a dropped ack just means the sender sees ✓ instead of ✓✓
- * until the peer opens the thread (which bulk-acks via markRead).
- */
 export function useMarkDelivered() {
   return useMutation({
     mutationFn: (messageId) => markMessageDelivered(messageId),
