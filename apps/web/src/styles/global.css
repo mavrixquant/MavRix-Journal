@@ -1652,3 +1652,18 @@ footer b { color: var(--text-dim); }
         font-size: 1.25rem;
     }
 }
+
+/* ==================================================================
+   Sidebar toggle performance fix
+   The inline transitions on .app-shell-main (margin-left) and the
+   sidebar <aside> (width) were causing react-grid-layout's ResizeObserver
+   to fire at 60fps during a 400ms animation, re-rendering every chart
+   in every panel on every frame. Kill both transitions.
+   ================================================================== */
+.app-shell-main {
+  transition: none !important;
+}
+
+aside.fixed.inset-y-0.left-0.z-40 {
+  transition: none !important;
+}

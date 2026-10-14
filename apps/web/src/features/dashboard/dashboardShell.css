@@ -678,3 +678,32 @@
     padding: 6px 12px;
   }
 }
+
+
+/* ==================================================================
+   PHASE 6 — Chart container chain + sidebar-toggle perf kill
+   ================================================================== */
+
+/* ---------- A. Hero (Equity) chart — proper height chain ---------- */
+.dash-panel .hero {
+  height: 100%;
+  min-height: 0;
+}
+
+.dash-panel .hero-left {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.dash-panel .hero-left .hero-head {
+  flex-shrink: 0;
+}
+
+.dash-panel .hero-left .chart-box {
+  flex: 1 1 0;
+  min-height: 0;
+  height: auto;
+  position: relative;
+}
