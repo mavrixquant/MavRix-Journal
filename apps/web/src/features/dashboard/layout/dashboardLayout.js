@@ -2,10 +2,10 @@
 
 const ROW_HEIGHT = 40;
 
-export const GRID_COLS = 24;
+export const GRID_COLS = 48;
 export const GRID_ROW_HEIGHT = ROW_HEIGHT;
 export const GRID_BREAKPOINTS = { lg: 1280, md: 996, sm: 768, xs: 480, xxs: 0 };
-export const GRID_COLS_BY_BP = { lg: 24, md: 16, sm: 8, xs: 4, xxs: 2 };
+export const GRID_COLS_BY_BP = { lg: 48, md: 32, sm: 16, xs: 8, xxs: 4 };
 
 // Maximum number of layouts a user can have saved.
 export const MAX_LAYOUTS = 3;
