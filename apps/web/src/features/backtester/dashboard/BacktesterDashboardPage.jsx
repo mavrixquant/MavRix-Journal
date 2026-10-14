@@ -77,6 +77,7 @@ const CSS = `
     transition-property: left, top;
   }
   .dash-panel {
+    padding: 6px;
     width: 100%;
     height: 100%;
     border-radius: 18px;
