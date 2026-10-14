@@ -522,3 +522,93 @@
     animation: none !important;
   }
 }
+
+/* ==================================================================
+   PHASE 3 — Customize Mode Alignment Overrides
+   Appended after Phase 1 base rules. Same specificity, later source
+   order wins. Do not reorder without re-checking.
+   ================================================================== */
+
+/* ---------- 1. Editor overlay aligns with panel padding (6px) ---------- */
+.dash-editor-overlay {
+  top: 6px;
+  right: 6px;
+}
+
+/* ---------- 2. Badge + toggle baseline-align at 28px ---------- */
+.dash-editor-badge {
+  height: 28px;
+  padding: 0 11px;
+}
+
+.dash-editor-badge:active {
+  cursor: grabbing;
+}
+
+/* ---------- 3. Edit toolbar — single row on wide, wraps on narrow ---------- */
+.dash-edit-toolbar {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.dash-edit-toolbar::-webkit-scrollbar {
+  height: 6px;
+}
+
+.dash-edit-toolbar::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,.08);
+  border-radius: 99px;
+}
+
+@media (max-width: 900px) {
+  .dash-edit-toolbar {
+    flex-wrap: wrap;
+    overflow-x: visible;
+  }
+}
+
+/* ---------- 4. Layout tabs shrinkable + scrollable when tight ---------- */
+.dash-layout-tabs {
+  min-width: 0;
+  flex-shrink: 1;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.dash-layout-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.dash-layout-tab {
+  height: 30px;
+  min-width: 0;
+  flex-shrink: 0;
+}
+
+/* ---------- 5. Toolbar buttons — unified 40px height ---------- */
+.dash-tb-btn,
+.dash-tb-primary {
+  height: 40px;
+  min-width: 84px;
+  justify-content: center;
+  padding: 0 16px;
+}
+
+.dash-tb-primary {
+  padding: 0 20px;
+}
+
+/* ---------- 6. Resize handle — bigger hit area ---------- */
+.dash-grid .react-grid-item > .react-resizable-handle {
+  width: 26px;
+  height: 26px;
+}
+
+/* ---------- 7. Hidden panels — clearer "off" state ---------- */
+.dash-panel.dash-hidden {
+  opacity: .35;
+  filter: grayscale(.85);
+  outline: 1px dashed rgba(255,255,255,.14);
+  outline-offset: -1px;
+}
