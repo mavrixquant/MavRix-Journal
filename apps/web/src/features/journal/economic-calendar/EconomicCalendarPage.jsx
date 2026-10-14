@@ -1,18 +1,13 @@
 // apps/web/src/features/journal/economic-calendar/EconomicCalendarPage.jsx
 //
 // Economic Calendar — read-only feed of macro releases (CPI, NFP, FOMC, etc.)
-// sourced from Biquote and cached on the API. Fully independent from trades.
+// sourced from Biquote and cached on the API.
 //
-// Title + subtitle are published to the GLOBAL header bar via usePageHeader().
-// The List/Month view toggle has moved down into <CalendarFilters /> so it
-// sits next to the Sync button on the same row.
-//
-// Layout:
-//   ┌──────────────────────────────────────────────────────────────┐
-//   │  Filters card: impact / currency / date / view toggle / sync │
-//   ├──────────────────────────────────────────────────────────────┤
-//   │  Content: List view  OR  Month grid                          │
-//   └──────────────────────────────────────────────────────────────┘
+// PHASE 2:
+//   • The page no longer scrolls. `.ec-root` fills the viewport minus the
+//     global header + main padding. The filter card sits at the top; the
+//     content card flexes to fill the rest with its own internal scroll.
+//   • `goToToday` prop was removed from CalendarFilters in Phase 1.
 
 import { useMemo } from 'react';
 
@@ -30,9 +25,7 @@ import EventList from './components/EventList';
 import EventDetailModal from './components/EventDetailModal';
 
 /* ------------------------------------------------------------------ */
-/*  Page-local CSS.                                                    */
-/*  Header chrome now lives in the global HeaderBar. This block only   */
-/*  covers the content card shell + loading/error states.              */
+/*  Page CSS                                                           */
 /* ------------------------------------------------------------------ */
 
 const CSS = `
@@ -48,13 +41,23 @@ const CSS = `
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
-    gap: 18px;
+    gap: 14px;
     color: var(--ink-1);
     font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
     -webkit-font-smoothing: antialiased;
+    height: calc(100vh - 108px);
+    height: calc(100dvh - 108px);
+    min-height: 520px;
+    overflow: hidden;
+  }
+  @media (min-width: 1024px) {
+    .ec-root {
+      height: calc(100vh - 116px);
+      height: calc(100dvh - 116px);
+    }
   }
 
-  /* Content cards (filters + events) — glass panels. */
+  /* Card shell */
   .ec-card {
     position: relative;
     border-radius: 18px;
@@ -62,21 +65,34 @@ const CSS = `
     backdrop-filter: blur(18px) saturate(140%);
     -webkit-backdrop-filter: blur(18px) saturate(140%);
     border: 1px solid var(--line);
-    box-shadow: 0 20px 50px -30px rgba(0,0,0,.9), inset 0 1px 0 rgba(255,255,255,.03);
+    box-shadow:
+      0 20px 50px -30px rgba(0,0,0,.9),
+      inset 0 1px 0 rgba(255,255,255,.03);
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+
+  /* Content card — fills remaining height, scrolls internally */
+  .ec-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
     overflow: hidden;
   }
-  .ec-body { padding: 4px 18px 18px; }
 
   .ec-loading {
-    padding: 80px 20px;
-    text-align: center;
-    color: var(--ink-2);
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    font-size: 12.5px;
+    flex: 1;
     display: flex;
     flex-direction: column;
     align-items: center;
+    justify-content: center;
     gap: 14px;
+    padding: 60px 20px;
+    color: var(--ink-2);
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 12.5px;
   }
   .ec-spinner {
     width: 28px;
@@ -87,11 +103,12 @@ const CSS = `
     animation: ecSpin .8s linear infinite;
   }
   .ec-error {
-    padding: 24px 20px;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
     text-align: center;
-    border-radius: 12px;
-    background: rgba(239,68,68,.06);
-    border: 1px solid rgba(239,68,68,.22);
     color: #fca5a5;
     font-family: 'IBM Plex Mono', ui-monospace, monospace;
     font-size: 12.5px;
@@ -101,9 +118,6 @@ const CSS = `
   @keyframes ecSpin { to { transform: rotate(360deg); } }
   @media (prefers-reduced-motion: reduce) {
     .ec-spinner { animation: none !important; }
-  }
-  @media (max-width: 640px) {
-    .ec-root { padding: 16px; }
   }
 `;
 
@@ -153,7 +167,7 @@ export default function EconomicCalendarPage() {
       <style>{CSS}</style>
       <div className="ec-root">
 
-        {/* ---------- Filters card (view toggle lives here now) ---------- */}
+        {/* ---------- Filters card ---------- */}
         <div className="ec-card" style={{ padding: '18px 22px' }}>
           <CalendarFilters
             availableCurrencies={currencies.data ?? []}
@@ -168,13 +182,12 @@ export default function EconomicCalendarPage() {
             rangePreset={filters.rangePreset}
             applyPreset={filters.applyPreset}
             setCustomRange={filters.setCustomRange}
-            goToToday={filters.goToToday}
             view={filters.view}
             setView={filters.setView}
           />
         </div>
 
-        {/* ---------- Content card ---------- */}
+        {/* ---------- Content card (internal scroll) ---------- */}
         <div className="ec-card ec-body">
           {showInitialSkeleton && (
             <div className="ec-loading">

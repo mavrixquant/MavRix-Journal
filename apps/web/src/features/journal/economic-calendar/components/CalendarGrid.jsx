@@ -1,14 +1,19 @@
 // apps/web/src/features/journal/economic-calendar/components/CalendarGrid.jsx
 //
 // Month view: 7-column grid of day cells, each showing up to 4 impact-colored
-// dots. Clicking a day calls onDayClick(dateString), which the page uses to
-// jump to List view scoped to that single day.
+// dots. Clicking a day jumps to List view scoped to that day.
 //
-// Navigates months with left/right buttons. Never fetches — reads events
-// passed in via props, which are already filtered by the filter bar.
+// PHASE 2:
+//   • Events are bucketed by their day in the user's preferred timezone, so
+//     an event that happens "on Oct 15 IST" lands in the Oct 15 cell even if
+//     it's Oct 14 UTC.
+//   • The month grid is the internal scroll container inside the calendar
+//     card; the month nav row stays pinned.
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { useSettings } from '@/app/layout/Settings/SettingsProvider';
+import { resolveTimezone, dayKey } from '@/shared/format/datetime';
 
 /* ------------------------------------------------------------------ */
 /*  Scoped CSS                                                         */
@@ -21,17 +26,22 @@ const CSS = `
     --ink-1: #E7E9EE;
     --ink-2: #8892A3;
     --ink-3: #545E6E;
-    --impact-high: var(--accent);
-    --impact-medium: #60A5FA;
-    --impact-low: #545E6E;
-    font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
   }
+
   .cg-head {
+    flex-shrink: 0;
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    margin-bottom: 14px;
+    padding: 14px 18px 10px;
+    border-bottom: 1px solid var(--line-soft);
   }
   .cg-month {
     font-family: 'IBM Plex Mono', ui-monospace, monospace;
@@ -41,10 +51,7 @@ const CSS = `
     text-transform: uppercase;
     color: var(--ink-1);
   }
-  .cg-nav {
-    display: inline-flex;
-    gap: 4px;
-  }
+  .cg-nav { display: inline-flex; gap: 4px; }
   .cg-nav-btn {
     display: inline-flex;
     align-items: center;
@@ -61,9 +68,26 @@ const CSS = `
   }
   .cg-nav-btn:hover {
     color: var(--accent);
-    border-color: color-mix(in srgb, var(--accent) 35%, transparent);
-    background: color-mix(in srgb, var(--accent) 6%, transparent);
+    border-color: rgba(245,158,11,.35);
+    background: rgba(245,158,11,.06);
   }
+
+  .cg-scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 12px 18px 18px;
+    overscroll-behavior: contain;
+  }
+  .cg-scroll::-webkit-scrollbar { width: 8px; }
+  .cg-scroll::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,.08);
+    border-radius: 99px;
+  }
+  .cg-scroll::-webkit-scrollbar-thumb:hover {
+    background: rgba(255,255,255,.14);
+  }
+
   .cg-dow-row {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
@@ -80,6 +104,7 @@ const CSS = `
     color: var(--ink-3);
     padding: 4px 0;
   }
+
   .cg-grid {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
@@ -87,6 +112,8 @@ const CSS = `
   }
   .cg-cell {
     aspect-ratio: 1 / 1;
+    min-height: 68px;
+    max-height: 130px;
     border-radius: 10px;
     border: 1px solid var(--line-soft);
     background: rgba(255,255,255,.015);
@@ -100,19 +127,16 @@ const CSS = `
     overflow: hidden;
     text-align: left;
   }
-  .cg-cell:hover {
-    border-color: color-mix(in srgb, var(--accent) 35%, transparent);
-    background: color-mix(in srgb, var(--accent) 4%, transparent);
+  .cg-cell:hover:not(.is-outside) {
+    border-color: rgba(245,158,11,.35);
+    background: rgba(245,158,11,.04);
     transform: translateY(-1px);
   }
   .cg-cell.is-today {
-    border-color: color-mix(in srgb, var(--accent) 55%, transparent);
-    box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent);
+    border-color: rgba(245,158,11,.55);
+    box-shadow: 0 0 0 1px rgba(245,158,11,.35);
   }
-  .cg-cell.is-outside {
-    opacity: .35;
-    cursor: default;
-  }
+  .cg-cell.is-outside { opacity: .35; cursor: default; }
   .cg-cell.is-outside:hover {
     border-color: var(--line-soft);
     background: rgba(255,255,255,.015);
@@ -125,9 +149,7 @@ const CSS = `
     color: var(--ink-1);
     line-height: 1;
   }
-  .cg-cell.is-today .cg-day-num {
-    color: var(--accent);
-  }
+  .cg-cell.is-today .cg-day-num { color: var(--accent); }
   .cg-dots {
     display: flex;
     flex-wrap: wrap;
@@ -140,9 +162,9 @@ const CSS = `
     border-radius: 50%;
     flex-shrink: 0;
   }
-  .cg-dot.high   { background: var(--impact-high);   box-shadow: 0 0 6px color-mix(in srgb, var(--accent) 55%, transparent); }
-  .cg-dot.medium { background: var(--impact-medium); }
-  .cg-dot.low    { background: var(--impact-low); }
+  .cg-dot.high   { background: #F59E0B; box-shadow: 0 0 6px rgba(245,158,11,.55); }
+  .cg-dot.medium { background: #60A5FA; }
+  .cg-dot.low    { background: #545E6E; }
   .cg-more {
     font-family: 'IBM Plex Mono', ui-monospace, monospace;
     font-size: 9px;
@@ -159,6 +181,7 @@ const CSS = `
     font-weight: 600;
     color: var(--ink-3);
   }
+
   @media (prefers-reduced-motion: reduce) {
     .cg-cell { transition: none !important; }
   }
@@ -169,47 +192,35 @@ const CSS = `
 /* ------------------------------------------------------------------ */
 
 const DOW_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-
 const IMPACT_ORDER = { high: 0, medium: 1, low: 2 };
 const MAX_DOTS = 4;
 
 /* ------------------------------------------------------------------ */
-/*  Date utilities                                                     */
+/*  Helpers                                                            */
 /* ------------------------------------------------------------------ */
 
-function toIsoDate(d) {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-}
-
-function sameDayIso(a, b) {
-  return toIsoDate(a) === toIsoDate(b);
-}
-
 function buildMonthMatrix(year, month) {
-  // Returns an array of 35 or 42 { date, iso, isOutside } cells.
-  // First cell is the Sunday on/before the 1st of the month.
-  const first = new Date(year, month, 1);
-  const startOffset = first.getDay(); // 0..6, 0 = Sunday
+  const first = new Date(year, month - 1, 1);
+  const startOffset = first.getDay();
+  const daysInMonth = new Date(year, month, 0).getDate();
+
   const cells = [];
+  const gridStart = new Date(year, month - 1, 1 - startOffset);
 
-  const gridStart = new Date(year, month, 1 - startOffset);
-
-  // Determine how many weeks to show (5 or 6)
-  const lastOfMonth = new Date(year, month + 1, 0);
-  const totalDays = startOffset + lastOfMonth.getDate();
+  const totalDays = startOffset + daysInMonth;
   const weeks = Math.ceil(totalDays / 7);
   const cellCount = weeks * 7;
 
   for (let i = 0; i < cellCount; i++) {
     const d = new Date(gridStart);
     d.setDate(gridStart.getDate() + i);
+    const y = d.getFullYear();
+    const mo = d.getMonth() + 1;
+    const day = d.getDate();
     cells.push({
       date: d,
-      iso: toIsoDate(d),
-      isOutside: d.getMonth() !== month,
+      iso: `${y}-${String(mo).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
+      isOutside: d.getMonth() !== (month - 1),
     });
   }
   return cells;
@@ -220,37 +231,63 @@ function buildMonthMatrix(year, month) {
 /* ------------------------------------------------------------------ */
 
 export default function CalendarGrid({ events = [], onDayClick }) {
-  // Anchor for the currently visible month. Defaults to today.
-  const [anchor, setAnchor] = useState(() => new Date());
+  const { settings } = useSettings();
+  const timezone = settings.preferences.timezone;
+  const tz = useMemo(() => resolveTimezone(timezone), [timezone]);
 
-  const today = useMemo(() => new Date(), []);
+  const todayKey = useMemo(
+    () => dayKey(new Date().toISOString(), tz),
+    [tz]
+  );
 
-  // Group events by ISO date, keeping only their impact for the dots.
+  // Anchor month (year + 1-based month), initialized to the current month
+  // in the user's timezone. Re-anchors whenever the tz changes.
+  const [anchor, setAnchor] = useState(() => {
+    const [y, m] = todayKey.split('-').map(Number);
+    return { year: y, month: m };
+  });
+
+  useEffect(() => {
+    const [y, m] = todayKey.split('-').map(Number);
+    setAnchor({ year: y, month: m });
+  }, [todayKey]);
+
+  // Bucket events by their tz-day.
   const byDate = useMemo(() => {
     const map = new Map();
     for (const e of events) {
-      if (!e.date) continue;
-      if (!map.has(e.date)) map.set(e.date, []);
-      map.get(e.date).push(e);
+      if (!e.dateTimeUtc) continue;
+      const key = dayKey(e.dateTimeUtc, tz);
+      if (!map.has(key)) map.set(key, []);
+      map.get(key).push(e);
     }
     return map;
-  }, [events]);
+  }, [events, tz]);
 
   const cells = useMemo(
-    () => buildMonthMatrix(anchor.getFullYear(), anchor.getMonth()),
-    [anchor]
+    () => buildMonthMatrix(anchor.year, anchor.month),
+    [anchor.year, anchor.month]
   );
 
-  const monthLabel = anchor.toLocaleString('en-US', {
-    month: 'long',
-    year: 'numeric',
-  });
+  const monthLabel = new Date(anchor.year, anchor.month - 1, 1)
+    .toLocaleString('en-US', { month: 'long', year: 'numeric' });
 
   const goPrev = () => {
-    setAnchor((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
+    setAnchor((prev) => {
+      const m = prev.month - 1;
+      return m < 1
+        ? { year: prev.year - 1, month: 12 }
+        : { year: prev.year, month: m };
+    });
   };
+
   const goNext = () => {
-    setAnchor((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
+    setAnchor((prev) => {
+      const m = prev.month + 1;
+      return m > 12
+        ? { year: prev.year + 1, month: 1 }
+        : { year: prev.year, month: m };
+    });
   };
 
   return (
@@ -279,64 +316,59 @@ export default function CalendarGrid({ events = [], onDayClick }) {
           </div>
         </div>
 
-        <div className="cg-dow-row">
-          {DOW_LABELS.map((d) => (
-            <div key={d} className="cg-dow">{d}</div>
-          ))}
-        </div>
+        <div className="cg-scroll">
+          <div className="cg-dow-row">
+            {DOW_LABELS.map((d) => (
+              <div key={d} className="cg-dow">{d}</div>
+            ))}
+          </div>
 
-        <div className="cg-grid">
-          {cells.map((cell) => {
-            const dayEvents = byDate.get(cell.iso) || [];
+          <div className="cg-grid">
+            {cells.map((cell) => {
+              const dayEvents = byDate.get(cell.iso) || [];
 
-            // Sort by impact so high-impact dots appear first when the day
-            // has more events than we can display.
-            const sorted = [...dayEvents].sort((a, b) => {
-              const ra = IMPACT_ORDER[a.impact] ?? 99;
-              const rb = IMPACT_ORDER[b.impact] ?? 99;
-              return ra - rb;
-            });
+              const sorted = [...dayEvents].sort((a, b) => {
+                const ra = IMPACT_ORDER[a.impact] ?? 99;
+                const rb = IMPACT_ORDER[b.impact] ?? 99;
+                return ra - rb;
+              });
 
-            const visible = sorted.slice(0, MAX_DOTS);
-            const overflow = sorted.length - visible.length;
+              const visible = sorted.slice(0, MAX_DOTS);
+              const overflow = sorted.length - visible.length;
 
-            const isToday = sameDayIso(cell.date, today);
-            const classNames = [
-              'cg-cell',
-              cell.isOutside ? 'is-outside' : '',
-              isToday ? 'is-today' : '',
-            ]
-              .filter(Boolean)
-              .join(' ');
+              const isToday = cell.iso === todayKey;
+              const classNames = [
+                'cg-cell',
+                cell.isOutside ? 'is-outside' : '',
+                isToday ? 'is-today' : '',
+              ].filter(Boolean).join(' ');
 
-            return (
-              <button
-                key={cell.iso}
-                type="button"
-                className={classNames}
-                onClick={() => {
-                  if (!cell.isOutside && onDayClick) onDayClick(cell.iso);
-                }}
-                disabled={cell.isOutside}
-              >
-                <div className="cg-day-num">{cell.date.getDate()}</div>
-                {dayEvents.length > 0 && (
-                  <div className="cg-count">{dayEvents.length}</div>
-                )}
-                <div className="cg-dots">
-                  {visible.map((e) => (
-                    <span
-                      key={e.id}
-                      className={`cg-dot ${e.impact}`}
-                    />
-                  ))}
-                  {overflow > 0 && (
-                    <span className="cg-more">+{overflow}</span>
+              return (
+                <button
+                  key={cell.iso}
+                  type="button"
+                  className={classNames}
+                  onClick={() => {
+                    if (!cell.isOutside && onDayClick) onDayClick(cell.iso);
+                  }}
+                  disabled={cell.isOutside}
+                >
+                  <div className="cg-day-num">{cell.date.getDate()}</div>
+                  {dayEvents.length > 0 && (
+                    <div className="cg-count">{dayEvents.length}</div>
                   )}
-                </div>
-              </button>
-            );
-          })}
+                  <div className="cg-dots">
+                    {visible.map((e) => (
+                      <span key={e.id} className={`cg-dot ${e.impact}`} />
+                    ))}
+                    {overflow > 0 && (
+                      <span className="cg-more">+{overflow}</span>
+                    )}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
     </>
