@@ -736,7 +736,7 @@ h1 {
     gap: 6px;
 }
 .ms-btn:after {
-    content: '▾';
+    content: 'â–¾';
     font-size: 9px;
     color: var(--text-faint);
 }
@@ -1654,16 +1654,18 @@ footer b { color: var(--text-dim); }
 }
 
 /* ==================================================================
-   Sidebar toggle performance fix
-   The inline transitions on .app-shell-main (margin-left) and the
-   sidebar <aside> (width) were causing react-grid-layout's ResizeObserver
-   to fire at 60fps during a 400ms animation, re-rendering every chart
-   in every panel on every frame. Kill both transitions.
+   Sidebar — floating overlay pattern
+   Content has a FIXED 68px left margin (icon-rail width) at lg+.
+   The sidebar is position: fixed and overlays the content when
+   expanded to 240px. Content width never changes, so RGL's
+   ResizeObserver never fires and no chart re-renders during a toggle.
    ================================================================== */
 .app-shell-main {
   transition: none !important;
 }
 
-aside.fixed.inset-y-0.left-0.z-40 {
-  transition: none !important;
+@media (min-width: 1024px) {
+  .app-shell-main {
+    margin-left: 68px;
+  }
 }

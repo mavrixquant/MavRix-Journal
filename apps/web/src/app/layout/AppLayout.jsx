@@ -3,11 +3,7 @@ import { useState, useEffect, Suspense } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 
 import { useAuth } from '@/app/providers/AuthProvider';
-import Sidebar, {
-  SidebarContent,
-  SIDEBAR_WIDTH,
-  SIDEBAR_COLLAPSED_WIDTH,
-} from './Sidebar/Sidebar';
+import Sidebar, { SidebarContent } from './Sidebar/Sidebar';
 import HeaderBar from './HeaderBar/HeaderBar';
 import TopStrip from './TopStrip';
 import SettingsModal from './Settings/SettingsModal';
@@ -21,9 +17,6 @@ import { PageHeaderProvider } from './PageHeaderProvider';
 const STORAGE_KEY = 'mavrix:sidebar:collapsed';
 const LAST_PATH_KEY = 'mavrix:lastPath';
 
-// Only persist the "last visited" path for authenticated app areas.
-// Auth pages, admin panel, and the root redirect itself are excluded so
-// that "defaultLanding: 'last'" always lands on a real dashboard.
 const STORABLE_PREFIXES = [
   '/journal',
   '/backtester',
@@ -42,18 +35,12 @@ export default function AppLayout() {
   });
 
   const [mobileOpen, setMobileOpen] = useState(false);
-
-  // Single settings modal with a controlled initial tab. The tab is only
-  // honoured on OPEN — a user switching tabs inside the modal keeps their
-  // choice until they close and reopen from a different entry point.
   const [settings, setSettings] = useState({ open: false, tab: 'account' });
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, collapsed ? '1' : '0');
   }, [collapsed]);
 
-  // Track the last visited authenticated path so the "defaultLanding: last"
-  // preference can restore it on next sign-in.
   useEffect(() => {
     if (!user) return;
     const path = location.pathname;
@@ -68,8 +55,6 @@ export default function AppLayout() {
 
   useHotkey('mod+b', () => setCollapsed((v) => !v));
 
-  // Single SSE connection per app. currentUserId is used by the chat bridge
-  // to decide whether an inbound chat:message:new needs a delivery ack.
   useSSEBridge({ enabled: !!user, currentUserId: user?.id });
 
   const openSettings = (tab = 'account') =>
@@ -82,19 +67,9 @@ export default function AppLayout() {
     await logout();
   };
 
-  const mainMargin = collapsed ? SIDEBAR_COLLAPSED_WIDTH : SIDEBAR_WIDTH;
-
   return (
     <TooltipProvider delayDuration={250}>
       <PageHeaderProvider>
-        <style>{`
-          @media (min-width: 1024px) {
-            .app-shell-main {
-              margin-left: ${mainMargin}px;
-            }
-          }
-        `}</style>
-
         <TopStrip />
 
         <Sidebar
@@ -116,10 +91,7 @@ export default function AppLayout() {
           </SheetContent>
         </Sheet>
 
-        <div
-          className="app-shell-main min-h-screen"
-          style={{ transition: 'margin-left .4s cubic-bezier(.16, 1, .3, 1)' }}
-        >
+        <div className="app-shell-main min-h-screen">
           <HeaderBar
             collapsed={collapsed}
             onMobileMenuClick={() => setMobileOpen(true)}
