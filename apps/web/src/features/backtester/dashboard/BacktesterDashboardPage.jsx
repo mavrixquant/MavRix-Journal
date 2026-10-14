@@ -1,8 +1,15 @@
 // apps/web/src/features/backtester/dashboard/BacktesterDashboardPage.jsx
+//
+// Backtester dashboard — Backtest accounts only.
+//
+// The Customize button that used to be a prop passed into the header now
+// lives inside the shared <DashboardFab />, alongside the Add Trade action.
+
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Responsive, WidthProvider } from 'react-grid-layout/legacy';
 import BacktesterDashboardHeader from './BacktesterDashboardHeader';
 import DashboardFooter from '@/features/dashboard/components/DashboardFooter';
+import DashboardFab from '@/features/dashboard/components/DashboardFab';
 import {
   GRID_COLS,
   GRID_COLS_BY_BP,
@@ -48,7 +55,7 @@ const MAX_NAME_LEN = 24;
 const DEFAULT_NAME_PATTERN = /^Layout \d+$/;
 
 /* ------------------------------------------------------------------ */
-/*  Dashboard CSS — shared shape with JournalDashboardPage.            */
+/*  Dashboard CSS — shared shape with Journal DashboardPage.           */
 /* ------------------------------------------------------------------ */
 const CSS = `
   .dash-root {
@@ -519,6 +526,7 @@ export default function BacktesterDashboardPage() {
 
   const displayItems = editMode ? editItems : committedItems;
 
+  // ---- Build responsive layouts object ----
   const responsiveLayouts = useMemo(() => {
     return {
       lg: displayItems,
@@ -686,7 +694,7 @@ export default function BacktesterDashboardPage() {
     <div className="dash-root">
       <style>{CSS}</style>
 
-      {!editMode && <BacktesterDashboardHeader onCustomize={enterEdit} />}
+      {!editMode && <BacktesterDashboardHeader />}
 
       {!hasData ? (
         <div className="dash-empty-wrap">
@@ -909,6 +917,14 @@ export default function BacktesterDashboardPage() {
 
           {!editMode && <DashboardFooter />}
         </>
+      )}
+
+      {!editMode && (
+        <DashboardFab
+          onCustomize={enterEdit}
+          addTradePath="/backtester/logs"
+          hasData={hasData}
+        />
       )}
     </div>
   );

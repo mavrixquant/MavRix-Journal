@@ -1,8 +1,22 @@
 // apps/web/src/features/journal/dashboard/DashboardPage.jsx
+//
+// Journal dashboard — Live & Demo accounts only.
+//
+// The old JournalDashboardHeader has been folded into this file. Its two
+// responsibilities now live here:
+//
+//   • useEnrichedTrades(accountId)  → loads, enriches and dispatches the
+//     account's trades into AppProvider so every panel below sees data.
+//   • usePageHeader({...})          → publishes title + account badge to
+//     the global header bar.
+//
+// The Customize button previously lived in the header. It now lives inside
+// the shared <DashboardFab />, which also carries the Add Trade action.
+
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Responsive, WidthProvider } from 'react-grid-layout/legacy';
-import JournalDashboardHeader from './JournalDashboardHeader';
 import DashboardFooter from '@/features/dashboard/components/DashboardFooter';
+import DashboardFab from '@/features/dashboard/components/DashboardFab';
 import {
   GRID_COLS,
   GRID_COLS_BY_BP,
@@ -28,7 +42,11 @@ import {
   FaPlus,
 } from 'react-icons/fa';
 import { useAuth } from '@/app/providers/AuthProvider';
+import { useAppContext } from '@/app/providers/AppProvider';
+import { useDashboardAccount } from '@/app/providers/useDashboardAccount';
 import { useStats } from '@/features/dashboard/hooks/useStats';
+import { useEnrichedTrades } from '@/features/dashboard/hooks/useEnrichedTrades';
+import { usePageHeader } from '@/app/layout/PageHeaderProvider';
 import {
   subscribeToUserLayouts,
   saveUserLayouts,
@@ -439,6 +457,13 @@ const CSS = `
 /* ------------------------------------------------------------------ */
 export default function DashboardPage() {
   const { user } = useAuth();
+  const { state } = useAppContext();
+  const { accountId } = useDashboardAccount();
+
+  // Enrich + dispatch trades for this Live/Demo account into AppProvider.
+  // Must run before useStats() so the panels see data on first paint.
+  const enriched = useEnrichedTrades(accountId);
+
   const { stats } = useStats();
 
   // Committed state (from server)
@@ -505,6 +530,19 @@ export default function DashboardPage() {
   }, [user?.uid]);
 
   const hasData = stats && stats.n > 0;
+
+  // Publish title + account badge to the global header bar.
+  const selectedAccount = useMemo(
+    () => state.accounts.find((a) => a.id === accountId) || null,
+    [state.accounts, accountId]
+  );
+  const badgeVariant = selectedAccount?.type === 'Demo' ? 'is-demo' : 'is-live';
+
+  usePageHeader({
+    title: 'Dashboard',
+    badge: selectedAccount?.type,
+    badgeVariant,
+  });
 
   const committedActive = useMemo(
     () => layouts.find((l) => l.id === activeId) || null,
@@ -704,8 +742,6 @@ export default function DashboardPage() {
   return (
     <div className="dash-root">
       <style>{CSS}</style>
-
-      {!editMode && <JournalDashboardHeader onCustomize={enterEdit} />}
 
       {!hasData ? (
         <div className="dash-empty-wrap">
@@ -928,6 +964,14 @@ export default function DashboardPage() {
 
           {!editMode && <DashboardFooter />}
         </>
+      )}
+
+      {!editMode && (
+        <DashboardFab
+          onCustomize={enterEdit}
+          addTradePath="/journal/logs"
+          hasData={hasData}
+        />
       )}
     </div>
   );

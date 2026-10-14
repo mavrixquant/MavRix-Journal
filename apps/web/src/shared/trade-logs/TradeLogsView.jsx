@@ -20,8 +20,16 @@
 // -----------
 // The four primary actions (Template, Columns, Upload, Add) sit on the
 // right of the KPI strip — same row as "Net P&L" and its peers.
+//
+// DEEP-LINK SUPPORT (?addTrade=1)
+// -------------------------------
+// The global <DashboardFab /> navigates here with ?addTrade=1 to
+// auto-open the AddTradeModal. We read the param once on mount, open the
+// modal, and then strip the param from the URL via setSearchParams with
+// { replace: true } so a refresh never re-opens it.
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   FaFileUpload,
   FaFolderOpen,
@@ -598,6 +606,8 @@ export default function TradeLogsView({
 }) {
   const { data: accounts = [], isLoading: accountsLoading } = useAccounts();
 
+  const [searchParams, setSearchParams] = useSearchParams();
+
   const [uploadOpen, setUploadOpen] = useState(false);
   const [addTradeOpen, setAddTradeOpen] = useState(false);
   const [columnsOpen, setColumnsOpen] = useState(false);
@@ -624,6 +634,26 @@ export default function TradeLogsView({
   );
 
   const currency = selectedAccount?.currency || 'USD';
+
+  /* -------- Deep-link: ?addTrade=1 opens the AddTradeModal -------- */
+  //
+  // The DashboardFab navigates here with ?addTrade=1. We open the modal
+  // once, then strip the param from the URL so a page refresh never
+  // re-opens it.
+  //
+  // We wait for the accounts list to hydrate before acting so the modal
+  // mounts with a valid `account` prop (AddTradeModal early-returns when
+  // account is falsy).
+  useEffect(() => {
+    if (accountsLoading) return;
+    if (searchParams.get('addTrade') !== '1') return;
+
+    setAddTradeOpen(true);
+
+    const next = new URLSearchParams(searchParams);
+    next.delete('addTrade');
+    setSearchParams(next, { replace: true });
+  }, [accountsLoading, searchParams, setSearchParams]);
 
   const handleEdit = useCallback((row) => {
     setEditingTrade(row);

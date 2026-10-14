@@ -2,17 +2,17 @@
 //
 // Backtester-dashboard header.
 //
-// Title + badge are published to the GLOBAL header bar via usePageHeader()
-// so they render next to the account selector.
+// Title + badge are published to the GLOBAL header bar via usePageHeader().
 //
-// Everything else stays on the page:
+// Remaining on-page elements:
 //   - Collapse chevron (toggles the filter toolbar below)
-//   - Customize button (disabled when the account has no trades)
 //   - Collapsible filter toolbar (RRTabs, DynamicFilters, Session/Time,
 //     Limits, Optimize, Reset)
+//
+// The Customize button that used to live here has moved into the shared
+// <DashboardFab /> component (bottom-right of the page).
 
 import { useState } from 'react';
-import { FaSlidersH } from 'react-icons/fa';
 
 import { useAppContext } from '@/app/providers/AppProvider';
 import { useDashboardAccount } from '@/app/providers/useDashboardAccount';
@@ -28,8 +28,7 @@ import LimitsModal from '@/features/dashboard/components/filters/LimitsModal';
 import OptimizeModal from '@/features/dashboard/components/optimize/OptimizeModal';
 
 /* ------------------------------------------------------------------ */
-/*  Header-local CSS.                                                  */
-/*  Same visual language as the previous version, minus the title row. */
+/*  Header-local CSS                                                   */
 /* ------------------------------------------------------------------ */
 const HDR_CSS = `
   .hdr-root {
@@ -92,43 +91,6 @@ const HDR_CSS = `
   }
   .hdr-collapse:active { transform: scale(.94); }
   .hdr-collapse:focus-visible {
-    outline: none;
-    border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(245,158,11,.18);
-  }
-
-  /* ---------- Customize button ---------- */
-  .hdr-customize {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    padding: 9px 14px;
-    border-radius: 10px;
-    border: 1px solid rgba(255,255,255,.1);
-    background: rgba(255,255,255,.035);
-    color: var(--ink-2);
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    font-size: 11.5px;
-    font-weight: 600;
-    letter-spacing: .02em;
-    cursor: pointer;
-    transition: all .22s cubic-bezier(.2,.8,.25,1);
-    white-space: nowrap;
-  }
-  .hdr-customize:hover:not(:disabled) {
-    color: var(--accent);
-    border-color: var(--accent-soft2);
-    background: rgba(245,158,11,.06);
-    box-shadow: 0 0 20px -6px rgba(245,158,11,.4);
-    transform: translateY(-1px);
-  }
-  .hdr-customize:disabled {
-    opacity: .4;
-    cursor: not-allowed;
-    transform: none;
-    box-shadow: none;
-  }
-  .hdr-customize:focus-visible {
     outline: none;
     border-color: var(--accent);
     box-shadow: 0 0 0 3px rgba(245,158,11,.18);
@@ -247,7 +209,7 @@ const HDR_CSS = `
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .hdr-btn, .hdr-btn-reset, .hdr-customize,
+    .hdr-btn, .hdr-btn-reset,
     .hdr-collapse, .hdr-collapse svg,
     .hdr-toolbar-wrap { transition: none !important; }
   }
@@ -258,7 +220,7 @@ const HDR_CSS = `
   }
 `;
 
-export default function BacktesterDashboardHeader({ onCustomize }) {
+export default function BacktesterDashboardHeader() {
   const { state } = useAppContext();
   const { accountId } = useDashboardAccount();
   const { resetAllFilters } = useFilters();
@@ -278,14 +240,17 @@ export default function BacktesterDashboardHeader({ onCustomize }) {
   const selectedAccount =
     state.accounts.find((acc) => acc.id === accountId) || null;
 
-  const hasData = enriched.enrichedTrades.length > 0;
-
   // Publish title + badge to the global header bar.
   usePageHeader({
     title: 'Backtester',
     badge: selectedAccount?.type,
     badgeVariant: 'is-backtest',
   });
+
+  // Note: `enriched` is intentionally unused beyond triggering the dispatch
+  // effect inside useEnrichedTrades. The parent page derives `hasData` from
+  // useStats() and passes it to the FAB.
+  void enriched;
 
   return (
     <>
@@ -315,21 +280,6 @@ export default function BacktesterDashboardHeader({ onCustomize }) {
           </button>
 
           <div className="hdr-spacer" />
-
-          <button
-            type="button"
-            className="hdr-customize"
-            onClick={onCustomize}
-            disabled={!hasData}
-            title={
-              hasData
-                ? 'Customize dashboard'
-                : 'Add trades to this account first to customize the layout'
-            }
-          >
-            <FaSlidersH size={12} />
-            Customize
-          </button>
         </div>
 
         {/* ---------- Collapsible toolbar ---------- */}

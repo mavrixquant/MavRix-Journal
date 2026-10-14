@@ -845,7 +845,7 @@ export default function AddTradeModal({ isOpen, onClose, account, trade = null }
               <div style={{ flex: 1 }} />
               <button
                 type="submit"
-                className="at-btn at-btn-primary"
+                className="at-btn at-btn"
                 disabled={saving}
               >
                 {saving ? (
