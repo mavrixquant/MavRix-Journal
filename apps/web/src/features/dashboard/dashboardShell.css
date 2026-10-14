@@ -707,3 +707,59 @@
   height: auto;
   position: relative;
 }
+
+
+/* ==================================================================
+   PHASE 7 — Hero / Equity chart bulletproof flex chain
+   The .hero grid (2fr 1fr) doesn't propagate definite heights to grid
+   items reliably. Switch to flex; explicit flex-basis percentages
+   replace the grid-template-columns.
+   ================================================================== */
+
+.dash-panel .hero {
+  height: 100%;
+  min-height: 0;
+  display: flex;                 /* was: grid */
+  flex-direction: row;
+  align-items: stretch;
+  gap: 24px;
+  box-sizing: border-box;
+}
+
+.dash-panel .hero-left {
+  flex: 2 1 0;                   /* was: grid col 1 (2fr) */
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+}
+
+.dash-panel .hero-right {
+  flex: 1 1 0;                   /* was: grid col 2 (1fr) */
+  min-height: 0;
+  min-width: 0;
+}
+
+.dash-panel .hero-left .hero-head {
+  flex: 0 0 auto;
+}
+
+.dash-panel .hero-left .chart-box {
+  flex: 1 1 auto;
+  min-height: 140px;             /* safety floor if flex math fails */
+  height: auto;
+  width: 100%;
+  position: relative;
+}
+
+/* At narrow widths, stack the hero */
+@media (max-width: 1100px) {
+  .dash-panel .hero {
+    flex-direction: column;
+  }
+  .dash-panel .hero-left,
+  .dash-panel .hero-right {
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+}
