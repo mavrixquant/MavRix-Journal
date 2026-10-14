@@ -2,16 +2,10 @@
 //
 // Journal dashboard — Live & Demo accounts only.
 //
-// The old JournalDashboardHeader has been folded into this file. Its two
-// responsibilities now live here:
-//
-//   • useEnrichedTrades(accountId)  → loads, enriches and dispatches the
-//     account's trades into AppProvider so every panel below sees data.
-//   • usePageHeader({...})          → publishes title + account badge to
-//     the global header bar.
-//
-// The Customize button previously lived in the header. It now lives inside
-// the shared <DashboardFab />, which also carries the Add Trade action.
+// Phase 1: shell CSS moved to
+//   @/features/dashboard/dashboardShell.css
+// The file no longer carries a 250-line inline <style> block. Layout logic,
+// hooks, and rendering are otherwise unchanged.
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Responsive, WidthProvider } from 'react-grid-layout/legacy';
@@ -59,398 +53,12 @@ import TradeTable from '@/features/dashboard/components/panels/TradeTable';
 
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
+import '@/features/dashboard/dashboardShell.css';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
 const MAX_NAME_LEN = 24;
 const DEFAULT_NAME_PATTERN = /^Layout \d+$/;
-
-/* ------------------------------------------------------------------ */
-/*  Dashboard CSS                                                      */
-/* ------------------------------------------------------------------ */
-const CSS = `
-  .dash-root {
-    --ink-1: #F3F4F6;
-    --ink-2: rgba(255,255,255,.62);
-    --ink-3: rgba(255,255,255,.42);
-    --line: rgba(255,255,255,.085);
-    --line-soft: rgba(255,255,255,.05);
-    --glass-1: rgba(255,255,255,.045);
-    --glass-2: rgba(255,255,255,.012);
-    --bg-0: #07090D;
-    --bg-1: #0A0D14;
-
-    position: relative;
-    width: 100%;
-    box-sizing: border-box;
-    overflow-x: hidden;
-    min-height: 100vh;
-    padding: 0 0 40px;
-    color: var(--ink-1);
-    font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
-    -webkit-font-smoothing: antialiased;
-  }
-  .dash-grid .react-grid-item {
-    transition: all 200ms cubic-bezier(.2,.8,.25,1);
-    transition-property: left, top;
-  }
-  .dash-panel {
-    padding: 6px;
-    width: 100%;
-    height: 100%;
-    border-radius: 18px;
-    background: linear-gradient(180deg, var(--glass-1), var(--glass-2));
-    border: 1px solid var(--line);
-    box-shadow:
-      0 20px 50px -30px rgba(0,0,0,.9),
-      inset 0 1px 0 rgba(255,255,255,.03);
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    position: relative;
-    backdrop-filter: blur(10px) saturate(140%);
-    transition: border-color .35s ease, box-shadow .35s ease, background .35s ease;
-  }
-  .dash-panel:hover {
-    border-color: var(--accent-soft2);
-    box-shadow:
-      0 24px 60px -30px rgba(0,0,0,.95),
-      0 0 40px -18px var(--accent-soft2),
-      inset 0 1px 0 rgba(255,255,255,.04);
-  }
-  .dash-panel.dash-editing {
-    border-color: var(--accent-soft2);
-    box-shadow:
-      0 24px 60px -30px rgba(0,0,0,.95),
-      0 0 0 1px color-mix(in srgb, var(--accent) 15%, transparent),
-      0 0 50px -20px color-mix(in srgb, var(--accent) 35%, transparent);
-  }
-  .dash-panel.dash-hidden {
-    opacity: .32;
-    filter: grayscale(.7);
-  }
-  .dash-editor-overlay {
-    position: absolute;
-    top: 10px; right: 10px;
-    z-index: 10;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    pointer-events: none;
-  }
-  .dash-editor-badge {
-    pointer-events: auto;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 5px 11px;
-    border-radius: 8px;
-    background: rgba(15,18,25,.9);
-    backdrop-filter: blur(10px);
-    border: 1px solid var(--accent-soft2);
-    color: var(--accent);
-    font-size: 10.5px;
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    font-weight: 600;
-    letter-spacing: .04em;
-    user-select: none;
-    cursor: grab;
-    box-shadow: 0 8px 24px -12px rgba(0,0,0,.8);
-  }
-  .dash-editor-toggle {
-    pointer-events: auto;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 28px; height: 28px;
-    border-radius: 8px;
-    background: rgba(15,18,25,.9);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255,255,255,.1);
-    color: #8892A3;
-    cursor: pointer;
-    box-shadow: 0 8px 24px -12px rgba(0,0,0,.8);
-    transition: all .22s cubic-bezier(.2,.8,.25,1);
-  }
-  .dash-editor-toggle:hover {
-    border-color: color-mix(in srgb, var(--accent) 50%, transparent);
-    color: var(--accent);
-  }
-  .dash-editor-toggle.on {
-    color: #10B981;
-    border-color: rgba(16,185,129,.45);
-    background: rgba(16,185,129,.08);
-  }
-  .dash-editor-toggle.off { color: #545E6E; }
-
-  .dash-grid .react-grid-item > .react-resizable-handle {
-    width: 22px; height: 22px;
-    background-image: none !important;
-    padding: 0;
-    z-index: 5;
-    bottom: 0; right: 0;
-  }
-  .dash-grid .react-grid-item > .react-resizable-handle::after {
-    content: '';
-    position: absolute;
-    right: 6px; bottom: 6px;
-    width: 12px; height: 12px;
-    border-right: 2px solid color-mix(in srgb, var(--accent) 40%, transparent);
-    border-bottom: 2px solid color-mix(in srgb, var(--accent) 40%, transparent);
-    border-radius: 0 0 3px 0;
-  }
-  .dash-grid .react-grid-item > .react-resizable-handle:hover::after {
-    border-color: var(--accent);
-    width: 15px; height: 15px;
-  }
-  .dash-grid:not(.dash-editing) .react-grid-item > .react-resizable-handle {
-    display: none !important;
-  }
-  .dash-grid .react-grid-item.react-grid-placeholder {
-    background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 18%, transparent), color-mix(in srgb, var(--accent) 6%, transparent)) !important;
-    border: 1px dashed color-mix(in srgb, var(--accent) 55%, transparent);
-    border-radius: 18px;
-    opacity: 1;
-  }
-
-  .dash-edit-toolbar {
-    position: sticky;
-    top: 12px;
-    z-index: 30;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 14px 18px;
-    background: rgba(15,18,25,.82);
-    backdrop-filter: blur(18px) saturate(140%);
-    border: 1px solid var(--accent-soft2);
-    border-radius: 18px;
-    margin-bottom: 20px;
-    box-shadow:
-      0 24px 60px -30px rgba(0,0,0,.95),
-      0 0 40px -18px var(--accent-soft2);
-    flex-wrap: wrap;
-  }
-  .dash-edit-toolbar::before {
-    content: '';
-    position: absolute;
-    left: 0; right: 0; top: 0; height: 2px;
-    border-radius: 18px 18px 0 0;
-    background: linear-gradient(90deg, transparent, var(--accent), var(--accent-2), var(--accent), transparent);
-    background-size: 200% 100%;
-    animation: dashGrad 4s linear infinite;
-  }
-  .dash-layout-tabs {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 4px;
-    background: rgba(0,0,0,.32);
-    border-radius: 12px;
-    border: 1px solid rgba(255,255,255,.06);
-  }
-  .dash-layout-tab {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 7px 13px;
-    font-size: 11.5px;
-    font-weight: 600;
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    border-radius: 8px;
-    background: transparent;
-    border: none;
-    color: #8892A3;
-    cursor: pointer;
-    white-space: nowrap;
-  }
-  .dash-layout-tab:hover {
-    color: #E7E9EE;
-    background: rgba(255,255,255,.04);
-  }
-  .dash-layout-tab.active {
-    background: linear-gradient(135deg, var(--accent), var(--accent-2));
-    color: #0D1117;
-  }
-  .dash-layout-tab-del {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 15px; height: 15px;
-    border-radius: 4px;
-    background: rgba(0,0,0,.2);
-    color: inherit;
-    font-size: 9px;
-    font-weight: 700;
-    margin-left: 2px;
-    cursor: pointer;
-  }
-  .dash-layout-tab-input {
-    padding: 7px 11px;
-    font-size: 11.5px;
-    font-weight: 600;
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    border-radius: 8px;
-    background: #0D1117;
-    border: 1px solid var(--accent);
-    color: #E7E9EE;
-    outline: none;
-    width: 130px;
-  }
-  .dash-layout-add {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 28px; height: 28px;
-    border-radius: 8px;
-    background: transparent;
-    border: 1px dashed rgba(255,255,255,.15);
-    color: #8892A3;
-    cursor: pointer;
-  }
-  .dash-layout-add:hover {
-    border-color: var(--accent);
-    color: var(--accent);
-    background: color-mix(in srgb, var(--accent) 8%, transparent);
-  }
-  .dash-layout-add:disabled {
-    opacity: .35;
-    cursor: not-allowed;
-  }
-  .dash-layout-counter {
-    font-size: 10.5px;
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    color: #545E6E;
-    font-weight: 600;
-    padding: 0 6px;
-  }
-  .dash-tb-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    padding: 9px 15px;
-    border-radius: 10px;
-    font-size: 12px;
-    font-weight: 600;
-    cursor: pointer;
-    border: 1px solid rgba(255,255,255,.14);
-    background: rgba(255,255,255,.035);
-    color: #8892A3;
-  }
-  .dash-tb-btn:hover {
-    color: #E7E9EE;
-    background: rgba(255,255,255,.07);
-  }
-  .dash-tb-primary {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    padding: 10px 20px;
-    border-radius: 10px;
-    font-size: 12.5px;
-    font-weight: 700;
-    cursor: pointer;
-    border: none;
-    background: linear-gradient(135deg, var(--accent), var(--accent-2));
-    color: #0D1117;
-    box-shadow:
-      0 10px 30px -8px color-mix(in srgb, var(--accent) 55%, transparent),
-      inset 0 1px 0 rgba(255,255,255,.4);
-  }
-  .dash-tb-primary:hover {
-    transform: translateY(-2px);
-  }
-  .dash-section-title {
-    margin-top: 36px;
-    margin-bottom: 16px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    font-size: 15px;
-    font-weight: 600;
-    color: #E7E9EE;
-  }
-  .dash-section-title .bar {
-    width: 4px; height: 18px;
-    border-radius: 3px;
-    background: linear-gradient(180deg, var(--accent), var(--accent-2));
-  }
-  .dash-section-title .line {
-    flex: 1; height: 1px;
-    background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 35%, transparent), rgba(255,255,255,.06) 40%, transparent);
-  }
-  .dash-tradelog {
-    background: linear-gradient(180deg, var(--glass-1), var(--glass-2));
-    border: 1px solid var(--line);
-    border-radius: 18px;
-    padding: 16px;
-    margin-bottom: 24px;
-    overflow-x: auto;
-  }
-  .dash-empty-wrap {
-    min-height: calc(100vh - 120px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 40px 16px;
-  }
-  .dash-empty {
-    max-width: 520px;
-    width: 100%;
-    padding: 56px 40px 48px;
-    border-radius: 26px;
-    background:
-      radial-gradient(400px 220px at 50% 0%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 70%),
-      linear-gradient(180deg, var(--glass-1), var(--glass-2));
-    border: 1px solid rgba(255,255,255,.1);
-    box-shadow: 0 40px 90px -50px color-mix(in srgb, var(--accent) 50%, transparent);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-  }
-  .dash-empty-icon {
-    width: 64px; height: 64px;
-    border-radius: 18px;
-    background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 18%, transparent), color-mix(in srgb, var(--accent) 5%, transparent));
-    border: 1px solid var(--accent-soft2);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-bottom: 22px;
-  }
-  .dash-empty h3 {
-    margin: 0 0 10px;
-    font-size: 20px;
-    font-weight: 700;
-    color: #E7E9EE;
-  }
-  .dash-empty p {
-    margin: 0;
-    font-size: 13.5px;
-    color: rgba(255,255,255,.58);
-    line-height: 1.65;
-    max-width: 380px;
-  }
-  .dash-allhidden {
-    padding: 70px 20px;
-    text-align: center;
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    font-size: 12.5px;
-    color: #545E6E;
-    border: 1px dashed rgba(255,255,255,.08);
-    border-radius: 18px;
-  }
-  .dash-allhidden b { color: var(--accent); }
-
-  @keyframes dashGrad {
-    0% { background-position: 0% 50%; }
-    100% { background-position: 200% 50%; }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .dash-edit-toolbar::before { animation: none !important; }
-  }
-`;
 
 /* ------------------------------------------------------------------ */
 /*  Main                                                               */
@@ -461,8 +69,8 @@ export default function DashboardPage() {
   const { accountId } = useDashboardAccount();
 
   // Enrich + dispatch trades for this Live/Demo account into AppProvider.
-  // Must run before useStats() so the panels see data on first paint.
   const enriched = useEnrichedTrades(accountId);
+  void enriched;
 
   const { stats } = useStats();
 
@@ -491,9 +99,6 @@ export default function DashboardPage() {
     return () => window.removeEventListener('resize', h);
   }, []);
 
-  // Which responsive breakpoint RGL is currently rendering.
-  // Needed so drag/resize writes get converted back to lg before they
-  // hit the source-of-truth draft layout.
   const [currentBreakpoint, setCurrentBreakpoint] = useState('lg');
 
   // ---- Cloud sync ----
@@ -611,7 +216,6 @@ export default function DashboardPage() {
     setEditMode(false);
   };
 
-  // ---- Layout tab actions ----
   const switchDraftLayout = (id) => {
     if (renamingId) commitRename();
     if (id === draftActiveId) return;
@@ -666,15 +270,6 @@ export default function DashboardPage() {
     setRenameValue('');
   };
 
-  // ---- Grid handlers ----
-  //
-  // We intentionally do NOT use onLayoutChange here. RGL fires that callback
-  // on every render (including mount), and the responsive grid hands us back
-  // the *current breakpoint's* layout — which, if written straight back into
-  // the 24-col source, corrupts it and causes an infinite shrink loop.
-  //
-  // Instead we listen to onDragStop / onResizeStop (user-initiated only) and
-  // convert the incoming values back up to the lg source-of-truth grid.
   const handleDragOrResizeStop = (currentLayout) => {
     if (!editMode || !draftActiveId) return;
 
@@ -696,7 +291,7 @@ export default function DashboardPage() {
             item.w === updated.w &&
             item.h === updated.h
           ) {
-            return item; // no-op; keep reference for cheap diffing
+            return item;
           }
           changed = true;
           return {
@@ -736,13 +331,10 @@ export default function DashboardPage() {
     );
   };
 
-  // ---- Loading skeleton ----
   if (!user) return <PageSkeleton />;
 
   return (
     <div className="dash-root">
-      <style>{CSS}</style>
-
       {!hasData ? (
         <div className="dash-empty-wrap">
           <div className="dash-empty">

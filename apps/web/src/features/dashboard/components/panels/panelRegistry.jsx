@@ -17,22 +17,56 @@ import { useStats } from '@/features/dashboard/hooks/useStats';
 
 /* ------------------------------------------------------------------ */
 /*  Shared Panel shell                                                 */
+/*                                                                    */
+/*  Phase 1 changes:                                                  */
+/*    • outer wrapper adds minWidth: 0 so flex children can shrink    */
+/*    • header row gets flexShrink: 0 explicitly (was implicit)       */
+/*    • body gains a `scrollable` prop — tables opt in, charts stay   */
+/*      hidden so a Chart.js canvas never gets a scrollbar attached.  */
+/*    • note span truncates rather than pushing the panel wider.      */
 /* ------------------------------------------------------------------ */
-function Panel({ title, note, children, padding = '14px 16px' }) {
+function Panel({
+  title,
+  note,
+  children,
+  padding = '14px 16px',
+  scrollable = false,
+}) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100%',
+        minHeight: 0,
+        minWidth: 0,
+      }}
+    >
       {title && (
         <div
           style={{
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
+            gap: 10,
             padding: '14px 18px 10px',
             borderBottom: '1px solid rgba(255,255,255,.05)',
             flexShrink: 0,
+            minWidth: 0,
           }}
         >
-          <span style={{ fontSize: 13.5, fontWeight: 700, color: '#E7E9EE', letterSpacing: '-.01em' }}>
+          <span
+            style={{
+              fontSize: 13.5,
+              fontWeight: 700,
+              color: '#E7E9EE',
+              letterSpacing: '-.01em',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              minWidth: 0,
+            }}
+          >
             {title}
           </span>
           {note && (
@@ -43,6 +77,8 @@ function Panel({ title, note, children, padding = '14px 16px' }) {
                 letterSpacing: '.06em',
                 color: '#F59E0B',
                 opacity: 0.8,
+                flexShrink: 0,
+                whiteSpace: 'nowrap',
               }}
             >
               {note}
@@ -50,7 +86,17 @@ function Panel({ title, note, children, padding = '14px 16px' }) {
           )}
         </div>
       )}
-      <div style={{ flex: 1, minHeight: 0, padding, overflow: 'hidden' }}>{children}</div>
+      <div
+        style={{
+          flex: 1,
+          minHeight: 0,
+          minWidth: 0,
+          padding,
+          overflow: scrollable ? 'auto' : 'hidden',
+        }}
+      >
+        {children}
+      </div>
     </div>
   );
 }
@@ -61,7 +107,7 @@ function Panel({ title, note, children, padding = '14px 16px' }) {
 
 function HeroPanel() {
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
       <Hero />
     </div>
   );
@@ -71,7 +117,16 @@ function CalendarPanel() {
   const { metric } = useStats();
   const isMoney = metric === '$';
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+    <div
+      style={{
+        height: '100%',
+        minHeight: 0,
+        minWidth: 0,
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+      }}
+    >
       <div
         style={{
           display: 'flex',
@@ -97,7 +152,7 @@ function CalendarPanel() {
           {isMoney ? 'Net P&L & Weekly' : 'Target R & Weekly'}
         </span>
       </div>
-      <div style={{ flex: 1, minHeight: 0, padding: '14px 18px', overflow: 'auto' }}>
+      <div style={{ flex: 1, minHeight: 0, minWidth: 0, padding: '14px 18px', overflow: 'auto' }}>
         <Calendar />
         <div style={{ height: 20 }} />
         <WeeklyChart />
@@ -162,8 +217,9 @@ function RRComparePanel() {
 }
 
 function StrategyBreakdownPanel() {
+  // Phase 1: opt into internal scroll since this is a DataTable.
   return (
-    <Panel title="By Strategy" note="net per playbook">
+    <Panel title="By Strategy" note="net per playbook" scrollable>
       <StrategyBreakdownTable />
     </Panel>
   );
@@ -195,10 +251,15 @@ function CategoryChartsPanel() {
           gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
           gap: 12,
           height: '100%',
+          minHeight: 0,
+          minWidth: 0,
         }}
       >
         {charts.map((p) => (
-          <div key={p.title} style={{ display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+          <div
+            key={p.title}
+            style={{ display: 'flex', flexDirection: 'column', minHeight: 0, minWidth: 0 }}
+          >
             <div
               style={{
                 display: 'flex',
@@ -223,7 +284,7 @@ function CategoryChartsPanel() {
                 {p.note}
               </span>
             </div>
-            <div style={{ flex: 1, minHeight: 0 }}>
+            <div style={{ flex: 1, minHeight: 0, minWidth: 0 }}>
               <CategoryBarChart data={p.data} horizontal={p.horizontal} />
             </div>
           </div>
