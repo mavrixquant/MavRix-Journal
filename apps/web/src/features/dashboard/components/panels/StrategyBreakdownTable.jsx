@@ -15,20 +15,20 @@ import DataTable from '@/shared/ui/data-table';
 const UNTAGGED_ID = '__untagged__';
 
 function formatMoney(v) {
-  if (v == null || Number.isNaN(Number(v))) return '—';
+  if (v == null || Number.isNaN(Number(v))) return 'Ã¢â‚¬â€';
   const n = Number(v);
   const sign = n < 0 ? '-' : '+';
   return `${sign}$${Math.abs(n).toFixed(2)}`;
 }
 
 function formatR(v) {
-  if (v == null || Number.isNaN(Number(v))) return '—';
+  if (v == null || Number.isNaN(Number(v))) return 'Ã¢â‚¬â€';
   const n = Number(v);
   return `${n >= 0 ? '+' : ''}${n.toFixed(2)}R`;
 }
 
 function formatPct(v) {
-  if (v == null || Number.isNaN(Number(v))) return '—';
+  if (v == null || Number.isNaN(Number(v))) return 'Ã¢â‚¬â€';
   return `${Number(v).toFixed(1)}%`;
 }
 
@@ -242,10 +242,10 @@ export default function StrategyBreakdownTable() {
         size: 80,
         cell: (ctx) => {
           const v = ctx.getValue();
-          if (v === Infinity) return <span className="dt-cell-pos">∞</span>;
+          if (v === Infinity) return <span className="dt-cell-pos">Ã¢Ë†Å¾</span>;
           const n = Number(v ?? 0);
           const cls = n >= 1.5 ? 'dt-cell-pos' : n >= 1 ? '' : 'dt-cell-neg';
-          return <span className={cls}>{Number.isFinite(n) ? n.toFixed(2) : '—'}</span>;
+          return <span className={cls}>{Number.isFinite(n) ? n.toFixed(2) : 'Ã¢â‚¬â€'}</span>;
         },
       },
     ],
@@ -279,7 +279,7 @@ export default function StrategyBreakdownTable() {
       data={rows}
       columns={columns}
       getRowId={(row) => row.id}
-      searchPlaceholder="Search strategies…"
+      searchPlaceholder="Search strategiesÃ¢â‚¬Â¦"
       initialSort={[{ id: 'total', desc: true }]}
       estimateRowHeight={38}
       maxHeight={360}

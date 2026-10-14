@@ -612,3 +612,69 @@
   outline: 1px dashed rgba(255,255,255,.14);
   outline-offset: -1px;
 }
+
+
+/* ==================================================================
+   PHASE 4 — Per-Panel Content Fit
+   Overrides scoped to .dash-panel descendants. Higher specificity than
+   any component's inline <style> block, so no !important needed.
+   ================================================================== */
+
+/* ---------- 1. Calendar grid — no fixed min-width inside panels ---------- */
+.dash-panel .cal-grid {
+  min-width: 0;
+}
+
+.dash-panel .cal-scroll {
+  overflow-x: auto;
+}
+
+/* ---------- 2. Weekly chart chips — flex naturally inside panels ---------- */
+.dash-panel .week-chip {
+  min-width: 0;
+  flex: 1 1 130px;
+}
+
+.dash-panel .week-summary {
+  gap: 8px;
+}
+
+/* ---------- 3. Hero chart-box — fill its container, no fixed 220px ---------- */
+.dash-panel .chart-box {
+  height: 100%;
+  min-height: 0;
+}
+
+/* ---------- 4. Duration widget — verdict pill may compress ---------- */
+.dash-panel .duration-verdict-pill {
+  min-height: 0;
+  padding: 6px 10px;
+}
+
+/* ---------- 5. KPI grids — small-height fallback ---------- */
+@container kpi (max-height: 200px) {
+  .kpi-card { min-height: 36px; padding: 4px 8px; }
+  .kpi-value { font-size: 12px; }
+}
+
+@container adv-kpi (max-height: 200px) {
+  .adv-kpi-card { min-height: 40px; padding: 6px 8px; }
+  .adv-kpi-value { font-size: 13px; }
+}
+
+/* ---------- 6. Generic tables-inside-panels — the DataTable scrolls itself ---------- */
+.dash-panel .dt-root {
+  height: 100%;
+  min-height: 0;
+}
+
+.dash-panel .dt-scroll {
+  max-height: 100% !important;
+}
+
+/* ---------- 7. Reduce panel header padding at small heights ---------- */
+@container (max-height: 120px) {
+  .dash-panel-header-compact {
+    padding: 6px 12px;
+  }
+}

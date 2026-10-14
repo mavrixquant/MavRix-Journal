@@ -8,7 +8,7 @@ import DataTable from '@/shared/ui/data-table';
 /*  Helpers                                                            */
 /* ------------------------------------------------------------------ */
 function formatTimeWithAMPM(timeStr) {
-  if (!timeStr) return '—';
+  if (!timeStr) return 'Ã¢â‚¬â€';
   if (/^\d{2}:\d{2}/.test(timeStr)) {
     const [hours, minutes] = timeStr.split(':').map(Number);
     const ampm = hours >= 12 ? 'PM' : 'AM';
@@ -19,7 +19,7 @@ function formatTimeWithAMPM(timeStr) {
 }
 
 function formatMoney(v) {
-  if (v == null || Number.isNaN(Number(v))) return '—';
+  if (v == null || Number.isNaN(Number(v))) return 'Ã¢â‚¬â€';
   const n = Number(v);
   const sign = n < 0 ? '-' : '+';
   return `${sign}$${Math.abs(n).toFixed(2)}`;
@@ -29,14 +29,14 @@ function formatMoney(v) {
 /*  Cell renderers (pure)                                              */
 /* ------------------------------------------------------------------ */
 function ResultTag({ value }) {
-  if (!value) return '—';
+  if (!value) return 'Ã¢â‚¬â€';
   const cls =
     value === 'win' ? 'dt-tag-win' : value === 'loss' ? 'dt-tag-loss' : 'dt-tag-be';
   return <span className={`dt-tag ${cls}`}>{String(value).toUpperCase()}</span>;
 }
 
 function DirText({ value }) {
-  if (!value) return '—';
+  if (!value) return 'Ã¢â‚¬â€';
   const color = value === 'Long' ? '#35C4A1' : '#FF5C5C';
   return <span style={{ color, fontWeight: 600 }}>{value}</span>;
 }
@@ -52,7 +52,7 @@ function buildColumns(dynamicKeys, isMoney) {
       header: 'Date',
       meta: { label: 'Date' },
       size: 110,
-      cell: (ctx) => ctx.getValue() || '—',
+      cell: (ctx) => ctx.getValue() || 'Ã¢â‚¬â€',
     },
     {
       id: 'entry',
@@ -124,7 +124,7 @@ function buildColumns(dynamicKeys, isMoney) {
       size: 90,
       cell: (ctx) => {
         const v = ctx.getValue();
-        if (v == null) return '—';
+        if (v == null) return 'Ã¢â‚¬â€';
         return `${Number(v).toFixed(2)}R`;
       },
     });
@@ -142,11 +142,11 @@ function buildColumns(dynamicKeys, isMoney) {
   // Append dynamic (user-defined) columns
   const dynamicCols = dynamicKeys.map((key) => ({
     id: key,
-    accessorFn: (row) => row.dynamic?.[key] ?? '—',
+    accessorFn: (row) => row.dynamic?.[key] ?? 'Ã¢â‚¬â€',
     header: key,
     meta: { label: key },
     size: 120,
-    cell: (ctx) => String(ctx.getValue() ?? '—'),
+    cell: (ctx) => String(ctx.getValue() ?? 'Ã¢â‚¬â€'),
   }));
 
   return [...base, ...dynamicCols];
@@ -197,7 +197,7 @@ export default function TradeTable() {
       data={outcomes}
       columns={columns}
       getRowId={(row, idx) => row.id ?? `${row.date}-${row.entry}-${idx}`}
-      searchPlaceholder="Search trades…"
+      searchPlaceholder="Search tradesÃ¢â‚¬Â¦"
       searchableColumnIds={searchableIds}
       initialSort={[{ id: 'date', desc: true }]}
       estimateRowHeight={36}
