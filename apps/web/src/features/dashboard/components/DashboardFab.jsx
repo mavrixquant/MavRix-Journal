@@ -4,35 +4,18 @@
 //   /journal/*     — Live + Demo accounts
 //   /backtester/*  — Backtest accounts
 //
-// Lives under features/dashboard/ so both journal and backtester feature
-// folders can import it without violating the ESLint feature-boundary rule.
-//
-// Actions
-// -------
-//   Add Trade  — navigates to <addTradePath>?addTrade=1. The trade-logs
-//                page reads that query param and auto-opens the
-//                AddTradeModal (see TradeLogsView.jsx).
-//
-//   Customize  — enters dashboard edit mode. Hidden entirely when the
-//                current account has no trades (nothing to lay out yet).
-//
-// Visual language
-// ---------------
-//   • Main button: 58px amber-gradient circle with a pulsing halo.
-//   • Icon rotates 0° → 135° when open (plus becomes ×).
-//   • Actions stack upward with a staggered reveal (bottom-most first,
-//     so the stack appears to "grow" out of the FAB).
-//   • Closes on outside click, Escape, or any action click.
-//   • Fully reduced-motion aware; icon-only on mobile (< 640px).
-//
-// z-index note
-// ------------
-// FAB sits at z-index 80. Every modal in the app is >= 1000, so the FAB
-// is always behind an open modal — no overlap, no focus stealing.
+// The main button shows a MENU icon when closed and an X (close) icon when
+// open. The two icons cross-fade + rotate as the FAB opens/closes — no
+// shared single icon, no 135° rotate trick.
 
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, SlidersHorizontal, TrendingUp } from 'lucide-react';
+import {
+  Menu as MenuIcon,
+  X,
+  SlidersHorizontal,
+  TrendingUp,
+} from 'lucide-react';
 
 /* ------------------------------------------------------------------ */
 /*  Styles                                                            */
@@ -48,7 +31,7 @@ const CSS = `
     flex-direction: column;
     align-items: flex-end;
     gap: 14px;
-    pointer-events: none;                 /* clicks pass through when idle */
+    pointer-events: none;
     font-family: 'IBM Plex Mono', ui-monospace, monospace;
     -webkit-font-smoothing: antialiased;
   }
@@ -59,7 +42,7 @@ const CSS = `
     flex-direction: column;
     align-items: flex-end;
     gap: 10px;
-    pointer-events: none;                 /* enabled only when open */
+    pointer-events: none;
   }
   .fab-root.is-open .fab-actions {
     pointer-events: auto;
@@ -87,7 +70,6 @@ const CSS = `
       0 12px 30px -12px rgba(0,0,0,.85),
       inset 0 1px 0 rgba(255,255,255,.05);
 
-    /* Closed state — pushed down + faded. */
     opacity: 0;
     transform: translateY(14px) scale(.92);
 
@@ -105,7 +87,6 @@ const CSS = `
   .fab-root.is-open .fab-action {
     opacity: 1;
     transform: none;
-    /* Stagger comes from a CSS variable set per pill in JSX. */
     transition-delay: var(--fab-delay, 0ms);
   }
 
@@ -129,7 +110,6 @@ const CSS = `
     transform: translateY(1px) scale(.98);
   }
 
-  /* Primary emphasis (Add Trade) — subtle amber tint */
   .fab-action.is-primary {
     border-color: rgba(245,158,11,.32);
     background: linear-gradient(180deg, rgba(245,158,11,.14) 0%, rgba(245,158,11,.04) 100%);
@@ -178,7 +158,7 @@ const CSS = `
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    pointer-events: auto;                 /* always clickable */
+    pointer-events: auto;
 
     background: linear-gradient(135deg, #F59E0B 0%, #FDE68A 100%);
     color: #0D1117;
@@ -210,7 +190,7 @@ const CSS = `
       inset 0 1px 0 rgba(255,255,255,.50);
   }
 
-  /* ---------- Pulsing halo behind the button ---------- */
+  /* ---------- Pulsing halo ---------- */
   .fab-halo {
     position: absolute;
     inset: 0;
@@ -223,17 +203,45 @@ const CSS = `
     z-index: 0;
   }
 
-  /* ---------- Plus icon (rotates to ×) ---------- */
+  /* ---------- Icon container (menu ⇄ close cross-fade) ---------- */
   .fab-main-icon {
     position: relative;
     z-index: 1;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    transition: transform .38s cubic-bezier(.2,.8,.25,1);
+    width: 22px;
+    height: 22px;
   }
-  .fab-root.is-open .fab-main-icon {
-    transform: rotate(135deg);
+  .fab-main-icon svg {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transition:
+      opacity .28s ease,
+      transform .42s cubic-bezier(.2,.8,.25,1);
+    will-change: transform, opacity;
+    pointer-events: none;
+  }
+
+  /* Closed state — menu in, close out */
+  .fab-icon-menu {
+    opacity: 1;
+    transform: translate(-50%, -50%) rotate(0deg) scale(1);
+  }
+  .fab-icon-close {
+    opacity: 0;
+    transform: translate(-50%, -50%) rotate(-120deg) scale(.4);
+  }
+
+  /* Open state — menu out, close in */
+  .fab-root.is-open .fab-icon-menu {
+    opacity: 0;
+    transform: translate(-50%, -50%) rotate(120deg) scale(.4);
+  }
+  .fab-root.is-open .fab-icon-close {
+    opacity: 1;
+    transform: translate(-50%, -50%) rotate(0deg) scale(1);
   }
 
   /* ---------- Keyframes ---------- */
@@ -248,7 +256,7 @@ const CSS = `
     .fab-halo { animation: none; display: none; }
 
     .fab-main,
-    .fab-main-icon,
+    .fab-main-icon svg,
     .fab-action,
     .fab-action-icon {
       transition: none !important;
@@ -259,22 +267,25 @@ const CSS = `
       transform: none;
       transition-delay: 0ms !important;
     }
+
+    /* Collapse the icon swap — instant, no rotate */
+    .fab-icon-menu,
+    .fab-icon-close,
+    .fab-root.is-open .fab-icon-menu,
+    .fab-root.is-open .fab-icon-close {
+      transform: translate(-50%, -50%);
+    }
+    .fab-icon-menu { opacity: 1; }
+    .fab-icon-close { opacity: 0; }
+    .fab-root.is-open .fab-icon-menu { opacity: 0; }
+    .fab-root.is-open .fab-icon-close { opacity: 1; }
   }
 
-  /* ---------- Mobile: icon-only pills ---------- */
+  /* ---------- Mobile ---------- */
   @media (max-width: 640px) {
-    .fab-root {
-      bottom: 18px;
-      right: 16px;
-      gap: 10px;
-    }
-    .fab-main {
-      width: 52px;
-      height: 52px;
-    }
-    .fab-actions {
-      gap: 8px;
-    }
+    .fab-root { bottom: 18px; right: 16px; gap: 10px; }
+    .fab-main { width: 52px; height: 52px; }
+    .fab-actions { gap: 8px; }
     .fab-action {
       width: 44px;
       height: 44px;
@@ -384,8 +395,18 @@ export default function DashboardFab({
           aria-haspopup="menu"
         >
           <span className="fab-halo" aria-hidden />
+
           <span className="fab-main-icon" aria-hidden>
-            <Plus size={22} strokeWidth={2.6} />
+            <MenuIcon
+              size={22}
+              strokeWidth={2.6}
+              className="fab-icon-menu"
+            />
+            <X
+              size={22}
+              strokeWidth={2.6}
+              className="fab-icon-close"
+            />
           </span>
         </button>
       </div>
