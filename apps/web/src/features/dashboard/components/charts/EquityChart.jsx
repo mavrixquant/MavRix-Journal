@@ -1,4 +1,8 @@
 // apps/web/src/features/dashboard/components/charts/EquityChart.jsx
+//
+// Phase 2: wrapper fills its panel (height: 100%, min-height: 0).
+// Panel-level RGL minH: 4 enforces a 160px floor at the grid level.
+
 import { useMemo, useRef } from 'react';
 import { Line } from 'react-chartjs-2';
 import { useStats } from '@/features/dashboard/hooks/useStats';
@@ -98,7 +102,8 @@ export default function EquityChart() {
           alignItems: 'center',
           justifyContent: 'center',
           height: '100%',
-          minHeight: 200,
+          minHeight: 0,
+          gap: 8,
           color: chartColors.textDim,
           fontFamily: "'IBM Plex Mono', monospace",
           fontSize: 12,
@@ -114,7 +119,7 @@ export default function EquityChart() {
           fill="none"
           stroke="currentColor"
           strokeWidth="1.5"
-          style={{ marginBottom: 8, opacity: 0.6 }}
+          style={{ opacity: 0.6 }}
         >
           <path
             strokeLinecap="round"
@@ -133,7 +138,7 @@ export default function EquityChart() {
         position: 'relative',
         width: '100%',
         height: '100%',
-        minHeight: 200,
+        minHeight: 0,
       }}
     >
       <ChartExportButton chartRef={chartRef} filename="equity-curve" />

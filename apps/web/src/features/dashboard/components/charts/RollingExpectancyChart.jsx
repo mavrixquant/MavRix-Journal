@@ -1,4 +1,7 @@
 // apps/web/src/features/dashboard/components/charts/RollingExpectancyChart.jsx
+//
+// Phase 2: wrapper fills its panel. min-height: 0 on both wrapper + empty state.
+
 import { useMemo, useRef } from 'react';
 import { Line } from 'react-chartjs-2';
 import { useStats } from '@/features/dashboard/hooks/useStats';
@@ -140,7 +143,8 @@ export default function RollingExpectancyChart() {
           alignItems: 'center',
           justifyContent: 'center',
           height: '100%',
-          minHeight: 200,
+          minHeight: 0,
+          gap: 6,
           color: chartColors.textDim,
           fontFamily: "'IBM Plex Mono', monospace",
           fontSize: 12,
@@ -158,13 +162,13 @@ export default function RollingExpectancyChart() {
           fill="none"
           stroke="currentColor"
           strokeWidth="1.5"
-          style={{ marginBottom: 8, opacity: 0.6 }}
+          style={{ opacity: 0.6 }}
         >
           <polyline points="3 17 9 11 13 15 21 7" />
           <polyline points="14 7 21 7 21 14" />
         </svg>
         <span>Not enough trades yet</span>
-        <span style={{ fontSize: 10.5, marginTop: 4, opacity: 0.7 }}>
+        <span style={{ fontSize: 10.5, opacity: 0.7 }}>
           Needs at least {WINDOW} trades
         </span>
       </div>
@@ -177,7 +181,7 @@ export default function RollingExpectancyChart() {
         position: 'relative',
         width: '100%',
         height: '100%',
-        minHeight: 200,
+        minHeight: 0,
       }}
     >
       <ChartExportButton chartRef={chartRef} filename="rolling-expectancy" />

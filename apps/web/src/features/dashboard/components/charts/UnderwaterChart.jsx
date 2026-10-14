@@ -1,4 +1,7 @@
 // apps/web/src/features/dashboard/components/charts/UnderwaterChart.jsx
+//
+// Phase 2: removed minHeight: 160 from wrapper + empty state.
+
 import { useMemo, useRef } from 'react';
 import { Line } from 'react-chartjs-2';
 import { useStats } from '@/features/dashboard/hooks/useStats';
@@ -105,7 +108,8 @@ export default function UnderwaterChart() {
           alignItems: 'center',
           justifyContent: 'center',
           height: '100%',
-          minHeight: 160,
+          minHeight: 0,
+          gap: 8,
           color: chartColors.textDim,
           fontFamily: "'IBM Plex Mono', monospace",
           fontSize: 12,
@@ -121,7 +125,7 @@ export default function UnderwaterChart() {
           fill="none"
           stroke="currentColor"
           strokeWidth="1.5"
-          style={{ marginBottom: 8, opacity: 0.6 }}
+          style={{ opacity: 0.6 }}
         >
           <polyline points="3 7 9 13 13 9 21 15" />
           <polyline points="14 15 21 15 21 8" />
@@ -137,7 +141,7 @@ export default function UnderwaterChart() {
         position: 'relative',
         width: '100%',
         height: '100%',
-        minHeight: 160,
+        minHeight: 0,
       }}
     >
       <ChartExportButton chartRef={chartRef} filename="underwater-curve" />

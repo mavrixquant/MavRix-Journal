@@ -1,4 +1,7 @@
 // apps/web/src/features/dashboard/components/charts/TimeChart.jsx
+//
+// Phase 2: removed minHeight: 220 from wrapper + empty state.
+
 import { useMemo, useRef, useState, useEffect } from 'react';
 import { Bar } from 'react-chartjs-2';
 import { useStats } from '@/features/dashboard/hooks/useStats';
@@ -174,7 +177,8 @@ export default function TimeChart() {
           alignItems: 'center',
           justifyContent: 'center',
           height: '100%',
-          minHeight: 220,
+          minHeight: 0,
+          gap: 8,
           color: chartColors.textDim,
           fontFamily: "'IBM Plex Mono', monospace",
           fontSize: 12,
@@ -190,7 +194,7 @@ export default function TimeChart() {
           fill="none"
           stroke="currentColor"
           strokeWidth="1.5"
-          style={{ marginBottom: 8, opacity: 0.6 }}
+          style={{ opacity: 0.6 }}
         >
           <path
             strokeLinecap="round"
@@ -209,7 +213,7 @@ export default function TimeChart() {
         position: 'relative',
         width: '100%',
         height: '100%',
-        minHeight: 220,
+        minHeight: 0,
       }}
     >
       <ChartExportButton chartRef={chartRef} filename="time-of-day" />

@@ -532,7 +532,6 @@ export default function FanChart({
         justifyContent: 'center',
         width: '100%',
         height: '100%',
-        minHeight: 400,
         color: COLORS.textDim,
         fontFamily: "'IBM Plex Mono', monospace",
         fontSize: 12,
@@ -548,7 +547,6 @@ export default function FanChart({
       position: 'relative',
       width: '100%',
       height: '100%',
-      minHeight: 400,
     }}>
       <ChartExportButton chartRef={chartRef} filename="fan-chart" />
       <Line ref={chartRef} data={chartData} options={options} />

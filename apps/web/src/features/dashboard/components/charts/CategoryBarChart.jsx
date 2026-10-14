@@ -1,4 +1,7 @@
 // apps/web/src/features/dashboard/components/charts/CategoryBarChart.jsx
+//
+// Phase 2: removed minHeight: 180 from wrapper + empty state.
+
 import { Bar } from 'react-chartjs-2';
 import { useMemo, useRef } from 'react';
 import { useStats } from '@/features/dashboard/hooks/useStats';
@@ -16,7 +19,8 @@ function EmptyState() {
         alignItems: 'center',
         justifyContent: 'center',
         height: '100%',
-        minHeight: 180,
+        minHeight: 0,
+        gap: 8,
         color: chartColors.textDim,
         fontFamily: "'IBM Plex Mono', monospace",
         fontSize: 12,
@@ -32,7 +36,7 @@ function EmptyState() {
         fill="none"
         stroke="currentColor"
         strokeWidth="1.5"
-        style={{ marginBottom: 8, opacity: 0.6 }}
+        style={{ opacity: 0.6 }}
       >
         <path
           strokeLinecap="round"
@@ -138,7 +142,7 @@ export default function CategoryBarChart({ data, label, horizontal = false }) {
         position: 'relative',
         width: '100%',
         height: '100%',
-        minHeight: 180,
+        minHeight: 0,
       }}
     >
       <ChartExportButton chartRef={chartRef} filename="category-chart" />

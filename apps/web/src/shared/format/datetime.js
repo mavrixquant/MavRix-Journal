@@ -164,14 +164,14 @@ export function formatRelative(iso, timeFormat = '12h', timezone) {
 /* ------------------------------------------------------------------ */
 /*  Dynamic IANA timezone catalog                                      */
 /*                                                                     */
-/*  Uses Intl.supportedValuesOf('timeZone') — available in Chrome 99+, */
+/*  Uses Intl.supportedValuesOf('timeZone') â€” available in Chrome 99+, */
 /*  Safari 15.4+, Firefox 93+. Falls back to a small curated list on   */
 /*  ancient browsers so the dropdown never renders empty.              */
 /*                                                                     */
 /*  Each entry:                                                        */
 /*    { value, city, region, offset, offsetMinutes }                   */
 /*                                                                     */
-/*  `offset` reflects the CURRENT DST rules — shown as "UTC+05:30".    */
+/*  `offset` reflects the CURRENT DST rules â€” shown as "UTC+05:30".    */
 /* ------------------------------------------------------------------ */
 
 const FALLBACK_TIMEZONES = [

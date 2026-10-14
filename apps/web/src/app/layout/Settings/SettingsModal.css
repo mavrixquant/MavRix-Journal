@@ -874,7 +874,7 @@
   .settings-kv dt { margin-top: 6px; }
 }
 /* ============================================================
-   Native <select> — used by the Time zone preference.
+   Native <select> â€” used by the Time zone preference.
    Matches the segmented / switch aesthetic.
    ============================================================ */
 .settings-select {
@@ -923,7 +923,7 @@
   padding: 6px 10px;
 }
 
-/* Mobile — allow the select to fill the row when stacked */
+/* Mobile â€” allow the select to fill the row when stacked */
 @media (max-width: 720px) {
   .settings-options-row > .settings-select {
     align-self: stretch;
@@ -934,7 +934,7 @@
 
 
 /* ============================================================
-   Timezone picker — custom searchable dropdown.
+   Timezone picker â€” custom searchable dropdown.
    ============================================================ */
 
 /* ---------- Trigger (replaces the native <select>) ---------- */

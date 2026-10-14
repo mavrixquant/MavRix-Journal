@@ -1,4 +1,7 @@
 // apps/web/src/features/dashboard/components/charts/MonthlyChart.jsx
+//
+// Phase 2: wrapper fills its panel. min-height: 0 on both wrapper + empty state.
+
 import { useMemo, useRef } from 'react';
 import { Bar } from 'react-chartjs-2';
 import { useStats } from '@/features/dashboard/hooks/useStats';
@@ -106,7 +109,8 @@ export default function MonthlyChart() {
           alignItems: 'center',
           justifyContent: 'center',
           height: '100%',
-          minHeight: 200,
+          minHeight: 0,
+          gap: 8,
           color: chartColors.textDim,
           fontFamily: "'IBM Plex Mono', monospace",
           fontSize: 12,
@@ -122,7 +126,7 @@ export default function MonthlyChart() {
           fill="none"
           stroke="currentColor"
           strokeWidth="1.5"
-          style={{ marginBottom: 8, opacity: 0.6 }}
+          style={{ opacity: 0.6 }}
         >
           <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
           <line x1="16" y1="2" x2="16" y2="6" />
@@ -140,7 +144,7 @@ export default function MonthlyChart() {
         position: 'relative',
         width: '100%',
         height: '100%',
-        minHeight: 200,
+        minHeight: 0,
       }}
     >
       <ChartExportButton chartRef={chartRef} filename="monthly" />

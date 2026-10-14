@@ -1,4 +1,11 @@
-// src/components/dashboard/dashboardLayout.js
+// apps/web/src/features/dashboard/layout/dashboardLayout.js
+//
+// Phase 2: minH floors raised so a chart/table panel can't be resized
+// into invisibility. RGL enforces the floor — CSS is free to shrink.
+//
+//   Chart panels      -> minH: 4 (160px)
+//   Tables & grids    -> minH: 3 (120px)
+//   Small widgets     -> minH: 2 ( 80px)
 
 const ROW_HEIGHT = 40;
 
@@ -10,33 +17,36 @@ export const GRID_COLS_BY_BP = { lg: 48, md: 32, sm: 16, xs: 8, xxs: 4 };
 // Maximum number of layouts a user can have saved.
 export const MAX_LAYOUTS = 3;
 
+// Minimum row heights (Phase 2)
+const MIN_H_CHART  = 4;   // 160px — big enough for a readable chart
+const MIN_H_TABLE  = 3;   // 120px — a few table rows
+const MIN_H_WIDGET = 2;   //  80px — a KPI tile or small widget
+
 export const DEFAULT_LAYOUT = [
   // ---- Left column (x: 0) ----
-  { i: 'calendar',           x: 0,  y: 0,  w: 31, h: 13, minW: 1, minH: 1, visible: true },
-  { i: 'hero',               x: 0,  y: 13, w: 31, h: 6,  minW: 1, minH: 1, visible: true },
+  { i: 'calendar',           x: 0,  y: 0,  w: 31, h: 13, minW: 1, minH: MIN_H_CHART,  visible: true },
+  { i: 'hero',               x: 0,  y: 13, w: 31, h: 6,  minW: 1, minH: MIN_H_CHART,  visible: true },
 
   // ---- Right column (x: 31) ----
-  { i: 'monthly',            x: 31, y: 11, w: 17, h: 6,  minW: 1, minH: 1, visible: true },
-  { i: 'rollingExpectancy',  x: 31, y: 22, w: 17, h: 6,  minW: 1, minH: 1, visible: true },
+  { i: 'monthly',            x: 31, y: 11, w: 17, h: 6,  minW: 1, minH: MIN_H_CHART,  visible: true },
+  { i: 'rollingExpectancy',  x: 31, y: 22, w: 17, h: 6,  minW: 1, minH: MIN_H_CHART,  visible: true },
 
   // ---- Full width ----
-  { i: 'rrCompare',          x: 0,  y: 30, w: 48, h: 6,  minW: 1, minH: 1, visible: true },
+  { i: 'rrCompare',          x: 0,  y: 30, w: 48, h: 6,  minW: 1, minH: MIN_H_CHART,  visible: true },
 
   // ---- Right column continues ----
-  { i: 'kpiGrid',            x: 31, y: 0,  w: 17, h: 5,  minW: 1, minH: 1, visible: true },
-  { i: 'advancedKpiGrid',    x: 31, y: 5,  w: 17, h: 3,  minW: 1, minH: 1, visible: true },
-  { i: 'durationWidget',     x: 31, y: 8,  w: 17, h: 3,  minW: 1, minH: 1, visible: true },
+  { i: 'kpiGrid',            x: 31, y: 0,  w: 17, h: 5,  minW: 1, minH: MIN_H_TABLE,  visible: true },
+  { i: 'advancedKpiGrid',    x: 31, y: 5,  w: 17, h: 3,  minW: 1, minH: MIN_H_WIDGET, visible: true },
+  { i: 'durationWidget',     x: 31, y: 8,  w: 17, h: 3,  minW: 1, minH: MIN_H_WIDGET, visible: true },
 
   // ---- Left column continues ----
-  { i: 'timeChart',          x: 0,  y: 24, w: 31, h: 6,  minW: 1, minH: 1, visible: true },
-  { i: 'underwater',         x: 31, y: 17, w: 17, h: 5,  minW: 1, minH: 1, visible: true },
-  { i: 'categoryCharts',     x: 0,  y: 19, w: 31, h: 5,  minW: 1, minH: 1, visible: true },
+  { i: 'timeChart',          x: 0,  y: 24, w: 31, h: 6,  minW: 1, minH: MIN_H_CHART,  visible: true },
+  { i: 'underwater',         x: 31, y: 17, w: 17, h: 5,  minW: 1, minH: MIN_H_CHART,  visible: true },
+  { i: 'categoryCharts',     x: 0,  y: 19, w: 31, h: 5,  minW: 1, minH: MIN_H_CHART,  visible: true },
 
-  // Not part of your new default — kept hidden so it stays toggleable in the editor.
-  { i: 'strategyBreakdown',  x: 0,  y: 36, w: 48, h: 6,  minW: 1, minH: 1, visible: false },
+  // Not part of the default — kept hidden so it stays toggleable in the editor.
+  { i: 'strategyBreakdown',  x: 0,  y: 36, w: 48, h: 6,  minW: 1, minH: MIN_H_TABLE,  visible: false },
 ];
-
-
 
 export const PANEL_META = {
   calendar:          { label: 'Monthly Calendar & Weekly' },
@@ -56,8 +66,7 @@ export const PANEL_META = {
 const LAYOUT_KEY = 'dashboard-grid-layout-v2';
 
 export function buildMobileLayout() {
-  // Every panel full-width, 6 rows tall (≈240px at ROW_HEIGHT=40).
-  // Order matches the source order of DEFAULT_LAYOUT.
+  // Every panel full-width, 6 rows tall (~240px at ROW_HEIGHT=40).
   const order = [
     'hero',
     'kpiGrid',
@@ -92,18 +101,14 @@ export function scaleLayoutToBreakpoint(lgLayout, targetCols) {
   return lgLayout.map((item) => ({
     ...item,
     x: Math.floor(item.x * scale),
-    // y is row-count based; rows have the same pixel height at every breakpoint.
     y: item.y,
     w: Math.max(1, Math.min(targetCols, Math.round(item.w * scale))),
     h: Math.max(1, item.h),
-    minW: 1,
-    minH: 1,
   }));
 }
 
 /* Inverse of scaleLayoutToBreakpoint — brings a smaller-breakpoint layout
-   back up to the 24-column source-of-truth. Used when the user drags or
-   resizes on md/sm/xs, so the write goes to the lg source. */
+   back up to the 48-column source-of-truth. */
 export function upscaleToLg(items, sourceCols) {
   if (sourceCols === GRID_COLS) return items;
   const scale = GRID_COLS / sourceCols;
