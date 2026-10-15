@@ -43,6 +43,33 @@ model User {
   messages      Message[]
   ownedGroups   Conversation[]            @relation("GroupOwner")
 
+  // ---------------------------------------------------------------------------
+  // Friends subsystem
+  //
+  // Friendship      — one row per accepted pair. Stored canonically as
+  //                   (userAId, userBId) with userAId < userBId
+  //                   lexicographically. The composite unique key guarantees
+  //                   a single friendship row per pair regardless of who
+  //                   sent the request.
+  //
+  // FriendRequest   — directed from → to. `status` is one of:
+  //                     'pending'   — awaiting response
+  //                     'accepted'  — (kept for audit trail)
+  //                     'declined'  — recipient said no
+  //                     'cancelled' — sender withdrew
+  //                   Only ONE pending request may exist per directed pair;
+  //                   this is enforced at the service layer.
+  //
+  // UserBlock       — directed blocker → blocked. Presence of either
+  //                   direction hides the pair from each other entirely.
+  // ---------------------------------------------------------------------------
+  friendshipsAsA     Friendship[]    @relation("FriendshipUserA")
+  friendshipsAsB     Friendship[]    @relation("FriendshipUserB")
+  friendRequestsSent FriendRequest[] @relation("FriendRequestFrom")
+  friendRequestsRecv FriendRequest[] @relation("FriendRequestTo")
+  blocksInitiated    UserBlock[]     @relation("UserBlockBlocker")
+  blocksReceived     UserBlock[]     @relation("UserBlockBlocked")
+
   @@index([role])
   @@index([isBanned])
   @@map("users")
@@ -338,6 +365,96 @@ model Message {
 
   @@index([conversationId, createdAt])
   @@index([senderId])
+  // Powers the "how many messages has user X sent in conversation Y?" query
+  // used by the friend-required 3-message cap on non-friend DMs.
+  @@index([conversationId, senderId])
   @@map("messages")
 }
 
+// ---------------------------------------------------------------------------
+// Friendships — accepted pairs.
+//
+// Canonical form: userAId is ALWAYS lexicographically smaller than userBId.
+// The service layer sorts ids before writing. This means a single row exists
+// per friendship regardless of who initiated the request.
+//
+// Uniqueness: composite key on (userAId, userBId). Combined with the sort
+// invariant, this is effectively "one friendship per pair".
+// ---------------------------------------------------------------------------
+model Friendship {
+  id        String   @id @default(cuid())
+  userAId   String
+  userBId   String
+  createdAt DateTime @default(now())
+
+  userA User @relation("FriendshipUserA", fields: [userAId], references: [id], onDelete: Cascade)
+  userB User @relation("FriendshipUserB", fields: [userBId], references: [id], onDelete: Cascade)
+
+  @@unique([userAId, userBId])
+  @@index([userAId])
+  @@index([userBId])
+  @@map("friendships")
+}
+
+// ---------------------------------------------------------------------------
+// Friend requests — directed, from sender to recipient.
+//
+// `status` is a plain string (not a Prisma enum) to match the codebase's
+// existing style (Conversation.type, Account.type, etc. all use strings).
+//
+// Lifecycle:
+//   pending  → accepted  (creates a Friendship row in the same transaction)
+//   pending  → declined  (recipient action)
+//   pending  → cancelled (sender withdrew)
+//
+// Only one PENDING request may exist per directed pair. Enforced in the
+// service layer, not the DB (a partial unique index would be Postgres-
+// specific and Prisma doesn't support partial unique constraints yet).
+// ---------------------------------------------------------------------------
+model FriendRequest {
+  id          String    @id @default(cuid())
+  fromUserId  String
+  toUserId    String
+  message     String?
+  status      String    @default("pending")
+  createdAt   DateTime  @default(now())
+  respondedAt DateTime?
+
+  fromUser User @relation("FriendRequestFrom", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUser   User @relation("FriendRequestTo", fields: [toUserId], references: [id], onDelete: Cascade)
+
+  @@index([fromUserId])
+  @@index([toUserId])
+  @@index([toUserId, status])
+  @@index([fromUserId, status])
+  @@map("friend_requests")
+}
+
+// ---------------------------------------------------------------------------
+// User blocks — directed. Presence of EITHER direction between two users
+// means they can't see each other in search, in friend lists, in group
+// member cards, or DM each other.
+//
+// On block creation (service layer, single transaction):
+//   1. DELETE any Friendship between the pair (both sort orders).
+//   2. UPDATE any pending FriendRequest (either direction) → 'cancelled'.
+//   3. INSERT the UserBlock row.
+//
+// On unblock: only the UserBlock row is deleted. The friendship is NOT
+// restored — the pair must re-send and re-accept a friend request.
+// ---------------------------------------------------------------------------
+model UserBlock {
+  id        String   @id @default(cuid())
+  blockerId String
+  blockedId String
+  reason    String?
+  createdAt DateTime @default(now())
+
+  blocker User @relation("UserBlockBlocker", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked User @relation("UserBlockBlocked", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@unique([blockerId, blockedId])
+  @@index([blockerId])
+  @@index([blockedId])
+  @@map("user_blocks")
+}
