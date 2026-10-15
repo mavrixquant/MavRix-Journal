@@ -1,14 +1,18 @@
 // apps/web/src/features/personal/chats/components/FriendRequestsPanel.jsx
 //
-// Inbox + outbox for friend requests. Two sections:
+// Inbox + outbox for friend requests. Rendered as a sub-view of FriendsTab
+// (see FriendsTab.jsx), or — until Phase 3 — reachable from the rail's
+// legacy Requests tab.
 //
-//   Incoming — with Accept / Decline actions
-//   Outgoing — with Cancel action
+// Two sections:
+//   Incoming — Accept / Decline actions
+//   Outgoing — Cancel action
 //
-// Uses optimistic mutations from shared/api/friends.js so a click feels
-// instant even before the server round-trips.
+// When rendered as a sub-view, `onBack` is provided and the header shows a
+// back arrow. When rendered standalone (legacy rail path), `onBack` is
+// undefined and the header only shows the Send-a-request action.
 
-import { Check, X, UserRoundPlus } from 'lucide-react';
+import { ArrowLeft, Check, X, UserRoundPlus } from 'lucide-react';
 import { toast } from 'sonner';
 
 import {
@@ -52,7 +56,10 @@ function relativeTime(iso) {
   return new Date(iso).toLocaleDateString();
 }
 
-export default function FriendRequestsPanel({ onOpenAddFriend, onOpenThread }) {
+export default function FriendRequestsPanel({
+  onBack,
+  onOpenAddFriend,
+}) {
   const { data, isLoading } = useFriendRequests();
   const acceptMutation = useAcceptFriendRequest();
   const declineMutation = useDeclineFriendRequest();
@@ -60,6 +67,7 @@ export default function FriendRequestsPanel({ onOpenAddFriend, onOpenThread }) {
 
   const incoming = data?.incoming || [];
   const outgoing = data?.outgoing || [];
+  const totalCount = incoming.length + outgoing.length;
 
   const handleAccept = async (req) => {
     try {
@@ -91,18 +99,34 @@ export default function FriendRequestsPanel({ onOpenAddFriend, onOpenThread }) {
   return (
     <div className="side-pane">
       <div className="side-pane-header">
-        <span className="side-pane-title">Friend Requests</span>
-        <span className="side-pane-count">{incoming.length + outgoing.length}</span>
-        <div className="side-pane-actions">
+        {onBack && (
           <button
             type="button"
-            className="pane-icon-btn is-accent"
-            onClick={onOpenAddFriend}
-            title="Send a new request"
-            aria-label="Send a new request"
+            className="pane-icon-btn"
+            onClick={onBack}
+            title="Back to friends"
+            aria-label="Back to friends"
+            style={{ marginRight: 4 }}
           >
-            <UserRoundPlus size={14} />
+            <ArrowLeft size={14} />
           </button>
+        )}
+
+        <span className="side-pane-title">Friend Requests</span>
+        <span className="side-pane-count">{totalCount}</span>
+
+        <div className="side-pane-actions">
+          {onOpenAddFriend && (
+            <button
+              type="button"
+              className="pane-icon-btn is-accent"
+              onClick={onOpenAddFriend}
+              title="Send a new request"
+              aria-label="Send a new request"
+            >
+              <UserRoundPlus size={14} />
+            </button>
+          )}
         </div>
       </div>
 
@@ -113,26 +137,28 @@ export default function FriendRequestsPanel({ onOpenAddFriend, onOpenThread }) {
           <div className="side-pane-empty">
             <strong>No pending requests</strong>
             When someone sends you a request, or you send one, it'll appear here.
-            <div style={{ marginTop: 16 }}>
-              <button
-                type="button"
-                className="pane-icon-btn is-accent"
-                style={{ width: 'auto', padding: '0 14px', gap: 8, height: 36 }}
-                onClick={onOpenAddFriend}
-              >
-                <UserRoundPlus size={13} />
-                <span
-                  style={{
-                    fontFamily: "'IBM Plex Mono', monospace",
-                    fontSize: 11.5,
-                    fontWeight: 600,
-                    letterSpacing: '.02em',
-                  }}
+            {onOpenAddFriend && (
+              <div style={{ marginTop: 16 }}>
+                <button
+                  type="button"
+                  className="pane-icon-btn is-accent"
+                  style={{ width: 'auto', padding: '0 14px', gap: 8, height: 36 }}
+                  onClick={onOpenAddFriend}
                 >
-                  Send a request
-                </span>
-              </button>
-            </div>
+                  <UserRoundPlus size={13} />
+                  <span
+                    style={{
+                      fontFamily: "'IBM Plex Mono', monospace",
+                      fontSize: 11.5,
+                      fontWeight: 600,
+                      letterSpacing: '.02em',
+                    }}
+                  >
+                    Send a request
+                  </span>
+                </button>
+              </div>
+            )}
           </div>
         )}
 

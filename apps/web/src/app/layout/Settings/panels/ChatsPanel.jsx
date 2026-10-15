@@ -1,6 +1,26 @@
 // apps/web/src/app/layout/Settings/panels/ChatsPanel.jsx
+//
+// Chat preferences + Blocked Users management.
+//
+// The Blocked Users section was previously surfaced via a floating modal
+// opened from the chat rail. That button was removed in Phase 3; the list
+// now lives here, inline, alongside the rest of the chat preferences.
+//
+// Unblock always goes through a confirm dialog — it's destructive to the
+// friendship (which is already torn down on block), so we don't want a
+// stray click to silently restore visibility.
+
+import { useState } from 'react';
+import { ShieldOff, ShieldCheck, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 import { useSettings } from '../SettingsProvider';
+import { useBlocks, useUnblockUser } from '@/shared/api/friends';
+import Alert from '@/shared/components/Alert';
+
+/* ------------------------------------------------------------------ */
+/*  Local primitives (unchanged from previous version)                 */
+/* ------------------------------------------------------------------ */
 
 function Toggle({ on, onChange, label }) {
   return (
@@ -14,6 +34,215 @@ function Toggle({ on, onChange, label }) {
     />
   );
 }
+
+/* ------------------------------------------------------------------ */
+/*  Blocked Users section                                             */
+/* ------------------------------------------------------------------ */
+
+function initialsOf(u) {
+  if (!u) return '?';
+  const a = (u.firstName || '').trim();
+  const b = (u.lastName || '').trim();
+  if (a && b) return (a[0] + b[0]).toUpperCase();
+  if (a) return a.slice(0, 2).toUpperCase();
+  if (u.email) return u.email.slice(0, 2).toUpperCase();
+  return '?';
+}
+
+function displayNameOf(u) {
+  if (!u) return 'Unknown';
+  const a = (u.firstName || '').trim();
+  const b = (u.lastName || '').trim();
+  if (a && b) return `${a} ${b}`;
+  if (a) return a;
+  return u.email || 'Unknown';
+}
+
+function BlockedUsersSection() {
+  const { data: blocks = [], isLoading } = useBlocks();
+  const unblockMutation = useUnblockUser();
+  const [pendingUnblock, setPendingUnblock] = useState(null);
+
+  const handleConfirm = async () => {
+    const entry = pendingUnblock;
+    if (!entry) return;
+    setPendingUnblock(null);
+    try {
+      await unblockMutation.mutateAsync(entry.user.id);
+      toast.success(`Unblocked ${displayNameOf(entry.user)}`);
+    } catch (err) {
+      toast.error(err?.message || 'Could not unblock user');
+    }
+  };
+
+  const countSuffix = blocks.length > 0 ? ` (${blocks.length})` : '';
+
+  return (
+    <section className="settings-section">
+      <h4 className="settings-section-title">
+        Blocked Users{countSuffix}
+      </h4>
+      <p className="settings-hint">
+        Users you have blocked cannot message you, send friend requests, or
+        appear in your search. Unblock to restore visibility.
+      </p>
+
+      {isLoading && (
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'center',
+            padding: 24,
+          }}
+        >
+          <Loader2 size={18} className="settings-spin" />
+        </div>
+      )}
+
+      {!isLoading && blocks.length === 0 && (
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 10,
+            padding: '32px 20px',
+            border: '1px dashed rgba(255,255,255,.1)',
+            borderRadius: 12,
+            background: 'rgba(255,255,255,.015)',
+            textAlign: 'center',
+          }}
+        >
+          <ShieldCheck
+            size={24}
+            style={{ color: 'var(--ink-3)', opacity: 0.5 }}
+          />
+          <span
+            style={{
+              fontFamily: "'IBM Plex Mono', monospace",
+              fontSize: 12.5,
+              color: 'var(--ink-2)',
+              letterSpacing: '.01em',
+            }}
+          >
+            No blocked users
+          </span>
+        </div>
+      )}
+
+      {!isLoading && blocks.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {blocks.map((b) => (
+            <div
+              key={b.id}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 12,
+                padding: '10px 12px',
+                borderRadius: 10,
+                background: 'rgba(255,255,255,.02)',
+                border: '1px solid rgba(255,255,255,.05)',
+              }}
+            >
+              <span
+                style={{
+                  flexShrink: 0,
+                  width: 36,
+                  height: 36,
+                  borderRadius: '50%',
+                  background: 'rgba(255,255,255,.05)',
+                  border: '1px solid rgba(255,255,255,.1)',
+                  color: 'var(--ink-2)',
+                  fontFamily: "'IBM Plex Mono', monospace",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  overflow: 'hidden',
+                }}
+              >
+                {b.user?.photoUrl ? (
+                  <img
+                    src={b.user.photoUrl}
+                    alt=""
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover',
+                    }}
+                  />
+                ) : (
+                  initialsOf(b.user)
+                )}
+              </span>
+
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: 'var(--ink-1)',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {displayNameOf(b.user)}
+                </div>
+                <div
+                  style={{
+                    fontFamily: "'IBM Plex Mono', monospace",
+                    fontSize: 11,
+                    color: 'var(--ink-3)',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    marginTop: 2,
+                  }}
+                >
+                  {b.user?.email}
+                </div>
+              </div>
+
+              <button
+                type="button"
+                className="settings-btn"
+                onClick={() => setPendingUnblock(b)}
+                disabled={unblockMutation.isPending}
+                style={{ flexShrink: 0 }}
+              >
+                <ShieldOff size={11} />
+                Unblock
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <Alert
+        isOpen={!!pendingUnblock}
+        type="confirm"
+        title="Unblock this user?"
+        message={
+          pendingUnblock
+            ? `Unblock ${displayNameOf(pendingUnblock.user)}? You will need to send a new friend request to be friends again.`
+            : ''
+        }
+        confirmText="Unblock"
+        cancelText="Cancel"
+        onConfirm={handleConfirm}
+        onCancel={() => setPendingUnblock(null)}
+      />
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Panel                                                             */
+/* ------------------------------------------------------------------ */
 
 export default function ChatsPanel() {
   const { settings, update } = useSettings();
@@ -86,6 +315,8 @@ export default function ChatsPanel() {
           />
         </div>
       </section>
+
+      <BlockedUsersSection />
     </>
   );
 }

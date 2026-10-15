@@ -1,14 +1,19 @@
 // apps/web/src/features/personal/chats/ChatsPage.jsx
 //
-// 3-rail chat UI. Rail tabs: dms / groups / friends / requests.
+// 3-rail chat UI. Rail tabs: dms / groups / friends.
+//
+// The list pane has two modes, toggled by the "Archived (N)" row at the
+// top of the list:
+//   main      — active (non-archived) conversations
+//   archived  — archived-only view; back arrow returns to main
 
 import { useState, useMemo, useEffect } from 'react';
 import { MessageSquare } from 'lucide-react';
 
 import { useAuth } from '@/app/providers/AuthProvider';
 import { useChatConversations } from '@/shared/api/chat';
-import { useFriendRequests, useBlocks } from '@/shared/api/friends';
 import { usePageHeader } from '@/app/layout/PageHeaderProvider';
+import { useSettingsModal } from '@/app/layout/Settings/SettingsModalContext';
 import { PageSkeleton } from '@/shared/ui/page-skeleton';
 
 import ChatRail from './components/ChatRail';
@@ -19,29 +24,27 @@ import GroupDiscoverModal from './components/GroupDiscoverModal';
 import CreateGroupModal from './components/CreateGroupModal';
 import AddFriendModal from './components/AddFriendModal';
 import FriendsTab from './components/FriendsTab';
-import FriendRequestsPanel from './components/FriendRequestsPanel';
-import BlockedUsersModal from './components/BlockedUsersModal';
+import ChatPageFab from './components/ChatPageFab';
 
 import './ChatsPage.css';
 import './ChatsShell.css';
 
 export default function ChatsPage() {
   const { user } = useAuth();
+  const { openSettings } = useSettingsModal();
 
   const [activeTab, setActiveTab] = useState('dms');
   const [selectedId, setSelectedId] = useState(null);
+  const [archivedMode, setArchivedMode] = useState(false);
 
   const [newChatOpen, setNewChatOpen] = useState(false);
   const [discoverOpen, setDiscoverOpen] = useState(false);
   const [createGroupOpen, setCreateGroupOpen] = useState(false);
   const [addFriendOpen, setAddFriendOpen] = useState(false);
-  const [blockedOpen, setBlockedOpen] = useState(false);
 
   const [mobileThreadOpen, setMobileThreadOpen] = useState(false);
 
   const { data: conversations = [], isLoading } = useChatConversations();
-  const { data: requests } = useFriendRequests();
-  const { data: blocks = [] } = useBlocks();
 
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
 
@@ -49,6 +52,7 @@ export default function ChatsPage() {
     if (activeTab !== 'dms' && activeTab !== 'groups') {
       setSelectedId(null);
       setMobileThreadOpen(false);
+      setArchivedMode(false);
     }
   }, [activeTab]);
 
@@ -61,16 +65,12 @@ export default function ChatsPage() {
     let dmUnread = 0;
     let groupUnread = 0;
     for (const c of conversations) {
+      if (c.isArchived) continue;
       if (c.isGroup) groupUnread += c.unreadCount || 0;
       else dmUnread += c.unreadCount || 0;
     }
-    return {
-      dmUnread,
-      groupUnread,
-      pendingRequests: (requests?.incoming || []).length,
-      blockedCount: blocks.length,
-    };
-  }, [conversations, requests, blocks]);
+    return { dmUnread, groupUnread };
+  }, [conversations]);
 
   const filteredConversations = useMemo(() => {
     if (activeTab === 'dms') return conversations.filter((c) => !c.isGroup);
@@ -88,12 +88,22 @@ export default function ChatsPage() {
   const handleOpenThread = (id) => {
     setSelectedId(id);
     setActiveTab('dms');
+    setArchivedMode(false);
     setMobileThreadOpen(true);
   };
 
   const handleConversationClosed = () => {
     setSelectedId(null);
     setMobileThreadOpen(false);
+  };
+
+  const handleArchivedToggle = () => {
+    setArchivedMode((prev) => {
+      const next = !prev;
+      setSelectedId(null);
+      setMobileThreadOpen(false);
+      return next;
+    });
   };
 
   usePageHeader({
@@ -119,29 +129,24 @@ export default function ChatsPage() {
           selectedId={selectedId}
           currentUserId={user?.id}
           onSelect={handleSelect}
-          onNewChat={() => setNewChatOpen(true)}
-          onDiscover={() => setDiscoverOpen(true)}
-          onCreateGroup={() => setCreateGroupOpen(true)}
-          isAdmin={isAdmin}
           activeTab={activeTab === 'groups' ? 'groups' : 'dms'}
-          onTabChange={() => {}}
-          counts={{ all: filteredConversations.length }}
-          hideTabs
+          archivedMode={archivedMode}
+          onArchivedToggle={handleArchivedToggle}
+          fab={
+            <ChatPageFab
+              activeTab={activeTab === 'groups' ? 'groups' : 'dms'}
+              isAdmin={isAdmin}
+              onNewDm={() => setNewChatOpen(true)}
+              onNewGroup={() => setCreateGroupOpen(true)}
+              onDiscover={() => setDiscoverOpen(true)}
+            />
+          }
         />
       );
     }
     if (activeTab === 'friends') {
       return (
         <FriendsTab
-          onOpenAddFriend={() => setAddFriendOpen(true)}
-          onOpenRequests={() => setActiveTab('requests')}
-          onOpenThread={handleOpenThread}
-        />
-      );
-    }
-    if (activeTab === 'requests') {
-      return (
-        <FriendRequestsPanel
           onOpenAddFriend={() => setAddFriendOpen(true)}
           onOpenThread={handleOpenThread}
         />
@@ -187,9 +192,7 @@ export default function ChatsPage() {
           onTabChange={setActiveTab}
           unreadDms={counts.dmUnread}
           unreadGroups={counts.groupUnread}
-          pendingRequests={counts.pendingRequests}
-          blockedCount={counts.blockedCount}
-          onOpenBlocked={() => setBlockedOpen(true)}
+          onOpenSettings={() => openSettings('chats')}
         />
 
         <div className="chat-page">
@@ -216,11 +219,6 @@ export default function ChatsPage() {
       <AddFriendModal
         isOpen={addFriendOpen}
         onClose={() => setAddFriendOpen(false)}
-      />
-
-      <BlockedUsersModal
-        isOpen={blockedOpen}
-        onClose={() => setBlockedOpen(false)}
       />
 
       {isAdmin && (

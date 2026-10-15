@@ -1,31 +1,25 @@
 // apps/web/src/features/personal/chats/components/ConversationList.jsx
 //
-// Left pane of the chat UI. Renders the current user's conversations,
-// optionally grouped into DM + Group sections.
+// Left pane of the chat UI. Renders the current user's conversations.
 //
-// Friend-status pill on DM rows: when the peer is NOT a friend, shows a
-// small "2 / 3" pill next to the preview so the user knows how many free
-// messages remain before the composer locks.
+// Two modes:
+//   archivedMode === false  →  main list. An "Archived (N)" row is shown
+//                              at the top when any archived conversations
+//                              exist, above any pinned rows.
+//   archivedMode === true   →  archived-only view. Header shows a back
+//                              arrow; the list contains only archived
+//                              conversations.
+//
+// The FAB (passed as a `fab` prop) is rendered inside the pane so it
+// anchors to the list column, not the viewport.
 
 import { useMemo } from 'react';
-import {
-  MessageSquarePlus,
-  Pin,
-  Compass,
-  Users,
-  Lock,
-} from 'lucide-react';
+import { ArrowLeft, Archive, Pin, Lock } from 'lucide-react';
 
 import { useTypingConversations } from '@/shared/api/chat';
 import { formatRelative } from '@/shared/format/datetime';
 import { useSettings } from '@/app/layout/Settings/SettingsProvider';
 import GroupAvatar from './GroupAvatar';
-
-const TABS = [
-  { id: 'all', label: 'All' },
-  { id: 'dms', label: 'DMs' },
-  { id: 'groups', label: 'Groups' },
-];
 
 function initialsOf(user) {
   if (!user) return '?';
@@ -55,52 +49,34 @@ function sortConversations(arr) {
   });
 }
 
-function EmptyTabState({ activeTab, onNewChat, onDiscover, onCreateGroup, isAdmin }) {
+function EmptyTabState({ activeTab, archivedMode }) {
+  if (archivedMode) {
+    return (
+      <div className="chat-list-empty-filtered">
+        <strong>No archived chats</strong>
+        <p>Archived conversations will appear here.</p>
+      </div>
+    );
+  }
   if (activeTab === 'dms') {
     return (
       <div className="chat-list-empty-filtered">
-        <MessageSquarePlus size={22} style={{ opacity: .5 }} />
         <strong>No direct messages</strong>
-        <p>Start a conversation with a friend.</p>
-        <div className="chat-list-empty-actions">
-          <button type="button" className="chat-new-btn-lg" onClick={onNewChat}>
-            <MessageSquarePlus size={12} />
-            New DM
-          </button>
-        </div>
+        <p>Tap the + button below to start one.</p>
       </div>
     );
   }
-
   if (activeTab === 'groups') {
     return (
       <div className="chat-list-empty-filtered">
-        <Users size={22} style={{ opacity: .5 }} />
         <strong>No groups yet</strong>
-        <p>Discover public groups or create your own.</p>
-        <div className="chat-list-empty-actions">
-          <button type="button" className="chat-new-btn-lg" onClick={onDiscover}>
-            <Compass size={12} />
-            Discover
-          </button>
-          {isAdmin && (
-            <button type="button" className="chat-new-btn-lg" onClick={onCreateGroup}>
-              <Users size={12} />
-              Create
-            </button>
-          )}
-        </div>
+        <p>Use the + button below to discover or create one.</p>
       </div>
     );
   }
-
   return (
     <div className="chat-list-empty">
       <p>No conversations yet.</p>
-      <button type="button" className="chat-new-btn-lg" onClick={onNewChat}>
-        <MessageSquarePlus size={12} />
-        Start a chat
-      </button>
     </div>
   );
 }
@@ -110,15 +86,11 @@ export default function ConversationList({
   selectedId,
   currentUserId,
   onSelect,
-  onNewChat,
-  onDiscover,
-  onCreateGroup,
-  isAdmin,
   activeTab = 'all',
-  onTabChange,
-  counts,
-  hideTabs = false,
   hideHeader = false,
+  fab = null,
+  archivedMode = false,
+  onArchivedToggle,
 }) {
   const { settings } = useSettings();
   const showTypingInList = settings.notifications.showTypingInList;
@@ -127,11 +99,23 @@ export default function ConversationList({
 
   const typingSet = useTypingConversations(currentUserId);
 
+  const { archived, active } = useMemo(() => {
+    const arch = [];
+    const main = [];
+    for (const c of conversations) {
+      if (c.isArchived) arch.push(c);
+      else main.push(c);
+    }
+    return { archived: arch, active: main };
+  }, [conversations]);
+
+  const source = archivedMode ? archived : active;
+
   const filtered = useMemo(() => {
-    if (activeTab === 'dms') return conversations.filter((c) => !c.isGroup);
-    if (activeTab === 'groups') return conversations.filter((c) => c.isGroup);
-    return conversations;
-  }, [conversations, activeTab]);
+    if (activeTab === 'dms') return source.filter((c) => !c.isGroup);
+    if (activeTab === 'groups') return source.filter((c) => c.isGroup);
+    return source;
+  }, [source, activeTab]);
 
   const { dms, groups } = useMemo(() => {
     const dmArr = [];
@@ -143,7 +127,8 @@ export default function ConversationList({
     return { dms: sortConversations(dmArr), groups: sortConversations(grpArr) };
   }, [filtered]);
 
-  const showSections = activeTab === 'all' && dms.length > 0 && groups.length > 0;
+  const showSections =
+    activeTab === 'all' && dms.length > 0 && groups.length > 0;
 
   const renderDmRow = (c) => {
     const peer = c.peer;
@@ -252,77 +237,57 @@ export default function ConversationList({
 
   const showEmptyState = filtered.length === 0;
 
+  const headerContent = archivedMode ? (
+    <>
+      <button
+        type="button"
+        className="chat-list-back"
+        onClick={onArchivedToggle}
+        aria-label="Back to conversations"
+        title="Back to conversations"
+      >
+        <ArrowLeft size={14} />
+      </button>
+      <span className="chat-list-title">Archived</span>
+      <span className="chat-list-count-badge">{archived.length}</span>
+    </>
+  ) : (
+    <span className="chat-list-title">Conversations</span>
+  );
+
   return (
     <aside className="chat-list">
       {!hideHeader && (
-        <div className="chat-list-header">
-          <span className="chat-list-title">Conversations</span>
-          <div className="chat-list-actions">
-            {isAdmin && (
-              <button
-                type="button"
-                className="chat-new-btn is-accent"
-                onClick={onCreateGroup}
-                title="New group"
-                aria-label="New group"
-              >
-                <Users size={14} />
-              </button>
-            )}
-            <button
-              type="button"
-              className="chat-new-btn"
-              onClick={onDiscover}
-              title="Discover public groups"
-              aria-label="Discover public groups"
-            >
-              <Compass size={14} />
-            </button>
-            <button
-              type="button"
-              className="chat-new-btn"
-              onClick={onNewChat}
-              title="New direct message"
-              aria-label="New direct message"
-            >
-              <MessageSquarePlus size={14} />
-            </button>
-          </div>
-        </div>
-      )}
-
-      {!hideTabs && (
-        <div className="chat-tabs" role="tablist" aria-label="Filter conversations">
-          {TABS.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              role="tab"
-              aria-selected={activeTab === t.id}
-              className={`chat-tab${activeTab === t.id ? ' is-active' : ''}`}
-              onClick={() => onTabChange && onTabChange(t.id)}
-            >
-              <span>{t.label}</span>
-              <span className="chat-tab-count">{counts?.[t.id] ?? 0}</span>
-            </button>
-          ))}
+        <div className={`chat-list-header${archivedMode ? ' is-archived' : ''}`}>
+          {headerContent}
         </div>
       )}
 
       <div className="chat-list-items">
+        {!archivedMode && archived.length > 0 && (
+          <button
+            type="button"
+            className="chat-list-archived"
+            onClick={onArchivedToggle}
+            aria-label={`Archived chats (${archived.length})`}
+          >
+            <span className="chat-list-archived-icon" aria-hidden>
+              <Archive size={14} />
+            </span>
+            <span className="chat-list-archived-label">Archived</span>
+            <span className="chat-list-archived-count">{archived.length}</span>
+          </button>
+        )}
+
         {showEmptyState ? (
-          <EmptyTabState
-            activeTab={activeTab}
-            onNewChat={onNewChat}
-            onDiscover={onDiscover}
-            onCreateGroup={onCreateGroup}
-            isAdmin={isAdmin}
-          />
+          <EmptyTabState activeTab={activeTab} archivedMode={archivedMode} />
         ) : (
           <>
             {dms.length > 0 && (
               <>
-                {showSections && <div className="chat-list-section">Direct Messages</div>}
+                {showSections && (
+                  <div className="chat-list-section">Direct Messages</div>
+                )}
                 {dms.map(renderDmRow)}
               </>
             )}
@@ -335,6 +300,8 @@ export default function ConversationList({
           </>
         )}
       </div>
+
+      {fab}
     </aside>
   );
 }

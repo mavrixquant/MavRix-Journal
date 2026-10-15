@@ -1,6 +1,6 @@
-﻿
+
 /* ============================================================
-   PHASE 5C-2 — DM thread wrapper + UserProfileSidebar
+   PHASE 5C-2 � DM thread wrapper + UserProfileSidebar
    ============================================================ */
 
 /* The thread is now a flex row: thread (fills) + profile sidebar (auto). */
@@ -312,7 +312,7 @@
 }
 
 /* ============================================================
-   PHASE 5C-3 — MemberProfilePopover + clickable member trigger
+   PHASE 5C-3 � MemberProfilePopover + clickable member trigger
    ============================================================ */
 
 /* ---------- Member row: avatar + name are now a single clickable unit ---------- */
@@ -556,7 +556,7 @@
 }
 
 /* ============================================================
-   PHASE 5B — side-pane shell + AddFriendModal
+   PHASE 5B � side-pane shell + AddFriendModal
    ============================================================ */
 
 .side-pane {
@@ -945,7 +945,7 @@
 }
 
 /* ============================================================
-   PHASE 5C-1 — BlockConfirmModal (bcm-*) + BlockedUsersModal (bum-*)
+   PHASE 5C-1 � BlockConfirmModal (bcm-*) + BlockedUsersModal (bum-*)
    ============================================================ */
 
 .bcm-modal {
@@ -1346,7 +1346,7 @@
 }
 
 /* ============================================================
-   Modal keyframes (idempotent — safe to re-add)
+   Modal keyframes (idempotent � safe to re-add)
    ============================================================ */
 @keyframes afmPop {
   from { opacity: 0; transform: translateY(-10px) scale(.97); }
@@ -1374,7 +1374,7 @@
 }
 
 /* ============================================================
-   PHASE 5D — composer lock banner + DM row friend pill
+   PHASE 5D � composer lock banner + DM row friend pill
    ============================================================ */
 
 /* ---------- Locked composer state ---------- */
@@ -1510,7 +1510,7 @@
   letter-spacing: .02em;
 }
 
-/* Search input now has a leading icon — pad-left for it */
+/* Search input now has a leading icon � pad-left for it */
 .chat-newchat-search {
   position: relative;
   padding: 14px 22px;
@@ -1572,7 +1572,7 @@
 }
 
 /* ============================================================
-   PHASE 5E — ChatRail v2 (Discord-style)
+   PHASE 5E � ChatRail v2 (Discord-style)
    These rules come AFTER the original 5A rail block, so they
    override every desktop property. Mobile overrides are repeated
    at the end so they still win on small screens.
@@ -1587,56 +1587,11 @@
   overflow: hidden;
 }
 
-/* ---------- Brand mark ---------- */
-.rail-brand {
-  position: relative;
-  width: 48px;
-  height: 48px;
-  flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 2px;
-  isolation: isolate;
-}
 
-.rail-brand-glow {
-  position: absolute;
-  inset: -8px;
-  border-radius: 24px;
-  background: radial-gradient(
-    circle at 50% 50%,
-    color-mix(in srgb, var(--accent) 45%, transparent),
-    color-mix(in srgb, var(--accent) 12%, transparent) 45%,
-    transparent 72%
-  );
-  filter: blur(12px);
-  opacity: .55;
-  z-index: 0;
-  pointer-events: none;
-}
 
-.rail-brand-mark {
-  position: relative;
-  z-index: 1;
-  width: 48px;
-  height: 48px;
-  border-radius: 15px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(135deg, var(--accent), var(--accent-2));
-  color: #0D1117;
-  font-family: 'Space Grotesk', Inter, sans-serif;
-  font-size: 22px;
-  font-weight: 800;
-  letter-spacing: -.05em;
-  line-height: 1;
-  user-select: none;
-  box-shadow:
-    0 10px 24px -10px color-mix(in srgb, var(--accent) 70%, transparent),
-    inset 0 1px 0 rgba(255, 255, 255, .55);
-}
+
+
+
 
 /* ---------- Divider ---------- */
 .rail-divider {
@@ -1716,7 +1671,7 @@
     inset 0 1px 0 rgba(255, 255, 255, .09);
 }
 
-/* Pill indicator — bigger, glowier */
+/* Pill indicator � bigger, glowier */
 .rail-btn.is-active::before {
   content: '';
   position: absolute;
@@ -1846,7 +1801,6 @@
     overflow: visible;
   }
 
-  .rail-brand,
   .rail-avatar {
     display: none;
   }
@@ -1892,7 +1846,7 @@
 }
 
 /* ============================================================
-   PHASE 5F — Bulletproof layout overrides
+   PHASE 5F � Bulletproof layout overrides
    The rail is now laid out with inline styles (ChatRail.jsx).
    These rules force the SHELL and PAGE containers to behave
    even if earlier CSS in this file was overridden by anything.
@@ -1934,7 +1888,7 @@
   grid-template-columns: 1fr !important;
 }
 
-/* Rail — visual polish only. Layout is inline. */
+/* Rail � visual polish only. Layout is inline. */
 .chat-rail .rail-btn {
   transition:
     color .18s ease,
@@ -2022,22 +1976,7 @@
   box-shadow: 0 0 0 2px #0F121A;
 }
 
-/* Brand glow (decorative) */
-.rail-brand-glow {
-  position: absolute;
-  inset: -8px;
-  border-radius: 24px;
-  background: radial-gradient(
-    circle at 50% 50%,
-    color-mix(in srgb, var(--accent) 45%, transparent),
-    color-mix(in srgb, var(--accent) 12%, transparent) 45%,
-    transparent 72%
-  );
-  filter: blur(12px);
-  opacity: .55;
-  z-index: 0;
-  pointer-events: none;
-}
+
 
 /* Avatar hover */
 .chat-rail .rail-avatar:hover {
@@ -2087,7 +2026,6 @@
     overflow: visible !important;
   }
 
-  .chat-rail .rail-brand,
   .chat-rail .rail-avatar {
     display: none !important;
   }
@@ -2125,4 +2063,143 @@
     height: calc(100vh - 220px) !important;
     min-height: 480px !important;
   }
+}
+
+
+/* ============================================================
+   PHASE 6 � Archived chats + composer lock
+   ============================================================ */
+
+/* ---------- Archived row (WhatsApp-style, top of list) ---------- */
+.chat-list-archived {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 11px 12px;
+  margin-bottom: 4px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #8892A3;
+  cursor: pointer;
+  text-align: left;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: .02em;
+  transition: background-color .15s, border-color .15s, color .15s;
+}
+.chat-list-archived:hover {
+  color: #E7E9EE;
+  background: rgba(255,255,255,.04);
+  border-color: rgba(255,255,255,.06);
+}
+.chat-list-archived:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.chat-list-archived-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.06);
+  color: #8892A3;
+  flex-shrink: 0;
+}
+.chat-list-archived:hover .chat-list-archived-icon {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  border-color: var(--accent-soft2);
+  color: var(--accent);
+}
+
+.chat-list-archived-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-list-archived-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 20px;
+  padding: 0 7px;
+  border-radius: 10px;
+  background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.08);
+  color: #8892A3;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: .02em;
+  flex-shrink: 0;
+}
+
+/* ---------- Archived mode header ---------- */
+.chat-list-header.is-archived .chat-list-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.chat-list-back {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,.08);
+  background: rgba(255,255,255,.02);
+  color: #8892A3;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all .18s;
+}
+.chat-list-back:hover {
+  color: var(--accent);
+  border-color: var(--accent-soft2);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+.chat-list-back:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+/* ---------- Archived composer banner variant ---------- */
+.chat-composer.is-archived {
+  padding: 12px 16px 14px;
+  border-top: 1px solid rgba(255,255,255,.05);
+  background: rgba(0,0,0,.15);
+}
+
+.chat-composer-banner.is-archived {
+  background: color-mix(in srgb, var(--accent) 4%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+.chat-composer-banner.is-archived .chat-composer-banner-icon {
+  background: rgba(255,255,255,.05);
+  border-color: rgba(255,255,255,.1);
+  color: #8892A3;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-list-archived,
+  .chat-list-back { transition: none !important; }
+}
+
+.chat-ctx-item:disabled {
+  opacity: .45;
+  cursor: not-allowed;
 }

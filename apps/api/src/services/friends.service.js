@@ -58,6 +58,14 @@ function canonicalPair(a, b) {
   return a < b ? [a, b] : [b, a];
 }
 
+/**
+ * Build the sorted "aId:bId" key used by Conversation.dmKey.
+ * Identical canonicalization to chat.service.js — kept local so the two
+ * services don't have to import each other's internals.
+ */
+function dmKeyFor(a, b) {
+  return [a, b].sort().join(':');
+}
 /* ------------------------------------------------------------------ */
 /*  Public helpers (used by chat.service + others)                     */
 /* ------------------------------------------------------------------ */
@@ -119,17 +127,62 @@ export async function listFriends(userId) {
   // friendship row survived a partial failure.
   const blocked = new Set(await getBlockedUserIds(userId));
 
-  return rows
+  // Collect visible peer ids so we can batch-fetch DM metadata in one go.
+  const visibleRows = rows
     .map((f) => {
       const peer = f.userAId === userId ? f.userB : f.userA;
       if (!peer || blocked.has(peer.id)) return null;
-      return {
-        ...serializePublicUser(peer),
-        friendshipId: f.id,
-        friendsSince: f.createdAt,
-      };
+      return { friendship: f, peer };
     })
     .filter(Boolean);
+
+  const peerIds = visibleRows.map((r) => r.peer.id);
+
+  // One query for every DM between the caller and their visible peers.
+  // dmKey is the canonical sorted "aId:bId" string. Because friendships
+  // are also canonical (userAId < userBId), we can construct each key
+  // directly.
+  const dmMap = new Map(); // peerId -> { conversationId, isArchived }
+  if (peerIds.length > 0) {
+    const dmKeys = peerIds.map((pid) => dmKeyFor(userId, pid));
+    const conversations = await prisma.conversation.findMany({
+      where: { dmKey: { in: dmKeys } },
+      select: {
+        id: true,
+        dmKey: true,
+        participants: {
+          where: { userId },
+          select: { isArchived: true },
+        },
+      },
+    });
+
+    // Map each conversation back to its peer via the dmKey suffix.
+    const peerByKey = new Map();
+    for (const pid of peerIds) {
+      peerByKey.set(dmKeyFor(userId, pid), pid);
+    }
+
+    for (const c of conversations) {
+      const pid = peerByKey.get(c.dmKey);
+      if (!pid) continue;
+      dmMap.set(pid, {
+        conversationId: c.id,
+        isArchived: c.participants[0]?.isArchived ?? false,
+      });
+    }
+  }
+
+  return visibleRows.map(({ friendship, peer }) => {
+    const dm = dmMap.get(peer.id);
+    return {
+      ...serializePublicUser(peer),
+      friendshipId: friendship.id,
+      friendsSince: friendship.createdAt,
+      conversationId: dm?.conversationId ?? null,
+      isArchived: dm?.isArchived ?? false,
+    };
+  });
 }
 
 export async function listIncomingRequests(userId) {

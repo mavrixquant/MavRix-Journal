@@ -2,14 +2,12 @@
 //
 // Leftmost icon rail. LAYOUT IS DONE VIA INLINE STYLES so that no CSS
 // cascade conflict can break the positioning. Colours, hover, active,
-// tooltip, and badge animations still come from ChatsShell.css.
+// tooltip, and badge animations come from ChatsShell.css.
 //
 // Structure:
-//   brand
-//   ────
-//   DM | Groups | Friends | Requests   (tight 4px gap)
+//   DM | Groups | Friends        (tight 4px gap, first-class nav)
 //   <flex-grow spacer>
-//   Blocked
+//   Settings                     (secondary action, bottom cluster)
 //   ────
 //   avatar
 
@@ -17,8 +15,7 @@ import {
   MessageCircle,
   Users,
   UserRoundPlus,
-  Inbox,
-  ShieldOff,
+  Settings,
 } from 'lucide-react';
 
 import {
@@ -31,10 +28,9 @@ import { useAuth } from '@/app/providers/AuthProvider';
 const RAIL_WIDTH = 76;
 
 const TABS = [
-  { id: 'dms',      icon: MessageCircle, label: 'Direct Messages' },
-  { id: 'groups',   icon: Users,         label: 'Groups' },
-  { id: 'friends',  icon: UserRoundPlus, label: 'Friends' },
-  { id: 'requests', icon: Inbox,         label: 'Friend Requests' },
+  { id: 'dms',     icon: MessageCircle, label: 'Direct Messages' },
+  { id: 'groups',  icon: Users,         label: 'Groups' },
+  { id: 'friends', icon: UserRoundPlus, label: 'Friends' },
 ];
 
 function initialsOf(user) {
@@ -122,9 +118,7 @@ export default function ChatRail({
   onTabChange,
   unreadDms = 0,
   unreadGroups = 0,
-  pendingRequests = 0,
-  onOpenBlocked,
-  blockedCount = 0,
+  onOpenSettings,
   onOpenProfile,
 }) {
   const { user } = useAuth();
@@ -132,7 +126,6 @@ export default function ChatRail({
   const badgeFor = (id) => {
     if (id === 'dms') return unreadDms;
     if (id === 'groups') return unreadGroups;
-    if (id === 'requests') return pendingRequests;
     return 0;
   };
 
@@ -183,38 +176,6 @@ export default function ChatRail({
     width: '100%',
   };
 
-  const brandWrapStyle = {
-    position: 'relative',
-    width: 48,
-    height: 48,
-    flexShrink: 0,
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 2,
-  };
-
-  const brandMarkStyle = {
-    position: 'relative',
-    zIndex: 1,
-    width: 48,
-    height: 48,
-    borderRadius: 15,
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    background: 'linear-gradient(135deg, var(--accent), var(--accent-2))',
-    color: '#0D1117',
-    fontFamily: "'Space Grotesk', Inter, sans-serif",
-    fontSize: 22,
-    fontWeight: 800,
-    letterSpacing: '-.05em',
-    lineHeight: 1,
-    userSelect: 'none',
-    boxShadow:
-      '0 10px 24px -10px color-mix(in srgb, var(--accent) 70%, transparent), inset 0 1px 0 rgba(255,255,255,.55)',
-  };
-
   const avatarStyle = {
     width: 46,
     height: 46,
@@ -239,14 +200,6 @@ export default function ChatRail({
 
   return (
     <nav className="chat-rail" style={navStyle} aria-label="Chat sections">
-      {/* ---------- Brand mark ---------- */}
-      <div className="rail-brand" style={brandWrapStyle} aria-hidden>
-        <span className="rail-brand-glow" />
-        <span className="rail-brand-mark" style={brandMarkStyle}>M</span>
-      </div>
-
-      <div className="rail-divider" style={dividerStyle} aria-hidden />
-
       {/* ---------- Primary nav ---------- */}
       <div className="rail-stack" style={stackStyle}>
         {TABS.map((t) => (
@@ -265,16 +218,14 @@ export default function ChatRail({
       {/* ---------- Spacer ---------- */}
       <div className="rail-spacer" style={spacerStyle} aria-hidden />
 
-      {/* ---------- Blocked ---------- */}
+      {/* ---------- Settings ---------- */}
       <div className="rail-stack" style={stackStyle}>
         <RailButton
-          icon={ShieldOff}
-          label="Blocked users"
+          icon={Settings}
+          label="Chat settings"
           isActive={false}
-          badge={blockedCount}
-          mutedBadge
           variant="secondary"
-          onClick={onOpenBlocked}
+          onClick={onOpenSettings}
           size={20}
         />
       </div>

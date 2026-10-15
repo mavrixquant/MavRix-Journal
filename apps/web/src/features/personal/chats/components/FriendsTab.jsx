@@ -1,8 +1,17 @@
 // apps/web/src/features/personal/chats/components/FriendsTab.jsx
 //
-// The "Friends" tab of the chat shell. Lists accepted friends with per-row
-// actions (Message, Remove friend, Block). Pending-request summary at the
-// top jumps to the Requests tab.
+// The "Friends" tab of the chat shell. Hosts two sub-views:
+//
+//   view === 'list'      → the friends list (default)
+//   view === 'requests'  → incoming + outgoing friend requests, rendered
+//                          by <FriendRequestsPanel onBack={...} />
+//
+// The header shows:
+//   • title + friend count
+//   • a Requests button (with a badge when there are pending incoming)
+//   • an Add Friend button
+//
+// Per-row actions unchanged: Message, Remove friend, Block user.
 
 import { useMemo, useState } from 'react';
 import {
@@ -12,6 +21,8 @@ import {
   UserMinus,
   ShieldOff,
   Inbox,
+  Archive,
+  ArchiveRestore,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -20,9 +31,10 @@ import {
   useFriendRequests,
   useRemoveFriend,
 } from '@/shared/api/friends';
-import { useCreateConversation } from '@/shared/api/chat';
+import { useCreateConversation, useUpdateConversation } from '@/shared/api/chat';
 import Alert from '@/shared/components/Alert';
 import BlockConfirmModal from './BlockConfirmModal';
+import FriendRequestsPanel from './FriendRequestsPanel';
 
 function initialsOf(u) {
   if (!u) return '?';
@@ -43,11 +55,47 @@ function displayNameOf(u) {
   return u.email || 'Unknown';
 }
 
-export default function FriendsTab({ onOpenAddFriend, onOpenRequests, onOpenThread }) {
+/** Inline badge used on the Requests button. */
+function CountBadge({ count }) {
+  if (!count || count <= 0) return null;
+  return (
+    <span
+      aria-hidden
+      style={{
+        position: 'absolute',
+        top: -4,
+        right: -4,
+        minWidth: 16,
+        height: 16,
+        padding: '0 4px',
+        borderRadius: 8,
+        background: 'linear-gradient(135deg, var(--accent), var(--accent-2))',
+        color: '#0D1117',
+        fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
+        fontSize: 9.5,
+        fontWeight: 700,
+        lineHeight: '16px',
+        textAlign: 'center',
+        boxShadow: '0 0 0 2px #0F121A',
+        pointerEvents: 'none',
+      }}
+    >
+      {count > 99 ? '99+' : count}
+    </span>
+  );
+}
+
+export default function FriendsTab({
+  onOpenAddFriend,
+  onOpenThread,
+}) {
+  const [view, setView] = useState('list'); // 'list' | 'requests'
+
   const { data: friends = [], isLoading } = useFriends();
   const { data: requests } = useFriendRequests();
   const removeFriendMutation = useRemoveFriend();
   const createConversation = useCreateConversation();
+  const updateConversation = useUpdateConversation();
 
   const [pendingRemove, setPendingRemove] = useState(null);
   const [pendingBlock, setPendingBlock] = useState(null);
@@ -86,13 +134,71 @@ export default function FriendsTab({ onOpenAddFriend, onOpenRequests, onOpenThre
     setPendingBlock(friend);
   };
 
+  const handleArchiveToggle = (friend) => {
+    if (!friend.conversationId) {
+      toast.error('Start a conversation first');
+      return;
+    }
+    setMenuOpenId(null);
+    const willArchive = !friend.isArchived;
+    updateConversation.mutate(
+      {
+        conversationId: friend.conversationId,
+        patch: { isArchived: willArchive },
+      },
+      {
+        onSuccess: () => {
+          toast.success(
+            willArchive
+              ? `Archived chat with ${displayNameOf(friend)}`
+              : `Unarchived chat with ${displayNameOf(friend)}`
+          );
+        },
+        onError: (err) => {
+          toast.error(err?.message || 'Could not update archive state');
+        },
+      }
+    );
+  };
+  /* ------------------------------------------------------------------ */
+  /*  Requests sub-view                                                 */
+  /* ------------------------------------------------------------------ */
+  if (view === 'requests') {
+    return (
+      <FriendRequestsPanel
+        onBack={() => setView('list')}
+        onOpenAddFriend={onOpenAddFriend}
+      />
+    );
+  }
+
+  /* ------------------------------------------------------------------ */
+  /*  Friends list view                                                 */
+  /* ------------------------------------------------------------------ */
   return (
     <>
       <div className="side-pane">
         <div className="side-pane-header">
           <span className="side-pane-title">Friends</span>
           <span className="side-pane-count">{friends.length}</span>
+
           <div className="side-pane-actions">
+            <button
+              type="button"
+              className="pane-icon-btn"
+              onClick={() => setView('requests')}
+              title={
+                pendingIncoming > 0
+                  ? `${pendingIncoming} pending friend request${pendingIncoming === 1 ? '' : 's'}`
+                  : 'Friend requests'
+              }
+              aria-label="Friend requests"
+              style={{ position: 'relative' }}
+            >
+              <Inbox size={14} />
+              <CountBadge count={pendingIncoming} />
+            </button>
+
             <button
               type="button"
               className="pane-icon-btn is-accent"
@@ -106,26 +212,6 @@ export default function FriendsTab({ onOpenAddFriend, onOpenRequests, onOpenThre
         </div>
 
         <div className="side-pane-body" onClick={() => setMenuOpenId(null)}>
-          {pendingIncoming > 0 && (
-            <button
-              type="button"
-              className="pane-row"
-              style={{ width: '100%', textAlign: 'left' }}
-              onClick={onOpenRequests}
-            >
-              <span className="pane-row-avatar">
-                <Inbox size={16} />
-              </span>
-              <div className="pane-row-body">
-                <div className="pane-row-name">
-                  {pendingIncoming} pending friend request
-                  {pendingIncoming === 1 ? '' : 's'}
-                </div>
-                <div className="pane-row-sub">Tap to review</div>
-              </div>
-            </button>
-          )}
-
           {isLoading && <div className="side-pane-loading">Loading friends…</div>}
 
           {!isLoading && sortedFriends.length === 0 && (
@@ -158,7 +244,11 @@ export default function FriendsTab({ onOpenAddFriend, onOpenRequests, onOpenThre
           {sortedFriends.map((friend) => {
             const menuOpen = menuOpenId === friend.id;
             return (
-              <div key={friend.id} className="pane-row" style={{ position: 'relative' }}>
+              <div
+                key={friend.id}
+                className="pane-row"
+                style={{ position: 'relative' }}
+              >
                 <span className="pane-row-avatar">
                   {friend.photoUrl ? (
                     <img src={friend.photoUrl} alt="" />
@@ -168,7 +258,33 @@ export default function FriendsTab({ onOpenAddFriend, onOpenRequests, onOpenThre
                 </span>
 
                 <div className="pane-row-body">
-                  <div className="pane-row-name">{displayNameOf(friend)}</div>
+                  <div className="pane-row-name">
+                    {displayNameOf(friend)}
+                    {friend.isArchived && (
+                      <span
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 4,
+                          marginLeft: 8,
+                          padding: '2px 8px',
+                          borderRadius: 99,
+                          background: 'rgba(255,255,255,.04)',
+                          border: '1px solid rgba(255,255,255,.1)',
+                          color: '#8892A3',
+                          fontFamily: "'IBM Plex Mono', monospace",
+                          fontSize: 9.5,
+                          fontWeight: 700,
+                          letterSpacing: '.06em',
+                          textTransform: 'uppercase',
+                          verticalAlign: 'middle',
+                        }}
+                      >
+                        <Archive size={9} />
+                        Archived
+                      </span>
+                    )}
+                  </div>
                   <div className="pane-row-sub">{friend.email}</div>
                 </div>
 
@@ -183,6 +299,7 @@ export default function FriendsTab({ onOpenAddFriend, onOpenRequests, onOpenThre
                   >
                     <MessageCircle size={14} />
                   </button>
+
                   <div style={{ position: 'relative' }}>
                     <button
                       type="button"
@@ -215,6 +332,27 @@ export default function FriendsTab({ onOpenAddFriend, onOpenRequests, onOpenThre
                         }}
                         onClick={(e) => e.stopPropagation()}
                       >
+                        <button
+                          type="button"
+                          className="chat-ctx-item"
+                          onClick={() => handleArchiveToggle(friend)}
+                          disabled={updateConversation.isPending}
+                          title={
+                            friend.conversationId
+                              ? undefined
+                              : 'Start a conversation first'
+                          }
+                        >
+                          {friend.isArchived ? (
+                            <ArchiveRestore size={13} />
+                          ) : (
+                            <Archive size={13} />
+                          )}
+                          <span>
+                            {friend.isArchived ? 'Unarchive chat' : 'Archive chat'}
+                          </span>
+                        </button>
+
                         <button
                           type="button"
                           className="chat-ctx-item"

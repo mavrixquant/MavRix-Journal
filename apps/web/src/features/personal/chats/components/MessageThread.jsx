@@ -2,9 +2,8 @@
 //
 // Right pane of the chat UI. In DMs, when the caller is not friends with
 // the peer and the free-message cap is reached, the composer is replaced
-// by a locked banner with an inline Add Friend CTA. The banner is driven
-// by the conversation payload (isFriend / messagesRemaining), which the
-// server keeps fresh.
+// by a locked banner. When the conversation is archived, the composer is
+// replaced by an archived banner with an Unarchive CTA.
 
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import {
@@ -31,6 +30,7 @@ import {
   useEditMessage,
   useDeleteMessage,
   useSendTyping,
+  useUpdateConversation,
 } from '@/shared/api/chat';
 import { useSendFriendRequest, useFriendStatus } from '@/shared/api/friends';
 
@@ -103,11 +103,10 @@ export default function MessageThread({
   const editMessage = useEditMessage();
   const deleteMessage = useDeleteMessage();
   const sendTyping = useSendTyping();
+  const updateConversation = useUpdateConversation();
 
   const isGroup = !!conversation?.isGroup;
   const peer = conversation?.peer;
-
-  /* ---------------- Friend lock (DM only) ---------------- */
 
   const { data: friendStatus } = useFriendStatus(peer?.id, {
     enabled: !isGroup && !!peer?.id,
@@ -133,8 +132,6 @@ export default function MessageThread({
     }
   }, [peer, sendFriendRequest]);
 
-  /* ---------------- Sidebar + settings ---------------- */
-
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
 
@@ -151,8 +148,6 @@ export default function MessageThread({
       (user?.role === 'admin' && conversation.visibility === 'public') ||
       conversation.createdById === currentUserId
     );
-
-  /* ---------------- Messages ---------------- */
 
   const messages = useMemo(() => {
     if (!data?.pages) return [];
@@ -329,6 +324,15 @@ export default function MessageThread({
     (isTyping) => sendTyping.mutate({ conversationId, isTyping }),
     [conversationId, sendTyping]
   );
+
+  const isArchived = !!conversation?.isArchived;
+
+  const handleUnarchive = useCallback(() => {
+    updateConversation.mutate({
+      conversationId,
+      patch: { isArchived: false },
+    });
+  }, [conversationId, updateConversation]);
 
   const headerName = isGroup
     ? (conversation?.name || 'Untitled group')
@@ -590,6 +594,9 @@ export default function MessageThread({
           peer={peer}
           friendRequestPending={friendRequestPending}
           onAddFriend={handleComposerAddFriend}
+          isArchived={isArchived}
+          onUnarchive={handleUnarchive}
+          unarchiving={updateConversation.isPending}
         />
       </div>
 

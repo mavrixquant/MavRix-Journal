@@ -330,8 +330,7 @@ export async function listConversations(userId) {
   const rows = await prisma.conversationParticipant.findMany({
     where: {
       userId,
-      isArchived: false,
-    },
+      },
     include: {
       conversation: {
         include: {

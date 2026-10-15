@@ -1,18 +1,21 @@
 // apps/web/src/features/personal/chats/components/MessageComposer.jsx
 //
-// Composer footer for the chat thread. Handles:
-//   - auto-growing textarea
-//   - Enter to send (or Ctrl/Cmd+Enter, per user preference)
-//   - throttled typing signal (1 event per 2s while typing)
-//   - 4000 char cap (hard max enforced on the textarea)
-//   - LOCKED state: when a non-friend DM hits the 3-message cap, the
-//     composer is replaced by a banner with a one-click Add Friend CTA.
+// Composer footer for the chat thread.
 //
-// The send-combo hint under the textarea reflects the user's
-// chats.enterToSend preference so the interaction is discoverable.
+// Three state overrides, in priority order:
+//   1. isLocked    — non-friend DM reached the 3-message cap.
+//   2. isArchived  — conversation is archived. Incoming still arrives.
+//   3. normal      — textarea + send button.
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { SendHorizontal, Lock, UserRoundPlus, Clock } from 'lucide-react';
+import {
+  SendHorizontal,
+  Lock,
+  UserRoundPlus,
+  Clock,
+  Archive,
+  ArchiveRestore,
+} from 'lucide-react';
 
 import { useSettings } from '@/app/layout/Settings/SettingsProvider';
 
@@ -35,10 +38,15 @@ export default function MessageComposer({
   onTyping,
   disabled = false,
   isSending = false,
+
   isLocked = false,
   peer = null,
   friendRequestPending = false,
   onAddFriend,
+
+  isArchived = false,
+  onUnarchive,
+  unarchiving = false,
 }) {
   const { settings } = useSettings();
   const enterToSend = settings.chats.enterToSend;
@@ -48,7 +56,6 @@ export default function MessageComposer({
   const lastTypingSentRef = useRef(0);
   const idleTimerRef = useRef(null);
 
-  // Clear the textarea when the composer switches conversations OR unlocks.
   useEffect(() => {
     setText('');
     lastTypingSentRef.current = 0;
@@ -56,7 +63,7 @@ export default function MessageComposer({
       clearTimeout(idleTimerRef.current);
       idleTimerRef.current = null;
     }
-  }, [conversationId, isLocked]);
+  }, [conversationId, isLocked, isArchived]);
 
   useEffect(() => {
     return () => {
@@ -95,7 +102,7 @@ export default function MessageComposer({
 
   const submit = useCallback(() => {
     const trimmed = text.trim();
-    if (!trimmed || disabled || isLocked) return;
+    if (!trimmed || disabled || isLocked || isArchived) return;
     if (idleTimerRef.current) {
       clearTimeout(idleTimerRef.current);
       idleTimerRef.current = null;
@@ -111,20 +118,16 @@ export default function MessageComposer({
         el.focus();
       }
     });
-  }, [text, disabled, isLocked, onSend, onTyping]);
+  }, [text, disabled, isLocked, isArchived, onSend, onTyping]);
 
   const handleKeyDown = (e) => {
     if (e.key !== 'Enter') return;
-
     const mod = e.ctrlKey || e.metaKey;
     const shouldSend = enterToSend ? !e.shiftKey : mod;
-
     if (!shouldSend) return;
     e.preventDefault();
     submit();
   };
-
-  /* ---------------- Locked state ---------------- */
 
   if (isLocked) {
     return (
@@ -161,7 +164,34 @@ export default function MessageComposer({
     );
   }
 
-  /* ---------------- Normal state ---------------- */
+  if (isArchived) {
+    return (
+      <div className="chat-composer is-archived">
+        <div className="chat-composer-banner is-archived">
+          <span className="chat-composer-banner-icon" aria-hidden>
+            <Archive size={14} />
+          </span>
+          <div className="chat-composer-banner-text">
+            <div className="chat-composer-banner-title">
+              This chat is archived
+            </div>
+            <div className="chat-composer-banner-sub">
+              Unarchive to send new messages. You'll still receive theirs.
+            </div>
+          </div>
+          <button
+            type="button"
+            className="chat-composer-banner-cta"
+            onClick={onUnarchive}
+            disabled={!onUnarchive || unarchiving}
+          >
+            <ArchiveRestore size={12} />
+            <span>{unarchiving ? 'Unarchiving…' : 'Unarchive'}</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const canSend = text.trim().length > 0 && !disabled && !isSending;
   const nearLimit = text.length > MAX_LEN - 200;
