@@ -1,6 +1,12 @@
 // apps/web/src/app/layout/Settings/panels/AboutPanel.jsx
+//
+// About tab. Application info + support + legal placeholders.
+//
+// The old "API health" row was removed in Phase 5 — it linked to a raw
+// JSON endpoint with no styling, and the superadmin Health Checkup page
+// (/admin/health-check) now covers the same ground far better.
 
-import { ExternalLink, Mail } from 'lucide-react';
+import { Mail } from 'lucide-react';
 
 const APP_VERSION = '0.1.0';
 
@@ -52,24 +58,6 @@ export default function AboutPanel() {
           >
             <Mail size={12} />
             Send email
-          </a>
-        </div>
-
-        <div className="settings-options-row">
-          <div className="settings-options-text">
-            <span className="settings-options-label">API health</span>
-            <span className="settings-options-desc">
-              Check the backend service status.
-            </span>
-          </div>
-          <a
-            className="settings-btn"
-            href={`${API_BASE}/api/health`}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <ExternalLink size={12} />
-            Open
           </a>
         </div>
       </section>

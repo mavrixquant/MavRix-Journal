@@ -1,12 +1,11 @@
 // apps/web/src/features/admin/components/HealthCheckTestRow.jsx
 //
-// One test result row. Collapsed = single line (dot + name + duration).
-// Expanded = shows error / skip reason / notes.
-//
-// Statuses: 'pass' | 'fail' | 'skip' | 'running' | 'pending'
+// One test row. Three visual states — pending (grey), running (pulsing),
+// and terminal (pass/fail/skip). Collapsed by default; click to expand
+// error / skip reason / notes.
 
 import { useState } from 'react';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, Loader2 } from 'lucide-react';
 
 const CSS = `
   .hct-row {
@@ -19,7 +18,7 @@ const CSS = `
     align-items: center;
     gap: 10px;
     width: 100%;
-    padding: 9px 14px;
+    padding: 8px 14px;
     background: transparent;
     border: none;
     cursor: pointer;
@@ -47,16 +46,15 @@ const CSS = `
     transform: rotate(180deg);
     color: var(--accent);
   }
-  .hct-chevron.is-hidden {
-    visibility: hidden;
-  }
+  .hct-chevron.is-hidden { visibility: hidden; }
 
   .hct-dot {
     flex-shrink: 0;
     width: 8px;
     height: 8px;
     border-radius: 50%;
-    background: #545E6E;
+    background: #2A2F3A;
+    transition: background-color .2s ease;
   }
   .hct-row.is-pass .hct-dot {
     background: #4ade80;
@@ -75,6 +73,10 @@ const CSS = `
     box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 70%, transparent);
     animation: hctPulse 1.2s ease-in-out infinite;
   }
+  .hct-row.is-pending .hct-dot {
+    background: #545E6E;
+    opacity: .4;
+  }
   @keyframes hctPulse {
     0%, 100% { opacity: 1; transform: scale(1); }
     50%      { opacity: .5; transform: scale(.8); }
@@ -91,11 +93,19 @@ const CSS = `
   .hct-row.is-fail .hct-name { color: #fca5a5; }
   .hct-row.is-skip .hct-name { color: #8892A3; }
 
+  .hct-spinner {
+    flex-shrink: 0;
+    color: var(--accent);
+    animation: hctSpin .8s linear infinite;
+  }
+  @keyframes hctSpin { to { transform: rotate(360deg); } }
+
   .hct-dur {
     flex-shrink: 0;
     font-size: 10.5px;
     color: #545E6E;
     letter-spacing: .02em;
+    font-variant-numeric: tabular-nums;
   }
   .hct-row.is-pass .hct-dur { color: #4ade80; opacity: .75; }
   .hct-row.is-fail .hct-dur { color: #f87171; opacity: .85; }
@@ -129,11 +139,21 @@ const CSS = `
     color: #545E6E;
     font-weight: 700;
   }
+  .hct-meta {
+    display: flex;
+    gap: 10px;
+    margin-top: 6px;
+    color: #545E6E;
+    font-size: 10px;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+  }
 
   @media (prefers-reduced-motion: reduce) {
     .hct-chevron,
     .hct-toggle { transition: none !important; }
-    .hct-row.is-running .hct-dot { animation: none !important; }
+    .hct-row.is-running .hct-dot,
+    .hct-spinner { animation: none !important; }
   }
 `;
 
@@ -141,6 +161,7 @@ export default function HealthCheckTestRow({ test }) {
   const [open, setOpen] = useState(false);
 
   const hasDetails = !!(test.error || test.reason || test.notes);
+  const isRunning = test.status === 'running';
   const rowClass = [
     'hct-row',
     `is-${test.status || 'pending'}`,
@@ -170,7 +191,8 @@ export default function HealthCheckTestRow({ test }) {
           <span className="hct-name" title={test.name}>
             {test.name}
           </span>
-          {test.durationMs > 0 && (
+          {isRunning && <Loader2 size={11} className="hct-spinner" />}
+          {!isRunning && test.durationMs > 0 && (
             <span className="hct-dur">{test.durationMs}ms</span>
           )}
         </button>
@@ -182,6 +204,12 @@ export default function HealthCheckTestRow({ test }) {
               <div className="hct-reason">Skipped — {test.reason}</div>
             )}
             {test.notes && <div className="hct-notes">{test.notes}</div>}
+            {(test.status_code || test.id) && (
+              <div className="hct-meta">
+                {test.id && <span>{test.id}</span>}
+                {test.status_code && <span>HTTP {test.status_code}</span>}
+              </div>
+            )}
           </div>
         )}
       </div>
