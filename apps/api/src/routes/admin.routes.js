@@ -10,6 +10,9 @@
 // Groups: route-level guard is requireAdmin only. Fine-grained visibility
 // (admin vs private groups) is enforced inside the service so the error
 // messages can be specific.
+//
+// Health Checkup: the entire /health-check subtree is SUPERADMIN-ONLY.
+// See the block at the bottom.
 
 import { Router } from 'express';
 import { z } from 'zod';
@@ -30,6 +33,7 @@ import * as opsCtrl from '../controllers/adminOps.controller.js';
 import * as gexCtrl from '../controllers/adminGex.controller.js';
 import * as strategyCtrl from '../controllers/adminStrategies.controller.js';
 import * as groupCtrl from '../controllers/adminGroups.controller.js';
+import * as hcCtrl from '../controllers/healthCheck.controller.js';
 
 export const adminRoutes = Router();
 
@@ -82,6 +86,10 @@ const broadcastSchema = z.object({
   sendEmail: z.boolean().optional().default(false),
 });
 
+const healthCheckStartSchema = z.object({
+  phases: z.array(z.string().min(1)).max(64).optional(),
+});
+
 /* ---------------- Rate limiters ---------------- */
 const sensitive = rateLimit({
   windowMs: 60_000,
@@ -105,6 +113,13 @@ const groupLimiter = rateLimit({
   windowMs: 60_000,
   max: 40,
   message: 'Too many group operations. Slow down.',
+});
+
+/* Health-check has its own limiter — one run per 10 seconds per superadmin. */
+const healthCheckLimiter = rateLimit({
+  windowMs: 10_000,
+  max: 3,
+  message: 'Health check launched too recently. Wait a few seconds.',
 });
 
 /* ---------------- Me / Stats / Health ---------------- */
@@ -204,3 +219,31 @@ adminRoutes.get('/calendar/logs', opsCtrl.calendarLogs);
 adminRoutes.get('/gex', gexCtrl.list);
 adminRoutes.post('/gex', writeLimiter, validate(gexDaySchema), gexCtrl.upsert);
 adminRoutes.delete('/gex/:date', requireSuperadmin, sensitive, gexCtrl.remove);
+
+/* ---------------- Health Checkup (SUPERADMIN-ONLY) ---------------- */
+//
+// The entire subtree is gated by requireSuperadmin — the top-level
+// requireAdmin gate is not enough. This block deliberately sits at the
+// bottom so any future route additions land above it.
+adminRoutes.get(
+  '/health-check/phases',
+  requireSuperadmin,
+  hcCtrl.listPhases
+);
+adminRoutes.post(
+  '/health-check/run',
+  requireSuperadmin,
+  healthCheckLimiter,
+  validate(healthCheckStartSchema),
+  hcCtrl.start
+);
+adminRoutes.get(
+  '/health-check/stream/:runId',
+  requireSuperadmin,
+  hcCtrl.stream
+);
+adminRoutes.get(
+  '/health-check/status/:runId',
+  requireSuperadmin,
+  hcCtrl.status
+);
