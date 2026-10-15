@@ -1,13 +1,31 @@
 // apps/api/src/services/chat.service.js
 //
-// All chat business logic. Every read/write goes through assertParticipant()
-// first — that is the ONLY access-control check for chat, and it is the
-// guarantee that no admin route can ever see these conversations.
+// All chat business logic. Every read/write goes through the access-control
+// helper first — that is the ONLY check for chat, and it is the guarantee
+// that no admin route can ever see these conversations.
 //
 // Conversation types:
 //   'dm'    — one-to-one direct message. `dmKey` is set. Peer lookup used.
 //   'group' — multi-user group. `name`, `visibility`, etc. are set. Any
 //             participant can read/write. Group creation is admin-only.
+//
+// ── Friends integration ─────────────────────────────────────────────────
+//
+//   • searchUsers()               → friends only (per product spec).
+//   • getOrCreateDm()             → rejected if either side has blocked the
+//                                   other. Non-friends CAN still create a
+//                                   DM (from a group member card, etc.).
+//   • sendMessage()               → non-friends are capped at
+//                                   NON_FRIEND_MESSAGE_LIMIT messages.
+//                                   Error carries
+//                                   `details.reason = 'friend_required'`.
+//   • listConversations()         → DMs with blocked peers are hidden; DMs
+//                                   carry `isFriend` + `messagesRemaining`.
+//   • assertAccessibleConversation → 404s any DM where either side has
+//                                   blocked the other.
+//   • listGroupMembers()          → blocked users are filtered out of the
+//                                   caller's view; each member carries a
+//                                   `friendStatus` snapshot.
 //
 // SSE events emitted (all via broadcastToUser):
 //   chat:message:new         { conversationId, message }                       -> all participants
@@ -16,18 +34,17 @@
 //   chat:message:delivered   { conversationId, messageId, deliveredAt }        -> all participants
 //   chat:typing              { conversationId, userId, isTyping }              -> other participants
 //   chat:read                { conversationId, readerUserId, lastReadMsgId, readAt } -> other participants
-//
-// Read receipts:
-//   - markDelivered: called by the non-sender's device when it receives a
-//     message via SSE. Sets Message.deliveredAt if null. Idempotent.
-//   - markRead: called when the non-sender opens the thread. In one
-//     transaction, bulk-marks every inbound message as delivered AND read,
-//     then resets the participant's unreadCount and lastReadAt/Id.
-//     Broadcasts chat:read to the other participant(s).
 
 import { prisma } from '../lib/prisma.js';
 import { HttpError } from '../middleware/error.js';
 import { broadcastToUser } from '../lib/broadcaster.js';
+import {
+  areFriends,
+  isBlockedEither,
+  getBlockedUserIds,
+  getFriendStatusBatch,
+  listFriends as listFriendsService,
+} from './friends.service.js';
 
 const EDIT_WINDOW_MS = 15 * 60 * 1000;
 const PREVIEW_MAX = 120;
@@ -35,6 +52,10 @@ const MESSAGE_PAGE_DEFAULT = 50;
 const MESSAGE_PAGE_MAX = 100;
 const GROUP_DISCOVER_DEFAULT_LIMIT = 50;
 const GROUP_DISCOVER_MAX_LIMIT = 100;
+
+// How many outbound messages a non-friend may send in a single DM before
+// the composer locks. Counted per-user, per-conversation.
+const NON_FRIEND_MESSAGE_LIMIT = 3;
 
 // Shared projection: user fields exposed on every message payload.
 // Includes enough for the group UI to render the sender's name + avatar
@@ -86,15 +107,20 @@ function serializeMessage(m) {
  * For DMs, `peer` is the other user and every group-metadata field is null.
  * For groups, `peer` is null and the metadata fields are populated.
  * `role` is the CALLER's role in this conversation — always 'member' for DMs.
+ *
+ * `extras` (DM only):
+ *   - isFriend:            boolean — whether caller + peer are friends
+ *   - messagesRemaining:   number  — outbound messages left until the cap
+ *                                    (only present when !isFriend)
  */
-function serializeConversation(c, userId, participantRow) {
+function serializeConversation(c, userId, participantRow, extras = {}) {
   const isGroup = c.type === 'group';
 
   const peer = !isGroup
     ? c.participants.find((p) => p.userId !== userId)?.user || null
     : null;
 
-  return {
+  const base = {
     id: c.id,
     type: c.type,
     isGroup,
@@ -124,6 +150,15 @@ function serializeConversation(c, userId, participantRow) {
 
     createdAt: c.createdAt,
   };
+
+  if (!isGroup) {
+    base.isFriend = !!extras.isFriend;
+    if (!extras.isFriend && typeof extras.messagesRemaining === 'number') {
+      base.messagesRemaining = extras.messagesRemaining;
+    }
+  }
+
+  return base;
 }
 
 /* ------------------------------------------------------------------ */
@@ -146,6 +181,37 @@ async function assertParticipant(userId, conversationId) {
   return row;
 }
 
+/**
+ * Participant check + blocked-DM check.
+ *
+ * If the caller is a participant AND the conversation is a DM whose peer
+ * is blocked in either direction, this throws 404 — deliberately not 403,
+ * so a blocked caller can't distinguish "blocked" from "deleted".
+ *
+ * Returns the participant row so callers don't need a second round-trip.
+ */
+async function assertAccessibleConversation(userId, conversationId) {
+  const myRow = await assertParticipant(userId, conversationId);
+
+  const conv = await prisma.conversation.findUnique({
+    where: { id: conversationId },
+    select: {
+      type: true,
+      participants: { select: { userId: true } },
+    },
+  });
+  if (!conv) throw new HttpError(404, 'Conversation not found');
+
+  if (conv.type === 'dm') {
+    const peerId = conv.participants.find((p) => p.userId !== userId)?.userId;
+    if (peerId && (await isBlockedEither(userId, peerId))) {
+      throw new HttpError(404, 'Conversation not found');
+    }
+  }
+
+  return myRow;
+}
+
 async function getParticipantIds(conversationId) {
   const rows = await prisma.conversationParticipant.findMany({
     where: { conversationId },
@@ -155,40 +221,29 @@ async function getParticipantIds(conversationId) {
 }
 
 /* ------------------------------------------------------------------ */
-/*  User search                                                        */
+/*  User search — FRIENDS ONLY                                         */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Search the caller's friends by name or email.
+ *
+ * Non-friends are never returned. This is enforced by starting from the
+ * friend list rather than the user table.
+ */
 export async function searchUsers(userId, q) {
   const query = String(q || '').trim();
   if (query.length < 2) return [];
 
-  const isEmailQuery = query.includes('@');
+  const friends = await listFriendsService(userId);
+  const q2 = query.toLowerCase();
 
-  const where = isEmailQuery
-    ? {
-        id: { not: userId },
-        isBanned: false,
-        emailVerified: true,
-        email: { startsWith: query, mode: 'insensitive' },
-      }
-    : {
-        id: { not: userId },
-        isBanned: false,
-        emailVerified: true,
-        OR: [
-          { email: { contains: query, mode: 'insensitive' } },
-          { firstName: { contains: query, mode: 'insensitive' } },
-          { lastName: { contains: query, mode: 'insensitive' } },
-        ],
-      };
-
-  const rows = await prisma.user.findMany({
-    where,
-    take: 20,
-    orderBy: [{ firstName: 'asc' }, { lastName: 'asc' }],
-    select: PUBLIC_USER_SELECT,
-  });
-  return rows.map(serializePublicUser);
+  return friends
+    .filter((f) => {
+      const name = `${f.firstName || ''} ${f.lastName || ''}`.trim().toLowerCase();
+      const email = (f.email || '').toLowerCase();
+      return email.includes(q2) || (name && name.includes(q2));
+    })
+    .slice(0, 20);
 }
 
 /* ------------------------------------------------------------------ */
@@ -213,6 +268,12 @@ export async function getOrCreateDm(userId, peerId) {
     throw new HttpError(403, 'This user has not verified their email');
   }
 
+  // Blocks are asymmetric to create but symmetric to enforce — either
+  // direction hides the pair from each other.
+  if (await isBlockedEither(userId, peerId)) {
+    throw new HttpError(403, 'Cannot message this user');
+  }
+
   const key = dmKeyFor(userId, peerId);
 
   const existing = await prisma.conversation.findUnique({
@@ -226,7 +287,15 @@ export async function getOrCreateDm(userId, peerId) {
 
   if (existing) {
     const myRow = await assertParticipant(userId, existing.id);
-    return serializeConversation(existing, userId, myRow);
+    const friend = await areFriends(userId, peerId);
+    const extras = { isFriend: friend };
+    if (!friend) {
+      const sent = await prisma.message.count({
+        where: { conversationId: existing.id, senderId: userId, deletedAt: null },
+      });
+      extras.messagesRemaining = Math.max(0, NON_FRIEND_MESSAGE_LIMIT - sent);
+    }
+    return serializeConversation(existing, userId, myRow, extras);
   }
 
   const created = await prisma.conversation.create({
@@ -245,7 +314,12 @@ export async function getOrCreateDm(userId, peerId) {
   });
 
   const myRow = await assertParticipant(userId, created.id);
-  return serializeConversation(created, userId, myRow);
+  const friend = await areFriends(userId, peerId);
+
+  return serializeConversation(created, userId, myRow, {
+    isFriend: friend,
+    messagesRemaining: friend ? undefined : NON_FRIEND_MESSAGE_LIMIT,
+  });
 }
 
 /* ------------------------------------------------------------------ */
@@ -269,18 +343,79 @@ export async function listConversations(userId) {
     },
   });
 
-  rows.sort((a, b) => {
+  const [blockedIds, dmPeerIds] = await Promise.all([
+    getBlockedUserIds(userId),
+    Promise.resolve(
+      rows
+        .filter((r) => r.conversation.type === 'dm')
+        .map((r) => r.conversation.participants.find((p) => p.userId !== userId)?.userId)
+        .filter(Boolean)
+    ),
+  ]);
+
+  const blockedSet = new Set(blockedIds);
+  const friendStatus = await getFriendStatusBatch(userId, dmPeerIds);
+
+  // Count outbound messages for each non-friend DM so we can compute
+  // messagesRemaining without an N+1.
+  const nonFriendDmIds = rows
+    .filter((r) => {
+      if (r.conversation.type !== 'dm') return false;
+      const peerId = r.conversation.participants.find((p) => p.userId !== userId)?.userId;
+      return peerId && !friendStatus[peerId]?.isFriend;
+    })
+    .map((r) => r.conversation.id);
+
+  const sentMap = new Map();
+  if (nonFriendDmIds.length > 0) {
+    const grouped = await prisma.message.groupBy({
+      by: ['conversationId'],
+      where: {
+        conversationId: { in: nonFriendDmIds },
+        senderId: userId,
+        deletedAt: null,
+      },
+      _count: { _all: true },
+    });
+    for (const g of grouped) sentMap.set(g.conversationId, g._count._all);
+  }
+
+  // Hide DMs whose peer is blocked in either direction.
+  const visibleRows = rows.filter((r) => {
+    const c = r.conversation;
+    if (c.type !== 'dm') return true;
+    const peerId = c.participants.find((p) => p.userId !== userId)?.userId;
+    if (!peerId) return false;
+    return !blockedSet.has(peerId);
+  });
+
+  visibleRows.sort((a, b) => {
     if (a.isPinned !== b.isPinned) return a.isPinned ? -1 : 1;
     const at = a.conversation.lastMessageAt?.getTime() || 0;
     const bt = b.conversation.lastMessageAt?.getTime() || 0;
     return bt - at;
   });
 
-  return rows.map((p) => serializeConversation(p.conversation, userId, p));
+  return visibleRows.map((p) => {
+    const c = p.conversation;
+    const extras = {};
+
+    if (c.type === 'dm') {
+      const peerId = c.participants.find((x) => x.userId !== userId)?.userId;
+      const fs = friendStatus[peerId];
+      extras.isFriend = !!fs?.isFriend;
+      if (!extras.isFriend) {
+        const sent = sentMap.get(c.id) || 0;
+        extras.messagesRemaining = Math.max(0, NON_FRIEND_MESSAGE_LIMIT - sent);
+      }
+    }
+
+    return serializeConversation(c, userId, p, extras);
+  });
 }
 
 export async function getConversation(userId, conversationId) {
-  const myRow = await assertParticipant(userId, conversationId);
+  const myRow = await assertAccessibleConversation(userId, conversationId);
 
   const c = await prisma.conversation.findUnique({
     where: { id: conversationId },
@@ -291,11 +426,27 @@ export async function getConversation(userId, conversationId) {
     },
   });
   if (!c) throw new HttpError(404, 'Conversation not found');
-  return serializeConversation(c, userId, myRow);
+
+  const extras = {};
+  if (c.type === 'dm') {
+    const peerId = c.participants.find((p) => p.userId !== userId)?.userId;
+    if (peerId) {
+      const friend = await areFriends(userId, peerId);
+      extras.isFriend = friend;
+      if (!friend) {
+        const sent = await prisma.message.count({
+          where: { conversationId, senderId: userId, deletedAt: null },
+        });
+        extras.messagesRemaining = Math.max(0, NON_FRIEND_MESSAGE_LIMIT - sent);
+      }
+    }
+  }
+
+  return serializeConversation(c, userId, myRow, extras);
 }
 
 export async function updateConversation(userId, conversationId, patch) {
-  await assertParticipant(userId, conversationId);
+  await assertAccessibleConversation(userId, conversationId);
 
   const data = {};
   if (typeof patch.isPinned === 'boolean') data.isPinned = patch.isPinned;
@@ -315,7 +466,7 @@ export async function updateConversation(userId, conversationId, patch) {
 /* ------------------------------------------------------------------ */
 
 export async function listMessages(userId, conversationId, { before, limit } = {}) {
-  await assertParticipant(userId, conversationId);
+  await assertAccessibleConversation(userId, conversationId);
 
   const take = Math.min(
     Math.max(1, Number(limit) || MESSAGE_PAGE_DEFAULT),
@@ -353,11 +504,47 @@ export async function listMessages(userId, conversationId, { before, limit } = {
 }
 
 export async function sendMessage(userId, conversationId, { body, replyToId }) {
-  await assertParticipant(userId, conversationId);
+  await assertAccessibleConversation(userId, conversationId);
 
   const trimmed = String(body || '').trim();
   if (!trimmed) throw new HttpError(400, 'Message body is required');
   if (trimmed.length > 4000) throw new HttpError(400, 'Message too long');
+
+  // ------------------------------------------------------------------
+  // Non-friend DM cap. Only applies to DMs (groups have their own
+  // membership rules). Admins, friends, and group members are unlimited.
+  // ------------------------------------------------------------------
+  const conv = await prisma.conversation.findUnique({
+    where: { id: conversationId },
+    select: {
+      type: true,
+      participants: { select: { userId: true } },
+    },
+  });
+
+  if (conv?.type === 'dm') {
+    const peerId = conv.participants.find((p) => p.userId !== userId)?.userId;
+    if (peerId) {
+      const friend = await areFriends(userId, peerId);
+      if (!friend) {
+        const sent = await prisma.message.count({
+          where: { conversationId, senderId: userId, deletedAt: null },
+        });
+        if (sent >= NON_FRIEND_MESSAGE_LIMIT) {
+          const err = new HttpError(
+            403,
+            'Add this user as a friend to continue messaging'
+          );
+          err.details = {
+            reason: 'friend_required',
+            sent,
+            limit: NON_FRIEND_MESSAGE_LIMIT,
+          };
+          throw err;
+        }
+      }
+    }
+  }
 
   if (replyToId) {
     const parent = await prisma.message.findUnique({
@@ -435,7 +622,7 @@ export async function editMessage(userId, messageId, { body }) {
     throw new HttpError(403, 'Messages can only be edited within 15 minutes');
   }
 
-  await assertParticipant(userId, msg.conversationId);
+  await assertAccessibleConversation(userId, msg.conversationId);
 
   const updated = await prisma.$transaction(async (tx) => {
     const row = await tx.message.update({
@@ -479,7 +666,7 @@ export async function deleteMessage(userId, messageId, scope) {
   const msg = await prisma.message.findUnique({ where: { id: messageId } });
   if (!msg) throw new HttpError(404, 'Message not found');
 
-  await assertParticipant(userId, msg.conversationId);
+  await assertAccessibleConversation(userId, msg.conversationId);
 
   if (scope === 'me') {
     await prisma.$executeRaw`
@@ -551,7 +738,7 @@ export async function markDelivered(userId, messageId) {
   });
   if (!msg) throw new HttpError(404, 'Message not found');
 
-  await assertParticipant(userId, msg.conversationId);
+  await assertAccessibleConversation(userId, msg.conversationId);
 
   if (msg.senderId === userId) {
     return { ok: true, skipped: 'sender' };
@@ -580,7 +767,7 @@ export async function markDelivered(userId, messageId) {
 }
 
 export async function markRead(userId, conversationId) {
-  await assertParticipant(userId, conversationId);
+  await assertAccessibleConversation(userId, conversationId);
 
   const last = await prisma.message.findFirst({
     where: {
@@ -637,7 +824,7 @@ export async function markRead(userId, conversationId) {
 /* ------------------------------------------------------------------ */
 
 export async function broadcastTyping(userId, conversationId, isTyping) {
-  await assertParticipant(userId, conversationId);
+  await assertAccessibleConversation(userId, conversationId);
 
   const ids = await getParticipantIds(conversationId);
   for (const pid of ids) {
@@ -809,6 +996,15 @@ export async function leaveGroup(userId, groupId) {
   return { ok: true };
 }
 
+/**
+ * List members of a group the caller belongs to.
+ *
+ * Adds per-member `friendStatus` so the client can render the right action
+ * on the member card (Add Friend / Pending / Message / Blocked).
+ *
+ * Members blocked in either direction (relative to the caller) are hidden.
+ * The caller's own row is always included.
+ */
 export async function listGroupMembers(userId, groupId) {
   await assertParticipant(userId, groupId);
 
@@ -827,19 +1023,35 @@ export async function listGroupMembers(userId, groupId) {
     },
   });
 
+  const blockedSet = new Set(await getBlockedUserIds(userId));
+  const visibleRows = rows.filter((r) => !blockedSet.has(r.userId));
+
+  const friendStatus = await getFriendStatusBatch(
+    userId,
+    visibleRows.map((r) => r.userId)
+  );
+
   const rank = { owner: 0, moderator: 1, member: 2 };
-  rows.sort((a, b) => {
+  visibleRows.sort((a, b) => {
     const ra = rank[a.role] ?? 99;
     const rb = rank[b.role] ?? 99;
     if (ra !== rb) return ra - rb;
     return a.joinedAt.getTime() - b.joinedAt.getTime();
   });
 
-  return rows.map((p) => ({
+  return visibleRows.map((p) => ({
     id: p.id,
     userId: p.userId,
     role: p.role,
     joinedAt: p.joinedAt,
     user: serializePublicUser(p.user),
+    friendStatus: friendStatus[p.userId] || {
+      isFriend: false,
+      hasOutgoingRequest: false,
+      hasIncomingRequest: false,
+      blockedByMe: false,
+      blockedMe: false,
+      isBlocked: false,
+    },
   }));
 }
