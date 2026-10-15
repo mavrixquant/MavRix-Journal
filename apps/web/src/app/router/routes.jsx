@@ -7,7 +7,7 @@ import AppLayout from '@/app/layout/AppLayout';
 import { RequireAuth, RequireVerified, RequireGuest } from './guards';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { useSettings } from '@/app/layout/Settings/SettingsProvider';
-import { RequireAdmin } from '@/features/admin/guards';
+import { RequireAdmin, RequireSuperadmin } from '@/features/admin/guards';
 
 /* ---- Auth pages ---- */
 const Login = lazy(() => import('@/features/auth/pages/LoginPage'));
@@ -59,6 +59,7 @@ const AdminCalendarPage     = lazy(() => import('@/features/admin/pages/AdminCal
 const AdminSettingsPage     = lazy(() => import('@/features/admin/pages/AdminSettingsPage'));
 const AdminBroadcastPage    = lazy(() => import('@/features/admin/pages/AdminBroadcastPage'));
 const AdminGexPage          = lazy(() => import('@/features/admin/pages/AdminGexPage'));
+const AdminHealthCheckPage  = lazy(() => import('@/features/admin/pages/AdminHealthCheckPage'));
 
 const LAST_PATH_KEY = 'mavrix:lastPath';
 
@@ -126,6 +127,10 @@ export function AppRoutes() {
         <Route path="gex"       element={<AdminGexPage />} />
         <Route path="settings"  element={<AdminSettingsPage />} />
         <Route path="broadcast" element={<AdminBroadcastPage />} />
+        <Route
+          path="health-check"
+          element={<RequireSuperadmin><AdminHealthCheckPage /></RequireSuperadmin>}
+        />
       </Route>
 
       {/* ---------------- User app shell ---------------- */}

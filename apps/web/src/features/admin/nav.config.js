@@ -3,6 +3,7 @@ import {
   LayoutDashboard, Users, Wallet, TrendingUp,
   Calendar, Radio, MessageSquare, Layers, Brain,
   MessagesSquare, ScrollText, Settings, Activity,
+  Stethoscope,
 } from 'lucide-react';
 
 export const ADMIN_NAV = [
@@ -34,9 +35,10 @@ export const ADMIN_NAV = [
   {
     section: 'System',
     items: [
-      { to: '/admin/audit',    label: 'Audit log', icon: ScrollText },
-      { to: '/admin/settings', label: 'Settings',  icon: Settings },
-      { to: '/admin/system',   label: 'System',    icon: Activity },
+      { to: '/admin/audit',        label: 'Audit log',      icon: ScrollText },
+      { to: '/admin/health-check', label: 'Health Checkup', icon: Stethoscope, superadminOnly: true },
+      { to: '/admin/settings',     label: 'Settings',       icon: Settings },
+      { to: '/admin/system',       label: 'System',         icon: Activity },
     ],
   },
 ];

@@ -7,6 +7,7 @@ import { ADMIN_NAV, isAdminItemActive } from '../nav.config';
 export default function AdminSidebar({ onNavigate }) {
   const { pathname } = useLocation();
   const { user } = useAuth();
+  const isSuperadmin = user?.role === 'superadmin';
 
   return (
     <aside className="admin-sidebar">
@@ -19,41 +20,49 @@ export default function AdminSidebar({ onNavigate }) {
       </div>
 
       <nav className="admin-sidebar-nav">
-        {ADMIN_NAV.map((section) => (
-          <div key={section.section} className="admin-nav-section">
-            <div className="admin-nav-section-label">{section.section}</div>
-            {section.items.map((item) => {
-              const Icon = item.icon;
-              const isActive = isAdminItemActive(pathname, item);
+        {ADMIN_NAV.map((section) => {
+          // Filter out superadmin-only items when the user isn't a super.
+          const visibleItems = section.items.filter(
+            (item) => !item.superadminOnly || isSuperadmin
+          );
+          if (visibleItems.length === 0) return null;
 
-              if (item.soon) {
+          return (
+            <div key={section.section} className="admin-nav-section">
+              <div className="admin-nav-section-label">{section.section}</div>
+              {visibleItems.map((item) => {
+                const Icon = item.icon;
+                const isActive = isAdminItemActive(pathname, item);
+
+                if (item.soon) {
+                  return (
+                    <div
+                      key={item.to}
+                      className="admin-nav-item is-soon"
+                      title="Coming in a later phase"
+                    >
+                      <span className="admin-nav-icon"><Icon size={14} /></span>
+                      <span>{item.label}</span>
+                    </div>
+                  );
+                }
+
                 return (
-                  <div
+                  <NavLink
                     key={item.to}
-                    className="admin-nav-item is-soon"
-                    title="Coming in a later phase"
+                    to={item.to}
+                    end={item.end}
+                    onClick={onNavigate}
+                    className={`admin-nav-item${isActive ? ' is-active' : ''}`}
                   >
                     <span className="admin-nav-icon"><Icon size={14} /></span>
                     <span>{item.label}</span>
-                  </div>
+                  </NavLink>
                 );
-              }
-
-              return (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  end={item.end}
-                  onClick={onNavigate}
-                  className={`admin-nav-item${isActive ? ' is-active' : ''}`}
-                >
-                  <span className="admin-nav-icon"><Icon size={14} /></span>
-                  <span>{item.label}</span>
-                </NavLink>
-              );
-            })}
-          </div>
-        ))}
+              })}
+            </div>
+          );
+        })}
       </nav>
 
       <div className="admin-sidebar-foot">
