@@ -29,9 +29,9 @@ const CSS = `
   .chart-export-btn:hover,
   .chart-export-btn:focus-visible {
     opacity: 1;
-    color: #F59E0B;
-    border-color: rgba(245,158,11,.35);
-    background: rgba(245,158,11,.08);
+    color: var(--accent);
+    border-color: color-mix(in srgb, var(--accent) 35%, transparent);
+    background: color-mix(in srgb, var(--accent) 8%, transparent);
     outline: none;
   }
   @media (prefers-reduced-motion: reduce) {

@@ -125,7 +125,7 @@ export default function AdvancedKPIGrid() {
     { label: 'Kelly %',  value: kellyDisplay,                cls: kellyCls,                        sub: stats.kellyRaw > 0 ? 'suggested' : 'no edge' },
   ];
 
-  const getColor = (cls) => cls === 'pos' ? '#35C4A1' : cls === 'neg' ? '#FF5C5C' : cls === 'amber' ? '#FFB020' : '#E7E9EE';
+  const getColor = (cls) => cls === 'pos' ? '#35C4A1' : cls === 'neg' ? '#FF5C5C' : cls === 'amber' ? 'var(--accent)' : '#E7E9EE';
 
   return (
     <>

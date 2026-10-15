@@ -18,7 +18,7 @@ const METHODS = [
 
 const CTRL_CSS = `
   .sim-ctrl {
-    --accent: var(--accent); --accent-2: var(--accent-2);
+     
     --line: rgba(255,255,255,.085);
     --line-soft: rgba(255,255,255,.05);
     --ink-1: #E7E9EE; --ink-2: #8892A3; --ink-3: #545E6E;
@@ -159,7 +159,7 @@ const CTRL_CSS = `
   }
   .sim-ctrl-btn-primary:active:not(:disabled) { transform: translateY(0) scale(.98); }
   .sim-ctrl-btn-primary:disabled {
-    background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 35%, transparent), rgba(253,230,138,.3));
+    background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 35%, transparent), color-mix(in srgb, var(--accent-2) 30%, transparent));
     color: rgba(10,13,19,.6); box-shadow: none; cursor: not-allowed;
   }
   .sim-ctrl-btn-primary:disabled::after { display: none; }

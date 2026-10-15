@@ -14,6 +14,7 @@ import {
   baseLegend,
   baseAnimation,
 } from '@/shared/charts/theme';
+import { useChartColors } from '@/shared/charts';
 import { ChartExportButton } from '@/shared/ui/chart-export';
 
 const RR_LEVELS = [1, 2, 3, 4, 5, 6, 7, 8];
@@ -86,6 +87,7 @@ export default function RRCompareChart() {
   const { filteredTrades, stats, account } = useStats();
   const barConfig = useResponsiveBarConfig();
   const chartRef = useRef(null);
+  const colors = useChartColors();
 
   const isBacktest = account?.type === 'Backtest';
   const hasTrades = filteredTrades && filteredTrades.length > 0;
@@ -106,14 +108,14 @@ export default function RRCompareChart() {
           type: 'line',
           label: 'Win Rate %',
           data: winRateData,
-          borderColor: chartColors.amber,
-          backgroundColor: chartColors.amber,
-          pointBackgroundColor: chartColors.amber,
+          borderColor: colors.amber,
+          backgroundColor: colors.amber,
+          pointBackgroundColor: colors.amber,
           pointBorderColor: '#0D1117',
           pointBorderWidth: 2,
           pointRadius: 4,
           pointHoverRadius: 6,
-          pointHoverBackgroundColor: chartColors.amberHover,
+          pointHoverBackgroundColor: colors.amberHover,
           tension: 0.3,
           yAxisID: 'y1',
           order: 1,
@@ -138,7 +140,7 @@ export default function RRCompareChart() {
         },
       ],
     };
-  }, [statsData, barConfig]);
+  }, [statsData, barConfig, colors]);
 
   const dailyData = useMemo(() => {
     if (isBacktest || !stats || !stats.outcomes) return null;
@@ -234,18 +236,18 @@ export default function RRCompareChart() {
           title: {
             display: true,
             text: 'Win Rate %',
-            color: chartColors.amber,
+            color: colors.amber,
             font: { family: "'Inter', sans-serif", size: 10, weight: '600' },
           },
           ticks: {
-            color: chartColors.amber,
+            color: colors.amber,
             font: { family: "'IBM Plex Mono', monospace", size: 10 },
             callback: (v) => `${v}%`,
           },
         },
       },
     }),
-    []
+    [colors]
   );
 
   const dailyOptions = useMemo(

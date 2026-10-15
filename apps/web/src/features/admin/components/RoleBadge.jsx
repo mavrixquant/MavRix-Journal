@@ -28,9 +28,9 @@ const CSS = `
     white-space: nowrap;
   }
   .rb-super {
-    color: #F59E0B;
-    background: rgba(245,158,11,.10);
-    border-color: rgba(245,158,11,.35);
+    color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
+    border-color: color-mix(in srgb, var(--accent) 35%, transparent);
   }
   .rb-admin {
     color: #60a5fa;

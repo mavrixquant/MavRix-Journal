@@ -54,10 +54,10 @@ import GroupAvatar from './GroupAvatar';
 
 const CSS = `
   .gsm-modal {
-    --accent: #F59E0B;
-    --accent-2: #FDE68A;
-    --accent-soft: rgba(245,158,11,.10);
-    --accent-soft2: rgba(245,158,11,.28);
+    
+    
+    
+    
     --line: rgba(255,255,255,.085);
     --line-soft: rgba(255,255,255,.05);
     --ink-1: #E7E9EE;
@@ -134,7 +134,7 @@ const CSS = `
   }
   .gsm-close:hover:not(:disabled) {
     color: var(--accent);
-    background: rgba(245,158,11,.08);
+    background: color-mix(in srgb, var(--accent) 8%, transparent);
   }
   .gsm-close:disabled { opacity: .35; cursor: not-allowed; }
 
@@ -170,7 +170,7 @@ const CSS = `
     background: linear-gradient(135deg, var(--accent), var(--accent-2));
     color: #0D1117;
     font-weight: 700;
-    box-shadow: 0 6px 16px -8px rgba(245,158,11,.6);
+    box-shadow: 0 6px 16px -8px color-mix(in srgb, var(--accent) 60%, transparent);
   }
 
   .gsm-body {
@@ -205,7 +205,7 @@ const CSS = `
   .gsm-search input::placeholder { color: var(--ink-3); }
   .gsm-search input:focus {
     border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(245,158,11,.15);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent);
   }
 
   .gsm-add-results {
@@ -268,7 +268,7 @@ const CSS = `
     width: 34px;
     height: 34px;
     border-radius: 50%;
-    background: linear-gradient(135deg, rgba(245,158,11,.20), rgba(245,158,11,.05));
+    background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 20%, transparent), color-mix(in srgb, var(--accent) 5%, transparent));
     border: 1px solid var(--accent-soft2);
     color: var(--accent);
     font-family: 'IBM Plex Mono', ui-monospace, monospace;
@@ -318,7 +318,7 @@ const CSS = `
   }
   .gsm-role-chip.is-owner {
     color: var(--accent);
-    background: rgba(245,158,11,.10);
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
     border-color: var(--accent-soft2);
   }
   .gsm-role-chip.is-moderator {
@@ -357,7 +357,7 @@ const CSS = `
   }
   .gsm-icon-btn:hover:not(:disabled) {
     color: var(--accent);
-    background: rgba(245,158,11,.10);
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
     border-color: var(--accent-soft2);
   }
   .gsm-icon-btn.is-danger:hover:not(:disabled) {
@@ -415,7 +415,7 @@ const CSS = `
   .gsm-input:focus,
   .gsm-textarea:focus {
     border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(245,158,11,.15);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent);
   }
   .gsm-input:disabled,
   .gsm-textarea:disabled { opacity: .55; cursor: not-allowed; }
@@ -443,7 +443,7 @@ const CSS = `
   }
   .gsm-vis-tile.is-active {
     border-color: var(--accent-soft2);
-    background: rgba(245,158,11,.08);
+    background: color-mix(in srgb, var(--accent) 8%, transparent);
   }
   .gsm-vis-tile.is-disabled,
   .gsm-vis-tile:disabled {
@@ -464,7 +464,7 @@ const CSS = `
     margin-top: 1px;
   }
   .gsm-vis-tile.is-active .gsm-vis-icon {
-    background: rgba(245,158,11,.14);
+    background: color-mix(in srgb, var(--accent) 14%, transparent);
     border-color: var(--accent-soft2);
     color: var(--accent);
   }
@@ -612,11 +612,11 @@ const CSS = `
     color: #0D1117;
     border: none;
     font-weight: 700;
-    box-shadow: 0 10px 30px -8px rgba(245,158,11,.55), inset 0 1px 0 rgba(255,255,255,.4);
+    box-shadow: 0 10px 30px -8px color-mix(in srgb, var(--accent) 55%, transparent), inset 0 1px 0 rgba(255,255,255,.4);
   }
   .gsm-btn-primary:hover:not(:disabled) {
     transform: translateY(-2px);
-    box-shadow: 0 16px 42px -10px rgba(245,158,11,.7), inset 0 1px 0 rgba(255,255,255,.5);
+    box-shadow: 0 16px 42px -10px color-mix(in srgb, var(--accent) 70%, transparent), inset 0 1px 0 rgba(255,255,255,.5);
   }
   .gsm-btn-danger {
     background: rgba(239,68,68,.06);
@@ -693,7 +693,7 @@ export default function GroupSettingsModal({
     name: '',
     description: '',
     visibility: 'public',
-    color: '#F59E0B',
+    color: 'var(--accent)',
     iconEmoji: '',
   });
 
@@ -737,7 +737,7 @@ export default function GroupSettingsModal({
       name: conversation.name || '',
       description: conversation.description || '',
       visibility: conversation.visibility || 'public',
-      color: conversation.color || '#F59E0B',
+      color: conversation.color || 'var(--accent)',
       iconEmoji: conversation.iconEmoji || '',
     });
   }, [isOpen, conversation]);

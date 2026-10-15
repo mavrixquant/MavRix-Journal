@@ -3,6 +3,7 @@ import { useMemo, useRef } from 'react';
 import { Bar } from 'react-chartjs-2';
 import { buildHistogram } from '@/shared/trading/monteCarlo';
 import { chartColors, baseTooltip, baseAxis, baseCategoryAxis } from '@/shared/charts/theme';
+import { useChartColors } from '@/shared/charts';
 import { ChartExportButton } from '@/shared/ui/chart-export';
 
 export default function DistributionChart({
@@ -14,6 +15,21 @@ export default function DistributionChart({
   height = 220,
 }) {
   const chartRef = useRef(null);
+  const colors = useChartColors();
+
+  // Resolve the accent prop. Callers may pass:
+  //   'var(--accent)'     -> resolve to the live accent hex
+  //   chartColors.amber   -> same, but the legacy pinned default
+  //   '#ef4444' / '#22c55e' -> semantic colors, pass through unchanged
+  //
+  // Canvas 2D cannot resolve var() or color-mix(), so any CSS-var string
+  // would be silently rejected and the previous fillStyle retained.
+  const resolvedColor = useMemo(() => {
+    if (color === 'var(--accent)' || color === chartColors.amber) {
+      return colors.accent;
+    }
+    return color;
+  }, [color, colors]);
   const histogram = useMemo(() => buildHistogram(values, buckets), [values, buckets]);
 
   const chartData = useMemo(() => {
@@ -24,8 +40,8 @@ export default function DistributionChart({
         {
           label,
           data: histogram.counts,
-          backgroundColor: color,
-          hoverBackgroundColor: chartColors.amberHover,
+          backgroundColor: resolvedColor,
+          hoverBackgroundColor: colors.amberHover,
           borderRadius: 4,
           borderSkipped: false,
           barPercentage: 0.9,
@@ -33,7 +49,7 @@ export default function DistributionChart({
         },
       ],
     };
-  }, [histogram, label, color]);
+  }, [histogram, label, resolvedColor]);
 
   const options = useMemo(
     () => ({

@@ -34,8 +34,8 @@ import {
 /* ------------------------------------------------------------------ */
 const CSS = `
   .dt-root {
-    --dt-accent: #F59E0B;
-    --dt-accent-2: #FDE68A;
+    --dt-accent: var(--accent);
+    --dt-accent-2: var(--accent-2);
     --dt-line: rgba(255,255,255,.085);
     --dt-line-soft: rgba(255,255,255,.05);
     --dt-ink-1: #E7E9EE;
@@ -76,7 +76,7 @@ const CSS = `
   .dt-search-input:hover { border-color: rgba(255,255,255,.2); }
   .dt-search-input:focus {
     border-color: var(--dt-accent);
-    box-shadow: 0 0 0 3px rgba(245,158,11,.15);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent);
   }
   .dt-search-icon {
     position: absolute;
@@ -108,13 +108,13 @@ const CSS = `
   }
   .dt-cols-btn:hover {
     color: var(--dt-accent);
-    border-color: rgba(245,158,11,.28);
-    background: rgba(245,158,11,.06);
+    border-color: color-mix(in srgb, var(--accent) 28%, transparent);
+    background: color-mix(in srgb, var(--accent) 6%, transparent);
   }
   .dt-cols-btn[data-open="true"] {
     color: var(--dt-accent);
-    border-color: rgba(245,158,11,.4);
-    background: rgba(245,158,11,.08);
+    border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+    background: color-mix(in srgb, var(--accent) 8%, transparent);
   }
 
   .dt-cols-panel {
@@ -176,7 +176,7 @@ const CSS = `
     opacity: .35;
   }
   .dt-cols-row.is-dragover {
-    background: rgba(245,158,11,.10);
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
     box-shadow: inset 0 2px 0 var(--dt-accent);
   }
   .dt-cols-row.is-locked {

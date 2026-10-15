@@ -106,7 +106,7 @@ const CSS = `
     animation: cdmGrad 4s linear infinite;
   }
   .cdm-modal.is-danger { --cdm-accent: #ef4444; --cdm-accent-2: #fca5a5; }
-  .cdm-modal.is-amber  { --cdm-accent: #F59E0B; --cdm-accent-2: #FDE68A; }
+  .cdm-modal.is-amber  { --cdm-accent: var(--accent); --cdm-accent-2: var(--accent-2); }
 
   .cdm-body { padding: 24px 24px 12px; }
   .cdm-title {

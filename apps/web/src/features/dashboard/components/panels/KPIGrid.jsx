@@ -168,7 +168,7 @@ export default function KPIGrid() {
         { label: 'Worst Trade', value: stats.worstTrade ? formatR(stats.worstTrade.r) : '—', cls: 'neg', sub: stats.worstTrade ? `${stats.worstTrade.date}` : '' },
       ];
 
-  const getColor = (cls) => cls === 'pos' ? '#35C4A1' : cls === 'neg' ? '#FF5C5C' : cls === 'amber' ? '#FFB020' : '#E7E9EE';
+  const getColor = (cls) => cls === 'pos' ? '#35C4A1' : cls === 'neg' ? '#FF5C5C' : cls === 'amber' ? 'var(--accent)' : '#E7E9EE';
 
   return (
     <>

@@ -89,8 +89,8 @@ const AuthField = forwardRef(function AuthField(
           onClick={() => setReveal((v) => !v)}
           aria-label={reveal ? 'Hide password' : 'Show password'}
           onMouseEnter={(e) => {
-            e.currentTarget.style.color = '#F59E0B';
-            e.currentTarget.style.background = 'rgba(245,158,11,.08)';
+            e.currentTarget.style.color = 'var(--accent)';
+            e.currentTarget.style.background = 'color-mix(in srgb, var(--accent) 8%, transparent)';
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.color = '#545E6E';

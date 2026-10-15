@@ -22,7 +22,7 @@ const S = {
     fontFamily: "Inter, ui-sans-serif, system-ui, -apple-system, sans-serif",
     WebkitFontSmoothing: 'antialiased',
     background:
-      'radial-gradient(900px 520px at 15% -5%, rgba(245,158,11,.10), transparent 60%),' +
+      'radial-gradient(900px 520px at 15% -5%, color-mix(in srgb, var(--accent) 10%, transparent), transparent 60%),' +
       'radial-gradient(800px 500px at 88% 8%, rgba(34,211,238,.06), transparent 60%),' +
       'linear-gradient(180deg, #07090D 0%, #0A0D14 45%, #07090D 100%)',
   },
@@ -73,7 +73,7 @@ const S = {
     padding: '40px 32px 32px',
     boxShadow:
       '0 40px 100px -40px rgba(0,0,0,.9),' +
-      '0 0 0 1px rgba(245,158,11,.10),' +
+      '0 0 0 1px color-mix(in srgb, var(--accent) 10%, transparent),' +
       'inset 0 1px 0 rgba(255,255,255,.03)',
     zIndex: 10,
     animation: 'authIn .55s cubic-bezier(.2,.8,.25,1)',
@@ -86,7 +86,7 @@ const S = {
     top: 0,
     height: 2,
     background:
-      'linear-gradient(90deg, transparent, #F59E0B, #FDE68A, #F59E0B, transparent)',
+      'linear-gradient(90deg, transparent, var(--accent), var(--accent-2), var(--accent), transparent)',
     backgroundSize: '200% 100%',
     animation: 'authGrad 4s linear infinite',
   },
@@ -111,13 +111,13 @@ const S = {
     fontWeight: 700,
     letterSpacing: '.18em',
     textTransform: 'uppercase',
-    color: '#F59E0B',
+    color: 'var(--accent)',
     marginBottom: 8,
     display: 'inline-flex',
     alignItems: 'center',
     gap: 8,
   },
-  eyebrowRule: { width: 12, height: 1, background: 'rgba(245,158,11,.28)' },
+  eyebrowRule: { width: 12, height: 1, background: 'color-mix(in srgb, var(--accent) 28%, transparent)' },
   title: {
     fontSize: '1.65rem',
     fontWeight: 700,
@@ -142,7 +142,7 @@ const S = {
     fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
   },
   footerLink: {
-    color: '#F59E0B',
+    color: 'var(--accent)',
     textDecoration: 'none',
     fontWeight: 700,
     marginLeft: 4,
@@ -192,8 +192,8 @@ const CSS = `
   .auth-form-input::placeholder { color: #545E6E; }
   .auth-form-input:hover { border-color: rgba(255,255,255,.2); }
   .auth-form-input:focus {
-    border-color: #F59E0B;
-    box-shadow: 0 0 0 3px rgba(245,158,11,.15);
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent);
     background: rgba(10,13,19,.9);
   }
   .auth-form-input[data-invalid="true"] {
@@ -229,16 +229,16 @@ export default function AuthLayout({
     <div style={S.wrapper}>
       <style>{CSS}</style>
       <div style={S.gridOverlay} aria-hidden />
-      <AuthBackground accent="#F59E0B" />
+      <AuthBackground />
 
       {showBackLink && (
         <Link
           to={backTo}
           style={S.backLink}
           onMouseEnter={(e) => {
-            e.currentTarget.style.color = '#F59E0B';
-            e.currentTarget.style.borderColor = 'rgba(245,158,11,.28)';
-            e.currentTarget.style.background = 'rgba(245,158,11,.06)';
+            e.currentTarget.style.color = 'var(--accent)';
+            e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--accent) 28%, transparent)';
+            e.currentTarget.style.background = 'color-mix(in srgb, var(--accent) 6%, transparent)';
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.color = '#8892A3';
@@ -278,8 +278,8 @@ export default function AuthLayout({
               <Link
                 to={footerLinkTo}
                 style={S.footerLink}
-                onMouseEnter={(e) => (e.currentTarget.style.color = '#FDE68A')}
-                onMouseLeave={(e) => (e.currentTarget.style.color = '#F59E0B')}
+                onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent-2)')}
+                onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--accent)')}
               >
                 {footerLinkText}
               </Link>

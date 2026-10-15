@@ -2,15 +2,14 @@
 import { useMemo, useRef } from 'react';
 import { Line } from 'react-chartjs-2';
 import { chartColors } from '@/shared/charts/theme';
+import { useChartColors } from '@/shared/charts';
 import { ChartExportButton } from '@/shared/ui/chart-export';
 
-const COLORS = {
-  median: chartColors.amber,
-  band75: 'rgba(245,158,11,.22)',
-  band75Line: 'rgba(245,158,11,.48)',
-  band95: 'rgba(245,158,11,.09)',
-  band95Line: 'rgba(245,158,11,.30)',
-  sampled: 'rgba(245,158,11,.18)',
+// Semantic + surface colors — static, never accent-dependent.
+// Accent-derived colors (median, band fills, sample strokes) are built
+// inside the component via useChartColors() so they follow the user's
+// chosen accent. See `COLORS` below.
+const BASE_COLORS = {
   actual: chartColors.blue,
   zero: chartColors.zeroLine,
   threshold: chartColors.threshold,
@@ -151,6 +150,17 @@ export default function FanChart({
 }) {
   const isDrawdown = chartType === 'drawdown';
   const chartRef = useRef(null);
+  const accentColors = useChartColors();
+
+  const COLORS = useMemo(() => ({
+    ...BASE_COLORS,
+    median:     accentColors.accent,
+    band75:     accentColors.withAlpha(0.22),
+    band75Line: accentColors.withAlpha(0.48),
+    band95:     accentColors.withAlpha(0.09),
+    band95Line: accentColors.withAlpha(0.30),
+    sampled:    accentColors.withAlpha(0.18),
+  }), [accentColors]);
 
   const chartData = useMemo(() => {
     if (!result) return null;
@@ -354,6 +364,7 @@ export default function FanChart({
     showZeroLine,
     showThresholdLine,
     showSampled,
+    COLORS,
   ]);
 
   const axisPercentiles = isDrawdown
@@ -522,6 +533,7 @@ export default function FanChart({
     isMoney,
     isDrawdown,
     rBounds,
+    COLORS,
   ]);
 
   if (!chartData) {

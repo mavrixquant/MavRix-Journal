@@ -35,7 +35,7 @@ const CSS = `
   .cf-seg-btn:hover { color: var(--ink-1); background: rgba(255,255,255,.04); }
   .cf-seg-btn.is-active { background: rgba(255,255,255,.08); color: var(--ink-1); }
   .cf-impact-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
-  .cf-impact-dot.high   { background: #F59E0B; box-shadow: 0 0 8px rgba(245,158,11,.6); }
+  .cf-impact-dot.high   { background: var(--accent); box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 60%, transparent); }
   .cf-impact-dot.medium { background: #60A5FA; box-shadow: 0 0 8px rgba(96,165,250,.5); }
   .cf-impact-dot.low    { background: #545E6E; }
 
@@ -47,22 +47,22 @@ const CSS = `
     transition: all .18s; white-space: nowrap; }
   .cf-ms-btn:hover { color: var(--ink-1); border-color: rgba(255,255,255,.18);
     background: rgba(255,255,255,.05); }
-  .cf-ms-btn.is-active { background: linear-gradient(135deg, rgba(245,158,11,.16), rgba(245,158,11,.06));
-    border-color: rgba(245,158,11,.42); color: #F59E0B; }
-  .cf-ms-btn[data-state="open"] { border-color: rgba(245,158,11,.55);
-    box-shadow: 0 0 0 3px rgba(245,158,11,.14); }
+  .cf-ms-btn.is-active { background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 16%, transparent), color-mix(in srgb, var(--accent) 6%, transparent));
+    border-color: color-mix(in srgb, var(--accent) 42%, transparent); color: var(--accent); }
+  .cf-ms-btn[data-state="open"] { border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent); }
   .cf-ms-count { display: inline-flex; align-items: center; justify-content: center;
     min-width: 18px; height: 18px; padding: 0 6px; border-radius: 9px;
-    background: #F59E0B; color: #0D1117; font-size: 10px; font-weight: 700; line-height: 1; }
+    background: var(--accent); color: #0D1117; font-size: 10px; font-weight: 700; line-height: 1; }
   .cf-ms-chevron { flex-shrink: 0; color: var(--ink-3);
     transition: transform .18s ease, color .16s ease; }
   .cf-ms-btn:hover .cf-ms-chevron { color: var(--ink-2); }
-  .cf-ms-btn[data-state="open"] .cf-ms-chevron { color: #F59E0B; transform: rotate(180deg); }
+  .cf-ms-btn[data-state="open"] .cf-ms-chevron { color: var(--accent); transform: rotate(180deg); }
 
   .cf-ms-pop { width: 320px !important; padding: 0 !important;
     background: #11151F !important; border: 1px solid #212836 !important;
     border-radius: 12px !important;
-    box-shadow: 0 20px 50px -20px rgba(0,0,0,.85), 0 0 0 1px rgba(245,158,11,.06) !important;
+    box-shadow: 0 20px 50px -20px rgba(0,0,0,.85), 0 0 0 1px color-mix(in srgb, var(--accent) 6%, transparent) !important;
     overflow: hidden; z-index: 3000 !important; }
   .cf-ms-cmd { display: flex; flex-direction: column; background: transparent; width: 100%; }
   .cf-ms-search { display: flex; align-items: center; gap: 8px; padding: 10px 12px;
@@ -105,7 +105,7 @@ const CSS = `
     padding: 2px 7px; border-radius: 4px; background: rgba(255,255,255,.03); flex-shrink: 0; }
   .cf-ms-item-check { display: inline-flex; align-items: center; justify-content: center;
     flex-shrink: 0; width: 20px; height: 20px; border-radius: 50%;
-    background: linear-gradient(135deg, #F59E0B, #FDE68A); color: #0D1117;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #0D1117;
     opacity: 0; transform: scale(.5);
     transition: opacity .16s ease, transform .2s cubic-bezier(.2,.8,.25,1); }
 
@@ -115,8 +115,8 @@ const CSS = `
     font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 10.5px;
     font-weight: 700; letter-spacing: .04em; text-transform: uppercase; cursor: pointer;
     padding: 3px 6px; border-radius: 4px; transition: all .15s; }
-  .cf-ms-foot-btn.all { color: #F59E0B; }
-  .cf-ms-foot-btn.all:hover { background: rgba(245,158,11,.10); }
+  .cf-ms-foot-btn.all { color: var(--accent); }
+  .cf-ms-foot-btn.all:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); }
   .cf-ms-foot-btn.clear { color: var(--ink-3); }
   .cf-ms-foot-btn.clear:hover { color: var(--ink-2); background: rgba(255,255,255,.04); }
 
@@ -129,13 +129,13 @@ const CSS = `
   .cf-btn:hover:not(:disabled) { color: var(--ink-1); background: rgba(255,255,255,.06);
     border-color: rgba(255,255,255,.2); transform: translateY(-1px); }
   .cf-btn:disabled { opacity: .5; cursor: not-allowed; }
-  .cf-btn.is-active { background: linear-gradient(135deg, #F59E0B, #FDE68A);
+  .cf-btn.is-active { background: linear-gradient(135deg, var(--accent), var(--accent-2));
     color: #0D1117; border-color: transparent; font-weight: 700;
-    box-shadow: 0 6px 18px -8px rgba(245,158,11,.55); }
-  .cf-btn.is-sync { border-color: rgba(245,158,11,.35); background: rgba(245,158,11,.06);
-    color: #F59E0B; }
-  .cf-btn.is-sync:hover:not(:disabled) { background: rgba(245,158,11,.12);
-    border-color: #F59E0B; }
+    box-shadow: 0 6px 18px -8px color-mix(in srgb, var(--accent) 55%, transparent); }
+  .cf-btn.is-sync { border-color: color-mix(in srgb, var(--accent) 35%, transparent); background: color-mix(in srgb, var(--accent) 6%, transparent);
+    color: var(--accent); }
+  .cf-btn.is-sync:hover:not(:disabled) { background: color-mix(in srgb, var(--accent) 12%, transparent);
+    border-color: var(--accent); }
   .cf-sync-icon.spinning { animation: cfSpin 1s linear infinite; }
 
   .cf-date { display: inline-flex; align-items: center; gap: 6px; }
@@ -144,7 +144,7 @@ const CSS = `
     font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 11.5px;
     padding: 6px 10px; outline: none; transition: border-color .18s; color-scheme: dark; }
   .cf-date-input:hover { border-color: rgba(255,255,255,.2); }
-  .cf-date-input:focus { border-color: #F59E0B; box-shadow: 0 0 0 3px rgba(245,158,11,.15); }
+  .cf-date-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent); }
 
   .cf-view-toggle { display: inline-flex; padding: 3px; background: rgba(0,0,0,.32);
     border: 1px solid rgba(255,255,255,.06); border-radius: 10px; gap: 2px; }
@@ -154,8 +154,8 @@ const CSS = `
     font-size: 11px; font-weight: 600; letter-spacing: .02em; cursor: pointer;
     transition: all .18s; white-space: nowrap; }
   .cf-view-btn:hover { color: var(--ink-1); background: rgba(255,255,255,.04); }
-  .cf-view-btn.is-active { background: linear-gradient(135deg, #F59E0B, #FDE68A);
-    color: #0D1117; font-weight: 700; box-shadow: 0 6px 16px -8px rgba(245,158,11,.60); }
+  .cf-view-btn.is-active { background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    color: #0D1117; font-weight: 700; box-shadow: 0 6px 16px -8px color-mix(in srgb, var(--accent) 60%, transparent); }
 
   @keyframes cfSpin { to { transform: rotate(360deg); } }
   @media (prefers-reduced-motion: reduce) {
@@ -172,8 +172,8 @@ const IMPACT_LABELS = { high: 'High', medium: 'Medium', low: 'Low' };
    ============================================================ */
 
 const SELECTED_ITEM_STYLE = {
-  background: 'rgba(245,158,11,.10)',
-  borderColor: 'rgba(245,158,11,.30)',
+  background: 'color-mix(in srgb, var(--accent) 10%, transparent)',
+  borderColor: 'color-mix(in srgb, var(--accent) 30%, transparent)',
   color: '#F5F6F8',
 };
 
@@ -186,13 +186,13 @@ const SELECTED_NAME_STYLE = { color: '#8892A3' };
 
 const SELECTED_COUNT_STYLE = {
   color: '#FBBF24',
-  background: 'rgba(245,158,11,.14)',
+  background: 'color-mix(in srgb, var(--accent) 14%, transparent)',
 };
 
 const SELECTED_CHECK_STYLE = {
   opacity: 1,
   transform: 'scale(1)',
-  background: '#F59E0B',
+  background: 'var(--accent)',
   boxShadow: 'none',
 };
 
@@ -204,7 +204,7 @@ const SELECTED_BAR_STYLE = {
   width: 3,
   height: '55%',
   borderRadius: 3,
-  background: '#F59E0B',
+  background: 'var(--accent)',
   opacity: 0.85,
 };
 

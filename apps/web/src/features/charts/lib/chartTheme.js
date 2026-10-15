@@ -26,7 +26,17 @@ export const chartTheme = {
   volumeDown: 'rgba(255, 92, 92, 0.42)',
 
   // Accent (labels on crosshair, price axis)
-  accent: '#F59E0B',
+  // Accent — resolved at call time from the live --accent CSS var.
+  // canvas fillStyle/strokeStyle cannot resolve var() or color-mix(),
+  // so the string returned here is always a concrete hex.
+  get accent() {
+    if (typeof window === 'undefined') return '#F59E0B';
+    return (
+      getComputedStyle(document.documentElement)
+        .getPropertyValue('--accent')
+        .trim() || '#F59E0B'
+    );
+  }
 };
 
 /** Chart-creation options shared by every instance. */

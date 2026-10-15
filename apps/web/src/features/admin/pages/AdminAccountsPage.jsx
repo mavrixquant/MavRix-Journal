@@ -30,7 +30,7 @@ const CSS = `
     font-family: 'IBM Plex Mono', ui-monospace, monospace;
     font-size: 12.5px; outline: none; box-sizing: border-box;
   }
-  .aap-search input:focus { border-color: #F59E0B; box-shadow: 0 0 0 3px rgba(245,158,11,.15); }
+  .aap-search input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent); }
   .aap-search-icon {
     position: absolute; left: 12px; top: 50%;
     transform: translateY(-50%); color: #545E6E; pointer-events: none;
@@ -51,7 +51,7 @@ const CSS = `
   }
   .aap-seg-btn:hover { color: #E7E9EE; background: rgba(255,255,255,.04); }
   .aap-seg-btn.is-active {
-    background: linear-gradient(135deg, #F59E0B, #FDE68A);
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
     color: #0D1117; font-weight: 700;
   }
 
@@ -85,11 +85,11 @@ const CSS = `
   .aap-name { font-weight: 600; color: #E7E9EE; }
   .aap-sub  { color: #8892A3; font-size: 11px; margin-top: 2px; }
   .aap-link {
-    color: #F59E0B; text-decoration: none;
+    color: var(--accent); text-decoration: none;
     font-weight: 600;
     font-size: 11.5px;
   }
-  .aap-link:hover { color: #FDE68A; text-decoration: underline; }
+  .aap-link:hover { color: var(--accent-2); text-decoration: underline; }
 
   .aap-badge {
     display: inline-flex; padding: 2px 8px; border-radius: 99px;
@@ -99,7 +99,7 @@ const CSS = `
   }
   .aap-badge.backtest { color: #60a5fa; background: rgba(96,165,250,.08); border-color: rgba(96,165,250,.3); }
   .aap-badge.live     { color: #4ade80; background: rgba(74,222,128,.08); border-color: rgba(74,222,128,.32); }
-  .aap-badge.demo     { color: #F59E0B; background: rgba(245,158,11,.08); border-color: rgba(245,158,11,.3); }
+  .aap-badge.demo     { color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent); border-color: color-mix(in srgb, var(--accent) 30%, transparent); }
 
   .aap-btn-icon {
     width: 26px; height: 26px; padding: 0;
@@ -112,9 +112,9 @@ const CSS = `
     flex-shrink: 0;
   }
   .aap-btn-icon:hover:not(:disabled) {
-    color: #F59E0B;
-    border-color: rgba(245,158,11,.3);
-    background: rgba(245,158,11,.06);
+    color: var(--accent);
+    border-color: color-mix(in srgb, var(--accent) 30%, transparent);
+    background: color-mix(in srgb, var(--accent) 6%, transparent);
   }
   .aap-btn-icon.danger:hover:not(:disabled) {
     color: #f87171;

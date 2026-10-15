@@ -59,17 +59,17 @@ export default function Hero() {
               style={{
                 display: 'inline-flex', alignItems: 'center', gap: '6px',
                 padding: '5px 11px',
-                background: canSimulate ? 'rgba(255, 176, 32, 0.1)' : 'rgba(255, 255, 255, 0.03)',
-                border: `1px solid ${canSimulate ? 'rgba(255, 176, 32, 0.35)' : 'rgba(255, 255, 255, 0.08)'}`,
+                background: canSimulate ? 'color-mix(in srgb, var(--accent) 10%, transparent)' : 'rgba(255, 255, 255, 0.03)',
+                border: `1px solid ${canSimulate ? 'color-mix(in srgb, var(--accent) 35%, transparent)' : 'rgba(255, 255, 255, 0.08)'}`,
                 borderRadius: '6px',
-                color: canSimulate ? '#FFB020' : '#545E6E',
+                color: canSimulate ? 'var(--accent)' : '#545E6E',
                 fontSize: '11px', fontWeight: 600,
                 cursor: canSimulate ? 'pointer' : 'not-allowed',
                 fontFamily: "'IBM Plex Mono', monospace",
                 transition: 'all 0.15s ease',
               }}
-              onMouseEnter={(e) => { if (canSimulate) e.currentTarget.style.background = 'rgba(255, 176, 32, 0.18)'; }}
-              onMouseLeave={(e) => { if (canSimulate) e.currentTarget.style.background = 'rgba(255, 176, 32, 0.1)'; }}
+              onMouseEnter={(e) => { if (canSimulate) e.currentTarget.style.background = 'color-mix(in srgb, var(--accent) 18%, transparent)'; }}
+              onMouseLeave={(e) => { if (canSimulate) e.currentTarget.style.background = 'color-mix(in srgb, var(--accent) 10%, transparent)'; }}
             >
               <FaProjectDiagram size={10} />
               Open Simulator

@@ -13,6 +13,7 @@ import {
   baseLegend,
   baseAnimation,
 } from '@/shared/charts/theme';
+import { useChartColors } from '@/shared/charts';
 import { ChartExportButton } from '@/shared/ui/chart-export';
 
 function useResponsiveBarConfig() {
@@ -43,6 +44,7 @@ export default function TimeChart() {
   const barConfig = useResponsiveBarConfig();
   const isMoney = metric === '$';
   const chartRef = useRef(null);
+  const colors = useChartColors();
 
   const timeData = useMemo(() => {
     if (!stats || !stats.outcomes || stats.outcomes.length === 0) return [];
@@ -59,14 +61,14 @@ export default function TimeChart() {
           type: 'line',
           label: 'Win Rate %',
           data: timeData.map((d) => +d.winRate.toFixed(1)),
-          borderColor: chartColors.amber,
-          backgroundColor: chartColors.amber,
-          pointBackgroundColor: chartColors.amber,
+          borderColor: colors.amber,
+          backgroundColor: colors.amber,
+          pointBackgroundColor: colors.amber,
           pointBorderColor: '#0D1117',
           pointBorderWidth: 2,
           pointRadius: 4,
           pointHoverRadius: 6,
-          pointHoverBackgroundColor: chartColors.amberHover,
+          pointHoverBackgroundColor: colors.amberHover,
           tension: 0.3,
           yAxisID: 'y1',
           order: 1,
@@ -87,7 +89,7 @@ export default function TimeChart() {
         },
       ],
     };
-  }, [timeData, barConfig]);
+  }, [timeData, barConfig, colors]);
 
   const options = useMemo(
     () => ({
@@ -154,18 +156,18 @@ export default function TimeChart() {
           title: {
             display: true,
             text: 'Win %',
-            color: chartColors.amber,
+            color: colors.amber,
             font: { family: "'Inter', sans-serif", size: 10, weight: '600' },
           },
           ticks: {
-            color: chartColors.amber,
+            color: colors.amber,
             font: { family: "'IBM Plex Mono', monospace", size: 10 },
             callback: (v) => `${v}%`,
           },
         },
       },
     }),
-    [timeData, isMoney]
+    [timeData, isMoney, colors]
   );
 
   if (!timeData || timeData.length === 0) {

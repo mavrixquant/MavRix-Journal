@@ -13,6 +13,7 @@ import {
   decimationConfig,
   baseAnimation,
 } from '@/shared/charts/theme';
+import { useChartColors } from '@/shared/charts';
 import { ChartExportButton } from '@/shared/ui/chart-export';
 
 export default function EquityChart() {
@@ -20,6 +21,7 @@ export default function EquityChart() {
   const equityData = stats?.equity;
   const isMoney = metric === '$';
   const chartRef = useRef(null);
+  const colors = useChartColors();
 
   const chartData = useMemo(() => {
     if (!equityData || equityData.length === 0) return null;
@@ -29,27 +31,27 @@ export default function EquityChart() {
         {
           label: isMoney ? 'Cumulative Net P&L' : 'Cumulative R',
           data: equityData.map((e) => e.y),
-          borderColor: chartColors.amber,
+          borderColor: colors.amber,
           borderWidth: 2,
           fill: true,
           tension: 0.2,
           backgroundColor: (context) => {
             const ctx = context.chart.ctx;
             const gradient = ctx.createLinearGradient(0, 0, 0, 240);
-            gradient.addColorStop(0, chartColors.amberFill);
-            gradient.addColorStop(0.8, 'rgba(255,176,32,.02)');
-            gradient.addColorStop(1, 'rgba(255,176,32,0)');
+            gradient.addColorStop(0, colors.amberFill);
+            gradient.addColorStop(0.8, colors.withAlpha(0.02));
+            gradient.addColorStop(1, colors.withAlpha(0));
             return gradient;
           },
           pointRadius: 0,
           pointHoverRadius: 5,
-          pointHoverBackgroundColor: chartColors.amber,
+          pointHoverBackgroundColor: colors.amber,
           pointHoverBorderColor: '#0D1117',
           pointHoverBorderWidth: 2,
         },
       ],
     };
-  }, [equityData, isMoney]);
+  }, [equityData, isMoney, colors]);
 
   const options = useMemo(
     () => ({
@@ -90,7 +92,7 @@ export default function EquityChart() {
         }),
       },
     }),
-    [equityData, isMoney]
+    [equityData, isMoney, colors]
   );
 
   if (!equityData || equityData.length === 0) {

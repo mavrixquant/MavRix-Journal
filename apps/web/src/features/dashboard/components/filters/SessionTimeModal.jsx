@@ -11,8 +11,8 @@ import Portal from '@/shared/components/Portal';
 /* ------------------------------------------------------------------ */
 const CSS = `
   .st-overlay {
-    --accent: #F59E0B;
-    --accent-2: #FDE68A;
+    
+    
     --line: rgba(255,255,255,.085);
     --line-soft: rgba(255,255,255,.05);
     --ink-1: #E7E9EE;
@@ -42,7 +42,7 @@ const CSS = `
     border-radius: 18px;
     box-shadow:
       0 40px 100px -30px rgba(0,0,0,.95),
-      0 0 0 1px rgba(245,158,11,.10);
+      0 0 0 1px color-mix(in srgb, var(--accent) 10%, transparent);
     color: var(--ink-1);
     font-family: Inter, ui-sans-serif, system-ui, sans-serif;
     overflow: hidden;
@@ -94,7 +94,7 @@ const CSS = `
   }
   .st-close:hover {
     color: var(--accent);
-    background: rgba(245,158,11,.08);
+    background: color-mix(in srgb, var(--accent) 8%, transparent);
   }
 
   /* Body */
@@ -173,7 +173,7 @@ const CSS = `
     color: var(--accent);
   }
   .st-action-btn.all:hover {
-    background: rgba(245,158,11,.10);
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
   }
   .st-action-btn.clear:hover {
     color: var(--ink-1);
@@ -203,7 +203,7 @@ const CSS = `
     border-color: #3A4456;
   }
   .st-session.checked {
-    background: rgba(255, 176, 32, 0.06);
+    background: color-mix(in srgb, var(--accent) 6%, transparent);
     border-color: var(--accent);
   }
   .st-session-name {
@@ -254,7 +254,7 @@ const CSS = `
     color: var(--ink-1);
   }
   .st-block.checked {
-    background: rgba(255, 176, 32, 0.10);
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
     border-color: var(--accent);
     color: var(--accent);
     font-weight: 600;
@@ -298,13 +298,13 @@ const CSS = `
     color: #0D1117;
     border: none;
     box-shadow:
-      0 10px 30px -8px rgba(245,158,11,.55),
+      0 10px 30px -8px color-mix(in srgb, var(--accent) 55%, transparent),
       inset 0 1px 0 rgba(255,255,255,.4);
   }
   .st-btn-apply:hover {
     transform: translateY(-1px);
     box-shadow:
-      0 14px 38px -10px rgba(245,158,11,.7),
+      0 14px 38px -10px color-mix(in srgb, var(--accent) 70%, transparent),
       inset 0 1px 0 rgba(255,255,255,.5);
   }
 

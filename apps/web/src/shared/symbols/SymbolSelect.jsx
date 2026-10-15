@@ -76,8 +76,8 @@ const CSS = `
   }
   .symsel-trigger:focus-visible,
   .symsel-trigger[data-state="open"] {
-    border-color: #F59E0B;
-    box-shadow: 0 0 0 3px rgba(245,158,11,.15);
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent);
     background: rgba(10,13,19,.9);
   }
   .symsel-trigger:disabled {
@@ -129,7 +129,7 @@ const CSS = `
     color: #8892A3;
   }
   .symsel-trigger[data-state="open"] .symsel-trigger-chevron {
-    color: #F59E0B;
+    color: var(--accent);
     transform: translateY(-50%) rotate(180deg);
   }
 
@@ -236,11 +236,11 @@ const CSS = `
     scroll-margin-top: 8px;
   }
   .symsel-cmd-item[data-selected="true"] {
-    background: rgba(245,158,11,.08);
+    background: color-mix(in srgb, var(--accent) 8%, transparent);
     color: #E7E9EE;
   }
   .symsel-cmd-item[data-selected="true"] .symsel-cmd-item-code {
-    color: #F59E0B;
+    color: var(--accent);
   }
   .symsel-cmd-item:hover {
     background: rgba(255,255,255,.04);
@@ -280,7 +280,7 @@ const CSS = `
 
   .symsel-cmd-item-check {
     flex-shrink: 0;
-    color: #F59E0B;
+    color: var(--accent);
     opacity: 0;
     transition: opacity .12s ease;
   }

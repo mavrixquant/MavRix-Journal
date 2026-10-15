@@ -354,7 +354,7 @@
   background: var(--accent-2);
   box-shadow:
     0 0 10px color-mix(in srgb, var(--accent) 95%, transparent),
-    0 0 4px rgba(253,230,138,.9);
+    0 0 4px color-mix(in srgb, var(--accent-2) 90%, transparent);
 }
 .sb-root.is-collapsed .sb-icon { width: auto; opacity: 1; }
 .sb-root.is-collapsed .sb-item.is-active .sb-icon {

@@ -8,10 +8,6 @@ import { FaCheckCircle, FaExclamationTriangle, FaQuestionCircle, FaTimes } from 
 /* ------------------------------------------------------------------ */
 const ALERT_CSS = `
   .alert-overlay {
-    --accent: #F59E0B;
-    --accent-2: #FDE68A;
-    --accent-soft: rgba(245,158,11,.10);
-    --accent-soft2: rgba(245,158,11,.28);
     --win: #22c55e;
     --win-2: #86efac;
     --win-soft: rgba(34,197,94,.10);
@@ -75,9 +71,9 @@ const ALERT_CSS = `
     --alert-accent: var(--accent);
     --alert-accent-2: var(--accent-2);
     --alert-halo: var(--accent-soft);
-    --alert-tint: rgba(245,158,11,.10);
-    --alert-tint-border: rgba(245,158,11,.30);
-    --alert-tint-text: #F59E0B;
+    --alert-tint: color-mix(in srgb, var(--accent) 10%, transparent);
+    --alert-tint-border: color-mix(in srgb, var(--accent) 30%, transparent);
+    --alert-tint-text: var(--accent);
   }
   .alert-modal.is-success {
     --alert-accent: var(--win);
@@ -113,9 +109,9 @@ const ALERT_CSS = `
     align-items: center;
     justify-content: center;
     font-size: 16px;
-    background: var(--alert-tint, rgba(245,158,11,.10));
-    border: 1px solid var(--alert-tint-border, rgba(245,158,11,.30));
-    color: var(--alert-tint-text, #F59E0B);
+    background: var(--alert-tint, color-mix(in srgb, var(--accent) 10%, transparent));
+    border: 1px solid var(--alert-tint-border, color-mix(in srgb, var(--accent) 30%, transparent));
+    color: var(--alert-tint-text, var(--accent));
     box-shadow: 0 0 24px -10px var(--alert-halo, var(--accent-soft));
   }
 
@@ -141,7 +137,7 @@ const ALERT_CSS = `
     letter-spacing: .14em;
     text-transform: uppercase;
     font-weight: 700;
-    color: var(--alert-tint-text, #F59E0B);
+    color: var(--alert-tint-text, var(--accent));
     opacity: .85;
   }
 
@@ -159,7 +155,7 @@ const ALERT_CSS = `
   }
   .alert-close:hover {
     color: var(--alert-tint-text, var(--accent));
-    background: var(--alert-tint, rgba(245,158,11,.08));
+    background: var(--alert-tint, color-mix(in srgb, var(--accent) 8%, transparent));
   }
 
   /* ---------- Body ---------- */
@@ -224,11 +220,11 @@ const ALERT_CSS = `
   .alert-btn-confirm {
     position: relative;
     overflow: hidden;
-    background: linear-gradient(135deg, var(--alert-accent, #F59E0B), var(--alert-accent-2, #FDE68A));
+    background: linear-gradient(135deg, var(--alert-accent, var(--accent)), var(--alert-accent-2, var(--accent-2)));
     color: #0D1117;
     border: none;
     box-shadow:
-      0 10px 30px -8px var(--alert-halo, rgba(245,158,11,.55)),
+      0 10px 30px -8px var(--alert-halo, color-mix(in srgb, var(--accent) 55%, transparent)),
       inset 0 1px 0 rgba(255,255,255,.4);
     transition: transform .25s cubic-bezier(.175,.885,.32,1.275), box-shadow .3s;
   }
@@ -242,7 +238,7 @@ const ALERT_CSS = `
   }
   .alert-btn-confirm:hover {
     transform: translateY(-2px);
-    box-shadow: 0 16px 42px -10px var(--alert-halo, rgba(245,158,11,.7)), inset 0 1px 0 rgba(255,255,255,.5);
+    box-shadow: 0 16px 42px -10px var(--alert-halo, color-mix(in srgb, var(--accent) 70%, transparent)), inset 0 1px 0 rgba(255,255,255,.5);
   }
   .alert-btn-confirm:active { transform: translateY(0) scale(.98); }
 

@@ -37,10 +37,10 @@ const colorForR = (v) =>
 /* ------------------------------------------------------------------ */
 const CAL_CSS = `
   .cal-root {
-    --accent: #F59E0B;
-    --accent-2: #FDE68A;
-    --accent-soft: rgba(245,158,11,.10);
-    --accent-soft2: rgba(245,158,11,.28);
+    
+    
+    
+    
     width: 100%;
     font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
   }
@@ -83,7 +83,7 @@ const CAL_CSS = `
     border-color: transparent;
     font-weight: 700;
     box-shadow:
-      0 8px 20px -10px rgba(245,158,11,.6),
+      0 8px 20px -10px color-mix(in srgb, var(--accent) 60%, transparent),
       inset 0 1px 0 rgba(255,255,255,.4);
   }
 
@@ -100,7 +100,7 @@ const CAL_CSS = `
     border-radius: 99px;
   }
   .cal-scroll::-webkit-scrollbar-thumb:hover {
-    background: rgba(245,158,11,.35);
+    background: color-mix(in srgb, var(--accent) 35%, transparent);
   }
 
   .cal-grid {

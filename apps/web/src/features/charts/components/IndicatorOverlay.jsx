@@ -3,7 +3,7 @@
 // Toggle buttons for chart overlays.
 
 const TOGGLES = [
-  { key: 'ema20', label: 'EMA 20', color: '#F59E0B' },
+  { key: 'ema20', label: 'EMA 20', color: 'var(--accent)' },
   { key: 'ema50', label: 'EMA 50', color: '#4C8BF5' },
   { key: 'vwap',  label: 'VWAP',   color: '#A78BFA' },
   { key: 'bb',    label: 'BB (20,2)', color: '#8892A3' },

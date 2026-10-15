@@ -162,7 +162,7 @@
 }
 .strat-btn-primary:active:not(:disabled) { transform: translateY(0) scale(.98); }
 .strat-btn-primary:disabled {
-  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 32%, transparent), rgba(253,230,138,.28));
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 32%, transparent), color-mix(in srgb, var(--accent-2) 28%, transparent));
   color: rgba(13,17,23,.55);
   box-shadow: none;
   cursor: not-allowed;

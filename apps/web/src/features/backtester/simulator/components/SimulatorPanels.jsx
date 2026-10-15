@@ -48,7 +48,7 @@ const METHOD_META = {
 
 const PAN_CSS = `
   .sim-panels {
-    --accent: var(--accent); --accent-2: var(--accent-2);
+     
     --line: rgba(255,255,255,.085);
     --line-soft: rgba(255,255,255,.05);
     --ink-1: #E7E9EE; --ink-2: #8892A3; --ink-3: #545E6E;

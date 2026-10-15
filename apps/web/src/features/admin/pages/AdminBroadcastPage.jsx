@@ -50,15 +50,15 @@ const CSS = `
   .abp-level:disabled { opacity: .5; cursor: not-allowed; }
   .abp-level.is-active { font-weight: 700; }
   .abp-level.is-active[data-level="info"] {
-    color: #F59E0B;
-    border-color: rgba(245,158,11,.4);
-    background: rgba(245,158,11,.08);
+    color: var(--accent);
+    border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+    background: color-mix(in srgb, var(--accent) 8%, transparent);
   }
   .abp-level.is-active[data-level="warning"] {
-    color: #F59E0B;
-    border-color: rgba(245,158,11,.55);
-    background: rgba(245,158,11,.12);
-    box-shadow: 0 0 24px -8px rgba(245,158,11,.55);
+    color: var(--accent);
+    border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
+    box-shadow: 0 0 24px -8px color-mix(in srgb, var(--accent) 55%, transparent);
   }
   .abp-level.is-active[data-level="critical"] {
     color: #f87171;
@@ -84,8 +84,8 @@ const CSS = `
     transition: all .18s;
   }
   .abp-textarea:focus {
-    border-color: #F59E0B;
-    box-shadow: 0 0 0 3px rgba(245,158,11,.15);
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent);
   }
   .abp-textarea:disabled { opacity: .55; cursor: not-allowed; }
   .abp-charcount {
@@ -104,7 +104,7 @@ const CSS = `
   }
   .abp-email-toggle input[type="checkbox"] {
     width: 16px; height: 16px;
-    accent-color: #F59E0B;
+    accent-color: var(--accent);
     cursor: pointer;
     flex-shrink: 0;
   }
@@ -157,9 +157,9 @@ const CSS = `
   }
   .abp-btn:disabled { opacity: .4; cursor: not-allowed; }
   .abp-btn-primary {
-    background: linear-gradient(135deg, #F59E0B, #FDE68A);
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
     color: #0D1117; border: none; font-weight: 700;
-    box-shadow: 0 10px 30px -8px rgba(245,158,11,.55);
+    box-shadow: 0 10px 30px -8px color-mix(in srgb, var(--accent) 55%, transparent);
   }
   .abp-btn-primary:hover:not(:disabled) { transform: translateY(-1px); }
 
@@ -175,14 +175,14 @@ const CSS = `
     word-break: break-word;
   }
   .abp-preview.info {
-    background: rgba(245,158,11,.06);
-    border-color: rgba(245,158,11,.3);
-    color: #F59E0B;
+    background: color-mix(in srgb, var(--accent) 6%, transparent);
+    border-color: color-mix(in srgb, var(--accent) 30%, transparent);
+    color: var(--accent);
   }
   .abp-preview.warning {
-    background: rgba(245,158,11,.10);
-    border-color: rgba(245,158,11,.45);
-    color: #FDE68A;
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
+    border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+    color: var(--accent-2);
   }
   .abp-preview.critical {
     background: rgba(239,68,68,.08);
@@ -253,7 +253,7 @@ export default function AdminBroadcastPage() {
 
         <div className="abp-card">
           <div className="abp-card-head">
-            <Radio size={14} style={{ color: '#F59E0B' }} />
+            <Radio size={14} style={{ color: 'var(--accent)' }} />
             <span className="abp-card-title">Compose</span>
           </div>
           <div className="abp-card-body">

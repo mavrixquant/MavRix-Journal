@@ -29,10 +29,10 @@ const CSS = `
     width: 48px; height: 48px;
     display: inline-flex; align-items: center; justify-content: center;
     border-radius: 14px;
-    background: rgba(245,158,11,.10);
-    border: 1px solid rgba(245,158,11,.3);
-    color: #F59E0B;
-    box-shadow: 0 0 24px -8px rgba(245,158,11,.55);
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+    color: var(--accent);
+    box-shadow: 0 0 24px -8px color-mix(in srgb, var(--accent) 55%, transparent);
   }
   .asp-stat-meta { display: flex; flex-direction: column; gap: 4px; }
   .asp-stat-label {
@@ -72,7 +72,7 @@ const CSS = `
     margin-left: auto;
     font-family: 'IBM Plex Mono', ui-monospace, monospace;
     font-size: 10px; letter-spacing: .06em;
-    text-transform: uppercase; color: #F59E0B;
+    text-transform: uppercase; color: var(--accent);
     opacity: .85;
   }
   .asp-card-body { padding: 18px; display: flex; flex-direction: column; gap: 14px; }
@@ -90,7 +90,7 @@ const CSS = `
     outline: none;
     box-sizing: border-box;
   }
-  .asp-input:focus { border-color: #F59E0B; box-shadow: 0 0 0 3px rgba(245,158,11,.15); }
+  .asp-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent); }
 
   .asp-btn {
     display: inline-flex; align-items: center; gap: 7px;

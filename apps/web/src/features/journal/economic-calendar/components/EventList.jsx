@@ -143,32 +143,32 @@ const CSS = `
   }
   .el-row:focus-visible {
     border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(245,158,11,.18);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
   }
 
   .el-row.is-current-pending {
     background: linear-gradient(
       90deg,
-      rgba(245,158,11,.14) 0%,
-      rgba(245,158,11,.05) 60%,
-      rgba(245,158,11,.015) 100%
+      color-mix(in srgb, var(--accent) 14%, transparent) 0%,
+      color-mix(in srgb, var(--accent) 5%, transparent) 60%,
+      color-mix(in srgb, var(--accent) 1.5%, transparent) 100%
     );
-    border-color: rgba(245,158,11,.42);
+    border-color: color-mix(in srgb, var(--accent) 42%, transparent);
     box-shadow:
-      inset 3px 0 0 #F59E0B,
-      0 0 20px -8px rgba(245,158,11,.45);
+      inset 3px 0 0 var(--accent),
+      0 0 20px -8px color-mix(in srgb, var(--accent) 45%, transparent);
   }
   .el-row.is-current-pending:hover {
     background: linear-gradient(
       90deg,
-      rgba(245,158,11,.20) 0%,
-      rgba(245,158,11,.08) 60%,
-      rgba(245,158,11,.03) 100%
+      color-mix(in srgb, var(--accent) 20%, transparent) 0%,
+      color-mix(in srgb, var(--accent) 8%, transparent) 60%,
+      color-mix(in srgb, var(--accent) 3%, transparent) 100%
     );
-    border-color: rgba(245,158,11,.60);
+    border-color: color-mix(in srgb, var(--accent) 60%, transparent);
   }
   .el-row.is-current-pending .el-time {
-    color: #FDE68A;
+    color: var(--accent-2);
     font-weight: 700;
   }
   .el-row.is-current-pending .el-name {
@@ -192,7 +192,7 @@ const CSS = `
     height: 6px;
     border-radius: 50%;
     background: var(--accent);
-    box-shadow: 0 0 8px rgba(245,158,11,.7);
+    box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 70%, transparent);
     animation: elPulse 1.8s ease-in-out infinite;
     flex-shrink: 0;
   }
@@ -217,7 +217,7 @@ const CSS = `
     border-radius: 50%;
     flex-shrink: 0;
   }
-  .el-cur-dot.high   { background: #F59E0B; box-shadow: 0 0 6px rgba(245,158,11,.5); }
+  .el-cur-dot.high   { background: var(--accent); box-shadow: 0 0 6px color-mix(in srgb, var(--accent) 50%, transparent); }
   .el-cur-dot.medium { background: #60A5FA; }
   .el-cur-dot.low    { background: #545E6E; }
 

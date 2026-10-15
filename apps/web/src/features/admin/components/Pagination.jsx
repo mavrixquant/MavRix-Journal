@@ -68,9 +68,9 @@ const CSS = `
     transition: all .18s;
   }
   .pg-btn:hover:not(:disabled) {
-    color: #F59E0B;
-    border-color: rgba(245,158,11,.35);
-    background: rgba(245,158,11,.06);
+    color: var(--accent);
+    border-color: color-mix(in srgb, var(--accent) 35%, transparent);
+    background: color-mix(in srgb, var(--accent) 6%, transparent);
   }
   .pg-btn:disabled { opacity: .35; cursor: not-allowed; }
 `;

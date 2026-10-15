@@ -91,18 +91,18 @@ const CSS = `
   }
 
   .fab-action:hover {
-    color: #FDE68A;
-    border-color: rgba(245,158,11,.42);
+    color: var(--accent-2);
+    border-color: color-mix(in srgb, var(--accent) 42%, transparent);
     background: linear-gradient(180deg, #202836 0%, #161C28 100%);
     box-shadow:
-      0 16px 36px -14px rgba(245,158,11,.38),
+      0 16px 36px -14px color-mix(in srgb, var(--accent) 38%, transparent),
       inset 0 1px 0 rgba(255,255,255,.06);
   }
 
   .fab-action:focus-visible {
-    border-color: #F59E0B;
+    border-color: var(--accent);
     box-shadow:
-      0 0 0 3px rgba(245,158,11,.22),
+      0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent),
       0 12px 30px -12px rgba(0,0,0,.85);
   }
 
@@ -111,12 +111,12 @@ const CSS = `
   }
 
   .fab-action.is-primary {
-    border-color: rgba(245,158,11,.32);
-    background: linear-gradient(180deg, rgba(245,158,11,.14) 0%, rgba(245,158,11,.04) 100%);
+    border-color: color-mix(in srgb, var(--accent) 32%, transparent);
+    background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 14%, transparent) 0%, color-mix(in srgb, var(--accent) 4%, transparent) 100%);
   }
   .fab-action.is-primary:hover {
-    border-color: rgba(245,158,11,.55);
-    background: linear-gradient(180deg, rgba(245,158,11,.22) 0%, rgba(245,158,11,.08) 100%);
+    border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+    background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 22%, transparent) 0%, color-mix(in srgb, var(--accent) 8%, transparent) 100%);
   }
 
   /* ---------- Icon tile inside pill ---------- */
@@ -127,18 +127,18 @@ const CSS = `
     width: 26px;
     height: 26px;
     border-radius: 50%;
-    background: rgba(245,158,11,.12);
-    border: 1px solid rgba(245,158,11,.30);
-    color: #F59E0B;
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+    color: var(--accent);
     flex-shrink: 0;
     transition: transform .22s cubic-bezier(.2,.8,.25,1), background .18s ease;
   }
   .fab-action:hover .fab-action-icon {
     transform: scale(1.08);
-    background: rgba(245,158,11,.20);
+    background: color-mix(in srgb, var(--accent) 20%, transparent);
   }
   .fab-action.is-primary .fab-action-icon {
-    background: rgba(245,158,11,.20);
+    background: color-mix(in srgb, var(--accent) 20%, transparent);
   }
 
   .fab-action-label {
@@ -160,11 +160,11 @@ const CSS = `
     justify-content: center;
     pointer-events: auto;
 
-    background: linear-gradient(135deg, #F59E0B 0%, #FDE68A 100%);
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%);
     color: #0D1117;
 
     box-shadow:
-      0 16px 40px -14px rgba(245,158,11,.65),
+      0 16px 40px -14px color-mix(in srgb, var(--accent) 65%, transparent),
       0 6px 18px -8px rgba(0,0,0,.70),
       inset 0 1px 0 rgba(255,255,255,.50);
 
@@ -176,7 +176,7 @@ const CSS = `
   .fab-main:hover {
     transform: translateY(-2px) scale(1.04);
     box-shadow:
-      0 22px 50px -14px rgba(245,158,11,.85),
+      0 22px 50px -14px color-mix(in srgb, var(--accent) 85%, transparent),
       0 8px 22px -8px rgba(0,0,0,.70),
       inset 0 1px 0 rgba(255,255,255,.60);
   }
@@ -185,8 +185,8 @@ const CSS = `
   }
   .fab-main:focus-visible {
     box-shadow:
-      0 0 0 4px rgba(245,158,11,.30),
-      0 16px 40px -14px rgba(245,158,11,.65),
+      0 0 0 4px color-mix(in srgb, var(--accent) 30%, transparent),
+      0 16px 40px -14px color-mix(in srgb, var(--accent) 65%, transparent),
       inset 0 1px 0 rgba(255,255,255,.50);
   }
 
@@ -196,7 +196,7 @@ const CSS = `
     inset: 0;
     border-radius: 50%;
     pointer-events: none;
-    background: radial-gradient(circle, rgba(245,158,11,.48) 0%, transparent 68%);
+    background: radial-gradient(circle, color-mix(in srgb, var(--accent) 48%, transparent) 0%, transparent 68%);
     opacity: 0;
     transform: scale(1.15);
     animation: fabPulse 2.6s ease-in-out infinite;

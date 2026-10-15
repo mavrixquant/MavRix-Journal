@@ -31,10 +31,10 @@ import {
 
 const CSS = `
   .cgm-modal {
-    --accent: #F59E0B;
-    --accent-2: #FDE68A;
-    --accent-soft: rgba(245,158,11,.10);
-    --accent-soft2: rgba(245,158,11,.28);
+    
+    
+    
+    
     --line: rgba(255,255,255,.085);
     --line-soft: rgba(255,255,255,.05);
     --ink-1: #E7E9EE;
@@ -107,7 +107,7 @@ const CSS = `
   }
   .cgm-close:hover:not(:disabled) {
     color: var(--accent);
-    background: rgba(245,158,11,.08);
+    background: color-mix(in srgb, var(--accent) 8%, transparent);
   }
   .cgm-close:disabled { opacity: .35; cursor: not-allowed; }
 
@@ -174,7 +174,7 @@ const CSS = `
   .cgm-input:focus,
   .cgm-textarea:focus {
     border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(245,158,11,.15);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent);
   }
   .cgm-input:disabled,
   .cgm-textarea:disabled { opacity: .55; cursor: not-allowed; }
@@ -203,7 +203,7 @@ const CSS = `
   }
   .cgm-vis-tile.is-active {
     border-color: var(--accent-soft2);
-    background: rgba(245,158,11,.08);
+    background: color-mix(in srgb, var(--accent) 8%, transparent);
   }
   .cgm-vis-tile.is-disabled {
     opacity: .4;
@@ -223,7 +223,7 @@ const CSS = `
     margin-top: 1px;
   }
   .cgm-vis-tile.is-active .cgm-vis-icon {
-    background: rgba(245,158,11,.14);
+    background: color-mix(in srgb, var(--accent) 14%, transparent);
     border-color: var(--accent-soft2);
     color: var(--accent);
   }
@@ -341,17 +341,17 @@ const CSS = `
     border: none;
     font-weight: 700;
     box-shadow:
-      0 10px 30px -8px rgba(245,158,11,.55),
+      0 10px 30px -8px color-mix(in srgb, var(--accent) 55%, transparent),
       inset 0 1px 0 rgba(255,255,255,.4);
   }
   .cgm-btn-primary:hover:not(:disabled) {
     transform: translateY(-2px);
     box-shadow:
-      0 16px 42px -10px rgba(245,158,11,.7),
+      0 16px 42px -10px color-mix(in srgb, var(--accent) 70%, transparent),
       inset 0 1px 0 rgba(255,255,255,.5);
   }
   .cgm-btn-primary:disabled {
-    background: linear-gradient(135deg, rgba(245,158,11,.32), rgba(253,230,138,.28));
+    background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 32%, transparent), color-mix(in srgb, var(--accent-2) 28%, transparent));
     color: rgba(13,17,23,.55);
     box-shadow: none;
   }

@@ -30,7 +30,7 @@ const CSS = `
     font-family: 'IBM Plex Mono', ui-monospace, monospace;
     font-size: 12.5px; outline: none; box-sizing: border-box;
   }
-  .asp-search input:focus { border-color: #F59E0B; box-shadow: 0 0 0 3px rgba(245,158,11,.15); }
+  .asp-search input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent); }
   .asp-search-icon {
     position: absolute; left: 12px; top: 50%;
     transform: translateY(-50%); color: #545E6E; pointer-events: none;
@@ -52,7 +52,7 @@ const CSS = `
   }
   .asp-seg-btn:hover { color: #E7E9EE; background: rgba(255,255,255,.04); }
   .asp-seg-btn.is-active {
-    background: linear-gradient(135deg, #F59E0B, #FDE68A);
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
     color: #0D1117; font-weight: 700;
   }
 
@@ -95,11 +95,11 @@ const CSS = `
   .asp-sub  { color: #8892A3; font-size: 11px; margin-top: 2px; max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
   .asp-link {
-    color: #F59E0B; text-decoration: none;
+    color: var(--accent); text-decoration: none;
     font-weight: 600;
     font-size: 11.5px;
   }
-  .asp-link:hover { color: #FDE68A; text-decoration: underline; }
+  .asp-link:hover { color: var(--accent-2); text-decoration: underline; }
 
   .asp-badge {
     display: inline-flex; padding: 2px 8px; border-radius: 99px;
@@ -108,7 +108,7 @@ const CSS = `
     border: 1px solid;
   }
   .asp-badge.active   { color: #4ade80; background: rgba(74,222,128,.08); border-color: rgba(74,222,128,.32); }
-  .asp-badge.paused   { color: #F59E0B; background: rgba(245,158,11,.08); border-color: rgba(245,158,11,.30); }
+  .asp-badge.paused   { color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent); border-color: color-mix(in srgb, var(--accent) 30%, transparent); }
   .asp-badge.archived { color: #8892A3; background: rgba(255,255,255,.03); border-color: rgba(255,255,255,.10); }
 
   .asp-btn-icon {

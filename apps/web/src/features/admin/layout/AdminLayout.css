@@ -12,10 +12,10 @@
   --ax-ink-1: #E7E9EE;
   --ax-ink-2: #8892A3;
   --ax-ink-3: #545E6E;
-  --ax-accent: #F59E0B;
-  --ax-accent-2: #FDE68A;
-  --ax-accent-soft: rgba(245,158,11,.10);
-  --ax-accent-ring: rgba(245,158,11,.28);
+  --ax-accent: var(--accent);
+  --ax-accent-2: var(--accent-2);
+  --ax-accent-soft: color-mix(in srgb, var(--accent) 10%, transparent);
+  --ax-accent-ring: color-mix(in srgb, var(--accent) 28%, transparent);
   --ax-danger: #ef4444;
   --ax-win: #35C4A1;
   --ax-sidebar-w: 240px;
@@ -26,7 +26,7 @@
   height: 100vh;
   overflow: hidden;  
   background:
-    radial-gradient(900px 520px at 15% -5%, rgba(245,158,11,.05), transparent 60%),
+    radial-gradient(900px 520px at 15% -5%, color-mix(in srgb, var(--accent) 5%, transparent), transparent 60%),
     linear-gradient(180deg, var(--ax-bg-0), var(--ax-bg-1) 55%, var(--ax-bg-0));
   color: var(--ax-ink-1);
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
@@ -72,7 +72,7 @@
   height: 6px;
   border-radius: 50%;
   background: var(--ax-accent);
-  box-shadow: 0 0 8px rgba(245,158,11,.7);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 70%, transparent);
   flex-shrink: 0;
 }
 
@@ -130,7 +130,7 @@
 }
 .admin-nav-item.is-active {
   color: var(--ax-accent);
-  background: linear-gradient(90deg, rgba(245,158,11,.16), rgba(245,158,11,.05) 75%, transparent);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 16%, transparent), color-mix(in srgb, var(--accent) 5%, transparent) 75%, transparent);
   border-color: var(--ax-accent-ring);
   font-weight: 600;
 }
@@ -141,7 +141,7 @@
   width: 3px;
   border-radius: 0 3px 3px 0;
   background: linear-gradient(180deg, var(--ax-accent), var(--ax-accent-2));
-  box-shadow: 0 0 12px rgba(245,158,11,.75);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 75%, transparent);
 }
 .admin-nav-item.is-soon {
   opacity: .55;
@@ -308,7 +308,7 @@
   width: 26px;
   height: 26px;
   border-radius: 50%;
-  background: linear-gradient(135deg, rgba(245,158,11,.22), rgba(245,158,11,.06));
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 22%, transparent), color-mix(in srgb, var(--accent) 6%, transparent));
   border: 1px solid var(--ax-accent-ring);
   color: var(--ax-accent);
   font-family: 'IBM Plex Mono', ui-monospace, monospace;
@@ -422,7 +422,7 @@
 }
 .admin-mobile-menu:focus-visible {
   border-color: var(--ax-accent);
-  box-shadow: 0 0 0 3px rgba(245,158,11,.18);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
 }
 @media (max-width: 1024px) {
   .admin-mobile-menu { display: inline-flex; }

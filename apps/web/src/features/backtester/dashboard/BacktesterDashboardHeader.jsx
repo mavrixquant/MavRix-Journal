@@ -32,10 +32,10 @@ import OptimizeModal from '@/features/dashboard/components/optimize/OptimizeModa
 /* ------------------------------------------------------------------ */
 const HDR_CSS = `
   .hdr-root {
-    --accent: #F59E0B;
-    --accent-2: #FDE68A;
-    --accent-soft: rgba(245,158,11,.10);
-    --accent-soft2: rgba(245,158,11,.28);
+    
+    
+    
+    
     --line: rgba(255,255,255,.085);
     --line-soft: rgba(255,255,255,.05);
     --ink-1: #E7E9EE;
@@ -86,14 +86,14 @@ const HDR_CSS = `
   .hdr-collapse:hover {
     color: var(--accent);
     border-color: var(--accent-soft2);
-    background: rgba(245,158,11,.06);
-    box-shadow: 0 0 16px -6px rgba(245,158,11,.45);
+    background: color-mix(in srgb, var(--accent) 6%, transparent);
+    box-shadow: 0 0 16px -6px color-mix(in srgb, var(--accent) 45%, transparent);
   }
   .hdr-collapse:active { transform: scale(.94); }
   .hdr-collapse:focus-visible {
     outline: none;
     border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(245,158,11,.18);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
   }
 
   /* ---------- Collapsible toolbar wrapper ---------- */
@@ -174,14 +174,14 @@ const HDR_CSS = `
 
   .hdr-btn.is-optimize {
     border-color: var(--accent-soft2);
-    background: rgba(245,158,11,.06);
+    background: color-mix(in srgb, var(--accent) 6%, transparent);
     color: var(--accent);
   }
   .hdr-btn.is-optimize:hover {
-    background: rgba(245,158,11,.12);
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
     border-color: var(--accent);
     color: var(--accent-2);
-    box-shadow: 0 0 20px -6px rgba(245,158,11,.5);
+    box-shadow: 0 0 20px -6px color-mix(in srgb, var(--accent) 50%, transparent);
   }
 
   .hdr-btn-reset {

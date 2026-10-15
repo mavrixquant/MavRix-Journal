@@ -37,7 +37,7 @@ const CSS = `
     font-size: 11.5px; font-weight: 600;
     width: fit-content;
   }
-  .aud-back:hover { color: #F59E0B; }
+  .aud-back:hover { color: var(--accent); }
 
   .aud-grid {
     display: grid;
@@ -66,7 +66,7 @@ const CSS = `
     margin-left: auto;
     font-family: 'IBM Plex Mono', ui-monospace, monospace;
     font-size: 10px; letter-spacing: .06em;
-    text-transform: uppercase; color: #F59E0B;
+    text-transform: uppercase; color: var(--accent);
     opacity: .85;
   }
   .aud-card-body { padding: 16px 18px; display: flex; flex-direction: column; gap: 12px; }
@@ -92,7 +92,7 @@ const CSS = `
     box-sizing: border-box;
     transition: all .18s;
   }
-  .aud-input:focus { border-color: #F59E0B; box-shadow: 0 0 0 3px rgba(245,158,11,.15); }
+  .aud-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent); }
   .aud-input:disabled { opacity: .5; cursor: not-allowed; }
   .aud-input-row { display: flex; gap: 10px; }
   .aud-input-row > * { flex: 1; }
@@ -128,9 +128,9 @@ const CSS = `
   .aud-btn:disabled { opacity: .4; cursor: not-allowed; }
 
   .aud-btn.amber {
-    color: #F59E0B; border-color: rgba(245,158,11,.35); background: rgba(245,158,11,.06);
+    color: var(--accent); border-color: color-mix(in srgb, var(--accent) 35%, transparent); background: color-mix(in srgb, var(--accent) 6%, transparent);
   }
-  .aud-btn.amber:hover:not(:disabled) { background: rgba(245,158,11,.12); }
+  .aud-btn.amber:hover:not(:disabled) { background: color-mix(in srgb, var(--accent) 12%, transparent); }
   .aud-btn.danger {
     color: #f87171; border-color: rgba(239,68,68,.35); background: rgba(239,68,68,.05);
   }
@@ -142,11 +142,11 @@ const CSS = `
 
   .aud-primary {
     padding: 10px 18px; border-radius: 9px; border: none;
-    background: linear-gradient(135deg, #F59E0B, #FDE68A);
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
     color: #0D1117; font-weight: 700; cursor: pointer;
     font-family: 'IBM Plex Mono', ui-monospace, monospace;
     font-size: 11.5px;
-    box-shadow: 0 10px 30px -8px rgba(245,158,11,.55);
+    box-shadow: 0 10px 30px -8px color-mix(in srgb, var(--accent) 55%, transparent);
   }
   .aud-primary:disabled { opacity: .4; cursor: not-allowed; }
 
@@ -282,7 +282,7 @@ export default function AdminUserDetailPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             <div className="aud-card">
               <div className="aud-card-head">
-                <UserCog size={14} style={{ color: '#F59E0B' }} />
+                <UserCog size={14} style={{ color: 'var(--accent)' }} />
                 <span className="aud-card-title">Profile</span>
               </div>
               <div className="aud-card-body">
@@ -389,7 +389,7 @@ export default function AdminUserDetailPage() {
                         to={`/admin/accounts?q=${encodeURIComponent(a.name)}`}
                         style={{
                           fontFamily: "'IBM Plex Mono', monospace",
-                          fontSize: 10.5, color: '#F59E0B',
+                          fontSize: 10.5, color: 'var(--accent)',
                           textDecoration: 'none', fontWeight: 600,
                         }}
                       >View →</Link>

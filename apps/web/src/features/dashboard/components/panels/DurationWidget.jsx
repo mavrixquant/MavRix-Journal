@@ -13,7 +13,7 @@ const formatDuration = (mins) => {
 const COLORS = {
   win: '#35C4A1',
   loss: '#FF5C5C',
-  amber: '#FFB020',
+  amber: 'var(--accent)',
   text: '#8892A3',
   textMuted: '#545E6E',
   textLight: '#E7E9EE',

@@ -110,7 +110,7 @@ export default function Login() {
               color: '#8892A3',
               textDecoration: 'none',
             }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = '#F59E0B')}
+            onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent)')}
             onMouseLeave={(e) => (e.currentTarget.style.color = '#8892A3')}
           >
             Forgot password?

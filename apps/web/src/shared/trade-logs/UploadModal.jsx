@@ -1066,7 +1066,7 @@ const UPL_CSS = `
   }
   .upl-btn-primary:active:not(:disabled) { transform: translateY(0) scale(.98); }
   .upl-btn-primary:disabled {
-    background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 32%, transparent), rgba(253,230,138,.28));
+    background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 32%, transparent), color-mix(in srgb, var(--accent-2) 28%, transparent));
     color: rgba(10,13,19,.55);
     box-shadow: none;
     cursor: not-allowed;

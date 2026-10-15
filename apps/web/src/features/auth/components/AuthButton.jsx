@@ -20,10 +20,10 @@ const S = {
       'transform .25s cubic-bezier(.175,.885,.32,1.275), box-shadow .3s',
   },
   primary: {
-    background: 'linear-gradient(135deg, #F59E0B, #FDE68A)',
+    background: 'linear-gradient(135deg, var(--accent), var(--accent-2))',
     color: '#0D1117',
     boxShadow:
-      '0 10px 30px -8px rgba(245,158,11,.55), inset 0 1px 0 rgba(255,255,255,.4)',
+      '0 10px 30px -8px color-mix(in srgb, var(--accent) 55%, transparent), inset 0 1px 0 rgba(255,255,255,.4)',
   },
   ghost: {
     background: 'rgba(255,255,255,.035)',
@@ -72,7 +72,7 @@ const CSS = `
   }
   .auth-btn-primary:hover:not(:disabled) {
     transform: translateY(-2px);
-    box-shadow: 0 16px 42px -10px rgba(245,158,11,.7), inset 0 1px 0 rgba(255,255,255,.5);
+    box-shadow: 0 16px 42px -10px color-mix(in srgb, var(--accent) 70%, transparent), inset 0 1px 0 rgba(255,255,255,.5);
   }
   .auth-btn-primary:disabled { opacity: .65; cursor: not-allowed; }
   .auth-btn-primary:disabled::after { display: none; }

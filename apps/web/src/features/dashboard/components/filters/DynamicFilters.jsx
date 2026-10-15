@@ -43,8 +43,8 @@ const CSS = `
     background: #1A2029;
   }
   .dyn-filter-trigger.has-selection {
-    background: rgba(255, 176, 32, 0.08);
-    border-color: #FFB020;
+    background: color-mix(in srgb, var(--accent) 8%, transparent);
+    border-color: var(--accent);
     color: #FFFFFF;
   }
   .dyn-filter-trigger[data-state="open"] {
@@ -59,7 +59,7 @@ const CSS = `
     height: 18px;
     padding: 0 6px;
     border-radius: 9px;
-    background: #FFB020;
+    background: var(--accent);
     color: #0D1117;
     font-family: 'IBM Plex Mono', ui-monospace, monospace;
     font-size: 10px;
@@ -137,13 +137,13 @@ const CSS = `
     transition: background-color .12s ease;
   }
   .dyn-cmd-item[data-selected="true"] {
-    background: rgba(255, 176, 32, 0.06);
+    background: color-mix(in srgb, var(--accent) 6%, transparent);
     color: #FFFFFF;
     font-weight: 500;
   }
   .dyn-cmd-item[data-selected="true"] .dyn-cmd-item-check {
     opacity: 1;
-    color: #FFB020;
+    color: var(--accent);
   }
   .dyn-cmd-item[data-selected="false"] .dyn-cmd-item-check {
     opacity: 0;
@@ -182,10 +182,10 @@ const CSS = `
     font-family: 'IBM Plex Mono', ui-monospace, monospace;
   }
   .dyn-cmd-foot-btn.all {
-    color: #FFB020;
+    color: var(--accent);
   }
   .dyn-cmd-foot-btn.all:hover {
-    background: rgba(255, 176, 32, 0.10);
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
   }
   .dyn-cmd-foot-btn.clear {
     color: #545E6E;

@@ -12,6 +12,7 @@ import {
   baseLegend,
   baseAnimation,
 } from '@/shared/charts/theme';
+import { useChartColors } from '@/shared/charts';
 import { ChartExportButton } from '@/shared/ui/chart-export';
 
 const WINDOW = 20;
@@ -20,6 +21,7 @@ export default function RollingExpectancyChart() {
   const { rollingExpectancy, metric, stats } = useStats();
   const isMoney = metric === '$';
   const chartRef = useRef(null);
+  const colors = useChartColors();
 
   const chartData = useMemo(() => {
     if (!rollingExpectancy || rollingExpectancy.length === 0) return null;
@@ -45,7 +47,7 @@ export default function RollingExpectancyChart() {
         {
           label: 'Overall Mean',
           data: meanLine,
-          borderColor: 'rgba(255,176,32,.35)',
+          borderColor: colors.withAlpha(0.35),
           borderWidth: 1,
           borderDash: [2, 3],
           pointRadius: 0,
@@ -57,11 +59,11 @@ export default function RollingExpectancyChart() {
         {
           label: `Rolling ${WINDOW}-Trade Expectancy`,
           data: values,
-          borderColor: chartColors.amber,
+          borderColor: colors.amber,
           borderWidth: 2,
           pointRadius: 0,
           pointHoverRadius: 5,
-          pointHoverBackgroundColor: chartColors.amber,
+          pointHoverBackgroundColor: colors.amber,
           pointHoverBorderColor: '#0D1117',
           pointHoverBorderWidth: 2,
           tension: 0.25,
@@ -69,15 +71,15 @@ export default function RollingExpectancyChart() {
           backgroundColor: (context) => {
             const ctx = context.chart.ctx;
             const gradient = ctx.createLinearGradient(0, 0, 0, 220);
-            gradient.addColorStop(0, chartColors.amberSoft);
-            gradient.addColorStop(1, 'rgba(255,176,32,0)');
+            gradient.addColorStop(0, colors.amberSoft);
+            gradient.addColorStop(1, colors.withAlpha(0));
             return gradient;
           },
           order: 1,
         },
       ],
     };
-  }, [rollingExpectancy, stats.expectancy]);
+  }, [rollingExpectancy, stats.expectancy, colors]);
 
   const options = useMemo(
     () => ({

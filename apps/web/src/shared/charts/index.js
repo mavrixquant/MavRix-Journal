@@ -4,3 +4,4 @@
 // `register.js` is imported directly by main.jsx as a side effect.
 
 export * from './theme.js';
+export { useChartColors } from './useChartColors.js';

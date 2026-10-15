@@ -30,9 +30,9 @@ const CSS = `
     width: 36px; height: 36px;
     display: inline-flex; align-items: center; justify-content: center;
     border-radius: 10px;
-    background: rgba(245,158,11,.10);
-    border: 1px solid rgba(245,158,11,.30);
-    color: #F59E0B;
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+    color: var(--accent);
     flex-shrink: 0;
   }
   .asy-tile-icon.ok  { color: #35C4A1; background: rgba(53,196,161,.10); border-color: rgba(53,196,161,.30); }

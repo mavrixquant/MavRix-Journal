@@ -42,11 +42,11 @@ const CSS = `
   }
   .acal-btn:disabled { opacity: .4; cursor: not-allowed; }
   .acal-btn.amber {
-    color: #F59E0B;
-    border-color: rgba(245,158,11,.35);
-    background: rgba(245,158,11,.06);
+    color: var(--accent);
+    border-color: color-mix(in srgb, var(--accent) 35%, transparent);
+    background: color-mix(in srgb, var(--accent) 6%, transparent);
   }
-  .acal-btn.amber:hover:not(:disabled) { background: rgba(245,158,11,.12); }
+  .acal-btn.amber:hover:not(:disabled) { background: color-mix(in srgb, var(--accent) 12%, transparent); }
   .acal-btn.danger {
     color: #f87171;
     border-color: rgba(239,68,68,.35);
@@ -74,7 +74,7 @@ const CSS = `
     margin-left: auto;
     font-family: 'IBM Plex Mono', ui-monospace, monospace;
     font-size: 10px; letter-spacing: .06em;
-    text-transform: uppercase; color: #F59E0B;
+    text-transform: uppercase; color: var(--accent);
     opacity: .85;
   }
   .acal-card-body { padding: 18px; }
@@ -188,7 +188,7 @@ export default function AdminCalendarPage() {
         {/* ---------- Recent sync logs ---------- */}
         <div className="acal-card">
           <div className="acal-card-head">
-            <Calendar size={14} style={{ color: '#F59E0B' }} />
+            <Calendar size={14} style={{ color: 'var(--accent)' }} />
             <span className="acal-card-title">Recent manual syncs</span>
             <span className="acal-card-note">last 20</span>
           </div>

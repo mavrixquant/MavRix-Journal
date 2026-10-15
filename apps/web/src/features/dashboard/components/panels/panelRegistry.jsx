@@ -75,7 +75,7 @@ function Panel({
                 fontSize: 10,
                 fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
                 letterSpacing: '.06em',
-                color: '#F59E0B',
+                color: 'var(--accent)',
                 opacity: 0.8,
                 flexShrink: 0,
                 whiteSpace: 'nowrap',
@@ -145,7 +145,7 @@ function CalendarPanel() {
             fontSize: 10,
             fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
             letterSpacing: '.06em',
-            color: '#F59E0B',
+            color: 'var(--accent)',
             opacity: 0.8,
           }}
         >
@@ -277,7 +277,7 @@ function CategoryChartsPanel() {
                   fontSize: 10,
                   fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
                   letterSpacing: '.06em',
-                  color: '#F59E0B',
+                  color: 'var(--accent)',
                   opacity: 0.8,
                 }}
               >

@@ -115,7 +115,7 @@ const CSS = `
     font-weight: 600;
     letter-spacing: .06em;
     text-transform: uppercase;
-    color: #F59E0B;
+    color: var(--accent);
     opacity: .85;
   }
   .gexp-card-body { padding: 18px; display: flex; flex-direction: column; gap: 16px; }
@@ -156,8 +156,8 @@ const CSS = `
   }
   .gexp-input:hover { border-color: rgba(255,255,255,.2); }
   .gexp-input:focus {
-    border-color: #F59E0B;
-    box-shadow: 0 0 0 3px rgba(245,158,11,.15);
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent);
   }
 
   .gexp-textarea {
@@ -178,8 +178,8 @@ const CSS = `
   }
   .gexp-textarea:hover { border-color: rgba(255,255,255,.2); }
   .gexp-textarea:focus {
-    border-color: #F59E0B;
-    box-shadow: 0 0 0 3px rgba(245,158,11,.15);
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent);
   }
   .gexp-textarea::placeholder { color: #545E6E; }
 
@@ -215,26 +215,26 @@ const CSS = `
   .gexp-btn:disabled { opacity: .4; cursor: not-allowed; transform: none; }
   .gexp-btn:focus-visible {
     outline: none;
-    border-color: #F59E0B;
-    box-shadow: 0 0 0 3px rgba(245,158,11,.18);
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
   }
 
   .gexp-btn-primary {
     border: none;
-    background: linear-gradient(135deg, #F59E0B, #FDE68A);
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
     color: #0D1117;
     font-weight: 700;
     box-shadow:
-      0 10px 30px -8px rgba(245,158,11,.55),
+      0 10px 30px -8px color-mix(in srgb, var(--accent) 55%, transparent),
       inset 0 1px 0 rgba(255,255,255,.4);
     transition: transform .25s cubic-bezier(.175,.885,.32,1.275), box-shadow .3s;
   }
   .gexp-btn-primary:hover:not(:disabled) {
     transform: translateY(-2px);
-    box-shadow: 0 16px 42px -10px rgba(245,158,11,.7), inset 0 1px 0 rgba(255,255,255,.5);
+    box-shadow: 0 16px 42px -10px color-mix(in srgb, var(--accent) 70%, transparent), inset 0 1px 0 rgba(255,255,255,.5);
   }
   .gexp-btn-primary:disabled {
-    background: linear-gradient(135deg, rgba(245,158,11,.32), rgba(253,230,138,.28));
+    background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 32%, transparent), color-mix(in srgb, var(--accent-2) 28%, transparent));
     color: rgba(13,17,23,.55);
     box-shadow: none;
   }
@@ -304,7 +304,7 @@ const CSS = `
     letter-spacing: -.01em;
     line-height: 1.1;
   }
-  .gexp-count-value.is-bl  { color: #F59E0B; }
+  .gexp-count-value.is-bl  { color: var(--accent); }
   .gexp-count-value.is-gex { color: #60A5FA; }
 
   .gexp-output-wrap {
@@ -346,9 +346,9 @@ const CSS = `
     transition: all .18s;
   }
   .gexp-output-copy:hover {
-    color: #F59E0B;
-    border-color: rgba(245,158,11,.35);
-    background: rgba(245,158,11,.06);
+    color: var(--accent);
+    border-color: color-mix(in srgb, var(--accent) 35%, transparent);
+    background: color-mix(in srgb, var(--accent) 6%, transparent);
   }
   .gexp-output-copy.is-copied {
     color: #4ade80;
@@ -407,7 +407,7 @@ const CSS = `
     letter-spacing: .04em;
     border: 1px solid;
   }
-  .gexp-pill.bl  { color: #F59E0B; background: rgba(245,158,11,.08);  border-color: rgba(245,158,11,.30); }
+  .gexp-pill.bl  { color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent);  border-color: color-mix(in srgb, var(--accent) 30%, transparent); }
   .gexp-pill.gex { color: #60A5FA; background: rgba(96,165,250,.08); border-color: rgba(96,165,250,.30); }
 
   .gexp-btn-icon {
@@ -597,7 +597,7 @@ export default function AdminGexPage() {
           {/* ---------- Input card ---------- */}
           <div className="gexp-card">
             <div className="gexp-card-head">
-              <Wand2 size={14} style={{ color: '#F59E0B' }} />
+              <Wand2 size={14} style={{ color: 'var(--accent)' }} />
               <span className="gexp-card-title">Upload</span>
             </div>
             <div className="gexp-card-body">
@@ -666,7 +666,7 @@ export default function AdminGexPage() {
           {/* ---------- Preview card ---------- */}
           <div className="gexp-card">
             <div className="gexp-card-head">
-              <Layers size={14} style={{ color: '#F59E0B' }} />
+              <Layers size={14} style={{ color: 'var(--accent)' }} />
               <span className="gexp-card-title">Preview</span>
               {preview && !preview.ok && (
                 <span className="gexp-card-sub" style={{ color: '#f87171' }}>Invalid</span>
@@ -679,7 +679,7 @@ export default function AdminGexPage() {
 
               {!preview && (
                 <div className="gexp-empty-preview">
-                  Paste JSON and click <b style={{ color: '#F59E0B' }}>Convert</b> to preview the levels and the TradingView pipe-string.
+                  Paste JSON and click <b style={{ color: 'var(--accent)' }}>Convert</b> to preview the levels and the TradingView pipe-string.
                 </div>
               )}
 

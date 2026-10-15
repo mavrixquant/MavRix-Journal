@@ -127,7 +127,7 @@ export default class ErrorBoundary extends Component {
               padding: '10px 18px',
               borderRadius: 10,
               border: 'none',
-              background: 'linear-gradient(135deg, #F59E0B, #FDE68A)',
+              background: 'linear-gradient(135deg, var(--accent), var(--accent-2))',
               color: '#0D1117',
               fontFamily: "'IBM Plex Mono', monospace",
               fontSize: 12,
@@ -135,7 +135,7 @@ export default class ErrorBoundary extends Component {
               letterSpacing: '.02em',
               cursor: 'pointer',
               boxShadow:
-                '0 10px 30px -8px rgba(245,158,11,.55), inset 0 1px 0 rgba(255,255,255,.4)',
+                '0 10px 30px -8px color-mix(in srgb, var(--accent) 55%, transparent), inset 0 1px 0 rgba(255,255,255,.4)',
             }}
           >
             Reload page

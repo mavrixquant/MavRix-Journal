@@ -77,10 +77,10 @@ const CSS = `
   }
   .wl-count {
     font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    font-size: 10px; color: #F59E0B; font-weight: 700;
+    font-size: 10px; color: var(--accent); font-weight: 700;
     padding: 1px 6px; border-radius: 4px;
-    background: rgba(245,158,11,.10);
-    border: 1px solid rgba(245,158,11,.28);
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
   }
   .wl-toggle-all {
     margin-left: auto;
@@ -94,15 +94,15 @@ const CSS = `
     transition: color .15s, border-color .15s, background-color .15s;
   }
   .wl-toggle-all:hover:not(:disabled) {
-    color: #F59E0B;
-    border-color: rgba(245,158,11,.28);
-    background: rgba(245,158,11,.06);
+    color: var(--accent);
+    border-color: color-mix(in srgb, var(--accent) 28%, transparent);
+    background: color-mix(in srgb, var(--accent) 6%, transparent);
   }
   .wl-toggle-all:disabled { opacity: .35; cursor: not-allowed; }
   .wl-toggle-all:focus-visible {
     outline: none;
-    border-color: #F59E0B;
-    box-shadow: 0 0 0 3px rgba(245,158,11,.16);
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent);
   }
 
   /* ---------- Search ---------- */
@@ -136,9 +136,9 @@ const CSS = `
   .wl-search-input::placeholder { color: #545E6E; }
   .wl-search-input:hover { border-color: rgba(255,255,255,.2); }
   .wl-search-input:focus {
-    border-color: #F59E0B;
+    border-color: var(--accent);
     background: rgba(10,13,19,.9);
-    box-shadow: 0 0 0 3px rgba(245,158,11,.15);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent);
   }
   .wl-search-clear {
     position: absolute;
@@ -155,12 +155,12 @@ const CSS = `
     transition: background-color .15s, color .15s;
   }
   .wl-search-clear:hover {
-    color: #F59E0B;
-    background: rgba(245,158,11,.14);
+    color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 14%, transparent);
   }
   .wl-search-clear:focus-visible {
     outline: none;
-    box-shadow: 0 0 0 2px rgba(245,158,11,.4);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 40%, transparent);
   }
 
   /* ---------- List ---------- */
@@ -199,8 +199,8 @@ const CSS = `
   }
   .wl-group-head:focus-visible {
     outline: none;
-    color: #F59E0B;
-    background: rgba(245,158,11,.06);
+    color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 6%, transparent);
   }
   .wl-group-chevron {
     flex-shrink: 0;
@@ -220,7 +220,7 @@ const CSS = `
   }
   .wl-group.is-collapsed .wl-group-count {
     color: #545E6E;
-    background: rgba(245,158,11,.08);
+    background: color-mix(in srgb, var(--accent) 8%, transparent);
   }
 
   /* ---------- Group items ---------- */
@@ -249,8 +249,8 @@ const CSS = `
   }
   .wl-row:hover { background: rgba(255,255,255,.04); }
   .wl-row.is-active {
-    background: rgba(245,158,11,.10);
-    border-color: rgba(245,158,11,.28);
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
+    border-color: color-mix(in srgb, var(--accent) 28%, transparent);
   }
 
   .wl-row-main {
@@ -268,7 +268,7 @@ const CSS = `
     letter-spacing: .02em;
     white-space: nowrap;
   }
-  .wl-row.is-active .wl-code { color: #F59E0B; }
+  .wl-row.is-active .wl-code { color: var(--accent); }
   .wl-label {
     font-size: 10px;
     color: #545E6E;

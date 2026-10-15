@@ -38,8 +38,8 @@ const DEFAULT_INTERVAL = '5m';
 
 const CSS = `
   .chart-root {
-    --accent: #F59E0B; --accent-2: #FDE68A;
-    --accent-soft: rgba(245,158,11,.10); --accent-soft2: rgba(245,158,11,.28);
+     
+     
     --line: rgba(255,255,255,.085); --line-soft: rgba(255,255,255,.05);
     --ink-1: #E7E9EE; --ink-2: #8892A3; --ink-3: #545E6E;
     --win: #35C4A1; --loss: #FF5C5C;
@@ -99,7 +99,7 @@ const CSS = `
   }
   .qh-delayed {
     padding: 2px 7px; border-radius: 4px;
-    background: rgba(245,158,11,.10); color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 10%, transparent); color: var(--accent);
     font-size: 9.5px; letter-spacing: .06em; text-transform: uppercase;
     font-weight: 700; border: 1px solid var(--accent-soft2);
   }
@@ -110,7 +110,7 @@ const CSS = `
   }
   .qh-pulse {
     width: 6px; height: 6px; border-radius: 50%;
-    background: var(--accent); box-shadow: 0 0 8px rgba(245,158,11,.7);
+    background: var(--accent); box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 70%, transparent);
     animation: qhPulse 1.6s ease-in-out infinite;
   }
   @keyframes qhPulse {
@@ -172,13 +172,13 @@ const CSS = `
   .dt-tool.is-active {
     background: linear-gradient(135deg, var(--accent), var(--accent-2));
     color: #0D1117; border-color: transparent;
-    box-shadow: 0 4px 12px -6px rgba(245,158,11,.6);
+    box-shadow: 0 4px 12px -6px color-mix(in srgb, var(--accent) 60%, transparent);
   }
   .dt-hint {
     font-family: 'IBM Plex Mono', ui-monospace, monospace;
     font-size: 10px; color: var(--accent); font-weight: 600;
     padding: 3px 8px; border-radius: 5px;
-    background: rgba(245,158,11,.10); border: 1px solid var(--accent-soft2);
+    background: color-mix(in srgb, var(--accent) 10%, transparent); border: 1px solid var(--accent-soft2);
     white-space: nowrap;
   }
   .dt-spacer { flex: 1; min-width: 8px; }
@@ -222,7 +222,7 @@ const CSS = `
   .ct-tf.is-active {
     background: linear-gradient(135deg, var(--accent), var(--accent-2));
     color: #0D1117; font-weight: 700;
-    box-shadow: 0 6px 16px -8px rgba(245,158,11,.6);
+    box-shadow: 0 6px 16px -8px color-mix(in srgb, var(--accent) 60%, transparent);
   }
   .ct-status {
     display: inline-flex; align-items: center; gap: 8px;
@@ -231,7 +231,7 @@ const CSS = `
   }
   .ct-pulse {
     width: 6px; height: 6px; border-radius: 50%;
-    background: var(--accent); box-shadow: 0 0 8px rgba(245,158,11,.7);
+    background: var(--accent); box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 70%, transparent);
     animation: ctPulse 1.6s ease-in-out infinite;
   }
   @keyframes ctPulse {
@@ -249,7 +249,7 @@ const CSS = `
   }
   .ct-fs:hover {
     color: var(--accent); border-color: var(--accent-soft2);
-    background: rgba(245,158,11,.06);
+    background: color-mix(in srgb, var(--accent) 6%, transparent);
   }
 
   /* ---------- Chart shell ---------- */

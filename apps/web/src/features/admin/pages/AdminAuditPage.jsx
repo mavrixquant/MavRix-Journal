@@ -24,7 +24,7 @@ const CSS = `
     font-family: 'IBM Plex Mono', ui-monospace, monospace;
     font-size: 12.5px; outline: none; box-sizing: border-box;
   }
-  .aad-search input:focus { border-color: #F59E0B; box-shadow: 0 0 0 3px rgba(245,158,11,.15); }
+  .aad-search input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent); }
   .aad-search-icon {
     position: absolute; left: 12px; top: 50%;
     transform: translateY(-50%); color: #545E6E; pointer-events: none;
@@ -41,7 +41,7 @@ const CSS = `
     color-scheme: dark;
     cursor: pointer;
   }
-  .aad-select:focus { border-color: #F59E0B; box-shadow: 0 0 0 3px rgba(245,158,11,.15); }
+  .aad-select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent); }
 
   .aad-card {
     border-radius: 14px;
@@ -68,7 +68,7 @@ const CSS = `
     vertical-align: top;
   }
   .aad-td.muted { color: #8892A3; }
-  .aad-td.action { font-weight: 700; color: #F59E0B; }
+  .aad-td.action { font-weight: 700; color: var(--accent); }
   .aad-td.actor { word-break: break-all; }
 
   .aad-target {

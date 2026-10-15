@@ -40,8 +40,8 @@ const CSS = `
     box-sizing: border-box;
   }
   .aup-search input:focus {
-    border-color: #F59E0B;
-    box-shadow: 0 0 0 3px rgba(245,158,11,.15);
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent);
   }
   .aup-search-icon {
     position: absolute; left: 12px; top: 50%;
@@ -67,7 +67,7 @@ const CSS = `
   }
   .aup-seg-btn:hover { color: #E7E9EE; background: rgba(255,255,255,.04); }
   .aup-seg-btn.is-active {
-    background: linear-gradient(135deg, #F59E0B, #FDE68A);
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
     color: #0D1117; font-weight: 700;
   }
 
@@ -118,8 +118,8 @@ const CSS = `
     border-color: rgba(239,68,68,.3);
   }
   .aup-pill.warn {
-    color: #F59E0B; background: rgba(245,158,11,.08);
-    border-color: rgba(245,158,11,.3);
+    color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent);
+    border-color: color-mix(in srgb, var(--accent) 30%, transparent);
   }
 
   .aup-empty {
@@ -148,9 +148,9 @@ const CSS = `
     flex-shrink: 0;
   }
   .aup-action:hover {
-    color: #F59E0B;
-    border-color: rgba(245,158,11,.3);
-    background: rgba(245,158,11,.06);
+    color: var(--accent);
+    border-color: color-mix(in srgb, var(--accent) 30%, transparent);
+    background: color-mix(in srgb, var(--accent) 6%, transparent);
   }
 `;
 

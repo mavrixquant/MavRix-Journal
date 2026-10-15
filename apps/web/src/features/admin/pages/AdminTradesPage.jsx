@@ -28,7 +28,7 @@ const CSS = `
     font-family: 'IBM Plex Mono', ui-monospace, monospace;
     font-size: 12.5px; outline: none; box-sizing: border-box;
   }
-  .atp-search input:focus { border-color: #F59E0B; box-shadow: 0 0 0 3px rgba(245,158,11,.15); }
+  .atp-search input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent); }
   .atp-search-icon {
     position: absolute; left: 12px; top: 50%;
     transform: translateY(-50%); color: #545E6E; pointer-events: none;
@@ -45,7 +45,7 @@ const CSS = `
     box-sizing: border-box;
     color-scheme: dark;
   }
-  .atp-input:focus { border-color: #F59E0B; box-shadow: 0 0 0 3px rgba(245,158,11,.15); }
+  .atp-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent); }
   .atp-input.sm { width: 130px; }
   .atp-input.md { width: 180px; }
 
@@ -88,9 +88,9 @@ const CSS = `
   .atp-dir-long  { color: #35C4A1; font-weight: 600; }
   .atp-dir-short { color: #ef4444; font-weight: 600; }
   .atp-link {
-    color: #F59E0B; text-decoration: none; font-weight: 600;
+    color: var(--accent); text-decoration: none; font-weight: 600;
   }
-  .atp-link:hover { color: #FDE68A; text-decoration: underline; }
+  .atp-link:hover { color: var(--accent-2); text-decoration: underline; }
 
   .atp-btn-icon {
     width: 26px; height: 26px; padding: 0;

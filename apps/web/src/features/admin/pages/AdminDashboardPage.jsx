@@ -67,7 +67,7 @@ const CSS = `
     font-size: 10px;
     letter-spacing: .06em;
     text-transform: uppercase;
-    color: #F59E0B;
+    color: var(--accent);
     opacity: .85;
   }
   .ad-panel-body {

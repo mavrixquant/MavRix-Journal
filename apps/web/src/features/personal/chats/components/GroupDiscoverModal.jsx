@@ -25,10 +25,10 @@ import GroupAvatar from './GroupAvatar';
 
 const CSS = `
   .gdm-modal {
-    --accent: #F59E0B;
-    --accent-2: #FDE68A;
-    --accent-soft: rgba(245,158,11,.10);
-    --accent-soft2: rgba(245,158,11,.28);
+    
+    
+    
+    
     --line: rgba(255,255,255,.085);
     --line-soft: rgba(255,255,255,.05);
     --ink-1: #E7E9EE;
@@ -101,7 +101,7 @@ const CSS = `
   }
   .gdm-close:hover {
     color: var(--accent);
-    background: rgba(245,158,11,.08);
+    background: color-mix(in srgb, var(--accent) 8%, transparent);
   }
 
   .gdm-search {
@@ -125,7 +125,7 @@ const CSS = `
   .gdm-search input::placeholder { color: var(--ink-3); }
   .gdm-search input:focus {
     border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(245,158,11,.15);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent);
   }
 
   .gdm-list {
@@ -206,12 +206,12 @@ const CSS = `
     font-weight: 700;
     letter-spacing: .02em;
     cursor: pointer;
-    box-shadow: 0 6px 16px -8px rgba(245,158,11,.6);
+    box-shadow: 0 6px 16px -8px color-mix(in srgb, var(--accent) 60%, transparent);
     transition: transform .18s, box-shadow .22s;
   }
   .gdm-join:hover:not(:disabled) {
     transform: translateY(-1px);
-    box-shadow: 0 10px 24px -10px rgba(245,158,11,.75);
+    box-shadow: 0 10px 24px -10px color-mix(in srgb, var(--accent) 75%, transparent);
   }
   .gdm-join:disabled {
     opacity: .55;

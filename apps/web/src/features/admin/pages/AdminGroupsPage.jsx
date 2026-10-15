@@ -31,7 +31,7 @@ const CSS = `
     font-family: 'IBM Plex Mono', ui-monospace, monospace;
     font-size: 12.5px; outline: none; box-sizing: border-box;
   }
-  .agp-search input:focus { border-color: #F59E0B; box-shadow: 0 0 0 3px rgba(245,158,11,.15); }
+  .agp-search input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent); }
   .agp-search-icon {
     position: absolute; left: 12px; top: 50%;
     transform: translateY(-50%); color: #545E6E; pointer-events: none;
@@ -52,7 +52,7 @@ const CSS = `
   }
   .agp-seg-btn:hover { color: #E7E9EE; background: rgba(255,255,255,.04); }
   .agp-seg-btn.is-active {
-    background: linear-gradient(135deg, #F59E0B, #FDE68A);
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
     color: #0D1117; font-weight: 700;
   }
 
@@ -60,19 +60,19 @@ const CSS = `
     display: inline-flex; align-items: center; gap: 6px;
     padding: 9px 16px;
     border-radius: 10px; border: none;
-    background: linear-gradient(135deg, #F59E0B, #FDE68A);
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
     color: #0D1117;
     font-family: 'IBM Plex Mono', ui-monospace, monospace;
     font-size: 11.5px; font-weight: 700;
     letter-spacing: .02em;
     cursor: pointer;
-    box-shadow: 0 10px 30px -8px rgba(245,158,11,.55), inset 0 1px 0 rgba(255,255,255,.4);
+    box-shadow: 0 10px 30px -8px color-mix(in srgb, var(--accent) 55%, transparent), inset 0 1px 0 rgba(255,255,255,.4);
     transition: transform .22s cubic-bezier(.175,.885,.32,1.275), box-shadow .3s;
     white-space: nowrap;
   }
   .agp-new-btn:hover {
     transform: translateY(-2px);
-    box-shadow: 0 16px 42px -10px rgba(245,158,11,.7), inset 0 1px 0 rgba(255,255,255,.5);
+    box-shadow: 0 16px 42px -10px color-mix(in srgb, var(--accent) 70%, transparent), inset 0 1px 0 rgba(255,255,255,.5);
   }
 
   .agp-card {
@@ -122,7 +122,7 @@ const CSS = `
     border: 1px solid;
   }
   .agp-vis.public { color: #4ade80; background: rgba(74,222,128,.08); border-color: rgba(74,222,128,.32); }
-  .agp-vis.private { color: #F59E0B; background: rgba(245,158,11,.08); border-color: rgba(245,158,11,.30); }
+  .agp-vis.private { color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent); border-color: color-mix(in srgb, var(--accent) 30%, transparent); }
 
   .agp-member-count {
     display: inline-flex; align-items: center; gap: 5px;
@@ -131,10 +131,10 @@ const CSS = `
   }
 
   .agp-link {
-    color: #F59E0B; text-decoration: none;
+    color: var(--accent); text-decoration: none;
     font-weight: 600; font-size: 11.5px;
   }
-  .agp-link:hover { color: #FDE68A; text-decoration: underline; }
+  .agp-link:hover { color: var(--accent-2); text-decoration: underline; }
 
   .agp-btn-icon {
     width: 26px; height: 26px; padding: 0;
@@ -273,7 +273,7 @@ export default function AdminGroupsPage() {
               </thead>
               <tbody>
                 {groups.map((g) => {
-                  const color = g.color || '#F59E0B';
+                  const color = g.color || 'var(--accent)';
                   return (
                     <tr
                       key={g.id}

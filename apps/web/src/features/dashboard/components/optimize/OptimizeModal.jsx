@@ -13,7 +13,7 @@ const optimalizeModalStyles = `
     --opt-border: #2a2d3d;
     --opt-text: #e2e8f0;
     --opt-text-dim: #94a3b8;
-    --opt-amber: #f59e0b;
+    --opt-amber: var(--accent);
     --opt-amber-hover: #d97706;
     --opt-win: #10b981;
     --opt-loss: #ef4444;
@@ -131,7 +131,7 @@ const optimalizeModalStyles = `
   }
 
   .opt-card.active {
-    border-color: rgba(245, 158, 11, 0.4);
+    border-color: color-mix(in srgb, var(--accent) 40%, transparent);
   }
 
   .opt-checkbox-wrapper {

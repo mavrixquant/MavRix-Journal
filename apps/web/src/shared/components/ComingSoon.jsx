@@ -7,10 +7,6 @@ import { FaTools } from 'react-icons/fa';
 
 const CSS = `
   .cs-root {
-    --accent: #F59E0B;
-    --accent-2: #FDE68A;
-    --accent-soft: rgba(245,158,11,.10);
-    --accent-soft2: rgba(245,158,11,.28);
     --line: rgba(255,255,255,.085);
     --line-soft: rgba(255,255,255,.05);
     --ink-1: #E7E9EE;
@@ -33,11 +29,11 @@ const CSS = `
     padding: 56px 40px 48px;
     border-radius: 26px;
     background:
-      radial-gradient(400px 220px at 50% 0%, rgba(245,158,11,.12), transparent 70%),
+      radial-gradient(400px 220px at 50% 0%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 70%),
       linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.012));
     border: 1px solid rgba(255,255,255,.1);
     box-shadow:
-      0 40px 90px -50px rgba(245,158,11,.5),
+      0 40px 90px -50px color-mix(in srgb, var(--accent) 50%, transparent),
       inset 0 1px 0 rgba(255,255,255,.04);
     display: flex;
     flex-direction: column;
@@ -58,7 +54,7 @@ const CSS = `
     width: 64px;
     height: 64px;
     border-radius: 18px;
-    background: linear-gradient(135deg, rgba(245,158,11,.18), rgba(245,158,11,.05));
+    background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 18%, transparent), color-mix(in srgb, var(--accent) 5%, transparent));
     border: 1px solid var(--accent-soft2);
     color: var(--accent);
     display: inline-flex;
@@ -66,7 +62,7 @@ const CSS = `
     justify-content: center;
     font-size: 24px;
     margin-bottom: 22px;
-    box-shadow: 0 0 40px -8px rgba(245,158,11,.5);
+    box-shadow: 0 0 40px -8px color-mix(in srgb, var(--accent) 50%, transparent);
   }
   .cs-eyebrow {
     font-family: 'IBM Plex Mono', ui-monospace, monospace;

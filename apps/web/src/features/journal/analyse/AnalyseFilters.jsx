@@ -52,9 +52,9 @@ const PICKER_CSS = `
   }
   .af-strat-trigger.is-active {
     border-color: var(--accent-soft2);
-    background: rgba(245,158,11,.10);
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
     color: var(--accent);
-    box-shadow: 0 0 20px -8px rgba(245,158,11,.4);
+    box-shadow: 0 0 20px -8px color-mix(in srgb, var(--accent) 40%, transparent);
   }
   .af-strat-trigger svg { flex-shrink: 0; }
   .af-strat-count {
@@ -65,7 +65,7 @@ const PICKER_CSS = `
     height: 18px;
     padding: 0 6px;
     border-radius: 9px;
-    background: #F59E0B;
+    background: var(--accent);
     color: #0D1117;
     font-size: 10px;
     font-weight: 700;
@@ -133,7 +133,7 @@ const PICKER_CSS = `
     transition: background-color .12s ease, color .12s ease;
   }
   .af-strat-item[data-selected="true"] {
-    background: rgba(245,158,11,.06);
+    background: color-mix(in srgb, var(--accent) 6%, transparent);
     color: #FFFFFF;
   }
   .af-strat-item:hover {
@@ -152,7 +152,7 @@ const PICKER_CSS = `
     white-space: nowrap;
   }
   .af-strat-check {
-    color: #F59E0B;
+    color: var(--accent);
     opacity: 0;
     flex-shrink: 0;
   }
@@ -179,8 +179,8 @@ const PICKER_CSS = `
     padding: 3px 6px;
     border-radius: 4px;
   }
-  .af-strat-foot-btn.all { color: #F59E0B; }
-  .af-strat-foot-btn.all:hover { background: rgba(245,158,11,.10); }
+  .af-strat-foot-btn.all { color: var(--accent); }
+  .af-strat-foot-btn.all:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); }
   .af-strat-foot-btn.clear { color: #545E6E; }
   .af-strat-foot-btn.clear:hover { color: #8892A3; background: rgba(255,255,255,.04); }
 `;

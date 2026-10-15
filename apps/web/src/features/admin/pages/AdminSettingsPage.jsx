@@ -33,7 +33,7 @@ const CSS = `
     margin-left: auto;
     font-family: 'IBM Plex Mono', ui-monospace, monospace;
     font-size: 10px; letter-spacing: .06em;
-    text-transform: uppercase; color: #F59E0B;
+    text-transform: uppercase; color: var(--accent);
     opacity: .85;
     display: inline-flex; align-items: center; gap: 5px;
   }
@@ -78,8 +78,8 @@ const CSS = `
     flex-shrink: 0;
   }
   .asg-switch.on {
-    background: linear-gradient(135deg, #F59E0B, #FDE68A);
-    border-color: rgba(245,158,11,.6);
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    border-color: color-mix(in srgb, var(--accent) 60%, transparent);
   }
   .asg-switch:disabled { opacity: .4; cursor: not-allowed; }
   .asg-switch-dot {
@@ -118,8 +118,8 @@ const CSS = `
     font-size: 13px;
   }
   .asg-input:focus, .asg-textarea:focus {
-    border-color: #F59E0B;
-    box-shadow: 0 0 0 3px rgba(245,158,11,.15);
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent);
   }
   .asg-input:disabled, .asg-textarea:disabled {
     opacity: .55;
@@ -149,15 +149,15 @@ const CSS = `
   }
   .asg-btn:disabled { opacity: .4; cursor: not-allowed; }
   .asg-btn-primary {
-    background: linear-gradient(135deg, #F59E0B, #FDE68A);
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
     color: #0D1117;
     border: none;
     font-weight: 700;
-    box-shadow: 0 10px 30px -8px rgba(245,158,11,.55);
+    box-shadow: 0 10px 30px -8px color-mix(in srgb, var(--accent) 55%, transparent);
   }
   .asg-btn-primary:hover:not(:disabled) { transform: translateY(-1px); }
   .asg-btn-primary:disabled {
-    background: rgba(245,158,11,.35);
+    background: color-mix(in srgb, var(--accent) 35%, transparent);
     color: rgba(13,17,23,.5);
     box-shadow: none;
     transform: none;
@@ -275,7 +275,7 @@ export default function AdminSettingsPage() {
         {/* ---------- Access control ---------- */}
         <div className="asg-card">
           <div className="asg-card-head">
-            <Settings2 size={14} style={{ color: '#F59E0B' }} />
+            <Settings2 size={14} style={{ color: 'var(--accent)' }} />
             <span className="asg-card-title">Access control</span>
             {!isSuper && (
               <span className="asg-card-note">
@@ -376,7 +376,7 @@ export default function AdminSettingsPage() {
         {/* ---------- Announcement ---------- */}
         <div className="asg-card">
           <div className="asg-card-head">
-            <Bell size={14} style={{ color: '#F59E0B' }} />
+            <Bell size={14} style={{ color: 'var(--accent)' }} />
             <span className="asg-card-title">Announcement banner</span>
           </div>
           <div className="asg-card-body">
