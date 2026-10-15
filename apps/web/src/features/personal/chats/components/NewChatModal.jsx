@@ -1,16 +1,19 @@
 // apps/web/src/features/personal/chats/components/NewChatModal.jsx
 //
-// Search users and start (or resume) a DM. Debounces the search term at
-// 300ms and calls useChatUserSearch(q) — which itself requires 2+ chars.
+// Search your FRIENDS and start (or resume) a DM. The server restricts
+// the search endpoint to friends only — non-friends won't appear.
 //
-// Selecting a user calls POST /api/chat/conversations, which is
-// get-or-create: if a DM already exists with this user, the existing
-// conversation is returned instead of creating a duplicate.
+// Debounced 300ms. The API requires 2+ chars.
+//
+// If the caller has no friends yet, the empty state nudges them to the
+// Add Friend modal instead of leaving them staring at "no results".
 
 import { useEffect, useState, useCallback } from 'react';
-import { X, Loader2 } from 'lucide-react';
+import { X, Loader2, Search, UserRoundPlus } from 'lucide-react';
+
 import Portal from '@/shared/components/Portal';
 import { useChatUserSearch, useCreateConversation } from '@/shared/api/chat';
+import { useFriends } from '@/shared/api/friends';
 
 function initialsOf(user) {
   if (!user) return '?';
@@ -31,9 +34,11 @@ function displayNameOf(user) {
   return user.email || 'Unknown';
 }
 
-export default function NewChatModal({ isOpen, onClose, onCreated }) {
+export default function NewChatModal({ isOpen, onClose, onCreated, onOpenAddFriend }) {
   const [term, setTerm] = useState('');
   const [debounced, setDebounced] = useState('');
+
+  const { data: friends = [] } = useFriends({ enabled: isOpen });
 
   useEffect(() => {
     if (!isOpen) {
@@ -63,9 +68,10 @@ export default function NewChatModal({ isOpen, onClose, onCreated }) {
 
   if (!isOpen) return null;
 
+  const noFriends = friends.length === 0;
+  const showHint = debounced.length < 2;
   const showEmpty =
     debounced.length >= 2 && !isFetching && isFetched && users.length === 0;
-  const showHint = debounced.length < 2;
 
   return (
     <Portal>
@@ -75,7 +81,10 @@ export default function NewChatModal({ isOpen, onClose, onCreated }) {
       >
         <div className="chat-newchat-modal" role="dialog" aria-modal="true">
           <div className="chat-newchat-head">
-            <h2 className="chat-newchat-title">New chat</h2>
+            <div style={{ minWidth: 0 }}>
+              <h2 className="chat-newchat-title">New chat</h2>
+              <p className="chat-newchat-sub">Search your friends</p>
+            </div>
             <button
               type="button"
               className="chat-newchat-close"
@@ -87,9 +96,10 @@ export default function NewChatModal({ isOpen, onClose, onCreated }) {
           </div>
 
           <div className="chat-newchat-search">
+            <Search size={13} className="chat-newchat-search-icon" />
             <input
               type="text"
-              placeholder="Search by name or email…"
+              placeholder="Search friends by name or email…"
               value={term}
               onChange={(e) => setTerm(e.target.value)}
               autoFocus
@@ -98,26 +108,52 @@ export default function NewChatModal({ isOpen, onClose, onCreated }) {
           </div>
 
           <div className="chat-newchat-list">
-            {showHint && (
+            {noFriends && (
               <div className="chat-newchat-empty">
-                Type at least 2 characters to search.
+                <UserRoundPlus size={22} style={{ opacity: .5 }} />
+                <strong>No friends yet</strong>
+                <p>
+                  Add a friend by email to start chatting. Non-friends are
+                  hidden from search.
+                </p>
+                {onOpenAddFriend && (
+                  <button
+                    type="button"
+                    className="chat-new-btn-lg"
+                    style={{ marginTop: 6 }}
+                    onClick={() => { onClose(); onOpenAddFriend(); }}
+                  >
+                    <UserRoundPlus size={12} />
+                    Add friend
+                  </button>
+                )}
               </div>
             )}
 
-            {!showHint && isFetching && users.length === 0 && (
+            {!noFriends && showHint && (
+              <div className="chat-newchat-empty">
+                <Search size={22} style={{ opacity: .5 }} />
+                <strong>Search your friends</strong>
+                <p>Type at least 2 characters to find someone.</p>
+              </div>
+            )}
+
+            {!noFriends && !showHint && isFetching && users.length === 0 && (
               <div className="chat-newchat-empty">
                 <Loader2 size={18} style={{ animation: 'chatSpin .8s linear infinite' }} />
                 <div style={{ marginTop: 8 }}>Searching…</div>
               </div>
             )}
 
-            {showEmpty && (
+            {!noFriends && showEmpty && (
               <div className="chat-newchat-empty">
-                No users match “{debounced}”.
+                <Search size={22} style={{ opacity: .5 }} />
+                <strong>No friends match</strong>
+                <p>"{debounced}" didn't match any of your friends.</p>
               </div>
             )}
 
-            {users.map((u) => (
+            {!noFriends && users.map((u) => (
               <button
                 key={u.id}
                 type="button"
@@ -138,7 +174,6 @@ export default function NewChatModal({ isOpen, onClose, onCreated }) {
         </div>
       </div>
 
-      {/* Local keyframe for the spinner — deduped by id */}
       <style>{`
         @keyframes chatSpin { to { transform: rotate(360deg); } }
       `}</style>

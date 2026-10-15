@@ -1,24 +1,10 @@
 // apps/web/src/features/personal/chats/components/MessageThread.jsx
 //
-// Right pane of the chat UI. Renders:
-//   - header (peer info + typing indicator + mobile back button)
-//     For groups: GroupAvatar + name + member count + settings cog (admins only)
-//   - infinite-scroll message list (sentinel at the top loads older pages)
-//     For groups: sender avatar + name above every peer bubble
-//   - composer
-//
-// Preferences honoured:
-//   chats.showTypingInThread → hide "typing…" line in the header when off
-//   chats.sendReadReceipts   → skip markRead() so senders never see green ticks
-//   preferences.timeFormat   → 12h / 24h for all timestamps
-//
-// Read receipts (ticks) on OWN messages only:
-//   _optimistic       -> clock icon (sending)
-//   deliveredAt=null  -> single grey check (sent)
-//   deliveredAt set   -> double grey check (delivered)
-//   readAt set        -> double green check (read)
-//
-// Message actions (Edit / Delete) via right-click / long-press only.
+// Right pane of the chat UI. In DMs, when the caller is not friends with
+// the peer and the free-message cap is reached, the composer is replaced
+// by a locked banner with an inline Add Friend CTA. The banner is driven
+// by the conversation payload (isFriend / messagesRemaining), which the
+// server keeps fresh.
 
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import {
@@ -29,7 +15,9 @@ import {
   CheckCheck,
   Clock,
   Settings,
+  Info,
 } from 'lucide-react';
+import { toast } from 'sonner';
 
 import { useAuth } from '@/app/providers/AuthProvider';
 import { formatTime, formatDayLabel, dayKey } from '@/shared/format/datetime';
@@ -44,18 +32,16 @@ import {
   useDeleteMessage,
   useSendTyping,
 } from '@/shared/api/chat';
+import { useSendFriendRequest, useFriendStatus } from '@/shared/api/friends';
 
 import MessageComposer from './MessageComposer';
 import MessageContextMenu from './MessageContextMenu';
 import GroupAvatar from './GroupAvatar';
 import GroupSettingsModal from './GroupSettingsModal';
+import UserProfileSidebar from './UserProfileSidebar';
 
 const EDIT_WINDOW_MS = 15 * 60 * 1000;
 const LONG_PRESS_MS = 550;
-
-/* ------------------------------------------------------------------ */
-/*  Small helpers                                                      */
-/* ------------------------------------------------------------------ */
 
 function initialsOf(user) {
   if (!user) return '?';
@@ -76,29 +62,23 @@ function displayNameOf(user) {
   return user.email || 'Unknown';
 }
 
-
-
 function MessageTicks({ msg }) {
-  if (msg._optimistic) {
-    return <Clock size={12} className="chat-tick is-sending" aria-label="Sending" />;
-  }
-  if (msg.readAt) {
-    return <CheckCheck size={13} className="chat-tick is-read" aria-label="Read" />;
-  }
-  if (msg.deliveredAt) {
-    return <CheckCheck size={13} className="chat-tick is-delivered" aria-label="Delivered" />;
-  }
+  if (msg._optimistic) return <Clock size={12} className="chat-tick is-sending" aria-label="Sending" />;
+  if (msg.readAt)      return <CheckCheck size={13} className="chat-tick is-read" aria-label="Read" />;
+  if (msg.deliveredAt) return <CheckCheck size={13} className="chat-tick is-delivered" aria-label="Delivered" />;
   return <Check size={12} className="chat-tick is-sent" aria-label="Sent" />;
 }
 
-/* ------------------------------------------------------------------ */
-
-export default function MessageThread({ conversationId, onBack, onConversationClosed }) {
+export default function MessageThread({
+  conversationId,
+  onBack,
+  onConversationClosed,
+  onOpenThread,
+}) {
   const { user } = useAuth();
   const { settings } = useSettings();
   const currentUserId = user?.id;
 
-  // Preference reads
   const timeFormat = settings.preferences.timeFormat;
   const sendReadReceipts = settings.chats.sendReadReceipts;
   const timezone = settings.preferences.timezone;
@@ -125,9 +105,43 @@ export default function MessageThread({ conversationId, onBack, onConversationCl
   const sendTyping = useSendTyping();
 
   const isGroup = !!conversation?.isGroup;
+  const peer = conversation?.peer;
 
-  /* ---------------- Settings modal state ---------------- */
+  /* ---------------- Friend lock (DM only) ---------------- */
+
+  const { data: friendStatus } = useFriendStatus(peer?.id, {
+    enabled: !isGroup && !!peer?.id,
+  });
+  const sendFriendRequest = useSendFriendRequest();
+
+  const isLocked =
+    !isGroup &&
+    conversation &&
+    conversation.isFriend === false &&
+    typeof conversation.messagesRemaining === 'number' &&
+    conversation.messagesRemaining <= 0;
+
+  const friendRequestPending = !!friendStatus?.hasOutgoingRequest;
+
+  const handleComposerAddFriend = useCallback(async () => {
+    if (!peer?.id) return;
+    try {
+      await sendFriendRequest.mutateAsync({ toUserId: peer.id });
+      toast.success(`Friend request sent to ${displayNameOf(peer)}`);
+    } catch (err) {
+      toast.error(err?.message || 'Could not send friend request');
+    }
+  }, [peer, sendFriendRequest]);
+
+  /* ---------------- Sidebar + settings ---------------- */
+
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+
+  useEffect(() => {
+    setProfileOpen(false);
+    setSettingsOpen(false);
+  }, [conversationId]);
 
   const canManageGroup =
     isGroup &&
@@ -138,7 +152,7 @@ export default function MessageThread({ conversationId, onBack, onConversationCl
       conversation.createdById === currentUserId
     );
 
-  /* ---------------- Flatten paginated messages ---------------- */
+  /* ---------------- Messages ---------------- */
 
   const messages = useMemo(() => {
     if (!data?.pages) return [];
@@ -152,8 +166,6 @@ export default function MessageThread({ conversationId, onBack, onConversationCl
     return all;
   }, [data]);
 
-  /* ---------------- Scroll refs + auto-scroll ---------------- */
-
   const scrollRef = useRef(null);
   const sentinelRef = useRef(null);
   const atBottomRef = useRef(true);
@@ -164,8 +176,8 @@ export default function MessageThread({ conversationId, onBack, onConversationCl
     const el = scrollRef.current;
     if (!el) return undefined;
     const onScroll = () => {
-      const distance = el.scrollHeight - el.scrollTop - el.clientHeight;
-      atBottomRef.current = distance < 120;
+      const d = el.scrollHeight - el.scrollTop - el.clientHeight;
+      atBottomRef.current = d < 120;
     };
     el.addEventListener('scroll', onScroll, { passive: true });
     return () => el.removeEventListener('scroll', onScroll);
@@ -175,39 +187,29 @@ export default function MessageThread({ conversationId, onBack, onConversationCl
     lastCountRef.current = 0;
     atBottomRef.current = true;
     const el = scrollRef.current;
-    if (el) {
-      requestAnimationFrame(() => {
-        el.scrollTop = el.scrollHeight;
-      });
-    }
+    if (el) requestAnimationFrame(() => { el.scrollTop = el.scrollHeight; });
   }, [conversationId]);
 
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
-    const nextCount = messages.length;
-    if (nextCount > lastCountRef.current && atBottomRef.current) {
-      requestAnimationFrame(() => {
-        el.scrollTop = el.scrollHeight;
-      });
+    const n = messages.length;
+    if (n > lastCountRef.current && atBottomRef.current) {
+      requestAnimationFrame(() => { el.scrollTop = el.scrollHeight; });
     }
-    lastCountRef.current = nextCount;
+    lastCountRef.current = n;
   }, [messages.length]);
 
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
-
     if (isFetchingNextPage && !prependAnchorRef.current) {
       prependAnchorRef.current = { height: el.scrollHeight, top: el.scrollTop };
     }
-
     if (!isFetchingNextPage && prependAnchorRef.current) {
       const prev = prependAnchorRef.current;
       const delta = el.scrollHeight - prev.height;
-      if (delta > 0) {
-        el.scrollTop = prev.top + delta;
-      }
+      if (delta > 0) el.scrollTop = prev.top + delta;
       prependAnchorRef.current = null;
     }
   }, [isFetchingNextPage]);
@@ -229,12 +231,6 @@ export default function MessageThread({ conversationId, onBack, onConversationCl
     return () => observer.disconnect();
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
-  /* ---------------- Mark read on open + new inbound ---------------- */
-  //
-  // We intentionally do NOT update lastReadCountRef when receipts are off,
-  // so if the user enables the preference later, the effect fires once with
-  // the current message count and catches up.
-
   const lastReadCountRef = useRef(0);
   useEffect(() => {
     if (!conversationId) return;
@@ -246,8 +242,6 @@ export default function MessageThread({ conversationId, onBack, onConversationCl
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversationId, messages.length, sendReadReceipts]);
 
-  /* ---------------- nowTs for edit-window checks ---------------- */
-
   const [nowTs, setNowTs] = useState(0);
   useEffect(() => {
     setNowTs(Date.now());
@@ -255,15 +249,11 @@ export default function MessageThread({ conversationId, onBack, onConversationCl
     return () => clearInterval(iv);
   }, []);
 
-  /* ---------------- Context menu state ---------------- */
-
   const [ctxMenu, setCtxMenu] = useState(null);
   const openContextMenu = useCallback((x, y, message) => {
     setCtxMenu({ x, y, message });
   }, []);
-  const closeContextMenu = useCallback(() => {
-    setCtxMenu(null);
-  }, []);
+  const closeContextMenu = useCallback(() => setCtxMenu(null), []);
 
   const longPressRef = useRef({ timer: null, fired: false });
 
@@ -299,8 +289,6 @@ export default function MessageThread({ conversationId, onBack, onConversationCl
 
   useEffect(() => () => cancelLongPress(), [cancelLongPress]);
 
-  /* ---------------- Editing state ---------------- */
-
   const [editingId, setEditingId] = useState(null);
   const [editText, setEditText] = useState('');
 
@@ -323,41 +311,25 @@ export default function MessageThread({ conversationId, onBack, onConversationCl
     );
   }, [editText, editingId, conversationId, editMessage]);
 
-  /* ---------------- Delete flow ---------------- */
-
   const handleDeleteMe = useCallback(
-    (msg) => {
-      deleteMessage.mutate({ conversationId, messageId: msg.id, scope: 'me' });
-    },
+    (msg) => deleteMessage.mutate({ conversationId, messageId: msg.id, scope: 'me' }),
     [conversationId, deleteMessage]
   );
-
   const handleDeleteAll = useCallback(
-    (msg) => {
-      deleteMessage.mutate({ conversationId, messageId: msg.id, scope: 'all' });
-    },
+    (msg) => deleteMessage.mutate({ conversationId, messageId: msg.id, scope: 'all' }),
     [conversationId, deleteMessage]
   );
-
-  /* ---------------- Send ---------------- */
 
   const handleSend = useCallback(
-    (body) => {
-      sendMessage.mutate({ conversationId, body, senderId: currentUserId });
-    },
+    (body) => sendMessage.mutate({ conversationId, body, senderId: currentUserId }),
     [conversationId, currentUserId, sendMessage]
   );
 
   const handleTyping = useCallback(
-    (isTyping) => {
-      sendTyping.mutate({ conversationId, isTyping });
-    },
+    (isTyping) => sendTyping.mutate({ conversationId, isTyping }),
     [conversationId, sendTyping]
   );
 
-  /* ---------------- Header content ---------------- */
-
-  const peer = conversation?.peer;
   const headerName = isGroup
     ? (conversation?.name || 'Untitled group')
     : displayNameOf(peer);
@@ -375,8 +347,6 @@ export default function MessageThread({ conversationId, onBack, onConversationCl
   const threadSubClass =
     peerTyping && showTypingInThread ? 'chat-thread-sub is-typing' : 'chat-thread-sub';
 
-  /* ---------------- Early returns ---------------- */
-
   if (convoLoading && !conversation) {
     return (
       <div className="chat-thread">
@@ -390,209 +360,247 @@ export default function MessageThread({ conversationId, onBack, onConversationCl
 
   if (!conversation) return null;
 
-  /* ---------------- Render ---------------- */
-
   return (
-    <div className="chat-thread">
-      {/* ---------- Header ---------- */}
-      <div className="chat-thread-header">
-        <button
-          type="button"
-          className="chat-thread-back"
-          onClick={onBack}
-          aria-label="Back to conversations"
-        >
-          <ArrowLeft size={15} />
-        </button>
+    <div className="chat-thread-wrap">
+      <div className="chat-thread">
+        <div className="chat-thread-header">
+          <button
+            type="button"
+            className="chat-thread-back"
+            onClick={onBack}
+            aria-label="Back to conversations"
+          >
+            <ArrowLeft size={15} />
+          </button>
 
-        {isGroup ? (
-          <GroupAvatar group={conversation} size={36} />
-        ) : (
-          <div className="chat-avatar" style={{ width: 36, height: 36, fontSize: 12 }}>
-            {peer?.photoUrl ? <img src={peer.photoUrl} alt="" /> : initialsOf(peer)}
+          {isGroup ? (
+            <GroupAvatar group={conversation} size={36} />
+          ) : (
+            <button
+              type="button"
+              className="chat-thread-avatar-btn"
+              onClick={() => setProfileOpen((v) => !v)}
+              aria-label={`Open ${headerName}'s profile`}
+              title="Open profile"
+            >
+              <span className="chat-avatar" style={{ width: 36, height: 36, fontSize: 12 }}>
+                {peer?.photoUrl ? <img src={peer.photoUrl} alt="" /> : initialsOf(peer)}
+              </span>
+            </button>
+          )}
+
+          <div className="chat-thread-peer">
+            <span className="chat-thread-name">{headerName}</span>
+            <span className={threadSubClass}>{threadSubText}</span>
           </div>
-        )}
 
-        <div className="chat-thread-peer">
-          <span className="chat-thread-name">{headerName}</span>
-          <span className={threadSubClass}>{threadSubText}</span>
+          {!isGroup && (
+            <button
+              type="button"
+              className={`chat-thread-settings${profileOpen ? ' is-active' : ''}`}
+              onClick={() => setProfileOpen((v) => !v)}
+              aria-label="Toggle profile"
+              title="Profile"
+            >
+              <Info size={15} />
+            </button>
+          )}
+
+          {isGroup && canManageGroup && (
+            <button
+              type="button"
+              className="chat-thread-settings"
+              onClick={() => setSettingsOpen(true)}
+              title="Group settings"
+              aria-label="Group settings"
+            >
+              <Settings size={15} />
+            </button>
+          )}
         </div>
 
-        {canManageGroup && (
-          <button
-            type="button"
-            className="chat-thread-settings"
-            onClick={() => setSettingsOpen(true)}
-            title="Group settings"
-            aria-label="Group settings"
-          >
-            <Settings size={15} />
-          </button>
-        )}
-      </div>
+        <div className="chat-thread-messages" ref={scrollRef}>
+          <div ref={sentinelRef} style={{ height: 1 }} />
 
-      {/* ---------- Messages ---------- */}
-      <div className="chat-thread-messages" ref={scrollRef}>
-        <div ref={sentinelRef} style={{ height: 1 }} />
+          {hasNextPage && (
+            <button
+              type="button"
+              className="chat-load-more"
+              onClick={() => fetchNextPage()}
+              disabled={isFetchingNextPage}
+            >
+              {isFetchingNextPage ? (
+                <>
+                  <Loader2 size={11} style={{ animation: 'chatSpin .8s linear infinite' }} />
+                  Loading…
+                </>
+              ) : ('Load earlier messages')}
+            </button>
+          )}
 
-        {hasNextPage && (
-          <button
-            type="button"
-            className="chat-load-more"
-            onClick={() => fetchNextPage()}
-            disabled={isFetchingNextPage}
-          >
-            {isFetchingNextPage ? (
-              <>
-                <Loader2 size={11} style={{ animation: 'chatSpin .8s linear infinite' }} />
-                Loading…
-              </>
-            ) : (
-              'Load earlier messages'
-            )}
-          </button>
-        )}
-
-        {messagesLoading && messages.length === 0 && (
-          <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--ink-3)', fontSize: 12 }}>
-            Loading messages…
-          </div>
-        )}
-
-        {!messagesLoading && messages.length === 0 && (
-          <div className="chat-empty" style={{ padding: '60px 20px' }}>
-            <div className="chat-empty-icon">
-              <Pencil size={22} />
+          {messagesLoading && messages.length === 0 && (
+            <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--ink-3)', fontSize: 12 }}>
+              Loading messages…
             </div>
-            <h3>Say hi 👋</h3>
-            <p>
-              {isGroup
-                ? `This is the beginning of ${headerName}. Send a message to get started.`
-                : `This is the beginning of your conversation with ${headerName}. Send a message to get started.`}
-            </p>
-          </div>
-        )}
+          )}
 
-        {messages.map((msg, idx) => {
-          const prev = messages[idx - 1];
-          const next = messages[idx + 1];
-          const showDaySep = !prev || dayKey(prev.createdAt, timezone) !== dayKey(msg.createdAt, timezone);
-          const isOwn = msg.senderId === currentUserId;
-          const isDeleted = !!msg.deleted;
-          const isEditing = editingId === msg.id;
-
-          const sameDayAsNext =
-            next && dayKey(next.createdAt) === dayKey(msg.createdAt, timezone);
-          const sameMinuteAsNext =
-            next && formatTime(next.createdAt, timeFormat) === formatTime(msg.createdAt, timeFormat, timezone);
-          const sameSenderAsNext =
-            next && next.senderId === msg.senderId;
-          const isLastInGroup =
-            !next || !sameDayAsNext || !sameMinuteAsNext || !sameSenderAsNext;
-
-          const showEditedBadge = !!(msg.editedAt && !isDeleted);
-          const showTicks = isOwn && !isDeleted;
-          const showMetaRow = isLastInGroup || showEditedBadge || showTicks;
-
-          const showSenderRow = isGroup && !isOwn && !isDeleted;
-
-          const msgCls = [
-            'chat-msg',
-            isOwn ? 'is-own' : 'is-peer',
-            isDeleted ? 'is-deleted' : '',
-            isGroup ? 'is-group' : '',
-            msg._optimistic ? 'chat-msg-optimistic' : '',
-          ].filter(Boolean).join(' ');
-
-          return (
-            <div key={msg.id} style={{ display: 'contents' }}>
-              {showDaySep && (
-                <div className="chat-day-sep">{formatDayLabel(msg.createdAt, timezone)}</div>
-              )}
-
-              <div
-                className={msgCls}
-                onContextMenu={(e) => handleMessageContextMenu(msg, e)}
-                onTouchStart={(e) => handleMessageTouchStart(msg, e)}
-                onTouchMove={cancelLongPress}
-                onTouchEnd={cancelLongPress}
-                onTouchCancel={cancelLongPress}
-              >
-                {showSenderRow && (
-                  <div className="chat-msg-sender">
-                    <span className="chat-msg-sender-avatar">
-                      {msg.sender?.photoUrl ? (
-                        <img src={msg.sender.photoUrl} alt="" />
-                      ) : (
-                        initialsOf(msg.sender)
-                      )}
-                    </span>
-                    <span className="chat-msg-sender-name">
-                      {displayNameOf(msg.sender)}
-                    </span>
-                  </div>
-                )}
-
-                {isEditing ? (
-                  <div className="chat-edit-inline">
-                    <textarea
-                      value={editText}
-                      onChange={(e) => setEditText(e.target.value.slice(0, 4000))}
-                      autoFocus
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitEdit(); }
-                        else if (e.key === 'Escape') { e.preventDefault(); cancelEdit(); }
-                      }}
-                    />
-                    <div className="chat-edit-actions">
-                      <button type="button" className="chat-edit-btn" onClick={cancelEdit}>
-                        Cancel
-                      </button>
-                      <button
-                        type="button"
-                        className="chat-edit-btn is-save"
-                        onClick={submitEdit}
-                        disabled={!editText.trim() || editMessage.isPending}
-                      >
-                        {editMessage.isPending ? 'Saving…' : 'Save'}
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    <div className="chat-msg-bubble">
-                      {isDeleted ? '[message deleted]' : (msg.body || '')}
-                    </div>
-
-                    {showMetaRow && (
-                      <div className="chat-msg-meta">
-                        {isLastInGroup && <span>{formatTime(msg.createdAt, timeFormat, timezone)}</span>}
-                        {showEditedBadge && (
-                          <span className="chat-msg-edited">
-                            {isLastInGroup ? '· edited' : 'edited'}
-                          </span>
-                        )}
-                        {showTicks && <MessageTicks msg={msg} />}
-                      </div>
-                    )}
-                  </>
-                )}
+          {!messagesLoading && messages.length === 0 && (
+            <div className="chat-empty" style={{ padding: '60px 20px' }}>
+              <div className="chat-empty-icon">
+                <Pencil size={22} />
               </div>
+              <h3>Say hi 👋</h3>
+              <p>
+                {isGroup
+                  ? `This is the beginning of ${headerName}. Send a message to get started.`
+                  : `This is the beginning of your conversation with ${headerName}. Send a message to get started.`}
+              </p>
             </div>
-          );
-        })}
+          )}
+
+          {messages.map((msg, idx) => {
+            const prev = messages[idx - 1];
+            const next = messages[idx + 1];
+            const showDaySep =
+              !prev ||
+              dayKey(prev.createdAt, timezone) !== dayKey(msg.createdAt, timezone);
+            const isOwn = msg.senderId === currentUserId;
+            const isDeleted = !!msg.deleted;
+            const isEditing = editingId === msg.id;
+
+            const sameDayAsNext =
+              next && dayKey(next.createdAt) === dayKey(msg.createdAt, timezone);
+            const sameMinuteAsNext =
+              next &&
+              formatTime(next.createdAt, timeFormat) ===
+                formatTime(msg.createdAt, timeFormat, timezone);
+            const sameSenderAsNext = next && next.senderId === msg.senderId;
+            const isLastInGroup =
+              !next || !sameDayAsNext || !sameMinuteAsNext || !sameSenderAsNext;
+
+            const showEditedBadge = !!(msg.editedAt && !isDeleted);
+            const showTicks = isOwn && !isDeleted;
+            const showMetaRow = isLastInGroup || showEditedBadge || showTicks;
+
+            const showSenderRow = isGroup && !isOwn && !isDeleted;
+
+            const msgCls = [
+              'chat-msg',
+              isOwn ? 'is-own' : 'is-peer',
+              isDeleted ? 'is-deleted' : '',
+              isGroup ? 'is-group' : '',
+              msg._optimistic ? 'chat-msg-optimistic' : '',
+            ].filter(Boolean).join(' ');
+
+            return (
+              <div key={msg.id} style={{ display: 'contents' }}>
+                {showDaySep && (
+                  <div className="chat-day-sep">
+                    {formatDayLabel(msg.createdAt, timezone)}
+                  </div>
+                )}
+
+                <div
+                  className={msgCls}
+                  onContextMenu={(e) => handleMessageContextMenu(msg, e)}
+                  onTouchStart={(e) => handleMessageTouchStart(msg, e)}
+                  onTouchMove={cancelLongPress}
+                  onTouchEnd={cancelLongPress}
+                  onTouchCancel={cancelLongPress}
+                >
+                  {showSenderRow && (
+                    <div className="chat-msg-sender">
+                      <span className="chat-msg-sender-avatar">
+                        {msg.sender?.photoUrl ? (
+                          <img src={msg.sender.photoUrl} alt="" />
+                        ) : (
+                          initialsOf(msg.sender)
+                        )}
+                      </span>
+                      <span className="chat-msg-sender-name">
+                        {displayNameOf(msg.sender)}
+                      </span>
+                    </div>
+                  )}
+
+                  {isEditing ? (
+                    <div className="chat-edit-inline">
+                      <textarea
+                        value={editText}
+                        onChange={(e) => setEditText(e.target.value.slice(0, 4000))}
+                        autoFocus
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && !e.shiftKey) {
+                            e.preventDefault();
+                            submitEdit();
+                          } else if (e.key === 'Escape') {
+                            e.preventDefault();
+                            cancelEdit();
+                          }
+                        }}
+                      />
+                      <div className="chat-edit-actions">
+                        <button type="button" className="chat-edit-btn" onClick={cancelEdit}>
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          className="chat-edit-btn is-save"
+                          onClick={submitEdit}
+                          disabled={!editText.trim() || editMessage.isPending}
+                        >
+                          {editMessage.isPending ? 'Saving…' : 'Save'}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="chat-msg-bubble">
+                        {isDeleted ? '[message deleted]' : (msg.body || '')}
+                      </div>
+
+                      {showMetaRow && (
+                        <div className="chat-msg-meta">
+                          {isLastInGroup && (
+                            <span>{formatTime(msg.createdAt, timeFormat, timezone)}</span>
+                          )}
+                          {showEditedBadge && (
+                            <span className="chat-msg-edited">
+                              {isLastInGroup ? '· edited' : 'edited'}
+                            </span>
+                          )}
+                          {showTicks && <MessageTicks msg={msg} />}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <MessageComposer
+          conversationId={conversationId}
+          onSend={handleSend}
+          onTyping={handleTyping}
+          disabled={false}
+          isSending={sendMessage.isPending}
+          isLocked={isLocked}
+          peer={peer}
+          friendRequestPending={friendRequestPending}
+          onAddFriend={handleComposerAddFriend}
+        />
       </div>
 
-      {/* ---------- Composer ---------- */}
-      <MessageComposer
-        conversationId={conversationId}
-        onSend={handleSend}
-        onTyping={handleTyping}
-        disabled={false}
-        isSending={sendMessage.isPending}
-      />
+      {!isGroup && profileOpen && (
+        <UserProfileSidebar
+          peer={peer}
+          conversation={conversation}
+          onClose={() => setProfileOpen(false)}
+        />
+      )}
 
-      {/* ---------- Context menu ---------- */}
       {ctxMenu && (
         <MessageContextMenu
           x={ctxMenu.x}
@@ -614,13 +622,13 @@ export default function MessageThread({ conversationId, onBack, onConversationCl
         />
       )}
 
-      {/* ---------- Group settings modal (admins only) ---------- */}
       {isGroup && canManageGroup && (
         <GroupSettingsModal
           isOpen={settingsOpen}
           onClose={() => setSettingsOpen(false)}
           conversation={conversation}
           onConversationClosed={onConversationClosed}
+          onOpenThread={onOpenThread}
         />
       )}
 

@@ -1,17 +1,11 @@
 // apps/web/src/features/personal/chats/components/ConversationList.jsx
 //
 // Left pane of the chat UI. Renders the current user's conversations,
-// grouped into "Direct Messages" and "Groups" sections when the "All" tab
-// is active. Filterable via segmented tabs (All / DMs / Groups).
+// optionally grouped into DM + Group sections.
 //
-// Preferences honoured:
-//   notifications.showTypingInList → hide the inline "typing…" hint when off
-//   preferences.timeFormat         → 12h / 24h for today's timestamps
-//
-// Header actions:
-//   • Discover     — always visible, opens the public-groups modal
-//   • New group    — admin / superadmin only, opens the create-group modal
-//   • New DM       — always visible, opens the user-search modal
+// Friend-status pill on DM rows: when the peer is NOT a friend, shows a
+// small "2 / 3" pill next to the preview so the user knows how many free
+// messages remain before the composer locks.
 
 import { useMemo } from 'react';
 import {
@@ -19,16 +13,13 @@ import {
   Pin,
   Compass,
   Users,
+  Lock,
 } from 'lucide-react';
 
 import { useTypingConversations } from '@/shared/api/chat';
 import { formatRelative } from '@/shared/format/datetime';
 import { useSettings } from '@/app/layout/Settings/SettingsProvider';
 import GroupAvatar from './GroupAvatar';
-
-/* ------------------------------------------------------------------ */
-/*  Helpers                                                            */
-/* ------------------------------------------------------------------ */
 
 const TABS = [
   { id: 'all', label: 'All' },
@@ -55,8 +46,6 @@ function displayNameOf(user) {
   return user.email || 'Unknown';
 }
 
-
-
 function sortConversations(arr) {
   return [...arr].sort((a, b) => {
     if (a.isPinned !== b.isPinned) return a.isPinned ? -1 : 1;
@@ -66,17 +55,13 @@ function sortConversations(arr) {
   });
 }
 
-/* ------------------------------------------------------------------ */
-/*  Empty states                                                       */
-/* ------------------------------------------------------------------ */
-
 function EmptyTabState({ activeTab, onNewChat, onDiscover, onCreateGroup, isAdmin }) {
   if (activeTab === 'dms') {
     return (
       <div className="chat-list-empty-filtered">
         <MessageSquarePlus size={22} style={{ opacity: .5 }} />
         <strong>No direct messages</strong>
-        <p>Start a conversation with a teammate.</p>
+        <p>Start a conversation with a friend.</p>
         <div className="chat-list-empty-actions">
           <button type="button" className="chat-new-btn-lg" onClick={onNewChat}>
             <MessageSquarePlus size={12} />
@@ -120,8 +105,6 @@ function EmptyTabState({ activeTab, onNewChat, onDiscover, onCreateGroup, isAdmi
   );
 }
 
-/* ------------------------------------------------------------------ */
-
 export default function ConversationList({
   conversations,
   selectedId,
@@ -131,9 +114,11 @@ export default function ConversationList({
   onDiscover,
   onCreateGroup,
   isAdmin,
-  activeTab,
+  activeTab = 'all',
   onTabChange,
   counts,
+  hideTabs = false,
+  hideHeader = false,
 }) {
   const { settings } = useSettings();
   const showTypingInList = settings.notifications.showTypingInList;
@@ -155,16 +140,10 @@ export default function ConversationList({
       if (c.isGroup) grpArr.push(c);
       else dmArr.push(c);
     }
-    return {
-      dms: sortConversations(dmArr),
-      groups: sortConversations(grpArr),
-    };
+    return { dms: sortConversations(dmArr), groups: sortConversations(grpArr) };
   }, [filtered]);
 
-  const showDmHeader = activeTab === 'all' && dms.length > 0 && groups.length > 0;
-  const showGroupHeader = activeTab === 'all' && dms.length > 0 && groups.length > 0;
-
-  /* ---------------- Row renderers ---------------- */
+  const showSections = activeTab === 'all' && dms.length > 0 && groups.length > 0;
 
   const renderDmRow = (c) => {
     const peer = c.peer;
@@ -173,6 +152,11 @@ export default function ConversationList({
     const preview = c.lastMessageText
       ? (isOwn ? `You: ${c.lastMessageText}` : c.lastMessageText)
       : 'No messages yet';
+
+    const showFriendPill =
+      c.isFriend === false &&
+      typeof c.messagesRemaining === 'number' &&
+      c.messagesRemaining >= 0;
 
     return (
       <button
@@ -192,12 +176,29 @@ export default function ConversationList({
         <div className="chat-list-body">
           <div className="chat-list-row-top">
             <span className="chat-list-name">{displayNameOf(peer)}</span>
-            <span className="chat-list-time">{formatRelative(c.lastMessageAt, timeFormat, timezone)}</span>
+            <span className="chat-list-time">
+              {formatRelative(c.lastMessageAt, timeFormat, timezone)}
+            </span>
           </div>
           <div className="chat-list-row-bottom">
             <span className={`chat-list-preview${isTyping ? ' is-typing' : ''}`}>
               {isTyping ? 'typing...' : preview}
             </span>
+            {showFriendPill && (
+              <span
+                className={`chat-list-friend-pill${
+                  c.messagesRemaining === 0 ? ' is-locked' : ''
+                }`}
+                title={
+                  c.messagesRemaining === 0
+                    ? 'Add as friend to keep chatting'
+                    : `${c.messagesRemaining} free messages left`
+                }
+              >
+                <Lock size={9} />
+                {c.messagesRemaining}/3
+              </span>
+            )}
             {c.isPinned && <Pin size={10} className="chat-list-pin" />}
             {c.unreadCount > 0 && (
               <span className="chat-list-badge">
@@ -229,7 +230,9 @@ export default function ConversationList({
         <div className="chat-list-body">
           <div className="chat-list-row-top">
             <span className="chat-list-name">{c.name || 'Untitled group'}</span>
-            <span className="chat-list-time">{formatRelative(c.lastMessageAt, timeFormat, timezone)}</span>
+            <span className="chat-list-time">
+              {formatRelative(c.lastMessageAt, timeFormat, timezone)}
+            </span>
           </div>
           <div className="chat-list-row-bottom">
             <span className={`chat-list-preview${isTyping ? ' is-typing' : ''}`}>
@@ -247,62 +250,64 @@ export default function ConversationList({
     );
   };
 
-  /* ---------------- Render ---------------- */
-
   const showEmptyState = filtered.length === 0;
 
   return (
     <aside className="chat-list">
-      <div className="chat-list-header">
-        <span className="chat-list-title">Conversations</span>
-        <div className="chat-list-actions">
-          {isAdmin && (
+      {!hideHeader && (
+        <div className="chat-list-header">
+          <span className="chat-list-title">Conversations</span>
+          <div className="chat-list-actions">
+            {isAdmin && (
+              <button
+                type="button"
+                className="chat-new-btn is-accent"
+                onClick={onCreateGroup}
+                title="New group"
+                aria-label="New group"
+              >
+                <Users size={14} />
+              </button>
+            )}
             <button
               type="button"
-              className="chat-new-btn is-accent"
-              onClick={onCreateGroup}
-              title="New group"
-              aria-label="New group"
+              className="chat-new-btn"
+              onClick={onDiscover}
+              title="Discover public groups"
+              aria-label="Discover public groups"
             >
-              <Users size={14} />
+              <Compass size={14} />
             </button>
-          )}
-          <button
-            type="button"
-            className="chat-new-btn"
-            onClick={onDiscover}
-            title="Discover public groups"
-            aria-label="Discover public groups"
-          >
-            <Compass size={14} />
-          </button>
-          <button
-            type="button"
-            className="chat-new-btn"
-            onClick={onNewChat}
-            title="New direct message"
-            aria-label="New direct message"
-          >
-            <MessageSquarePlus size={14} />
-          </button>
+            <button
+              type="button"
+              className="chat-new-btn"
+              onClick={onNewChat}
+              title="New direct message"
+              aria-label="New direct message"
+            >
+              <MessageSquarePlus size={14} />
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
-      <div className="chat-tabs" role="tablist" aria-label="Filter conversations">
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            role="tab"
-            aria-selected={activeTab === t.id}
-            className={`chat-tab${activeTab === t.id ? ' is-active' : ''}`}
-            onClick={() => onTabChange(t.id)}
-          >
-            <span>{t.label}</span>
-            <span className="chat-tab-count">{counts?.[t.id] ?? 0}</span>
-          </button>
-        ))}
-      </div>
+      {!hideTabs && (
+        <div className="chat-tabs" role="tablist" aria-label="Filter conversations">
+          {TABS.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              role="tab"
+              aria-selected={activeTab === t.id}
+              className={`chat-tab${activeTab === t.id ? ' is-active' : ''}`}
+              onClick={() => onTabChange && onTabChange(t.id)}
+            >
+              <span>{t.label}</span>
+              <span className="chat-tab-count">{counts?.[t.id] ?? 0}</span>
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="chat-list-items">
         {showEmptyState ? (
@@ -317,18 +322,13 @@ export default function ConversationList({
           <>
             {dms.length > 0 && (
               <>
-                {showDmHeader && (
-                  <div className="chat-list-section">Direct Messages</div>
-                )}
+                {showSections && <div className="chat-list-section">Direct Messages</div>}
                 {dms.map(renderDmRow)}
               </>
             )}
-
             {groups.length > 0 && (
               <>
-                {showGroupHeader && (
-                  <div className="chat-list-section">Groups</div>
-                )}
+                {showSections && <div className="chat-list-section">Groups</div>}
                 {groups.map(renderGroupRow)}
               </>
             )}

@@ -5,13 +5,14 @@
 //   - Enter to send (or Ctrl/Cmd+Enter, per user preference)
 //   - throttled typing signal (1 event per 2s while typing)
 //   - 4000 char cap (hard max enforced on the textarea)
-//   - disabled while an optimistic send is in flight
+//   - LOCKED state: when a non-friend DM hits the 3-message cap, the
+//     composer is replaced by a banner with a one-click Add Friend CTA.
 //
 // The send-combo hint under the textarea reflects the user's
 // chats.enterToSend preference so the interaction is discoverable.
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { SendHorizontal } from 'lucide-react';
+import { SendHorizontal, Lock, UserRoundPlus, Clock } from 'lucide-react';
 
 import { useSettings } from '@/app/layout/Settings/SettingsProvider';
 
@@ -19,12 +20,25 @@ const MAX_LEN = 4000;
 const TYPING_THROTTLE_MS = 2000;
 const TYPING_IDLE_MS = 3000;
 
+function displayNameOf(u) {
+  if (!u) return 'this user';
+  const a = (u.firstName || '').trim();
+  const b = (u.lastName || '').trim();
+  if (a && b) return `${a} ${b}`;
+  if (a) return a;
+  return u.email || 'this user';
+}
+
 export default function MessageComposer({
   conversationId,
   onSend,
   onTyping,
   disabled = false,
   isSending = false,
+  isLocked = false,
+  peer = null,
+  friendRequestPending = false,
+  onAddFriend,
 }) {
   const { settings } = useSettings();
   const enterToSend = settings.chats.enterToSend;
@@ -34,7 +48,7 @@ export default function MessageComposer({
   const lastTypingSentRef = useRef(0);
   const idleTimerRef = useRef(null);
 
-  // Clear the textarea when the composer switches to a different conversation.
+  // Clear the textarea when the composer switches conversations OR unlocks.
   useEffect(() => {
     setText('');
     lastTypingSentRef.current = 0;
@@ -42,9 +56,8 @@ export default function MessageComposer({
       clearTimeout(idleTimerRef.current);
       idleTimerRef.current = null;
     }
-  }, [conversationId]);
+  }, [conversationId, isLocked]);
 
-  // Clean up on unmount (or conversation change).
   useEffect(() => {
     return () => {
       if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
@@ -82,7 +95,7 @@ export default function MessageComposer({
 
   const submit = useCallback(() => {
     const trimmed = text.trim();
-    if (!trimmed || disabled) return;
+    if (!trimmed || disabled || isLocked) return;
     if (idleTimerRef.current) {
       clearTimeout(idleTimerRef.current);
       idleTimerRef.current = null;
@@ -98,20 +111,57 @@ export default function MessageComposer({
         el.focus();
       }
     });
-  }, [text, disabled, onSend, onTyping]);
+  }, [text, disabled, isLocked, onSend, onTyping]);
 
   const handleKeyDown = (e) => {
     if (e.key !== 'Enter') return;
 
     const mod = e.ctrlKey || e.metaKey;
-    // enterToSend ON  → Enter (with or without mod) sends, Shift+Enter newline
-    // enterToSend OFF → Ctrl/Cmd+Enter sends, plain Enter newline
     const shouldSend = enterToSend ? !e.shiftKey : mod;
 
     if (!shouldSend) return;
     e.preventDefault();
     submit();
   };
+
+  /* ---------------- Locked state ---------------- */
+
+  if (isLocked) {
+    return (
+      <div className="chat-composer is-locked">
+        <div className="chat-composer-banner">
+          <span className="chat-composer-banner-icon" aria-hidden>
+            <Lock size={14} />
+          </span>
+          <div className="chat-composer-banner-text">
+            <div className="chat-composer-banner-title">
+              You've reached your 3 free messages
+            </div>
+            <div className="chat-composer-banner-sub">
+              Add {displayNameOf(peer)} as a friend to keep chatting.
+            </div>
+          </div>
+          {friendRequestPending ? (
+            <span className="chat-composer-banner-pending">
+              <Clock size={11} /> Request sent
+            </span>
+          ) : (
+            <button
+              type="button"
+              className="chat-composer-banner-cta"
+              onClick={onAddFriend}
+              disabled={!onAddFriend}
+            >
+              <UserRoundPlus size={12} />
+              <span>Add friend</span>
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  /* ---------------- Normal state ---------------- */
 
   const canSend = text.trim().length > 0 && !disabled && !isSending;
   const nearLimit = text.length > MAX_LEN - 200;

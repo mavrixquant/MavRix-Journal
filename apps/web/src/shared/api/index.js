@@ -19,3 +19,4 @@ export * from './calendar.js';
 export * from './gex.js';
 export * from './marketData.js';
 export * from './chat.js';
+export * from './friends.js';

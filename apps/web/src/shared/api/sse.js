@@ -273,6 +273,59 @@ export function useSSEBridge({ enabled = true, currentUserId = null } = {}) {
         setTypingState(conversationId, userId, !!isTyping);
       });
 
+      /* ---------------- Friends: incoming request ---------------- */
+
+      es.addEventListener('friend:request:new', () => {
+        queryClient.invalidateQueries({ queryKey: ['friends', 'requests'] });
+        queryClient.invalidateQueries({ queryKey: ['friends', 'status'] });
+      });
+
+      /* ---------------- Friends: request accepted ---------------- */
+
+      es.addEventListener('friend:request:accepted', () => {
+        // Broad — a new friend appears in the list, the peer's card flips
+        // to "friend", and any open DM with the peer gains a fresh badge.
+        queryClient.invalidateQueries({ queryKey: ['friends'] });
+        queryClient.invalidateQueries({ queryKey: ['chat', 'conversations'] });
+      });
+
+      /* ---------------- Friends: request declined ---------------- */
+
+      es.addEventListener('friend:request:declined', () => {
+        queryClient.invalidateQueries({ queryKey: ['friends', 'requests'] });
+        queryClient.invalidateQueries({ queryKey: ['friends', 'status'] });
+      });
+
+      /* ---------------- Friends: request cancelled ---------------- */
+
+      es.addEventListener('friend:request:cancelled', () => {
+        queryClient.invalidateQueries({ queryKey: ['friends', 'requests'] });
+        queryClient.invalidateQueries({ queryKey: ['friends', 'status'] });
+      });
+
+      /* ---------------- Friends: removed ---------------- */
+
+      es.addEventListener('friend:removed', () => {
+        queryClient.invalidateQueries({ queryKey: ['friends'] });
+        queryClient.invalidateQueries({ queryKey: ['chat', 'conversations'] });
+      });
+
+      /* ---------------- Blocks: added ---------------- */
+
+      es.addEventListener('block:new', () => {
+        // A block tears down friendships, cancels requests, hides DMs, and
+        // filters group member lists — invalidate everything friends/chat.
+        queryClient.invalidateQueries({ queryKey: ['friends'] });
+        queryClient.invalidateQueries({ queryKey: ['chat'] });
+      });
+
+      /* ---------------- Blocks: removed ---------------- */
+
+      es.addEventListener('block:removed', () => {
+        queryClient.invalidateQueries({ queryKey: ['friends'] });
+        queryClient.invalidateQueries({ queryKey: ['chat'] });
+      });
+
       es.addEventListener('error', () => {
         if (cancelled) return;
 
