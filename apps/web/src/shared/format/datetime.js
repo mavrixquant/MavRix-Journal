@@ -6,20 +6,54 @@
 //
 // `timezone` is either an IANA identifier ('Asia/Kolkata') or 'auto' /
 // null / '' — in which case the browser timezone is used.
+//
+// SAFETY CONTRACT:
+//   Every formatter in this file calls `resolveTimezone()` internally, so a
+//   caller can safely pass the raw user preference (which is often the
+//   string 'auto'). `resolveTimezone()` also validates arbitrary IANA
+//   identifiers against Intl — anything invalid falls back to the browser
+//   zone, then to 'UTC'. This guarantees `Intl.DateTimeFormat` is never
+//   handed a string it will reject.
 
 /* ------------------------------------------------------------------ */
 /*  Timezone resolution                                                */
 /* ------------------------------------------------------------------ */
 
+// Memoize resolution so per-message-per-render calls are cheap. Key is the
+// raw input string (e.g. "auto" or "Asia/Kolkata"); value is a validated,
+// usable IANA identifier.
+const TZ_CACHE = new Map();
+
+function browserTimezone() {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+  } catch {
+    return 'UTC';
+  }
+}
+
 export function resolveTimezone(tz) {
+  const key = tz || 'auto';
+  const cached = TZ_CACHE.get(key);
+  if (cached) return cached;
+
+  let resolved;
+
   if (!tz || tz === 'auto') {
+    resolved = browserTimezone();
+  } else {
+    // Validate the identifier before trusting it. A bad string here would
+    // otherwise crash Intl.DateTimeFormat deeper in a formatter call.
     try {
-      return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+      new Intl.DateTimeFormat('en-US', { timeZone: tz }).format();
+      resolved = tz;
     } catch {
-      return 'UTC';
+      resolved = browserTimezone();
     }
   }
-  return tz;
+
+  TZ_CACHE.set(key, resolved);
+  return resolved;
 }
 
 /**
@@ -27,7 +61,7 @@ export function resolveTimezone(tz) {
  * Returns 'UTC' if Intl is unavailable.
  */
 export function browserTimezoneLabel() {
-  return resolveTimezone('auto');
+  return browserTimezone();
 }
 
 /* ------------------------------------------------------------------ */
@@ -58,13 +92,18 @@ export function formatTime(iso, timeFormat = '12h', timezone) {
   }
 }
 
-/**`r`n * Calendar-day key in the target timezone: "YYYY-MM-DD".
+/**
+ * Calendar-day key in the target timezone: "YYYY-MM-DD".
  * Used internally for day-boundary comparisons.
+ *
+ * Calls `resolveTimezone(tz)` internally — passing 'auto' (the value
+ * stored in user preferences) is safe and resolves to the browser zone.
  */
 export function dayKey(iso, tz) {
   const d = new Date(iso);
+  const safeTz = resolveTimezone(tz);
   const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: tz,
+    timeZone: safeTz,
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
@@ -137,7 +176,7 @@ export function formatRelative(iso, timeFormat = '12h', timezone) {
   const msgKey = dayKey(iso, tz);
   const diff = daysBetween(msgKey, nowKey);
 
-  if (diff === 0) return formatTime(iso, timeFormat, timezone);
+  if (diff === 0) return formatTime(iso, timeFormat, tz);
   if (diff === 1) return 'Yesterday';
   if (diff < 7) {
     try {
@@ -160,7 +199,6 @@ export function formatRelative(iso, timeFormat = '12h', timezone) {
   }
 }
 
-/* ------------------------------------------------------------------ */
 /* ------------------------------------------------------------------ */
 /*  Dynamic IANA timezone catalog                                      */
 /*                                                                     */
@@ -255,7 +293,7 @@ export function getAllTimezones() {
   }
 
   const out = raw.map((tz) => {
-    // "America/Argentina/Buenos_Aires" ? region="Americas", city="Argentina / Buenos Aires"
+    // "America/Argentina/Buenos_Aires" → region="Americas", city="Argentina / Buenos Aires"
     const slash = tz.indexOf('/');
     const regionKey = slash === -1 ? 'Etc' : tz.slice(0, slash);
     const cityRaw = slash === -1 ? tz : tz.slice(slash + 1);
