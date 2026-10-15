@@ -5,6 +5,18 @@
 //
 // Single-process only — fine for one API instance. If we ever scale out,
 // swap for Redis. The middleware signature stays the same.
+//
+// HEALTH-CHECK BYPASS
+// -------------------
+// When the caller is a superadmin AND the request carries the
+// `X-Health-Check-Run` header, the limiter is skipped entirely. This lets
+// the automated health check exercise every sensitive endpoint in one
+// burst without tripping buckets designed for human-paced use.
+//
+// Safety:
+//   • Only superadmins can trigger a health check (the route is gated).
+//   • The header alone is not enough; the superadmin role is also required.
+//   • Ordinary admin/user requests still hit their buckets.
 
 const buckets = new Map(); // key → [timestamps]
 
@@ -26,6 +38,15 @@ export function rateLimit({ windowMs, max, keyFn, message } = {}) {
       }`);
 
   return function limiter(req, res, next) {
+    // ---------- Health-check bypass ----------
+    // Superadmin + explicit header → skip the limiter entirely.
+    if (
+      req.userRole === 'superadmin' &&
+      req.headers['x-health-check-run']
+    ) {
+      return next();
+    }
+
     const key = makeKey(req);
     const now = Date.now();
     const arr = buckets.get(key) || [];

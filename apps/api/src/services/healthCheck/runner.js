@@ -10,6 +10,13 @@
 //
 // Every emitted event goes through runStore.emit() so the SSE controller
 // can stream it live.
+//
+// HEALTH-CHECK HEADER
+// -------------------
+// Every outbound request carries `X-Health-Check-Run: <runId>`. The API's
+// rate limiter checks this header (plus the superadmin role) and skips its
+// bucket. That lets the suite exercise sensitive endpoints back-to-back
+// without tripping limits designed for human-paced use.
 
 import { emit } from './runStore.js';
 
@@ -114,6 +121,10 @@ export function createRunner({ run, baseUrl, adminId, prisma }) {
     if (opts.body && !headers['Content-Type']) {
       headers['Content-Type'] = 'application/json';
     }
+
+    // Health-check bypass header — lets the API's rate limiter skip its
+    // bucket for this superadmin run.
+    if (run?.id) headers['X-Health-Check-Run'] = run.id;
 
     const res = await fetch(url, {
       method: opts.method || 'GET',

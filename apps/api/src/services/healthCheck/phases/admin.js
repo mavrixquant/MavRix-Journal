@@ -6,13 +6,20 @@
 // or (in the settings case) write the value that was read. Nothing real
 // is touched.
 //
+// FIXTURE INVARIANT — READ THIS
+// -----------------------------
+// Every test below assumes user A is `emailVerified: true`. The
+// `unverify-email` test deliberately flips this to false (to prove the
+// endpoint works), then immediately restores it via `prisma.user.update`.
+// Without this restore, the subsequent group-member tests fail with 403
+// because groups require verified users.
+//
 // Superadmin-only tests are marked `skip` if the caller isn't super —
 // but our orchestrator already gates the whole feature to superadmins,
 // so in practice every test here runs.
 
 export async function run(ctx) {
   const { test, tokens, ids } = ctx;
-
   const admin = tokens.admin;
 
   /* ---------------- me / stats / health ---------------- */
@@ -79,7 +86,7 @@ export async function run(ctx) {
     ctx.expect(res.body.user.emailVerified === true, 'not verified');
   });
 
-  await test('admin.users.unverify-email · mark unverified', async () => {
+  await test('admin.users.unverify-email · mark unverified, then restore', async () => {
     if (!ids.userA) { ctx.skip('admin.users.unverify-email', 'no user A'); return; }
     const res = await ctx.fetch(`/api/admin/users/${ids.userA}/unverify-email`, {
       method: 'POST',
@@ -87,6 +94,17 @@ export async function run(ctx) {
     });
     ctx.assertStatus(res, 200);
     ctx.expect(res.body.user.emailVerified === false, 'still verified');
+
+    // -------------------------------------------------------------------
+    // RESTORE the invariant: every downstream test (group members, chat,
+    // friends) requires user A to be verified. We flip the flag back via
+    // prisma directly so the endpoint-under-test's behaviour is preserved.
+    // -------------------------------------------------------------------
+    await ctx.prisma.user.update({
+      where: { id: ids.userA },
+      data: { emailVerified: true },
+    });
+    return { notes: 'restored verified state for downstream phases' };
   });
 
   await test('admin.users.password-reset · send email trigger', async () => {
@@ -259,6 +277,22 @@ export async function run(ctx) {
       ctx.skip('admin.groups.addMember', 'missing group or user A');
       return;
     }
+
+    // Defensive: assert the fixture invariant is intact. If a previous
+    // test ever left user A unverified (it shouldn't — we restore in the
+    // unverify-email test), this catches it with a clear message rather
+    // than an opaque 403.
+    const ua = await ctx.prisma.user.findUnique({
+      where: { id: ids.userA },
+      select: { emailVerified: true },
+    });
+    if (!ua?.emailVerified) {
+      await ctx.prisma.user.update({
+        where: { id: ids.userA },
+        data: { emailVerified: true },
+      });
+    }
+
     const res = await ctx.fetch(
       `/api/admin/groups/${ids.adminGroupId}/members`,
       { method: 'POST', token: admin, body: { userId: ids.userA } }
@@ -421,7 +455,7 @@ export async function run(ctx) {
     ctx.assertStatus(res, 200);
   });
 
-  /* ---------------- account / trade / strategy admin delete ---------------- */
+  /* ---------------- account / trade / user admin delete ---------------- */
 
   await test('admin.trades.deleteByAccount · wipes user A trades on Backtest', async () => {
     if (!ids.accountBacktest) { ctx.skip('admin.trades.deleteByAccount', 'no account'); return; }

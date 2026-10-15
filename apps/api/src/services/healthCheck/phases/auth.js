@@ -1,11 +1,17 @@
 // apps/api/src/services/healthCheck/phases/auth.js
 //
-// Authentication phase — 16 tests.
+// Authentication phase — 18 tests.
 //
 // Creates two ephemeral users (A and B) named:
 //     healthcheck-<ts>-a@test.local
 //     healthcheck-<ts>-b@test.local
 // Their existence powers every later phase (accounts, trades, chat, …).
+//
+// CRITICAL: users A and B are marked `emailVerified = true` immediately
+// after signup, because every `friends`, `chat`, and `groups.member`
+// endpoint rejects unverified peers with 403. The email-verify flow
+// itself is still exercised by the `verify-email · invalid token` test.
+//
 // Cleanup happens via the orchestrator's cascade delete.
 //
 // NOTE ON COOKIES: our HTTP wrapper uses `fetch()` from Node 20 which
@@ -35,7 +41,16 @@ export async function run(ctx) {
     ctx.expect(res.body?.accessToken, 'missing accessToken');
     tokens.a = res.body.accessToken;
     ids.userA = res.body.user.id;
-    return { notes: `created ${emailA}` };
+
+    // Bypass email verification so downstream phases (friends, chat,
+    // groups) can interact with this user. The verify flow itself is
+    // exercised by a dedicated test later in this phase.
+    await ctx.prisma.user.update({
+      where: { id: ids.userA },
+      data: { emailVerified: true },
+    });
+
+    return { notes: `created + verified ${emailA}` };
   });
 
   await test('auth.signup · creates user B', async () => {
@@ -46,7 +61,13 @@ export async function run(ctx) {
     ctx.assertStatus(res, 201);
     tokens.b = res.body.accessToken;
     ids.userB = res.body.user.id;
-    return { notes: `created ${emailB}` };
+
+    await ctx.prisma.user.update({
+      where: { id: ids.userB },
+      data: { emailVerified: true },
+    });
+
+    return { notes: `created + verified ${emailB}` };
   });
 
   await test('auth.signup · duplicate email → 409', async () => {
@@ -142,6 +163,8 @@ export async function run(ctx) {
   });
 
   await test('auth.resend-verification · returns 200/400', async () => {
+    // User A is already verified at this point, so the API returns 400
+    // "Email already verified". Both 200 and 400 are accepted.
     const res = await ctx.fetch('/api/auth/resend-verification', {
       method: 'POST',
       token: tokens.a,
