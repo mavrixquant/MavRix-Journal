@@ -2,13 +2,46 @@
 //
 // Journal dashboard — Live & Demo accounts only.
 //
-// Phase 1: shell CSS moved to
-//   @/features/dashboard/dashboardShell.css
-// The file no longer carries a 250-line inline <style> block. Layout logic,
-// hooks, and rendering are otherwise unchanged.
+// PHASE B CHANGES
+// ---------------
+//   • Single boot gate. One <PageSkeleton /> covers the entire bootstrap
+//     chain (auth → accounts list → account auto-select → trades fetch →
+//     AppProvider sync → layout hydration). The grid first mounts with
+//     real data already in place — no intermediate empty-state flash, no
+//     "all panels hidden" flash.
+//
+//   • Layout hydration + persistence extracted into useUserLayouts().
+//     This is the same hook the backtester dashboard uses.
+//
+//   • Trades sync state pulled from useEnrichedTrades().isSynced so the
+//     gate can wait for AppProvider to actually contain the enriched
+//     trades — closing the one-render gap between React Query resolving
+//     and the reducer committing.
+//
+// PHASE E CHANGE
+// --------------
+//   • Uses <MeasuredGrid> (local wrapper) instead of RGL's WidthProvider.
+//     WidthProvider initializes its width to 1280 and measures the real
+//     container only in componentDidMount, producing two renders on cold
+//     mount. With the CSS transition on .react-grid-item, the second
+//     render animates every panel into place — most visibly the calendar
+//     snapping from its lg-columns size to its md-columns size. MeasuredGrid
+//     measures synchronously in useLayoutEffect (pre-paint), so RGL only
+//     ever sees the correct width. No reflow, no transition replay.
+//
+// PHASE F CHANGE
+// --------------
+//   • Boot gate is now TYPE-AWARE. The gate only blocks on "account not
+//     selected" when there is at least one account of the type this
+//     dashboard renders (Live/Demo for Journal, Backtest for Backtester).
+//     Without this, a user with only Live accounts would see the Backtester
+//     dashboard stuck on its loading skeleton forever, because the account
+//     selector would never auto-select a Live account for a Backtest-only
+//     dashboard.
 
-import { useState, useEffect, useMemo, useRef } from 'react';
-import { Responsive, WidthProvider } from 'react-grid-layout/legacy';
+import { useState, useEffect, useMemo } from 'react';
+
+import MeasuredGrid from '@/features/dashboard/components/MeasuredGrid';
 import DashboardFooter from '@/features/dashboard/components/DashboardFooter';
 import DashboardFab from '@/features/dashboard/components/DashboardFab';
 import {
@@ -19,7 +52,6 @@ import {
   MAX_LAYOUTS,
   DEFAULT_LAYOUT,
   buildFreshLayout,
-  buildDefaultLayouts,
   buildMobileLayout,
   makeLayoutId,
   makeLayoutName,
@@ -35,16 +67,15 @@ import {
   FaGripVertical,
   FaPlus,
 } from 'react-icons/fa';
+
 import { useAuth } from '@/app/providers/AuthProvider';
-import { useAppContext } from '@/app/providers/AppProvider';
 import { useDashboardAccount } from '@/app/providers/useDashboardAccount';
+import { useAccounts } from '@/shared/api/accounts';
 import { useStats } from '@/features/dashboard/hooks/useStats';
 import { useEnrichedTrades } from '@/features/dashboard/hooks/useEnrichedTrades';
+import { useUserLayouts } from '@/features/dashboard/hooks/useUserLayouts';
 import { usePageHeader } from '@/app/layout/PageHeaderProvider';
-import {
-  subscribeToUserLayouts,
-  saveUserLayouts,
-} from '@/features/dashboard/api/layouts';
+import { saveUserLayouts } from '@/features/dashboard/api/layouts';
 
 import { PANEL_REGISTRY, panelLabel } from '@/features/dashboard/components/panels/panelRegistry';
 import { PanelSkeleton } from '@/shared/ui/panel-skeleton';
@@ -55,8 +86,6 @@ import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 import '@/features/dashboard/dashboardShell.css';
 
-const ResponsiveGridLayout = WidthProvider(Responsive);
-
 const MAX_NAME_LEN = 24;
 const DEFAULT_NAME_PATTERN = /^Layout \d+$/;
 
@@ -65,31 +94,47 @@ const DEFAULT_NAME_PATTERN = /^Layout \d+$/;
 /* ------------------------------------------------------------------ */
 export default function DashboardPage() {
   const { user } = useAuth();
-  const { state } = useAppContext();
-  const { accountId } = useDashboardAccount();
+  const { accountId, allowedTypes } = useDashboardAccount();
 
-  // Enrich + dispatch trades for this Live/Demo account into AppProvider.
+  // ---- Accounts list (drives the auto-select gate) ----
+  const { data: accountsData, isLoading: accountsLoading } = useAccounts();
+  const accounts = useMemo(() => accountsData ?? [], [accountsData]);
+
+  // Accounts matching the current dashboard's allowed types.
+  // Journal: Live + Demo. Backtester: Backtest only.
+  const compatibleAccounts = useMemo(
+    () =>
+      !allowedTypes
+        ? accounts
+        : accounts.filter((a) => allowedTypes.includes(a.type || 'Backtest')),
+    [accounts, allowedTypes]
+  );
+
+  // ---- Trades pipeline (enriched + AppProvider sync) ----
   const enriched = useEnrichedTrades(accountId);
-  void enriched;
 
   const { stats } = useStats();
 
-  // Committed state (from server)
-  const [layouts, setLayouts] = useState([]);
-  const [activeId, setActiveId] = useState(null);
-
-  // Draft state (only during edit mode)
+  // ---- Edit-mode state (drives useUserLayouts.suppressRemotePush) ----
+  const [editMode, setEditMode] = useState(false);
   const [draftLayouts, setDraftLayouts] = useState(null);
   const [draftActiveId, setDraftActiveId] = useState(null);
-  const [editMode, setEditMode] = useState(false);
-
-  // Rename state
   const [renamingId, setRenamingId] = useState(null);
   const [renameValue, setRenameValue] = useState('');
 
-  const hydratedRef = useRef(false);
+  // ---- Layouts (hydration tracked via layoutsReady) ----
+  const {
+    layouts,
+    setLayouts,
+    activeId,
+    setActiveId,
+    layoutsReady,
+  } = useUserLayouts({
+    userId: user?.uid,
+    suppressRemotePush: editMode,
+  });
 
-  // Breakpoint tracking
+  // ---- Breakpoint tracking ----
   const [isMobile, setIsMobile] = useState(
     () => typeof window !== 'undefined' && window.innerWidth < 768
   );
@@ -101,54 +146,22 @@ export default function DashboardPage() {
 
   const [currentBreakpoint, setCurrentBreakpoint] = useState('lg');
 
-  // ---- Cloud sync ----
-  useEffect(() => {
-    if (!user?.uid) return;
-    const unsub = subscribeToUserLayouts(user.uid, (remote) => {
-      if (!hydratedRef.current) {
-        hydratedRef.current = true;
-
-        if (remote && Array.isArray(remote.layouts) && remote.layouts.length > 0) {
-          setLayouts(remote.layouts);
-          setActiveId(remote.activeId);
-          return;
-        }
-
-        const seed = buildDefaultLayouts();
-        setLayouts(seed);
-        setActiveId(seed[0].id);
-        saveUserLayouts(user.uid, seed, seed[0].id).catch((err) =>
-          console.error('[layouts] initial push failed:', err)
-        );
-        return;
-      }
-
-      if (remote && Array.isArray(remote.layouts) && remote.layouts.length > 0) {
-        if (!editMode) {
-          setLayouts(remote.layouts);
-          setActiveId(remote.activeId);
-        }
-      }
-    });
-    return () => unsub();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.uid]);
-
   const hasData = stats && stats.n > 0;
 
-  // Publish title + account badge to the global header bar.
   const selectedAccount = useMemo(
-    () => state.accounts.find((a) => a.id === accountId) || null,
-    [state.accounts, accountId]
+    () => accounts.find((a) => a.id === accountId) || null,
+    [accounts, accountId]
   );
   const badgeVariant = selectedAccount?.type === 'Demo' ? 'is-demo' : 'is-live';
 
+  // Publish title + account badge to the global header bar.
   usePageHeader({
     title: 'Dashboard',
     badge: selectedAccount?.type,
     badgeVariant,
   });
 
+  // ---- Layout selectors (hooks — must run unconditionally) ----
   const committedActive = useMemo(
     () => layouts.find((l) => l.id === activeId) || null,
     [layouts, activeId]
@@ -169,16 +182,16 @@ export default function DashboardPage() {
 
   const displayItems = editMode ? editItems : committedItems;
 
-  // ---- Build responsive layouts object ----
-  const responsiveLayouts = useMemo(() => {
-    return {
+  const responsiveLayouts = useMemo(
+    () => ({
       lg: displayItems,
       md: scaleLayoutToBreakpoint(displayItems, GRID_COLS_BY_BP.md),
       sm: scaleLayoutToBreakpoint(displayItems, GRID_COLS_BY_BP.sm),
       xs: scaleLayoutToBreakpoint(displayItems, GRID_COLS_BY_BP.xs),
       xxs: buildMobileLayout(),
-    };
-  }, [displayItems]);
+    }),
+    [displayItems]
+  );
 
   // ---- Edit lifecycle ----
   const enterEdit = () => {
@@ -331,10 +344,41 @@ export default function DashboardPage() {
     );
   };
 
-  if (!user) return <PageSkeleton />;
+  /* ---------------------------------------------------------------- */
+  /*  Boot gate — wait for the full bootstrap sequence to complete.    */
+  /*                                                                   */
+  /*  Conditions (any true means stay on skeleton):                    */
+  /*    • user is null (defensive; guards prevent this)                */
+  /*    • accounts list not yet resolved                               */
+  /*    • there ARE compatible accounts, but the header's auto-select  */
+  /*      hasn't landed yet (accountIdValid === false)                 */
+  /*    • a valid account is selected and trades are in flight or      */
+  /*      haven't yet propagated into AppProvider                      */
+  /*    • layout hydration has not resolved                            */
+  /*                                                                   */
+  /*  Crucial: "compatible" means matching THIS dashboard's allowed    */
+  /*  types. A user with only a Live account, viewing /backtester,     */
+  /*  has zero compatible accounts — the gate releases so the "No      */
+  /*  Backtest Data Available" empty state can render. Without this,   */
+  /*  the page would be stuck on the skeleton forever, because         */
+  /*  state.backtesterAccountId is never set.                          */
+  /* ---------------------------------------------------------------- */
+  const accountIdValid =
+    accountId != null && compatibleAccounts.some((a) => a.id === accountId);
+
+  const bootstrapping =
+    !user ||
+    accountsLoading ||
+    (compatibleAccounts.length > 0 && !accountIdValid) ||
+    (accountIdValid && (enriched.isLoading || !enriched.isSynced)) ||
+    !layoutsReady;
+
+  if (bootstrapping) {
+    return <PageSkeleton />;
+  }
 
   return (
-    <div className="dash-root">
+    <div className="dash-root is-ready">
       {!hasData ? (
         <div className="dash-empty-wrap">
           <div className="dash-empty">
@@ -467,7 +511,7 @@ export default function DashboardPage() {
             </div>
           ) : (
             <div className={`dash-grid ${editMode ? 'dash-editing' : ''}`}>
-              <ResponsiveGridLayout
+              <MeasuredGrid
                 breakpoints={GRID_BREAKPOINTS}
                 cols={GRID_COLS_BY_BP}
                 rowHeight={GRID_ROW_HEIGHT}
@@ -540,7 +584,7 @@ export default function DashboardPage() {
                     </div>
                   );
                 })}
-              </ResponsiveGridLayout>
+              </MeasuredGrid>
             </div>
           )}
 

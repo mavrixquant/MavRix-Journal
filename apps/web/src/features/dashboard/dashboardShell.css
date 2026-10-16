@@ -763,3 +763,14 @@
     min-height: 0;
   }
 }
+
+@media (prefers-reduced-motion: no-preference) {
+  .dash-root.is-ready .dash-grid {
+    animation: dashGridFade 200ms ease-out;
+  }
+}
+
+@keyframes dashGridFade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}

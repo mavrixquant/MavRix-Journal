@@ -3,23 +3,25 @@
 // Single source of truth for "load trades for this account, enrich them,
 // and push them into AppProvider".
 //
-// Why this exists as a hook:
-//   - JournalDashboardHeader used to own this logic inline.
-//   - AnalysePage needs the exact same enrichment + dispatch.
-//   - BacktesterDashboardHeader needs the same shape (and same frozen
-//     empty reference) so its dispatch effect never loops.
+// PHASE B CHANGES
+// ---------------
+// The hook now exposes two additional flags used by the dashboard boot
+// gate to avoid showing intermediate empty states:
 //
-// The EMPTY_ENRICHED constant is module-level and frozen, so the useMemo
-// below returns a stable reference for the "no trades" case. Without this,
-// React Query handing back a fresh `undefined` on every render would
-// invalidate the memo and spam the reducer — the "Maximum update depth
-// exceeded" bug we already fixed once in the journal header.
+//   isLoading  — passthrough from useTrades. False while the query is
+//                disabled (accountId is null), true only while a real
+//                fetch is in flight.
 //
-// IMPORTANT: This hook must only be mounted from a route that is INSIDE
-// the journal or backtester dashboard tree (i.e. under /journal/* or
-// /backtester/*). It reads the account slot via useDashboardAccount().
+//   isSynced   — true once AppProvider.state.trades contains the exact
+//                enriched array the hook is currently exposing. There is
+//                a one-render gap between "React Query resolves" and
+//                "AppProvider receives the dispatch"; the boot gate uses
+//                isSynced to stay on the skeleton across that gap.
+//
+// The return shape is a superset of the old shape (enrichedTrades +
+// dynamicKeys), so existing consumers keep working unchanged.
 
-import { useMemo, useEffect } from 'react';
+import { useMemo, useEffect, useRef } from 'react';
 
 import { useAppContext } from '@/app/providers/AppProvider';
 import { useTrades } from '@/shared/api/trades';
@@ -28,9 +30,11 @@ import { enrichTradesFromDB } from '@/shared/trading/enrich';
 /**
  * Frozen empty payload.
  *
- * Returned (by reference) whenever there is nothing to enrich. Giving the
- * memo below a stable return value for the empty case is what prevents the
- * dispatch effect from entering a self-sustaining render loop.
+ * Returned (by reference) whenever there is nothing to enrich. The stable
+ * reference is what allows the boot gate's isSynced check to work — a new
+ * array on every render would invalidate the memo below and spam the
+ * reducer, causing the "Maximum update depth exceeded" bug we fixed once
+ * before in the journal header.
  */
 const EMPTY_ENRICHED = Object.freeze({
   enrichedTrades: [],
@@ -41,18 +45,19 @@ const EMPTY_ENRICHED = Object.freeze({
  * Load, enrich, and dispatch trades for the given account.
  *
  * @param {string|null|undefined} accountId
- * @returns {{ enrichedTrades: Array, dynamicKeys: string[] }}
- *          The enriched payload. Same object reference as what was
- *          dispatched into AppProvider.
+ * @returns {{
+ *   enrichedTrades: Array,
+ *   dynamicKeys: string[],
+ *   isLoading: boolean,
+ *   isSynced: boolean,
+ * }}
  */
 export function useEnrichedTrades(accountId) {
-  const { dispatch } = useAppContext();
+  const { state, dispatch } = useAppContext();
 
-  // Note: React Query returns `undefined` while loading or disabled.
-  // We deliberately do NOT use the `= []` destructure default, because
-  // that produces a fresh array on every render and would invalidate the
-  // memo below. The memo handles the undefined case via EMPTY_ENRICHED.
-  const { data: rawTrades } = useTrades(accountId);
+  // When accountId is null the query is disabled; React Query reports
+  // isLoading === false in that state (fetchStatus === 'idle').
+  const { data: rawTrades, isLoading } = useTrades(accountId);
 
   const enriched = useMemo(() => {
     if (!accountId || !rawTrades || rawTrades.length === 0) {
@@ -61,10 +66,32 @@ export function useEnrichedTrades(accountId) {
     return enrichTradesFromDB(rawTrades);
   }, [rawTrades, accountId]);
 
+  // Track the last enriched array we pushed into AppProvider. We compare
+  // against this rather than AppProvider's own state.trades because the
+  // two start out as different empty arrays — a fresh provider mount and
+  // EMPTY_ENRICHED.enrichedTrades are never reference-equal.
+  const lastDispatchedRef = useRef(null);
+  const needsDispatch = lastDispatchedRef.current !== enriched.enrichedTrades;
+
   useEffect(() => {
+    if (!needsDispatch) return;
     dispatch({ type: 'SET_TRADES', payload: enriched.enrichedTrades });
     dispatch({ type: 'SET_DYNAMIC_FILTER_KEYS', payload: enriched.dynamicKeys });
-  }, [enriched, dispatch]);
+    lastDispatchedRef.current = enriched.enrichedTrades;
+  }, [enriched, needsDispatch, dispatch]);
 
-  return enriched;
+  // True only when the dispatch has landed — i.e. AppProvider.state.trades
+  // is the exact array we last pushed. On the initial mount this is false
+  // for one render, which is exactly what the boot gate wants.
+  const isSynced = !needsDispatch && state.trades === enriched.enrichedTrades;
+
+  return useMemo(
+    () => ({
+      enrichedTrades: enriched.enrichedTrades,
+      dynamicKeys: enriched.dynamicKeys,
+      isLoading,
+      isSynced,
+    }),
+    [enriched, isLoading, isSynced]
+  );
 }

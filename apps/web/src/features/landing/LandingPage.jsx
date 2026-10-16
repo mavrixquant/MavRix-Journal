@@ -1,7 +1,7 @@
 import {
   useState, useEffect, useRef, useMemo, useCallback,
 } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import navLogo from '@/assets/navLOGO.png';
 
 /* ------------------------------------------------------------------ */
@@ -1289,6 +1289,7 @@ const ICONS = {
 /*  Main                                                               */
 /* ------------------------------------------------------------------ */
 export default function Landing() {
+  const navigate = useNavigate();
   const [accent, setAccent] = useState(PALETTE[0].hex);
   const [scrolled, setScrolled] = useState(false);
   const [testi, setTesti] = useState(0);
@@ -1342,10 +1343,10 @@ export default function Landing() {
     { label: 'Go to Live Simulator', hint: 'G S', icon: ICONS.pulse, run: () => scrollTo('#sim') },
     { label: 'Go to Monte Carlo', hint: 'G M', icon: ICONS.gear, run: () => scrollTo('#mc') },
     { label: 'Go to FAQ', hint: 'G Q', icon: ICONS.book, run: () => scrollTo('#faq') },
-    { label: 'Start free', hint: '⏎', icon: ICONS.shield, run: () => { window.location.href = '/signup'; } },
-    { label: 'Login', hint: '⏎', icon: ICONS.shield, run: () => { window.location.href = '/login'; } },
+    { label: 'Start free', hint: '⏎', icon: ICONS.shield, run: () => navigate('/signup') },
+    { label: 'Login', hint: '⏎', icon: ICONS.shield, run: () => navigate('/login') },
     { label: 'Back to top', hint: 'G T', icon: ICONS.chart, run: () => window.scrollTo({ top: 0, behavior: 'smooth' }) },
-  ], [scrollTo]);
+  ], [scrollTo, navigate]);
 
   const rootStyle = {
     '--accent': accent,

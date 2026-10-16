@@ -1,6 +1,6 @@
 // apps/web/src/app/router/routes.jsx
 
-import { lazy } from 'react';
+import { lazy, Suspense } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 
 import AppLayout from '@/app/layout/AppLayout';
@@ -8,6 +8,10 @@ import { RequireAuth, RequireVerified, RequireGuest } from './guards';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { useSettings } from '@/app/layout/Settings/SettingsProvider';
 import { RequireAdmin, RequireSuperadmin } from '@/features/admin/guards';
+import { BootLoader } from '@/shared/ui/boot-loader';
+
+/* ---- Landing ---- */
+const LandingPage = lazy(() => import('@/features/landing/LandingPage'));
 
 /* ---- Auth pages ---- */
 const Login = lazy(() => import('@/features/auth/pages/LoginPage'));
@@ -63,12 +67,37 @@ const AdminHealthCheckPage  = lazy(() => import('@/features/admin/pages/AdminHea
 
 const LAST_PATH_KEY = 'mavrix:lastPath';
 
-function RootRedirect() {
-  const { user } = useAuth();
+/* ------------------------------------------------------------------ */
+/*  HomeRoute — the `/` entry point.                                   */
+/*                                                                     */
+/*  Three states, in order:                                            */
+/*                                                                     */
+/*    1. Auth refresh in flight → BootLoader. Without this gate, a     */
+/*       logged-in user's first paint on `/` renders `user === null`,  */
+/*       which redirects to `/login`; RequireGuest then bounces them   */
+/*       to `/journal`. That is two full navigations + a blank frame   */
+/*       on every cold boot.                                            */
+/*                                                                     */
+/*    2. No user → marketing landing page.                              */
+/*                                                                     */
+/*    3. Authed → role-aware + preference-aware redirect.              */
+/* ------------------------------------------------------------------ */
+function HomeRoute() {
+  const { user, loading } = useAuth();
   const { settings } = useSettings();
 
-  if (!user) return <Navigate to="/login" replace />;
+  if (loading) return <BootLoader label="Loading" />;
+
+  if (!user) {
+    return (
+      <Suspense fallback={<BootLoader label="Loading" />}>
+        <LandingPage />
+      </Suspense>
+    );
+  }
+
   if (!user.emailVerified) return <Navigate to="/verify-email" replace />;
+
   if (user.role === 'admin' || user.role === 'superadmin') {
     return <Navigate to="/admin" replace />;
   }
@@ -95,7 +124,7 @@ function RootRedirect() {
 export function AppRoutes() {
   return (
     <Routes>
-      <Route path="/" element={<RootRedirect />} />
+      <Route path="/" element={<HomeRoute />} />
 
       <Route path="/login" element={<RequireGuest><Login /></RequireGuest>} />
       <Route path="/signup" element={<RequireGuest><Signup /></RequireGuest>} />
