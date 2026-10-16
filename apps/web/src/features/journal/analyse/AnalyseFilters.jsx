@@ -7,17 +7,19 @@
 //   - StrategyPicker        (multi-select of the user's strategies)
 //   - Session / Time button (opens SessionTimeModal)
 //   - Limits button         (opens LimitsModal)
+//   - Optimize button       (opens OptimizeModal — money mode)
 //   - Reset button          (disabled when no filter is active)
 //   - Active-filter chips   (each chip has an X to remove just that filter)
 
 import { useMemo, useState } from 'react';
-import { Clock, SlidersHorizontal, X, Brain } from 'lucide-react';
+import { Clock, SlidersHorizontal, X, Brain, Target } from 'lucide-react';
 
 import { useFilters } from '@/features/dashboard/hooks/useFilters';
 import { useStrategies } from '@/shared/api/strategies';
 import DynamicFilters from '@/features/dashboard/components/filters/DynamicFilters';
 import SessionTimeModal from '@/features/dashboard/components/filters/SessionTimeModal';
 import LimitsModal from '@/features/dashboard/components/filters/LimitsModal';
+import OptimizeModal from '@/features/dashboard/components/optimize/OptimizeModal';
 
 import {
   Popover,
@@ -254,10 +256,7 @@ function StrategyPicker({ strategies, selectedIds, onChange, disabled }) {
                     }}
                   />
                   <span className="af-strat-name">{s.name}</span>
-                  <span
-                    className="af-strat-check"
-                    style={{ fontWeight: 700 }}
-                  >
+                  <span className="af-strat-check" style={{ fontWeight: 700 }}>
                     ✓
                   </span>
                 </Command.Item>
@@ -309,10 +308,10 @@ export default function AnalyseFilters() {
 
   const [showSessionModal, setShowSessionModal] = useState(false);
   const [showLimitsModal, setShowLimitsModal] = useState(false);
+  const [showOptimizeModal, setShowOptimizeModal] = useState(false);
 
   // Only show ACTIVE + PAUSED strategies in the picker. Archived ones are
-  // hidden unless they're already selected (so an archived-tag filter in
-  // a shared URL still works).
+  // hidden unless they're already selected.
   const { data: allStrategies = [] } = useStrategies();
   const strategies = useMemo(() => {
     const visible = allStrategies.filter((s) => s.status !== 'archived');
@@ -328,7 +327,6 @@ export default function AnalyseFilters() {
   const chips = useMemo(() => {
     const list = [];
 
-    // Strategy filter
     if (strategyIds.length > 0) {
       const names = strategyIds
         .map((id) => allStrategies.find((s) => s.id === id)?.name)
@@ -344,7 +342,6 @@ export default function AnalyseFilters() {
       });
     }
 
-    // Dynamic column filters
     Object.entries(filterSelections || {}).forEach(([key, values]) => {
       if (Array.isArray(values) && values.length > 0) {
         list.push({
@@ -355,7 +352,6 @@ export default function AnalyseFilters() {
       }
     });
 
-    // Session / Time
     if (stMode === 'session' && selectedSessions.length > 0) {
       list.push({
         id: 'sessions',
@@ -371,7 +367,6 @@ export default function AnalyseFilters() {
       });
     }
 
-    // Limits
     if (activeFilterType !== 'none') {
       let label = 'Limits: ';
       if (activeFilterType === 'session') {
@@ -448,6 +443,16 @@ export default function AnalyseFilters() {
 
           <button
             type="button"
+            className="af-btn"
+            onClick={() => setShowOptimizeModal(true)}
+            title="Optimize filter combinations"
+          >
+            <Target size={12} />
+            <span>Optimize</span>
+          </button>
+
+          <button
+            type="button"
             className="af-btn-reset"
             onClick={resetAllFilters}
             disabled={!hasAnyFilters}
@@ -490,6 +495,12 @@ export default function AnalyseFilters() {
         <LimitsModal
           isOpen={showLimitsModal}
           onClose={() => setShowLimitsModal(false)}
+        />
+      )}
+      {showOptimizeModal && (
+        <OptimizeModal
+          isOpen={showOptimizeModal}
+          onClose={() => setShowOptimizeModal(false)}
         />
       )}
     </>

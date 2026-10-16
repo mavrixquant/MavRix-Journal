@@ -39,6 +39,16 @@ export function applySubsetCombinationFilter(trades, combo, selectedKeys) {
   });
 }
 
+/**
+ * Run a filter-combination optimization sweep.
+ *
+ * R mode  (Backtest account)  → sweeps every combo × every selected RR target.
+ * $ mode  (Live / Demo)       → skips the RR sweep; a single placeholder R is
+ *                               used so computeStats returns net-P&L scores.
+ *
+ * Backwards compatible: the caller may keep passing the same arguments.
+ * In money mode the `rrSelected` arg is ignored internally.
+ */
 export async function runOptimization(
   allTrades,
   columnEnabled,
@@ -51,14 +61,19 @@ export async function runOptimization(
   filterParams,
   currentR,
   onProgress,
-  account           // ← account object (was: SL = 12.5)
+  account
 ) {
+  // Money mode detection — driven purely by account type.
+  const isMoneyMode = account?.type !== 'Backtest';
+  const rrList = isMoneyMode ? [1] : rrSelected;
+
   const selectedColumns = [];
   const selectedValues = [];
   for (const key of Object.keys(columnEnabled)) {
     if (columnEnabled[key]) {
       const vals = columnValues[key] || [];
-      const allVals = [...new Set(allTrades.map(t => t.dynamic[key]))].filter(v => v && v !== '—');
+      const allVals = [...new Set(allTrades.map(t => t.dynamic[key]))]
+        .filter(v => v && v !== '—');
       const toUse = vals.length > 0 ? vals : allVals;
       if (toUse.length === 0) continue;
       selectedColumns.push(key);
@@ -66,7 +81,7 @@ export async function runOptimization(
     }
   }
 
-  if (selectedColumns.length === 0 || rrSelected.length === 0) {
+  if (selectedColumns.length === 0 || rrList.length === 0) {
     return [];
   }
 
@@ -78,7 +93,9 @@ export async function runOptimization(
   const totalCombos = subsetSets.reduce((a, b) => a * b.length, 1);
 
   if (totalCombos > 500000) {
-    throw new Error(`Too many combinations (${totalCombos}). Please select fewer columns or values.`);
+    throw new Error(
+      `Too many combinations (${totalCombos}). Please select fewer columns or values.`
+    );
   }
 
   const combos = cartesianProduct(subsetSets);
@@ -97,28 +114,36 @@ export async function runOptimization(
   const results = [];
   let processed = 0;
   const chunkSize = 100;
-  const total = combos.length * rrSelected.length;
+  const total = combos.length * rrList.length;
 
   for (let i = 0; i < combos.length; i += chunkSize) {
     const chunk = combos.slice(i, Math.min(i + chunkSize, combos.length));
     for (const combo of chunk) {
-      for (const rr of rrSelected) {
+      for (const rr of rrList) {
         const filtered = applySubsetCombinationFilter(baseTrades, combo, selectedColumns);
         const stats = computeStats(filtered, rr, account);
 
-        const comboDisplay = combo.map((subset, ci) => {
+        const comboLabel = combo.map((subset, ci) => {
           const colName = selectedColumns[ci];
           const fullSet = selectedValues[ci];
-          const isAll = subset.length === fullSet.length && subset.every(v => fullSet.includes(v));
+          const isAll =
+            subset.length === fullSet.length &&
+            subset.every(v => fullSet.includes(v));
           const display = isAll ? 'All' : subset.join(', ');
           return `${colName}: ${display}`;
-        }).join(' | ') + ` | RR: 1:${rr}`;
+        }).join(' | ');
+
+        // In money mode we skip the RR suffix — the sweep is not RR-based.
+        const comboDisplay = isMoneyMode
+          ? comboLabel
+          : `${comboLabel} | RR: 1:${rr}`;
 
         results.push({
           combo: combo.slice(),
           comboDisplay,
           rr,
-          totalR: stats.totalR,     // legacy alias (== stats.total in R mode)
+          // `totalR` and `total` are identical in money mode (both = net P&L).
+          totalR: stats.totalR,
           total: stats.total,
           winRate: stats.winRate,
           profitFactor: stats.profitFactor,

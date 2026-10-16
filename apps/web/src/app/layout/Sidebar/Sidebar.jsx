@@ -1,4 +1,5 @@
 // apps/web/src/app/shell/Sidebar.jsx
+import { useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { FaBars, FaTimes } from 'react-icons/fa';
 import navLogo from '@/assets/navLOGO.png';
@@ -80,11 +81,37 @@ export function SidebarContent({
 }
 
 /* ------------------------------------------------------------------ */
-/*  Desktop aside                                                      */
+/*  Desktop aside — closes on outside click                            */
 /* ------------------------------------------------------------------ */
-export default function Sidebar({ collapsed, onCollapseToggle }) {
+export default function Sidebar({ collapsed, onCollapseToggle, onClose }) {
+  const asideRef = useRef(null);
+
+  useEffect(() => {
+    if (collapsed) return undefined;
+
+    const handlePointerDown = (e) => {
+      if (typeof window === 'undefined' || window.innerWidth < 1024) return;
+      if (asideRef.current && asideRef.current.contains(e.target)) return;
+      if (
+        e.target.closest(
+          '[data-radix-popper-content-wrapper], [role="dialog"], [role="alertdialog"], [data-portal-root]'
+        )
+      ) {
+        return;
+      }
+      if (typeof onClose === 'function') onClose();
+      else if (typeof onCollapseToggle === 'function') onCollapseToggle();
+    };
+
+    document.addEventListener('pointerdown', handlePointerDown, true);
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown, true);
+    };
+  }, [collapsed, onClose, onCollapseToggle]);
+
   return (
     <aside
+      ref={asideRef}
       className="fixed inset-y-0 left-0 z-40 hidden lg:flex flex-col"
       style={{
         width: collapsed ? SIDEBAR_COLLAPSED_WIDTH : SIDEBAR_WIDTH,

@@ -80,6 +80,7 @@ export default function AppLayout() {
           <Sidebar
             collapsed={collapsed}
             onCollapseToggle={() => setCollapsed((v) => !v)}
+            onClose={() => setCollapsed(true)}
           />
 
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>

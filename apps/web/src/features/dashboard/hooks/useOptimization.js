@@ -1,18 +1,30 @@
 // apps/web/src/features/dashboard/hooks/useOptimization.js
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useAppContext, actions } from '@/app/providers/AppProvider';
 import { useDashboardAccount } from '@/app/providers/useDashboardAccount';
 import { runOptimization } from '@/shared/trading/optimization';
+import { getMetricMode } from '@/shared/trading/sl';
 
 export function useOptimization() {
   const { state, dispatch } = useAppContext();
   const { accountId } = useDashboardAccount();
+
   const [isRunning, setIsRunning] = useState(false);
   const [progress, setProgress] = useState(0);
   const [status, setStatus] = useState('Idle');
   const [results, setResults] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 50;
+
+  // Route-aware: the CURRENT dashboard's account slot (Journal or Backtester).
+  const selectedAccount = useMemo(
+    () => state.accounts.find(a => a.id === accountId) || null,
+    [state.accounts, accountId]
+  );
+
+  // 'R' for Backtest accounts, '$' for Live/Demo.
+  const metric = useMemo(() => getMetricMode(selectedAccount), [selectedAccount]);
+  const isMoney = metric === '$';
 
   const updateOptimizeState = useCallback((payload) => {
     dispatch({ type: actions.SET_OPTIMIZE, payload });
@@ -21,7 +33,8 @@ export function useOptimization() {
   const toggleColumn = useCallback((key, enabled) => {
     const newEnabled = { ...state.optimize.columnEnabled, [key]: enabled };
     if (enabled) {
-      const allValues = [...new Set(state.trades.map(t => t.dynamic[key]))].filter(v => v && v !== '—');
+      const allValues = [...new Set(state.trades.map(t => t.dynamic[key]))]
+        .filter(v => v && v !== '—');
       const newValues = { ...state.optimize.columnValues, [key]: allValues };
       updateOptimizeState({ columnEnabled: newEnabled, columnValues: newValues });
     } else {
@@ -50,24 +63,26 @@ export function useOptimization() {
   }, [dispatch]);
 
   const runOptimizationAsync = useCallback(async (selectedRRs) => {
-    const selectedAccount = state.accounts.find(a => a.id === accountId);
-
-    // Optimize is Backtest-only (R-multiple sweep is meaningless without per-trade SL)
-    if (!selectedAccount || selectedAccount.type !== 'Backtest') {
-      setStatus('Optimize is only available for Backtest accounts.');
+    if (!selectedAccount) {
+      setStatus('Select an account first.');
       return;
     }
 
+    // RR targets are only meaningful for Backtest accounts. In money mode
+    // we pass [] down and the engine substitutes a single placeholder.
     const rrToUse = selectedRRs || state.optimize.rrSelected;
-    if (rrToUse.length === 0) {
+    if (!isMoney && rrToUse.length === 0) {
       setStatus('Please select at least one RR target.');
       return;
     }
-    const hasEnabled = Object.values(state.optimize.columnEnabled).some(v => v === true);
+
+    const hasEnabled = Object.values(state.optimize.columnEnabled)
+      .some(v => v === true);
     if (!hasEnabled) {
       setStatus('Please enable at least one filter column.');
       return;
     }
+
     setStatus('Initializing...');
     setProgress(0);
     setResults([]);
@@ -78,7 +93,7 @@ export function useOptimization() {
         state.trades,
         state.optimize.columnEnabled,
         state.optimize.columnValues,
-        rrToUse,
+        isMoney ? [] : rrToUse,
         state.stMode,
         state.selectedSessions,
         state.selectedTimeBlocks,
@@ -89,7 +104,7 @@ export function useOptimization() {
           setProgress(pct);
           setStatus(`Processing ${processed}/${total}...`);
         },
-        selectedAccount   // ← account object (replaces old SL arg)
+        selectedAccount
       );
       setResults(resultsData);
       setCurrentPage(1);
@@ -111,20 +126,23 @@ export function useOptimization() {
     state.activeFilterType,
     state.filterParams,
     state.currentR,
-    state.accounts,
-    accountId,
+    selectedAccount,
+    isMoney,
     updateOptimizeState,
   ]);
 
   const goToPage = useCallback((page) => {
-    const totalPages = Math.ceil(results.length / pageSize);
-    if (page < 1 || page > totalPages) return;
+    const tp = Math.ceil(results.length / pageSize);
+    if (page < 1 || page > tp) return;
     setCurrentPage(page);
     updateOptimizeState({ currentPage: page });
   }, [results, updateOptimizeState]);
 
   const totalPages = Math.ceil(results.length / pageSize);
-  const pageResults = results.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const pageResults = results.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
+  );
 
   return {
     columnEnabled: state.optimize.columnEnabled,
@@ -138,6 +156,13 @@ export function useOptimization() {
     totalPages,
     pageResults,
     pageSize,
+
+    // NEW — mode metadata consumed by OptimizeModal
+    isMoney,
+    metric,
+    account: selectedAccount,
+
+    // Actions
     toggleColumn,
     setColumnValues,
     setRRSelection,
