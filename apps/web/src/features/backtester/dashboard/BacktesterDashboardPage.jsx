@@ -2,33 +2,16 @@
 //
 // Backtester dashboard — Backtest accounts only.
 //
-// PHASE B CHANGES: identical to DashboardPage.jsx.
-//   • Single boot gate (auth → accounts → account-select → trades →
-//     AppProvider sync → layout hydration).
-//   • Layout state extracted into useUserLayouts().
-//   • Trades sync state pulled from useEnrichedTrades().isSynced.
-//
-// PHASE E CHANGE
-// --------------
-//   • Uses <MeasuredGrid> (local wrapper) instead of RGL's WidthProvider.
-//     See MeasuredGrid.jsx for the full rationale.
-//
-// PHASE F CHANGE
-// --------------
-//   • Boot gate is now TYPE-AWARE. See DashboardPage.jsx for the full
-//     explanation. In short: a user with only Live accounts viewing
-//     /backtester must NOT be stuck on the loading skeleton — the gate
-//     releases so the "No Backtest Data Available" empty state renders.
-//
-// The only differences from the journal dashboard are:
-//   • <BacktesterDashboardHeader /> renders above the grid (edit mode off)
-//   • addTradePath="/backtester/logs"
-//   • Empty-state copy says "Backtest data / Backtest account"
+// The `useEnrichedTrades(accountId)` call lives HERE, at the page level,
+// mirroring the Journal dashboard. Previously it lived in the header,
+// which meant `state.trades` wasn't reliably populated before this page
+// evaluated `hasData` — the header mounts one level deep, and the
+// resulting render cycle left the page stuck on the "No Backtest Data"
+// empty state even when trades existed.
 
-import { useState, useEffect, useMemo } from 'react';
-
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { Responsive, WidthProvider } from 'react-grid-layout/legacy';
 import BacktesterDashboardHeader from './BacktesterDashboardHeader';
-import MeasuredGrid from '@/features/dashboard/components/MeasuredGrid';
 import DashboardFooter from '@/features/dashboard/components/DashboardFooter';
 import DashboardFab from '@/features/dashboard/components/DashboardFab';
 import {
@@ -39,6 +22,7 @@ import {
   MAX_LAYOUTS,
   DEFAULT_LAYOUT,
   buildFreshLayout,
+  buildDefaultLayouts,
   buildMobileLayout,
   makeLayoutId,
   makeLayoutName,
@@ -54,15 +38,15 @@ import {
   FaGripVertical,
   FaPlus,
 } from 'react-icons/fa';
-
 import { useAuth } from '@/app/providers/AuthProvider';
+import { useAppContext } from '@/app/providers/AppProvider';
 import { useDashboardAccount } from '@/app/providers/useDashboardAccount';
-import { useAccounts } from '@/shared/api/accounts';
 import { useStats } from '@/features/dashboard/hooks/useStats';
 import { useEnrichedTrades } from '@/features/dashboard/hooks/useEnrichedTrades';
-import { useUserLayouts } from '@/features/dashboard/hooks/useUserLayouts';
-import { usePageHeader } from '@/app/layout/PageHeaderProvider';
-import { saveUserLayouts } from '@/features/dashboard/api/layouts';
+import {
+  subscribeToUserLayouts,
+  saveUserLayouts,
+} from '@/features/dashboard/api/layouts';
 
 import { PANEL_REGISTRY, panelLabel } from '@/features/dashboard/components/panels/panelRegistry';
 import { PanelSkeleton } from '@/shared/ui/panel-skeleton';
@@ -73,6 +57,8 @@ import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 import '@/features/dashboard/dashboardShell.css';
 
+const ResponsiveGridLayout = WidthProvider(Responsive);
+
 const MAX_NAME_LEN = 24;
 const DEFAULT_NAME_PATTERN = /^Layout \d+$/;
 
@@ -81,47 +67,29 @@ const DEFAULT_NAME_PATTERN = /^Layout \d+$/;
 /* ------------------------------------------------------------------ */
 export default function BacktesterDashboardPage() {
   const { user } = useAuth();
-  const { accountId, allowedTypes } = useDashboardAccount();
+  const { state } = useAppContext();
+  const { accountId } = useDashboardAccount();
 
-  // ---- Accounts list (drives the auto-select gate) ----
-  const { data: accountsData, isLoading: accountsLoading } = useAccounts();
-  const accounts = useMemo(() => accountsData ?? [], [accountsData]);
-
-  // Accounts matching the current dashboard's allowed types.
-  // Journal: Live + Demo. Backtester: Backtest only.
-  const compatibleAccounts = useMemo(
-    () =>
-      !allowedTypes
-        ? accounts
-        : accounts.filter((a) => allowedTypes.includes(a.type || 'Backtest')),
-    [accounts, allowedTypes]
-  );
-
-  // ---- Trades pipeline (enriched + AppProvider sync) ----
+  // Enrich + dispatch trades for this Backtest account into AppProvider.
+  // MUST be called before `useStats()` — the stats hook reads
+  // `state.trades`, which this effect populates.
   const enriched = useEnrichedTrades(accountId);
+  void enriched;
 
   const { stats } = useStats();
 
-  // ---- Edit-mode state (drives useUserLayouts.suppressRemotePush) ----
-  const [editMode, setEditMode] = useState(false);
+  const [layouts, setLayouts] = useState([]);
+  const [activeId, setActiveId] = useState(null);
+
   const [draftLayouts, setDraftLayouts] = useState(null);
   const [draftActiveId, setDraftActiveId] = useState(null);
+  const [editMode, setEditMode] = useState(false);
+
   const [renamingId, setRenamingId] = useState(null);
   const [renameValue, setRenameValue] = useState('');
 
-  // ---- Layouts ----
-  const {
-    layouts,
-    setLayouts,
-    activeId,
-    setActiveId,
-    layoutsReady,
-  } = useUserLayouts({
-    userId: user?.uid,
-    suppressRemotePush: editMode,
-  });
+  const hydratedRef = useRef(false);
 
-  // ---- Breakpoint tracking ----
   const [isMobile, setIsMobile] = useState(
     () => typeof window !== 'undefined' && window.innerWidth < 768
   );
@@ -133,27 +101,41 @@ export default function BacktesterDashboardPage() {
 
   const [currentBreakpoint, setCurrentBreakpoint] = useState('lg');
 
+  // ---- Cloud sync ----
+  useEffect(() => {
+    if (!user?.uid) return;
+    const unsub = subscribeToUserLayouts(user.uid, (remote) => {
+      if (!hydratedRef.current) {
+        hydratedRef.current = true;
+
+        if (remote && Array.isArray(remote.layouts) && remote.layouts.length > 0) {
+          setLayouts(remote.layouts);
+          setActiveId(remote.activeId);
+          return;
+        }
+
+        const seed = buildDefaultLayouts();
+        setLayouts(seed);
+        setActiveId(seed[0].id);
+        saveUserLayouts(user.uid, seed, seed[0].id).catch((err) =>
+          console.error('[layouts] initial push failed:', err)
+        );
+        return;
+      }
+
+      if (remote && Array.isArray(remote.layouts) && remote.layouts.length > 0) {
+        if (!editMode) {
+          setLayouts(remote.layouts);
+          setActiveId(remote.activeId);
+        }
+      }
+    });
+    return () => unsub();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.uid]);
+
   const hasData = stats && stats.n > 0;
 
-  const selectedAccount = useMemo(
-    () => accounts.find((a) => a.id === accountId) || null,
-    [accounts, accountId]
-  );
-
-  // Backtester header publishes its own page header when NOT in edit mode.
-  // Suppress the page-level publish while edit mode is on so the header
-  // bar shows the layout tabs context (matches the original behaviour).
-  const badgeVariant = selectedAccount?.type === 'Backtest'
-    ? 'is-backtest'
-    : 'is-default';
-
-  usePageHeader({
-    title: 'Backtester',
-    badge: selectedAccount?.type,
-    badgeVariant,
-  });
-
-  // ---- Layout selectors (hooks — must run unconditionally) ----
   const committedActive = useMemo(
     () => layouts.find((l) => l.id === activeId) || null,
     [layouts, activeId]
@@ -174,18 +156,16 @@ export default function BacktesterDashboardPage() {
 
   const displayItems = editMode ? editItems : committedItems;
 
-  const responsiveLayouts = useMemo(
-    () => ({
+  const responsiveLayouts = useMemo(() => {
+    return {
       lg: displayItems,
       md: scaleLayoutToBreakpoint(displayItems, GRID_COLS_BY_BP.md),
       sm: scaleLayoutToBreakpoint(displayItems, GRID_COLS_BY_BP.sm),
       xs: scaleLayoutToBreakpoint(displayItems, GRID_COLS_BY_BP.xs),
       xxs: buildMobileLayout(),
-    }),
-    [displayItems]
-  );
+    };
+  }, [displayItems]);
 
-  // ---- Edit lifecycle ----
   const enterEdit = () => {
     if (!layouts.length) return;
     const clone = layouts.map((l) => ({
@@ -336,28 +316,10 @@ export default function BacktesterDashboardPage() {
     );
   };
 
-  /* ---------------------------------------------------------------- */
-  /*  Boot gate — see DashboardPage.jsx for the full explanation.      */
-  /*  The type-aware check is the Phase F fix: a user with only Live   */
-  /*  accounts viewing /backtester must release the gate to show the   */
-  /*  empty state, not stay on the skeleton.                           */
-  /* ---------------------------------------------------------------- */
-  const accountIdValid =
-    accountId != null && compatibleAccounts.some((a) => a.id === accountId);
-
-  const bootstrapping =
-    !user ||
-    accountsLoading ||
-    (compatibleAccounts.length > 0 && !accountIdValid) ||
-    (accountIdValid && (enriched.isLoading || !enriched.isSynced)) ||
-    !layoutsReady;
-
-  if (bootstrapping) {
-    return <PageSkeleton />;
-  }
+  if (!user) return <PageSkeleton />;
 
   return (
-    <div className="dash-root is-ready">
+    <div className="dash-root">
       {!editMode && <BacktesterDashboardHeader />}
 
       {!hasData ? (
@@ -492,7 +454,7 @@ export default function BacktesterDashboardPage() {
             </div>
           ) : (
             <div className={`dash-grid ${editMode ? 'dash-editing' : ''}`}>
-              <MeasuredGrid
+              <ResponsiveGridLayout
                 breakpoints={GRID_BREAKPOINTS}
                 cols={GRID_COLS_BY_BP}
                 rowHeight={GRID_ROW_HEIGHT}
@@ -565,7 +527,7 @@ export default function BacktesterDashboardPage() {
                     </div>
                   );
                 })}
-              </MeasuredGrid>
+              </ResponsiveGridLayout>
             </div>
           )}
 

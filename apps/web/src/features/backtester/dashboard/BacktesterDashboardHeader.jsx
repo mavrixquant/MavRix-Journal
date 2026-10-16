@@ -4,19 +4,16 @@
 //
 // Title + badge are published to the GLOBAL header bar via usePageHeader().
 //
-// Remaining on-page elements:
-//   - Collapse chevron (toggles the filter toolbar below)
-//   - Collapsible filter toolbar (RRTabs, DynamicFilters, Session/Time,
-//     Limits, Optimize, Reset)
-//
-// The Customize button that used to live here has moved into the shared
-// <DashboardFab /> component (bottom-right of the page).
+// NOTE: The `useEnrichedTrades(accountId)` hook used to live here. It has
+// been moved to BacktesterDashboardPage because the parent page reads
+// `state.trades` for its `hasData` gate, and a hook installed in a child
+// component one level deep wasn't reliably driving the parent's render
+// cycle. See BacktesterDashboardPage.jsx for the canonical call site.
 
 import { useState } from 'react';
 
 import { useAppContext } from '@/app/providers/AppProvider';
 import { useDashboardAccount } from '@/app/providers/useDashboardAccount';
-import { useEnrichedTrades } from '@/features/dashboard/hooks/useEnrichedTrades';
 import { useFilters } from '@/features/dashboard/hooks/useFilters';
 import { useFilterUrlSync } from '@/features/dashboard/hooks/useFilterUrlSync';
 import { usePageHeader } from '@/app/layout/PageHeaderProvider';
@@ -32,10 +29,6 @@ import OptimizeModal from '@/features/dashboard/components/optimize/OptimizeModa
 /* ------------------------------------------------------------------ */
 const HDR_CSS = `
   .hdr-root {
-    
-    
-    
-    
     --line: rgba(255,255,255,.085);
     --line-soft: rgba(255,255,255,.05);
     --ink-1: #E7E9EE;
@@ -227,9 +220,6 @@ export default function BacktesterDashboardHeader() {
   // Mirror filter state to the URL for shareable / back-button support.
   useFilterUrlSync();
 
-  // Enrich + dispatch trades for this Backtest account.
-  const enriched = useEnrichedTrades(accountId);
-
   const [showSessionModal, setShowSessionModal] = useState(false);
   const [showLimitsModal, setShowLimitsModal] = useState(false);
   const [showOptimizeModal, setShowOptimizeModal] = useState(false);
@@ -246,11 +236,6 @@ export default function BacktesterDashboardHeader() {
     badge: selectedAccount?.type,
     badgeVariant: 'is-backtest',
   });
-
-  // Note: `enriched` is intentionally unused beyond triggering the dispatch
-  // effect inside useEnrichedTrades. The parent page derives `hasData` from
-  // useStats() and passes it to the FAB.
-  void enriched;
 
   return (
     <>
