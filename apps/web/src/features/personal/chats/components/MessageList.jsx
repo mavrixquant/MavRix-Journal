@@ -1,15 +1,16 @@
-// apps/web/src/features/personal/chats/components/MessageList.jsx
+﻿// apps/web/src/features/personal/chats/components/MessageList.jsx
 //
-// Scroll container for messages. Handles:
-//   • day separators
-//   • sender + time grouping (5-minute window)
-//   • "New messages" divider (from the first-was-unread snapshot)
-//   • load-earlier button
-//   • typing indicator
-//   • empty state
+// PHASE 6 — a11y pass:
+//   • The scroll container is a `role="log"` with `aria-live="polite"` and
+//     `aria-label="Message thread"`, so new inbound messages are announced
+//     to screen readers without stealing focus.
+//   • Day separators are rendered as `<time>` elements with a machine
+//     `dateTime` attribute.
+//   • The "load earlier" button now has an explicit aria-label.
+//   • The `.chat-day-sep` and `.chat-load-more` styles were previously
+//     missing from ChatsShell.css; they're declared there now (Phase 6 CSS).
 //
-// All scroll side-effects live in MessageThread; MessageList only owns
-// the layout primitives and the long-press timer for mobile.
+// Behaviour is otherwise unchanged from Phase 5.
 
 import { useMemo, useRef, useEffect } from 'react';
 import { MessageSquare } from 'lucide-react';
@@ -58,7 +59,6 @@ export default function MessageList({
   sentinelRef,
   canEditMessage,
 }) {
-  // Long-press timer (one at a time, shared across all rows)
   const longPressRef = useRef({ timer: null, fired: false });
 
   const cancelLongPress = () => {
@@ -70,7 +70,7 @@ export default function MessageList({
 
   const handleTouchStart = (msg, e) => {
     if (msg._optimistic) return;
-    const touch = e.touches?.[0];
+    const touch = e.touches && e.touches[0];
     if (!touch) return;
     longPressRef.current.fired = false;
     longPressRef.current.timer = setTimeout(() => {
@@ -85,7 +85,6 @@ export default function MessageList({
 
   useEffect(() => () => cancelLongPress(), []);
 
-  // Grouping + day separators
   const groups = useMemo(() => {
     const list = [];
     for (let i = 0; i < messages.length; i++) {
@@ -112,7 +111,6 @@ export default function MessageList({
     return list;
   }, [messages, timezone]);
 
-  // ID → message lookup for reply-quote resolution
   const byId = useMemo(() => {
     const m = new Map();
     for (const msg of messages) m.set(msg.id, msg);
@@ -164,7 +162,14 @@ export default function MessageList({
   let unreadSeparatorRendered = false;
 
   return (
-    <div className="chat-messages-scroll" ref={scrollRef}>
+    <div
+      className="chat-messages-scroll"
+      ref={scrollRef}
+      role="log"
+      aria-live="polite"
+      aria-relevant="additions text"
+      aria-label="Message thread"
+    >
       <div ref={sentinelRef} style={{ height: 1 }} />
 
       {hasNextPage && (
@@ -173,6 +178,7 @@ export default function MessageList({
           className="chat-load-more"
           onClick={() => onLoadMore()}
           disabled={isFetchingNextPage}
+          aria-label="Load earlier messages"
         >
           {isFetchingNextPage ? 'Loading…' : 'Load earlier messages'}
         </button>
@@ -197,8 +203,10 @@ export default function MessageList({
         return (
           <div key={msg.id} className="chat-msg-group">
             {showDaySep && (
-              <div className="chat-day-sep">
-                {formatDayLabel(msg.createdAt, timezone)}
+              <div className="chat-day-sep" role="separator">
+                <time dateTime={msg.createdAt}>
+                  {formatDayLabel(msg.createdAt, timezone)}
+                </time>
               </div>
             )}
             {showUnreadSep && (

@@ -15,6 +15,7 @@ import Portal from '@/shared/components/Portal';
 import EmptyState from '@/shared/components/EmptyState';
 import { useChatUserSearch, useCreateConversation } from '@/shared/api/chat';
 import { useFriends } from '@/shared/api/friends';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 
 const CSS = `
   .ncm-overlay {
@@ -198,6 +199,8 @@ export default function NewChatModal({ isOpen, onClose, onCreated, onOpenAddFrie
   const [term, setTerm] = useState('');
   const [debounced, setDebounced] = useState('');
 
+  const trapRef = useFocusTrap({ active: isOpen, onEscape: onClose });
+
   const { data: friends = [] } = useFriends({ enabled: isOpen });
 
   useEffect(() => {
@@ -240,7 +243,7 @@ export default function NewChatModal({ isOpen, onClose, onCreated, onOpenAddFrie
         className="ncm-overlay"
         onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
       >
-        <div className="ncm-modal" role="dialog" aria-modal="true">
+        <div className="ncm-modal" role="dialog" aria-modal="true" ref={trapRef}>
           <div className="ncm-head">
             <div style={{ minWidth: 0 }}>
               <h2 className="ncm-title">New chat</h2>

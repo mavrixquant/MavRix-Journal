@@ -13,6 +13,7 @@ import {
   useJoinGroup,
 } from '@/shared/api/chat';
 import GroupAvatar from './GroupAvatar';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 
 const CSS = `
   .gdm2-overlay {
@@ -165,6 +166,7 @@ export default function GroupDiscoverModal({ isOpen, onClose, onJoined }) {
   const [term, setTerm] = useState('');
   const [debounced, setDebounced] = useState('');
 
+  const trapRef = useFocusTrap({ active: isOpen, onEscape: onClose });
   useEffect(() => {
     if (!isOpen) {
       setTerm('');
@@ -206,7 +208,7 @@ export default function GroupDiscoverModal({ isOpen, onClose, onJoined }) {
         className="gdm2-overlay"
         onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
       >
-        <div className="gdm2-modal" role="dialog" aria-modal="true">
+        <div className="gdm2-modal" role="dialog" aria-modal="true" ref={trapRef}>
           <div className="gdm2-head">
             <div style={{ minWidth: 0 }}>
               <h2 className="gdm2-title">Discover public groups</h2>

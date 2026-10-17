@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 
 import Portal from '@/shared/components/Portal';
 import { useBlockUser } from '@/shared/api/friends';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 
 const CSS = `
   .bcm2-overlay {
@@ -187,6 +188,7 @@ export default function BlockConfirmModal({ isOpen, user, onClose, onBlocked }) 
   const [reason, setReason] = useState('');
   const [error, setError] = useState('');
 
+  const trapRef = useFocusTrap({ active: isOpen, onEscape: onClose });
   const blockMutation = useBlockUser();
   const saving = blockMutation.isPending;
 
@@ -220,7 +222,7 @@ export default function BlockConfirmModal({ isOpen, user, onClose, onBlocked }) 
         className="bcm2-overlay"
         onClick={(e) => { if (e.target === e.currentTarget && !saving) onClose(); }}
       >
-        <div className="bcm2-modal" role="alertdialog" aria-modal="true">
+        <div className="bcm2-modal" role="alertdialog" aria-modal="true" ref={trapRef}>
           <div className="bcm2-head">
             <div className="bcm2-head-icon">
               <ShieldOff size={18} />

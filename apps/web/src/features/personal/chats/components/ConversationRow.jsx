@@ -1,6 +1,11 @@
 ﻿// apps/web/src/features/personal/chats/components/ConversationRow.jsx
 //
-// One row in the sidebar list. Pure presentation — no state, no hooks.
+// PHASE 6 — a11y:
+//   • aria-current="true" when the row is the active conversation
+//   • aria-label summarizes the row for screen readers
+//   • data-conv-row lets the parent list attach keyboard navigation
+//
+// Pure presentation; no state, no hooks.
 
 import { Pin, Lock } from 'lucide-react';
 import { formatRelative } from '@/shared/format/datetime';
@@ -50,11 +55,26 @@ export default function ConversationRow({
     ? (conversation.name || 'Untitled group')
     : displayNameOf(conversation.peer);
 
+  const unread = conversation.unreadCount || 0;
+
+  const ariaLabel = [
+    name,
+    unread > 0 ? `${unread} unread` : null,
+    conversation.isMuted ? 'muted' : null,
+    conversation.isPinned ? 'pinned' : null,
+    isTyping ? 'typing' : null,
+  ]
+    .filter(Boolean)
+    .join(', ');
+
   return (
     <button
       type="button"
       className={`conv-row${selected ? ' is-active' : ''}`}
       onClick={onClick}
+      data-conv-row=""
+      aria-current={selected ? 'true' : undefined}
+      aria-label={ariaLabel}
     >
       {isGroup ? (
         <GroupAvatar group={conversation} size={40} />
@@ -97,9 +117,9 @@ export default function ConversationRow({
 
           {conversation.isPinned && <Pin size={10} className="conv-pin" />}
 
-          {conversation.unreadCount > 0 && (
+          {unread > 0 && (
             <span className="conv-badge">
-              {conversation.unreadCount > 99 ? '99+' : conversation.unreadCount}
+              {unread > 99 ? '99+' : unread}
             </span>
           )}
         </div>

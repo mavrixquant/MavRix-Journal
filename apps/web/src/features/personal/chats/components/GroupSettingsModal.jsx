@@ -22,6 +22,7 @@ import {
   GROUP_ICON_EMOJI_MAX,
 } from '@mavrix/shared';
 import GroupAvatar from './GroupAvatar';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 
 export default function GroupSettingsModal({
   isOpen,
@@ -32,6 +33,7 @@ export default function GroupSettingsModal({
   const { user } = useAuth();
   const isSuperadmin = user?.role === 'superadmin';
 
+  const trapRef = useFocusTrap({ active: isOpen, onEscape: onClose });
   const [form, setForm] = useState({
     name: '',
     description: '',
@@ -123,7 +125,7 @@ export default function GroupSettingsModal({
           if (e.target === e.currentTarget && !saving) onClose();
         }}
       >
-        <div className="gsm-modal" role="dialog" aria-modal="true">
+        <div className="gsm-modal" role="dialog" aria-modal="true" ref={trapRef}>
           <div className="gsm-head">
             <GroupAvatar group={conversation} size={40} />
             <div className="gsm-head-meta">

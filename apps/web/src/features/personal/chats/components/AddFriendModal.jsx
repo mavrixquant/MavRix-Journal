@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 
 import Portal from '@/shared/components/Portal';
 import { useSendFriendRequest } from '@/shared/api/friends';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 
 const CSS = `
   .afm2-overlay {
@@ -194,6 +195,7 @@ export default function AddFriendModal({ isOpen, onClose }) {
   const [error, setError] = useState('');
   const [sent, setSent] = useState(false);
 
+  const trapRef = useFocusTrap({ active: isOpen, onEscape: onClose });
   const sendMutation = useSendFriendRequest();
   const saving = sendMutation.isPending;
 
@@ -237,7 +239,7 @@ export default function AddFriendModal({ isOpen, onClose }) {
         className="afm2-overlay"
         onClick={(e) => { if (e.target === e.currentTarget && !saving) onClose(); }}
       >
-        <form className="afm2-modal" onSubmit={handleSubmit} role="dialog" aria-modal="true">
+        <form className="afm2-modal" onSubmit={handleSubmit} role="dialog" aria-modal="true" ref={trapRef}>
           <div className="afm2-head">
             <div className="afm2-head-icon">
               <UserRoundPlus size={18} />

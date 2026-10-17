@@ -16,6 +16,7 @@ import {
   GROUP_DESCRIPTION_MAX,
   GROUP_ICON_EMOJI_MAX,
 } from '@mavrix/shared';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 
 const CSS = `
   .cgm2-overlay {
@@ -240,6 +241,7 @@ export default function CreateGroupModal({ isOpen, onClose, onCreated }) {
   const { user } = useAuth();
   const isSuperadmin = user?.role === 'superadmin';
 
+  const trapRef = useFocusTrap({ active: isOpen, onEscape: onClose });
   const [form, setForm] = useState({
     name: '',
     description: '',
@@ -299,7 +301,7 @@ export default function CreateGroupModal({ isOpen, onClose, onCreated }) {
         className="cgm2-overlay"
         onClick={(e) => { if (e.target === e.currentTarget && !saving) onClose(); }}
       >
-        <form className="cgm2-modal" onSubmit={handleSubmit} role="dialog" aria-modal="true">
+        <form className="cgm2-modal" onSubmit={handleSubmit} role="dialog" aria-modal="true" ref={trapRef}>
           <div className="cgm2-head">
             <div style={{ minWidth: 0 }}>
               <h2 className="cgm2-title">New group</h2>

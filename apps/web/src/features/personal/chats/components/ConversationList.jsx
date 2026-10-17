@@ -1,12 +1,15 @@
 ﻿// apps/web/src/features/personal/chats/components/ConversationList.jsx
 //
-// PHASE 5 — delegates the FAB/footer to <SidebarFab /> so the tab-aware
-// action button has a single source of truth.
+// PHASE 6 — keyboard navigation between rows.
 //
-// The rest of the file (search + debounce + tab counts + archived modes)
-// is unchanged from Phase 1.
+// The list container catches ArrowUp / ArrowDown / Home / End and moves focus
+// between the rendered `<button data-conv-row>` siblings. Enter and Space
+// already work because each row is a native <button>.
+//
+// Everything else (search + tabs + archived row + SidebarFab) is unchanged
+// from Phase 5.
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowLeft,
   Archive,
@@ -61,6 +64,8 @@ export default function ConversationList({
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
 
+  const listRef = useRef(null);
+
   useEffect(() => {
     const t = setTimeout(
       () => setSearch(searchInput.trim().toLowerCase()),
@@ -104,6 +109,36 @@ export default function ConversationList({
     }
     return { dms, groups };
   }, [active]);
+
+  // Keyboard navigation between conversation rows
+  const handleListKeyDown = (e) => {
+    const list = listRef.current;
+    if (!list) return;
+
+    const rows = Array.from(list.querySelectorAll('button[data-conv-row]'));
+    if (rows.length === 0) return;
+
+    const idx = rows.indexOf(document.activeElement);
+
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      let next;
+      if (idx === -1) {
+        next = e.key === 'ArrowDown' ? 0 : rows.length - 1;
+      } else if (e.key === 'ArrowDown') {
+        next = Math.min(idx + 1, rows.length - 1);
+      } else {
+        next = Math.max(idx - 1, 0);
+      }
+      rows[next].focus();
+    } else if (e.key === 'Home') {
+      e.preventDefault();
+      rows[0].focus();
+    } else if (e.key === 'End') {
+      e.preventDefault();
+      rows[rows.length - 1].focus();
+    }
+  };
 
   const headerTitle = archivedMode
     ? 'Archived'
@@ -160,7 +195,13 @@ export default function ConversationList({
         )}
       </div>
 
-      <div className="chat-sidebar-list">
+      <div
+        className="chat-sidebar-list"
+        ref={listRef}
+        onKeyDown={handleListKeyDown}
+        role="list"
+        aria-label={headerTitle}
+      >
         {!archivedMode && archived.length > 0 && (
           <button
             type="button"

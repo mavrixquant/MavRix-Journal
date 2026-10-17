@@ -1,12 +1,18 @@
 ﻿// apps/web/src/features/personal/chats/components/MessageContextMenu.jsx
 //
-// Floating context menu for right-click (desktop) and long-press (mobile).
-// Now includes a Reply action at the top for parity with the inline
-// hover menu.
+// PHASE 6 — focus trap + a11y. Uses the shared useFocusTrap hook so:
+//   • Focus lands on the first menu item when the menu opens
+//   • Tab / Shift+Tab cycle inside the menu
+//   • Escape closes via the trap (the previous Escape handler is gone)
+//   • Focus returns to the triggering row when the menu closes
+//
+// Behaviour, actions, and rendering are otherwise unchanged from Phase 5.
 
 import { useEffect, useRef } from 'react';
 import { CornerUpLeft, Pencil, Trash2 } from 'lucide-react';
+
 import Portal from '@/shared/components/Portal';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 
 const MENU_WIDTH = 200;
 const MENU_ITEM_H = 34;
@@ -26,6 +32,7 @@ export default function MessageContextMenu({
   onClose,
 }) {
   const menuRef = useRef(null);
+  const trapRef = useFocusTrap({ active: true, onEscape: onClose });
 
   useEffect(() => {
     const onDown = (e) => {
@@ -33,19 +40,14 @@ export default function MessageContextMenu({
         onClose();
       }
     };
-    const onKey = (e) => {
-      if (e.key === 'Escape') onClose();
-    };
     const onViewport = () => onClose();
 
     document.addEventListener('mousedown', onDown);
-    document.addEventListener('keydown', onKey);
     window.addEventListener('scroll', onViewport, true);
     window.addEventListener('resize', onViewport);
 
     return () => {
       document.removeEventListener('mousedown', onDown);
-      document.removeEventListener('keydown', onKey);
       window.removeEventListener('scroll', onViewport, true);
       window.removeEventListener('resize', onViewport);
     };
@@ -70,54 +72,54 @@ export default function MessageContextMenu({
         ref={menuRef}
         className="chat-ctx-menu"
         style={{ left, top, width: MENU_WIDTH }}
-        role="menu"
-        aria-orientation="vertical"
       >
-        {canReply && (
+        <div ref={trapRef} role="menu" aria-orientation="vertical">
+          {canReply && (
+            <button
+              type="button"
+              role="menuitem"
+              className="chat-ctx-item"
+              onClick={onReply}
+            >
+              <CornerUpLeft size={13} />
+              <span>Reply</span>
+            </button>
+          )}
+
+          {canEdit && (
+            <button
+              type="button"
+              role="menuitem"
+              className="chat-ctx-item"
+              onClick={onEdit}
+            >
+              <Pencil size={13} />
+              <span>Edit</span>
+            </button>
+          )}
+
           <button
             type="button"
             role="menuitem"
             className="chat-ctx-item"
-            onClick={onReply}
-          >
-            <CornerUpLeft size={13} />
-            <span>Reply</span>
-          </button>
-        )}
-
-        {canEdit && (
-          <button
-            type="button"
-            role="menuitem"
-            className="chat-ctx-item"
-            onClick={onEdit}
-          >
-            <Pencil size={13} />
-            <span>Edit</span>
-          </button>
-        )}
-
-        <button
-          type="button"
-          role="menuitem"
-          className="chat-ctx-item"
-          onClick={onDeleteMe}
-        >
-          <Trash2 size={13} />
-          <span>Delete for me</span>
-        </button>
-
-        {canDeleteAll && (
-          <button
-            type="button"
-            role="menuitem"
-            className="chat-ctx-item is-danger"
-            onClick={onDeleteAll}
+            onClick={onDeleteMe}
           >
             <Trash2 size={13} />
-            <span>Delete for everyone</span>
+            <span>Delete for me</span>
           </button>
-        )}
+
+          {canDeleteAll && (
+            <button
+              type="button"
+              role="menuitem"
+              className="chat-ctx-item is-danger"
+              onClick={onDeleteAll}
+            >
+              <Trash2 size={13} />
+              <span>Delete for everyone</span>
+            </button>
+          )}
+        </div>
       </div>
     </Portal>
   );

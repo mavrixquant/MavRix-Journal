@@ -1,14 +1,13 @@
 ﻿// apps/web/src/features/personal/chats/ChatsPage.jsx
 //
-// PHASE 5 — final orchestrator.
+// PHASE 6 — mobile polish:
+//   • Thread pane gets a swipe-to-back gesture (right swipe from the left
+//     edge returns to the sidebar on mobile).
+//   • `.chat-shell` classes unchanged, but `.is-mobile-sidebar` /
+//     `.is-mobile-thread` now drive an animated slide transition (see
+//     ChatsShell.css Phase 6 block).
 //
-// Phase 5 additions:
-//   • Passes `onAddFriend` through to ConversationList so the Friends tab
-//     gets its own footer CTA.
-//   • Slightly cleaner handler wiring (no behaviour change).
-//
-// The 3-pane layout from Phase 1 is unchanged; the right panel from
-// Phase 4 still lives inside .chat-thread-pane.
+// Everything else is unchanged from Phase 5.
 
 import { useState, useMemo, useEffect } from 'react';
 import { MessageSquare } from 'lucide-react';
@@ -28,6 +27,7 @@ import NewChatModal from './components/NewChatModal';
 import GroupDiscoverModal from './components/GroupDiscoverModal';
 import CreateGroupModal from './components/CreateGroupModal';
 import AddFriendModal from './components/AddFriendModal';
+import { useSwipeBack } from './hooks/useSwipeBack';
 
 import './ChatsShell.css';
 
@@ -84,6 +84,11 @@ export default function ChatsPage() {
   };
 
   const handleMobileBack = () => setMobileThreadOpen(false);
+
+  const threadSwipeRef = useSwipeBack({
+    onBack: handleMobileBack,
+    enabled: !!selectedId && mobileThreadOpen,
+  });
 
   const handleOpenThread = (id) => {
     setSelectedId(id);
@@ -150,7 +155,11 @@ export default function ChatsPage() {
           />
         </aside>
 
-        <section className="chat-thread-pane" aria-label="Conversation">
+        <section
+          className="chat-thread-pane"
+          aria-label="Conversation"
+          ref={threadSwipeRef}
+        >
           {selectedConversation ? (
             <MessageThread
               conversationId={selectedId}
