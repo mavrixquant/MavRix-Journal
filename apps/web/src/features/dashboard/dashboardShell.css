@@ -439,7 +439,6 @@
    ================================================================== */
 .dash-empty-wrap {
   min-height: calc(100vh - 120px);
-  display: flex;
   align-items: center;
   justify-content: center;
   padding: 40px 16px;
