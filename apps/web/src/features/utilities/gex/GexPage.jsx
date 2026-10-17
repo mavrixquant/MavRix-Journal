@@ -84,9 +84,7 @@ const CSS = `
 
   /* ---------- Sidebar (date list) ---------- */
   .gxp-sidebar {
-    position: sticky;
-    top: 12px;
-    max-height: calc(100vh - 100px);
+    max-height: calc(100vh - 120px);
     display: flex;
     flex-direction: column;
     border-radius: 14px;
@@ -206,6 +204,7 @@ const CSS = `
     flex-direction: column;
     gap: 18px;
     min-width: 0;
+    padding: 0;
   }
 
   /* ---------- Card shell ---------- */
