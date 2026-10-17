@@ -1,4 +1,4 @@
-﻿// apps/web/src/features/personal/chats/components/MessageComposer.jsx
+// apps/web/src/features/personal/chats/components/MessageComposer.jsx
 //
 // PHASE 3 — professional chat composer.
 //
@@ -27,7 +27,6 @@ import {
 import { useSettings } from '@/app/layout/Settings/SettingsProvider';
 
 const MAX_LEN = 4000;
-const NEAR_LIMIT = 3500;
 const MAX_TEXTAREA_HEIGHT = 160;
 const TYPING_THROTTLE_MS = 2000;
 const TYPING_IDLE_MS = 3000;
@@ -77,6 +76,14 @@ export default function MessageComposer({
       clearTimeout(idleTimerRef.current);
       idleTimerRef.current = null;
     }
+    // Reset textarea height. Inline styles from grow() otherwise
+    // persist across threads (the component instance survives a
+    // conversationId change).
+    const el = textareaRef.current;
+    if (el) {
+      el.style.height = 'auto';
+    }
+
     // Focus the input when entering a normal thread
     if (!isLocked && !isArchived) {
       requestAnimationFrame(() => {
@@ -96,11 +103,29 @@ export default function MessageComposer({
   /* ---------------- Auto-grow ---------------- */
 
   const grow = useCallback(() => {
-    const el = textareaRef.current;
-    if (!el) return;
-    el.style.height = 'auto';
-    el.style.height = Math.min(el.scrollHeight, MAX_TEXTAREA_HEIGHT) + 'px';
-  }, []);
+  const el = textareaRef.current;
+  if (!el) return;
+
+  // Reset to auto so scrollHeight reflects the CURRENT content, not the
+  // previous (possibly larger) height.
+  el.style.height = 'auto';
+
+  // scrollHeight EXCLUDES the border; with box-sizing: border-box the
+  // CSS height INCLUDES it. Adding borderY prevents a permanent ~2px
+  // overflow that would make a scrollbar appear on every keystroke.
+  // Math.ceil guards against sub-pixel rounding (browsers report
+  // fractional scrollHeight at fractional device-pixel ratios).
+  const borderY = el.offsetHeight - el.clientHeight;
+  const next = Math.min(
+    Math.ceil(el.scrollHeight + borderY),
+    MAX_TEXTAREA_HEIGHT
+  );
+  el.style.height = next + 'px';
+
+  // NO overflow toggle. CSS keeps overflow-y:auto. Fitting content has
+  // an exact pixel height (no scrollbar); content past the cap stays at
+  // the cap and the CSS scrollbar appears naturally.
+}, []);
 
   /* ---------------- Typing signal ---------------- */
 
@@ -253,12 +278,6 @@ export default function MessageComposer({
   /* ---------------- Normal composer ---------------- */
 
   const canSend = text.trim().length > 0 && !disabled && !isSending;
-  const nearLimit = text.length > NEAR_LIMIT;
-  const atLimit = text.length >= MAX_LEN;
-
-  const sendHint = enterToSend
-    ? 'Enter to send · Shift+Enter for a new line'
-    : 'Ctrl+Enter to send · Enter for a new line';
 
   return (
     <div className="composer">
@@ -275,15 +294,6 @@ export default function MessageComposer({
           maxLength={MAX_LEN}
           aria-label="Message input"
         />
-
-        <div className="composer-hint">
-          <span className="composer-hint-text">{sendHint}</span>
-          {(nearLimit || atLimit) && (
-            <span className={`composer-count${atLimit ? ' is-warn' : ''}`}>
-              {text.length.toLocaleString()} / {MAX_LEN.toLocaleString()}
-            </span>
-          )}
-        </div>
       </div>
 
       <button

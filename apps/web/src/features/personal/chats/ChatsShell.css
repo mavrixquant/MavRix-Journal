@@ -1,4 +1,4 @@
-﻿/* apps/web/src/features/personal/chats/ChatsShell.css
+/* apps/web/src/features/personal/chats/ChatsShell.css
  * ────────────────────────────────────────────────────────────────────────
  * PHASE 6 — FINAL, CLEAN REWRITE.
  *
@@ -31,7 +31,6 @@
  *   19. Shared modal backdrop (chat-modal-overlay)
  *   20. Responsive + reduced-motion + focus-visible
  * ──────────────────────────────────────────────────────────────────────── */
-
 
 /* ══════════════════════════════════════════════════════════════════════
    1. SHELL
@@ -100,7 +99,6 @@
   flex-direction: column;
   overflow: hidden;
 }
-
 
 /* ══════════════════════════════════════════════════════════════════════
    2. RAIL
@@ -252,7 +250,6 @@
   box-shadow: 0 10px 28px -12px rgba(0,0,0,.9) !important;
   white-space: nowrap !important;
 }
-
 
 /* ══════════════════════════════════════════════════════════════════════
    3. SIDEBAR
@@ -467,7 +464,6 @@
   border-color: var(--accent-soft2);
 }
 
-
 /* ══════════════════════════════════════════════════════════════════════
    4. CONVERSATION ROW
    ══════════════════════════════════════════════════════════════════════ */
@@ -606,7 +602,6 @@
   color: #f87171;
 }
 
-
 /* ══════════════════════════════════════════════════════════════════════
    5. SIDEBAR SKELETON
    ══════════════════════════════════════════════════════════════════════ */
@@ -649,7 +644,6 @@
   100% { background-position: -200% 0; }
 }
 
-
 /* ══════════════════════════════════════════════════════════════════════
    6. THREAD SKELETON
    ══════════════════════════════════════════════════════════════════════ */
@@ -690,7 +684,6 @@
   background-size: 200% 100%;
   animation: chatSkelShimmer 1.4s linear infinite;
 }
-
 
 /* ══════════════════════════════════════════════════════════════════════
    7. CONVERSATION HEADER
@@ -788,7 +781,6 @@
   border-color: var(--accent-soft2);
   background: color-mix(in srgb, var(--accent) 6%, transparent);
 }
-
 
 /* ══════════════════════════════════════════════════════════════════════
    8. THREAD — SCROLL AREA, SEPARATORS, LOAD MORE
@@ -915,7 +907,6 @@
   cursor: default;
 }
 
-
 /* ══════════════════════════════════════════════════════════════════════
    9. MESSAGE BUBBLES
    ══════════════════════════════════════════════════════════════════════ */
@@ -987,6 +978,16 @@
   font-size: 10.5px;
   color: #8892A3;
   overflow: hidden;
+  cursor: pointer;
+  outline: none;
+  transition: background-color .15s ease, border-left-color .15s ease;
+}
+.msg-reply-quote:hover {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border-left-color: var(--accent-2);
+}
+.msg-reply-quote:focus-visible {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 40%, transparent);
 }
 .msg-reply-quote svg { flex-shrink: 0; color: var(--accent); opacity: .8; }
 .msg-reply-quote-name { flex-shrink: 0; font-weight: 700; color: var(--accent); }
@@ -1048,13 +1049,21 @@
   border: 1px solid rgba(255,255,255,.1);
   box-shadow: 0 4px 14px -6px rgba(0,0,0,.75);
   opacity: 0;
-  pointer-events: none;
-  transition: opacity .14s ease;
+  visibility: hidden;
+  /* 250ms grace period: buttons stay clickable for 250ms after the row
+     loses hover, so the cursor can cross the 6px gap between the bubble
+     and the buttons without them disappearing first. */
+  transition: opacity .14s ease, visibility 0s linear .25s;
   z-index: 2;
 }
 .msg-row.is-peer .msg-hover-actions { left: calc(100% + 6px); }
 .msg-row.is-own  .msg-hover-actions { right: calc(100% + 6px); }
-.msg-row:hover .msg-hover-actions { opacity: 1; pointer-events: auto; }
+.msg-row:hover .msg-hover-actions,
+.msg-hover-actions:hover {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity .14s ease, visibility 0s;
+}
 
 .msg-hover-btn {
   width: 24px; height: 24px;
@@ -1142,7 +1151,6 @@
 
 .msg-row.is-optimistic .msg-bubble { opacity: .75; }
 
-
 /* ══════════════════════════════════════════════════════════════════════
    10. TYPING INDICATOR
    ══════════════════════════════════════════════════════════════════════ */
@@ -1176,7 +1184,6 @@
   0%, 80%, 100% { transform: translateY(0);   opacity: .35; }
   40%           { transform: translateY(-3px); opacity: 1;   }
 }
-
 
 /* ══════════════════════════════════════════════════════════════════════
    11. SCROLL-TO-BOTTOM PILL
@@ -1226,7 +1233,6 @@
   from { opacity: 0; transform: translateY(6px) scale(.94); }
   to   { opacity: 1; transform: none; }
 }
-
 
 /* ══════════════════════════════════════════════════════════════════════
    12. REPLY BANNER
@@ -1295,7 +1301,6 @@
   to   { opacity: 1; transform: none; }
 }
 
-
 /* ══════════════════════════════════════════════════════════════════════
    13. COMPOSER
    ══════════════════════════════════════════════════════════════════════ */
@@ -1350,33 +1355,6 @@
   background: rgba(255,255,255,.10);
   border-radius: 99px;
 }
-
-.composer-hint {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 10px;
-  margin-top: 4px;
-  padding: 0 4px;
-  font-family: 'IBM Plex Mono', ui-monospace, monospace;
-  font-size: 10px;
-  color: #545E6E;
-  letter-spacing: .02em;
-  min-height: 14px;
-}
-.composer-hint-text {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  min-width: 0;
-}
-.composer-count {
-  flex-shrink: 0;
-  color: #8892A3;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-.composer-count.is-warn { color: #f87171; }
 
 .composer-send {
   flex-shrink: 0;
@@ -1519,7 +1497,6 @@
   letter-spacing: .02em;
   white-space: nowrap;
 }
-
 
 /* ══════════════════════════════════════════════════════════════════════
    14. RIGHT PANEL
@@ -2029,7 +2006,6 @@
   gap: 1px;
 }
 
-
 /* ══════════════════════════════════════════════════════════════════════
    15. MEMBER PROFILE POPOVER
    ══════════════════════════════════════════════════════════════════════ */
@@ -2202,7 +2178,6 @@
   border-color: rgba(239,68,68,.32);
 }
 
-
 /* ══════════════════════════════════════════════════════════════════════
    16. MESSAGE CONTEXT MENU
    ══════════════════════════════════════════════════════════════════════ */
@@ -2259,7 +2234,6 @@
 }
 .chat-ctx-item.is-danger svg { color: #f87171; }
 .chat-ctx-item:disabled { opacity: .45; cursor: not-allowed; }
-
 
 /* ══════════════════════════════════════════════════════════════════════
    17. FRIENDS PANES (side-pane + pane-*)
@@ -2467,7 +2441,6 @@
   margin: 8px 12px;
   background: rgba(255,255,255,.04);
 }
-
 
 /* ══════════════════════════════════════════════════════════════════════
    18. GROUP SETTINGS MODAL (settings-only — member management moved
@@ -2714,7 +2687,6 @@
   border-color: rgba(239,68,68,.55);
 }
 
-
 /* ══════════════════════════════════════════════════════════════════════
    19. SHARED MODAL BACKDROP (used by GroupSettingsModal)
    ══════════════════════════════════════════════════════════════════════ */
@@ -2736,7 +2708,6 @@
   from { opacity: 0; }
   to   { opacity: 1; }
 }
-
 
 /* ══════════════════════════════════════════════════════════════════════
    20. FOCUS-VISIBLE / RESPONSIVE / REDUCED MOTION
@@ -2970,5 +2941,47 @@
   .chat-shell.is-mobile-thread .chat-thread-pane {
     transform: none;
     opacity: 1;
+  }
+}
+
+/* ==================================================================
+   BUGFIX - Reply-quote jump-to-message highlight.
+   Appended at end so it can safely override the base rules above.
+   ================================================================== */
+@keyframes msgJumpHighlight {
+  0%, 55% {
+    background-color: color-mix(in srgb, var(--accent) 18%, transparent);
+    box-shadow: inset 3px 0 0 0 var(--accent);
+  }
+  100% {
+    background-color: transparent;
+    box-shadow: inset 3px 0 0 0 transparent;
+  }
+}
+.chat-msg-group.is-jump-highlight {
+  border-radius: 6px;
+  margin-left: -22px;
+  margin-right: -22px;
+  padding-left: 22px;
+  padding-right: 22px;
+  animation: msgJumpHighlight 2s cubic-bezier(.2, .8, .25, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .msg-hover-actions {
+    transition: visibility 0s linear .25s !important;
+  }
+  .msg-row:hover .msg-hover-actions,
+  .msg-hover-actions:hover {
+    transition: visibility 0s !important;
+  }
+  .chat-msg-group.is-jump-highlight {
+    animation: none !important;
+    background-color: color-mix(in srgb, var(--accent) 14%, transparent);
+    box-shadow: inset 3px 0 0 0 var(--accent);
+    margin-left: -22px;
+    margin-right: -22px;
+    padding-left: 22px;
+    padding-right: 22px;
   }
 }

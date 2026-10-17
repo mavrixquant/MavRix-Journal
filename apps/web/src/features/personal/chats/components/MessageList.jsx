@@ -1,4 +1,4 @@
-﻿// apps/web/src/features/personal/chats/components/MessageList.jsx
+// apps/web/src/features/personal/chats/components/MessageList.jsx
 //
 // PHASE 6 — a11y pass:
 //   • The scroll container is a `role="log"` with `aria-live="polite"` and
@@ -10,9 +10,11 @@
 //   • The `.chat-day-sep` and `.chat-load-more` styles were previously
 //     missing from ChatsShell.css; they're declared there now (Phase 6 CSS).
 //
-// Behaviour is otherwise unchanged from Phase 5.
+// BUGFIX — clicking the reply-quote scrolls to the referenced message.
+// The parent `.msg-row` carries `data-msg-id`, so we can query it inside
+// the scroll container and animate it into view with a brief highlight.
 
-import { useMemo, useRef, useEffect } from 'react';
+import { useMemo, useRef, useEffect, useCallback } from 'react';
 import { MessageSquare } from 'lucide-react';
 
 import EmptyState from '@/shared/components/EmptyState';
@@ -23,6 +25,7 @@ import ThreadSkeleton from './ThreadSkeleton';
 
 const GROUP_WINDOW_MS = 5 * 60 * 1000;
 const LONG_PRESS_MS = 550;
+const HIGHLIGHT_MS = 2000;
 
 function displayNameOf(user) {
   if (!user) return 'Unknown';
@@ -60,6 +63,7 @@ export default function MessageList({
   canEditMessage,
 }) {
   const longPressRef = useRef({ timer: null, fired: false });
+  const highlightTimerRef = useRef(null);
 
   const cancelLongPress = () => {
     if (longPressRef.current.timer) {
@@ -83,7 +87,47 @@ export default function MessageList({
     }, LONG_PRESS_MS);
   };
 
-  useEffect(() => () => cancelLongPress(), []);
+  useEffect(() => () => {
+    cancelLongPress();
+    if (highlightTimerRef.current) {
+      clearTimeout(highlightTimerRef.current);
+      highlightTimerRef.current = null;
+    }
+  }, []);
+
+  // BUGFIX — jump to a reply's target message and briefly highlight it.
+  const handleJumpToMessage = useCallback(
+    (messageId) => {
+      const container = scrollRef?.current;
+      if (!container || !messageId) return;
+
+      const target = container.querySelector(
+        `[data-msg-id="${CSS.escape(String(messageId))}"]`
+      );
+      if (!target) return;
+
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+      // Clear any stale highlight from a previous click.
+      container.querySelectorAll('.is-jump-highlight').forEach((el) => {
+        el.classList.remove('is-jump-highlight');
+      });
+
+      // BUGFIX: apply the highlight class to the FULL-WIDTH wrapper
+      // (.chat-msg-group) so the flash spans the entire chat window,
+      // not just the bubble. Falls back to the row if the wrapper is
+      // somehow missing.
+      const highlightEl = target.closest('.chat-msg-group') || target;
+      highlightEl.classList.add('is-jump-highlight');
+
+      if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
+      highlightTimerRef.current = setTimeout(() => {
+        highlightEl.classList.remove('is-jump-highlight');
+        highlightTimerRef.current = null;
+      }, HIGHLIGHT_MS);
+    },
+    [scrollRef]
+  );
 
   const groups = useMemo(() => {
     const list = [];
@@ -233,6 +277,7 @@ export default function MessageList({
               onContextMenu={onContextMenu}
               canEdit={canEdit}
               replyParent={replyParent}
+              onJumpToReply={handleJumpToMessage}
               onTouchStart={handleTouchStart}
               onTouchMove={cancelLongPress}
               onTouchEnd={cancelLongPress}

@@ -1,4 +1,4 @@
-﻿// apps/web/src/features/personal/chats/components/FriendsTab.jsx
+// apps/web/src/features/personal/chats/components/FriendsTab.jsx
 //
 // PHASE 5 — polished Discord/Slack-style friends pane.
 //
@@ -84,7 +84,7 @@ function CountBadge({ count }) {
 }
 
 export default function FriendsTab({ onOpenAddFriend, onOpenThread }) {
-  const [view, setView] = useState('list'); // 'list' | 'requests'
+  const [requestsOpen, setRequestsOpen] = useState(false);
 
   const { data: friends = [], isLoading } = useFriends();
   const { data: requests } = useFriendRequests();
@@ -164,14 +164,6 @@ export default function FriendsTab({ onOpenAddFriend, onOpenThread }) {
     );
   };
 
-  if (view === 'requests') {
-    return (
-      <FriendRequestsPanel
-        onBack={() => setView('list')}
-        onOpenAddFriend={onOpenAddFriend}
-      />
-    );
-  }
 
   return (
     <>
@@ -184,7 +176,7 @@ export default function FriendsTab({ onOpenAddFriend, onOpenThread }) {
             <button
               type="button"
               className="pane-icon-btn"
-              onClick={() => setView('requests')}
+              onClick={() => setRequestsOpen(true)}
               title={
                 pendingIncoming > 0
                   ? `${pendingIncoming} pending friend request${pendingIncoming === 1 ? '' : 's'}`
@@ -408,6 +400,14 @@ export default function FriendsTab({ onOpenAddFriend, onOpenThread }) {
         isOpen={!!pendingBlock}
         user={pendingBlock}
         onClose={() => setPendingBlock(null)}
+      />
+      <FriendRequestsPanel
+        isOpen={requestsOpen}
+        onClose={() => setRequestsOpen(false)}
+        onOpenAddFriend={() => {
+          setRequestsOpen(false);
+          onOpenAddFriend?.();
+        }}
       />
     </>
   );

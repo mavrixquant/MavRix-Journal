@@ -1,9 +1,13 @@
-// apps/web/src/features/personal/chats/components/MessageBubble.jsx
+﻿// apps/web/src/features/personal/chats/components/MessageBubble.jsx
 //
 // Single message row. Handles own/peer alignment, sender avatar (once
 // per group), sender name (groups only), reply-quote preview, hover
 // actions, inline edit mode, deleted state, and the meta row
 // (time · edited · ticks) on the last message of a group.
+//
+// BUGFIX — reply-quote is now a clickable affordance that jumps to the
+// referenced message. The outer .msg-row carries a data-msg-id attribute
+// so MessageList's scroll handler can find it.
 
 import {
   Pencil,
@@ -65,6 +69,7 @@ export default function MessageBubble({
   onContextMenu,
   canEdit,
   replyParent,
+  onJumpToReply,
   onTouchStart,
   onTouchMove,
   onTouchEnd,
@@ -83,9 +88,22 @@ export default function MessageBubble({
     isDeleted ? 'is-deleted' : '',
   ].filter(Boolean).join(' ');
 
+  const handleReplyQuoteJump = (e) => {
+    e.stopPropagation();
+    if (message.replyToId) onJumpToReply?.(message.replyToId);
+  };
+
+  const handleReplyQuoteKeyDown = (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      if (message.replyToId) onJumpToReply?.(message.replyToId);
+    }
+  };
+
   return (
     <div
       className={rowCls}
+      data-msg-id={message.id}
       onContextMenu={(e) => {
         if (message._optimistic) return;
         e.preventDefault();
@@ -116,7 +134,14 @@ export default function MessageBubble({
         )}
 
         {replyParent && !isDeleted && (
-          <div className="msg-reply-quote" title="Reply to">
+          <div
+            className="msg-reply-quote"
+            role="button"
+            tabIndex={0}
+            title="Jump to replied message"
+            onClick={handleReplyQuoteJump}
+            onKeyDown={handleReplyQuoteJump ? handleReplyQuoteKeyDown : undefined}
+          >
             <CornerUpLeft size={10} />
             <span className="msg-reply-quote-name">
               {displayNameOf(replyParent.sender)}

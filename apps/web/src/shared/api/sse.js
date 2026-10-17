@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { ensureFreshAccessToken, apiJson } from './client';
 import { setTypingState } from '@/shared/chat/chatStream';
+import { toast } from 'sonner';
 
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 
@@ -275,18 +276,51 @@ export function useSSEBridge({ enabled = true, currentUserId = null } = {}) {
 
       /* ---------------- Friends: incoming request ---------------- */
 
-      es.addEventListener('friend:request:new', () => {
+      es.addEventListener('friend:request:new', (e) => {
         queryClient.invalidateQueries({ queryKey: ['friends', 'requests'] });
         queryClient.invalidateQueries({ queryKey: ['friends', 'status'] });
+
+        // BUGFIX — pop a notification so the recipient knows immediately,
+        // regardless of which route they're on.
+        try {
+          const payload = JSON.parse(e.data);
+          const from = payload?.request?.fromUser;
+          const name =
+            [from?.firstName, from?.lastName].filter(Boolean).join(' ') ||
+            from?.email ||
+            'Someone';
+          toast('New friend request', {
+            description: `${name} wants to be friends.`,
+            duration: 6000,
+          });
+        } catch {
+          // Malformed payload — ignore.
+        }
       });
 
       /* ---------------- Friends: request accepted ---------------- */
 
-      es.addEventListener('friend:request:accepted', () => {
+      es.addEventListener('friend:request:accepted', (e) => {
         // Broad — a new friend appears in the list, the peer's card flips
         // to "friend", and any open DM with the peer gains a fresh badge.
         queryClient.invalidateQueries({ queryKey: ['friends'] });
         queryClient.invalidateQueries({ queryKey: ['chat', 'conversations'] });
+
+        // BUGFIX — notify both sides. Server broadcasts `peer` = the OTHER
+        // user: to the accepter, peer=requester; to the requester, peer=accepter.
+        try {
+          const payload = JSON.parse(e.data);
+          const peer = payload?.peer;
+          const name =
+            [peer?.firstName, peer?.lastName].filter(Boolean).join(' ') ||
+            peer?.email ||
+            'Someone';
+          toast.success('Friend request accepted', {
+            description: `You and ${name} are now friends.`,
+          });
+        } catch {
+          // Malformed payload — ignore.
+        }
       });
 
       /* ---------------- Friends: request declined ---------------- */

@@ -1,4 +1,4 @@
-﻿// apps/web/src/features/personal/chats/ChatsPage.jsx
+// apps/web/src/features/personal/chats/ChatsPage.jsx
 //
 // PHASE 6 — mobile polish:
 //   • Thread pane gets a swipe-to-back gesture (right swipe from the left
@@ -7,13 +7,15 @@
 //     `.is-mobile-thread` now drive an animated slide transition (see
 //     ChatsShell.css Phase 6 block).
 //
-// Everything else is unchanged from Phase 5.
+// BUGFIX — avatar click in ChatRail now opens Account Settings.
+// Previously `onOpenProfile` was never passed, so the button was a no-op.
 
 import { useState, useMemo, useEffect } from 'react';
 import { MessageSquare } from 'lucide-react';
 
 import { useAuth } from '@/app/providers/AuthProvider';
 import { useChatConversations } from '@/shared/api/chat';
+import { useFriendRequests } from '@/shared/api/friends';
 import { usePageHeader } from '@/app/layout/PageHeaderProvider';
 import { useSettingsModal } from '@/app/layout/Settings/SettingsModalContext';
 import { PageSkeleton } from '@/shared/ui/page-skeleton';
@@ -46,6 +48,8 @@ export default function ChatsPage() {
   const [addFriendOpen, setAddFriendOpen] = useState(false);
 
   const { data: conversations = [], isLoading } = useChatConversations();
+  const { data: friendRequestsData } = useFriendRequests();
+  const friendRequestCount = friendRequestsData?.incoming?.length ?? 0;
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
 
   useEffect(() => {
@@ -192,7 +196,9 @@ export default function ChatsPage() {
           onTabChange={setActiveTab}
           unreadDms={counts.dmUnread}
           unreadGroups={counts.groupUnread}
+          friendRequestCount={friendRequestCount}
           onOpenSettings={() => openSettings('chats')}
+          onOpenProfile={() => openSettings('account')}
         />
         <div className="chat-body">{renderBody()}</div>
       </div>

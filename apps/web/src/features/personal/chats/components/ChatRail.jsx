@@ -1,4 +1,4 @@
-﻿// apps/web/src/features/personal/chats/components/ChatRail.jsx
+// apps/web/src/features/personal/chats/components/ChatRail.jsx
 //
 // Discord-style icon rail. All styling is in ChatsShell.css (.chat-rail-*).
 
@@ -81,6 +81,7 @@ export default function ChatRail({
   onTabChange,
   unreadDms = 0,
   unreadGroups = 0,
+  friendRequestCount = 0,
   onOpenSettings,
   onOpenProfile,
 }) {
@@ -89,6 +90,7 @@ export default function ChatRail({
   const badgeFor = (id) => {
     if (id === 'dms') return unreadDms;
     if (id === 'groups') return unreadGroups;
+    if (id === 'friends') return friendRequestCount;
     return 0;
   };
 
