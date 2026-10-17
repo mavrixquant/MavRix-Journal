@@ -1,4 +1,4 @@
-// apps/web/src/features/utilities/gex/GexPage.jsx
+﻿// apps/web/src/features/utilities/gex/GexPage.jsx
 //
 // /utilities/gex — user-facing GEX level viewer.
 //
@@ -12,6 +12,11 @@
 //   │  (sticky,    │  Price ladder chart (BELOW)          │
 //   │   scrollable)│                                      │
 //   └──────────────┴──────────────────────────────────────┘
+//
+// PHASE 4 CHANGE (EmptyState migration)
+// -------------------------------------
+//   • "No GEX levels available" empty state now uses the shared
+//     <EmptyState> component (@/shared/components/EmptyState).
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Layers, Clipboard, ClipboardCheck, CalendarDays } from 'lucide-react';
@@ -20,6 +25,7 @@ import { toast } from 'sonner';
 import { useGexDays, useGexDay } from '@/shared/api/gex';
 import { usePageHeader } from '@/app/layout/PageHeaderProvider';
 import { PageSkeleton } from '@/shared/ui/page-skeleton';
+import EmptyState from '@/shared/components/EmptyState';
 import GexLevelChart from './components/GexLevelChart';
 
 /* ------------------------------------------------------------------ */
@@ -337,47 +343,6 @@ const CSS = `
     background: linear-gradient(180deg, rgba(15,18,26,.72), rgba(15,18,26,.55));
   }
 
-  .gxp-empty-state {
-    padding: 60px 24px;
-    text-align: center;
-    border: 1px dashed rgba(255,255,255,.10);
-    border-radius: 18px;
-    background: linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,.005));
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-  }
-  .gxp-empty-icon {
-    width: 60px;
-    height: 60px;
-    border-radius: 16px;
-    background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 14%, transparent), color-mix(in srgb, var(--accent) 4%, transparent));
-    border: 1px solid var(--accent-soft2);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-bottom: 8px;
-    color: var(--accent);
-    box-shadow: 0 0 30px -10px color-mix(in srgb, var(--accent) 55%, transparent);
-  }
-  .gxp-empty-state h3 {
-    margin: 0;
-    font-size: 17px;
-    font-weight: 700;
-    color: var(--ink-1);
-    letter-spacing: -.01em;
-  }
-  .gxp-empty-state p {
-    margin: 0;
-    font-size: 12.5px;
-    color: var(--ink-2);
-    line-height: 1.65;
-    max-width: 420px;
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
-  }
-
   @media (prefers-reduced-motion: reduce) {
     .gxp-date, .gxp-copy-btn { transition: none !important; }
   }
@@ -442,16 +407,13 @@ export default function GexPage() {
 
         {/* ---------- Empty state ---------- */}
         {days.length === 0 && (
-          <div className="gxp-empty-state">
-            <div className="gxp-empty-icon">
-              <CalendarDays size={26} />
-            </div>
-            <h3>No GEX levels available</h3>
-            <p>
-              Daily gamma-exposure and buy/sell levels will appear here once
-              an admin uploads them. Check back soon.
-            </p>
-          </div>
+          <EmptyState
+            size="lg"
+            icon={CalendarDays}
+            eyebrow="No data"
+            title="No GEX levels available"
+            description="Daily gamma-exposure and buy/sell levels will appear here once an admin uploads them. Check back soon."
+          />
         )}
 
         {/* ---------- Two-column body ---------- */}

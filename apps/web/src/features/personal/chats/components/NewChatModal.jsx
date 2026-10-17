@@ -1,4 +1,4 @@
-// apps/web/src/features/personal/chats/components/NewChatModal.jsx
+﻿// apps/web/src/features/personal/chats/components/NewChatModal.jsx
 //
 // Search your FRIENDS and start (or resume) a DM. The server restricts
 // the search endpoint to friends only — non-friends won't appear.
@@ -7,11 +7,19 @@
 //
 // If the caller has no friends yet, the empty state nudges them to the
 // Add Friend modal instead of leaving them staring at "no results".
+//
+// PHASE 5 CHANGE (EmptyState migration)
+// -------------------------------------
+//   • "No friends yet" and "No friends match" states now use the shared
+//     <EmptyState> component. The "Search your friends" hint and the
+//     "Searching…" loader stay as bespoke blocks (they're not empty
+//     states — they're in-progress prompts).
 
 import { useEffect, useState, useCallback } from 'react';
 import { X, Loader2, Search, UserRoundPlus } from 'lucide-react';
 
 import Portal from '@/shared/components/Portal';
+import EmptyState from '@/shared/components/EmptyState';
 import { useChatUserSearch, useCreateConversation } from '@/shared/api/chat';
 import { useFriends } from '@/shared/api/friends';
 
@@ -109,24 +117,27 @@ export default function NewChatModal({ isOpen, onClose, onCreated, onOpenAddFrie
 
           <div className="chat-newchat-list">
             {noFriends && (
-              <div className="chat-newchat-empty">
-                <UserRoundPlus size={22} style={{ opacity: .5 }} />
-                <strong>No friends yet</strong>
-                <p>
-                  Add a friend by email to start chatting. Non-friends are
-                  hidden from search.
-                </p>
-                {onOpenAddFriend && (
-                  <button
-                    type="button"
-                    className="chat-new-btn-lg"
-                    style={{ marginTop: 6 }}
-                    onClick={() => { onClose(); onOpenAddFriend(); }}
-                  >
-                    <UserRoundPlus size={12} />
-                    Add friend
-                  </button>
-                )}
+              <div style={{ padding: '20px 12px' }}>
+                <EmptyState
+                  size="md"
+                  variant="bare"
+                  icon={UserRoundPlus}
+                  eyebrow="No friends"
+                  title="No friends yet"
+                  description="Add a friend by email to start chatting. Non-friends are hidden from search."
+                  actions={
+                    onOpenAddFriend
+                      ? [
+                          {
+                            label: 'Add friend',
+                            icon: UserRoundPlus,
+                            variant: 'primary',
+                            onClick: () => { onClose(); onOpenAddFriend(); },
+                          },
+                        ]
+                      : []
+                  }
+                />
               </div>
             )}
 
@@ -146,10 +157,15 @@ export default function NewChatModal({ isOpen, onClose, onCreated, onOpenAddFrie
             )}
 
             {!noFriends && showEmpty && (
-              <div className="chat-newchat-empty">
-                <Search size={22} style={{ opacity: .5 }} />
-                <strong>No friends match</strong>
-                <p>"{debounced}" didn't match any of your friends.</p>
+              <div style={{ padding: '20px 12px' }}>
+                <EmptyState
+                  size="md"
+                  variant="bare"
+                  icon={Search}
+                  eyebrow="No matches"
+                  title="No friends match"
+                  description={`"${debounced}" didn't match any of your friends.`}
+                />
               </div>
             )}
 

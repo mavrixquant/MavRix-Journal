@@ -1,4 +1,4 @@
-// apps/web/src/features/backtester/dashboard/BacktesterDashboardPage.jsx
+﻿// apps/web/src/features/backtester/dashboard/BacktesterDashboardPage.jsx
 //
 // Backtester dashboard — Backtest accounts only.
 //
@@ -8,6 +8,12 @@
 // evaluated `hasData` — the header mounts one level deep, and the
 // resulting render cycle left the page stuck on the "No Backtest Data"
 // empty state even when trades existed.
+//
+// PHASE 3 CHANGE (EmptyState migration)
+// -------------------------------------
+//   • The "No Backtest Data Available" empty state now uses the shared
+//     <EmptyState> component (@/shared/components/EmptyState). Gains a
+//     "Manage accounts" primary CTA.
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Responsive, WidthProvider } from 'react-grid-layout/legacy';
@@ -37,6 +43,7 @@ import {
   FaCheck,
   FaGripVertical,
   FaPlus,
+  FaClipboardList,
 } from 'react-icons/fa';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { useAppContext } from '@/app/providers/AppProvider';
@@ -52,6 +59,7 @@ import { PANEL_REGISTRY, panelLabel } from '@/features/dashboard/components/pane
 import { PanelSkeleton } from '@/shared/ui/panel-skeleton';
 import { PageSkeleton } from '@/shared/ui/page-skeleton';
 import TradeTable from '@/features/dashboard/components/panels/TradeTable';
+import EmptyState from '@/shared/components/EmptyState';
 
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
@@ -324,23 +332,20 @@ export default function BacktesterDashboardPage() {
 
       {!hasData ? (
         <div className="dash-empty-wrap">
-          <div className="dash-empty">
-            <div className="dash-empty-icon">
-              <svg
-                width="28" height="28" viewBox="0 0 24 24" fill="none"
-                stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-              >
-                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                <line x1="3" y1="9" x2="21" y2="9" />
-                <line x1="9" y1="21" x2="9" y2="9" />
-              </svg>
-            </div>
-            <h3>No Backtest Data Available</h3>
-            <p>
-              Upload trades to a Backtest account to populate performance
-              statistics and run R:R optimizations.
-            </p>
-          </div>
+          <EmptyState
+            size="lg"
+            icon={FaClipboardList}
+            eyebrow="No data"
+            title="No Backtest Data Available"
+            description="Upload trades to a Backtest account to populate performance statistics and run R:R optimizations."
+            actions={[
+              {
+                label: 'Manage accounts',
+                variant: 'primary',
+                to: '/manage/accounts',
+              },
+            ]}
+          />
         </div>
       ) : (
         <>

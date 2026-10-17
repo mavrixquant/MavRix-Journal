@@ -1,16 +1,28 @@
-// apps/web/src/features/charts/components/WatchlistSidebar.jsx
+﻿// apps/web/src/features/charts/components/WatchlistSidebar.jsx
 //
 // Left sidebar: every catalog symbol grouped by category, with live price
 // + change % and per-symbol icon.
 //
 // Category headers are collapsible accordions; collapse state persists in
 // localStorage. The search box above filters across all symbols.
+//
+// PHASE 4 CHANGE (EmptyState migration)
+// -------------------------------------
+//   • The search-empty state now uses the shared <EmptyState> component.
+//     The old `.wl-empty` CSS rule was removed.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronDown, Minimize2, Maximize2, Search, X } from 'lucide-react';
+import {
+  ChevronDown,
+  Minimize2,
+  Maximize2,
+  Search,
+  X,
+} from 'lucide-react';
 
 import { useMarketQuotes } from '@/shared/api/marketData';
 import { SymbolIcon } from '@/shared/symbols';
+import EmptyState from '@/shared/components/EmptyState';
 
 const STORAGE_KEY = 'mavrix:chart:watchlist:collapsed';
 
@@ -308,13 +320,8 @@ const CSS = `
     margin-left: 6px;
     letter-spacing: .06em;
   }
-  .wl-empty {
-    padding: 30px 16px;
-    text-align: center;
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    font-size: 11px;
-    color: #545E6E;
-    line-height: 1.6;
+  .wl-empty-wrap {
+    padding: 12px 8px;
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -509,10 +516,14 @@ export default function WatchlistSidebar({ catalog = [], activeSymbol, onChange 
       <div className="wl-list">
         {isSearching ? (
           searchResults.length === 0 ? (
-            <div className="wl-empty">
-              No symbols match "{query}".
-              <br />
-              Try NQ, EUR, or BTC.
+            <div className="wl-empty-wrap">
+              <EmptyState
+                size="sm"
+                variant="bare"
+                icon={Search}
+                title="No symbols match"
+                description={`Try NQ, EUR, or BTC — nothing matched "${query}".`}
+              />
             </div>
           ) : (
             <div className="wl-results">

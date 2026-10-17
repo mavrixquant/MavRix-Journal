@@ -1,4 +1,4 @@
-// apps/web/src/features/manage/strategies/StrategiesPage.jsx
+﻿// apps/web/src/features/manage/strategies/StrategiesPage.jsx
 //
 // /manage/strategies — the list page.
 //
@@ -7,6 +7,12 @@
 // Toolbar (above the KPI strip): status tabs left, New Strategy right.
 // Below: KPI strip, then a grid of strategy tiles. Click a tile → detail page.
 // Tiles have inline Edit + Delete actions.
+//
+// PHASE 3 CHANGE (EmptyState migration)
+// -------------------------------------
+//   • The "No strategies yet" / "No {filter} strategies" empty state now
+//     uses the shared <EmptyState> component. The Create Strategy CTA is
+//     preserved (only shown when the user has zero strategies).
 
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -27,6 +33,7 @@ import {
   useDeleteStrategy,
 } from '@/shared/api/strategies';
 import Alert from '@/shared/components/Alert';
+import EmptyState from '@/shared/components/EmptyState';
 import { PageSkeleton } from '@/shared/ui/page-skeleton';
 import { usePageHeader } from '@/app/layout/PageHeaderProvider';
 
@@ -100,6 +107,8 @@ export default function StrategiesPage() {
   });
 
   if (isLoading) return <PageSkeleton />;
+
+  const hasAnyStrategies = strategies.length > 0;
 
   return (
     <>
@@ -177,28 +186,32 @@ export default function StrategiesPage() {
 
         {/* ---------- Grid ---------- */}
         {visible.length === 0 ? (
-          <div className="strat-empty">
-            <div className="strat-empty-icon"><FaBrain /></div>
-            <h3>
-              {strategies.length === 0
-                ? 'No strategies yet'
-                : `No ${filter} strategies`}
-            </h3>
-            <p>
-              {strategies.length === 0
-                ? 'Create your first playbook to start tagging trades and tracking per-strategy edge.'
-                : 'Switch filter or create a new strategy.'}
-            </p>
-            {strategies.length === 0 && (
-              <button
-                type="button"
-                className="strat-btn-primary"
-                onClick={() => setModalState({ open: true, strategy: null })}
-              >
-                <FaPlus size={11} /> Create Strategy
-              </button>
-            )}
-          </div>
+          <EmptyState
+            icon={FaBrain}
+            eyebrow={hasAnyStrategies ? 'No matches' : 'No strategies'}
+            title={
+              hasAnyStrategies
+                ? `No ${filter} strategies`
+                : 'No strategies yet'
+            }
+            description={
+              hasAnyStrategies
+                ? 'Switch filter or create a new strategy.'
+                : 'Create your first playbook to start tagging trades and tracking per-strategy edge.'
+            }
+            actions={
+              hasAnyStrategies
+                ? []
+                : [
+                    {
+                      label: 'Create Strategy',
+                      icon: FaPlus,
+                      variant: 'primary',
+                      onClick: () => setModalState({ open: true, strategy: null }),
+                    },
+                  ]
+            }
+          />
         ) : (
           <div className="strat-grid">
             {visible.map((s) => (

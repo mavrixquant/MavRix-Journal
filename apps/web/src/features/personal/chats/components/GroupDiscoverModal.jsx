@@ -1,4 +1,4 @@
-// apps/web/src/features/personal/chats/components/GroupDiscoverModal.jsx
+﻿// apps/web/src/features/personal/chats/components/GroupDiscoverModal.jsx
 //
 // Browse + join public groups. Opened from the ChatsPage "Discover" button.
 //
@@ -9,10 +9,16 @@
 // Search is debounced 300ms. Groups show GroupAvatar + name + description +
 // member count. Joining calls onJoined(group.id) so the caller can select
 // the newly-joined conversation.
+//
+// PHASE 5 CHANGE (EmptyState migration)
+// -------------------------------------
+//   • The "No public groups to join" state now uses the shared <EmptyState>
+//     component (@/shared/components/EmptyState).
 
 import { useEffect, useState, useCallback } from 'react';
 import { X, Loader2, Users, Lock } from 'lucide-react';
 import Portal from '@/shared/components/Portal';
+import EmptyState from '@/shared/components/EmptyState';
 import {
   useDiscoverableGroups,
   useJoinGroup,
@@ -25,10 +31,6 @@ import GroupAvatar from './GroupAvatar';
 
 const CSS = `
   .gdm-modal {
-    
-    
-    
-    
     --line: rgba(255,255,255,.085);
     --line-soft: rgba(255,255,255,.05);
     --ink-1: #E7E9EE;
@@ -220,19 +222,9 @@ const CSS = `
     box-shadow: none;
   }
 
-  .gdm-empty {
-    padding: 40px 20px;
-    text-align: center;
-    color: var(--ink-3);
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    font-size: 12px;
-    line-height: 1.7;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
+  .gdm-empty-wrap {
+    padding: 12px 8px;
   }
-  .gdm-empty strong { color: var(--ink-2); font-weight: 600; }
 
   @keyframes gdmPop {
     from { opacity: 0; transform: translateY(-10px) scale(.97); }
@@ -328,7 +320,7 @@ export default function GroupDiscoverModal({ isOpen, onClose, onJoined }) {
 
           <div className="gdm-list">
             {isFetching && groups.length === 0 && (
-              <div className="gdm-empty">
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '40px 20px', color: 'var(--ink-3)', fontFamily: "'IBM Plex Mono', monospace", fontSize: 12 }}>
                 <Loader2 size={18} style={{ animation: 'gdmSpin .8s linear infinite' }} />
                 <span>Loading groups…</span>
                 <style>{`@keyframes gdmSpin { to { transform: rotate(360deg); } }`}</style>
@@ -336,14 +328,19 @@ export default function GroupDiscoverModal({ isOpen, onClose, onJoined }) {
             )}
 
             {showEmpty && (
-              <div className="gdm-empty">
-                <Lock size={20} style={{ opacity: .5 }} />
-                <strong>No public groups to join</strong>
-                <span>
-                  {debounced
-                    ? `Nothing matches “${debounced}”.`
-                    : 'You are already a member of every public group.'}
-                </span>
+              <div className="gdm-empty-wrap">
+                <EmptyState
+                  size="md"
+                  variant="bare"
+                  icon={Lock}
+                  eyebrow={debounced ? 'No matches' : 'No groups'}
+                  title="No public groups to join"
+                  description={
+                    debounced
+                      ? `Nothing matches "${debounced}".`
+                      : 'You are already a member of every public group.'
+                  }
+                />
               </div>
             )}
 

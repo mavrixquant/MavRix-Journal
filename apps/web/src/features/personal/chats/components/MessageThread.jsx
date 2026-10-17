@@ -1,9 +1,14 @@
-// apps/web/src/features/personal/chats/components/MessageThread.jsx
+﻿// apps/web/src/features/personal/chats/components/MessageThread.jsx
 //
 // Right pane of the chat UI. In DMs, when the caller is not friends with
 // the peer and the free-message cap is reached, the composer is replaced
 // by a locked banner. When the conversation is archived, the composer is
 // replaced by an archived banner with an Unarchive CTA.
+//
+// PHASE 5 CHANGE (EmptyState migration)
+// -------------------------------------
+//   • The "Say hi 👋" no-messages state now uses the shared <EmptyState>
+//     component (@/shared/components/EmptyState).
 
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import {
@@ -15,6 +20,7 @@ import {
   Clock,
   Settings,
   Info,
+  MessageSquare,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -33,6 +39,7 @@ import {
   useUpdateConversation,
 } from '@/shared/api/chat';
 import { useSendFriendRequest, useFriendStatus } from '@/shared/api/friends';
+import EmptyState from '@/shared/components/EmptyState';
 
 import MessageComposer from './MessageComposer';
 import MessageContextMenu from './MessageContextMenu';
@@ -449,16 +456,19 @@ export default function MessageThread({
           )}
 
           {!messagesLoading && messages.length === 0 && (
-            <div className="chat-empty" style={{ padding: '60px 20px' }}>
-              <div className="chat-empty-icon">
-                <Pencil size={22} />
-              </div>
-              <h3>Say hi 👋</h3>
-              <p>
-                {isGroup
-                  ? `This is the beginning of ${headerName}. Send a message to get started.`
-                  : `This is the beginning of your conversation with ${headerName}. Send a message to get started.`}
-              </p>
+            <div style={{ padding: '20px 12px' }}>
+              <EmptyState
+                size="md"
+                variant="bare"
+                icon={MessageSquare}
+                eyebrow="No messages"
+                title="Say hi 👋"
+                description={
+                  isGroup
+                    ? `This is the beginning of ${headerName}. Send a message to get started.`
+                    : `This is the beginning of your conversation with ${headerName}. Send a message to get started.`
+                }
+              />
             </div>
           )}
 

@@ -1,4 +1,4 @@
-// apps/web/src/features/personal/chats/components/FriendsTab.jsx
+﻿// apps/web/src/features/personal/chats/components/FriendsTab.jsx
 //
 // The "Friends" tab of the chat shell. Hosts two sub-views:
 //
@@ -12,6 +12,11 @@
 //   • an Add Friend button
 //
 // Per-row actions unchanged: Message, Remove friend, Block user.
+//
+// PHASE 5 CHANGE (EmptyState migration)
+// -------------------------------------
+//   • The "No friends yet" state now uses the shared <EmptyState>
+//     component (@/shared/components/EmptyState) with an Add friend CTA.
 
 import { useMemo, useState } from 'react';
 import {
@@ -33,6 +38,7 @@ import {
 } from '@/shared/api/friends';
 import { useCreateConversation, useUpdateConversation } from '@/shared/api/chat';
 import Alert from '@/shared/components/Alert';
+import EmptyState from '@/shared/components/EmptyState';
 import BlockConfirmModal from './BlockConfirmModal';
 import FriendRequestsPanel from './FriendRequestsPanel';
 
@@ -215,29 +221,23 @@ export default function FriendsTab({
           {isLoading && <div className="side-pane-loading">Loading friends…</div>}
 
           {!isLoading && sortedFriends.length === 0 && (
-            <div className="side-pane-empty">
-              <strong>No friends yet</strong>
-              Add a friend by email to start direct messaging.
-              <div style={{ marginTop: 16 }}>
-                <button
-                  type="button"
-                  className="pane-icon-btn is-accent"
-                  style={{ width: 'auto', padding: '0 14px', gap: 8, height: 36 }}
-                  onClick={onOpenAddFriend}
-                >
-                  <UserRoundPlus size={13} />
-                  <span
-                    style={{
-                      fontFamily: "'IBM Plex Mono', monospace",
-                      fontSize: 11.5,
-                      fontWeight: 600,
-                      letterSpacing: '.02em',
-                    }}
-                  >
-                    Add friend
-                  </span>
-                </button>
-              </div>
+            <div style={{ padding: '24px 12px' }}>
+              <EmptyState
+                size="md"
+                variant="bare"
+                icon={UserRoundPlus}
+                eyebrow="No friends"
+                title="No friends yet"
+                description="Add a friend by email to start direct messaging."
+                actions={[
+                  {
+                    label: 'Add friend',
+                    icon: UserRoundPlus,
+                    variant: 'primary',
+                    onClick: onOpenAddFriend,
+                  },
+                ]}
+              />
             </div>
           )}
 

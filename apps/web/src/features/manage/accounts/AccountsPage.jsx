@@ -1,4 +1,11 @@
-// apps/web/src/features/manage/accounts/AccountsPage.jsx
+﻿// apps/web/src/features/manage/accounts/AccountsPage.jsx
+//
+// PHASE 3 CHANGE (EmptyState migration)
+// -------------------------------------
+//   • The "No {type} Accounts Found" filter-empty state now uses the shared
+//     <EmptyState> component (@/shared/components/EmptyState).
+//   • Preserves the existing "Create Account" CTA (calls openCreate).
+
 import { useState } from 'react';
 import {
   FaPlus,
@@ -17,6 +24,7 @@ import { useQueries } from '@tanstack/react-query';
 
 import Alert from '@/shared/components/Alert';
 import LoadingOverlay from '@/shared/components/LoadingOverlay';
+import EmptyState from '@/shared/components/EmptyState';
 import { usePageHeader } from '@/app/layout/PageHeaderProvider';
 
 import {
@@ -298,16 +306,20 @@ export default function AccountsPage() {
 
         {/* ---------- Accounts grid ---------- */}
         {filteredAccounts.length === 0 ? (
-          <div className="acc-empty">
-            <div className="acc-empty-icon"><FaFolderOpen /></div>
-            <h3>No {selectedType} Accounts Found</h3>
-            <p>
-              No accounts matching the selected filter category ({selectedType}).
-            </p>
-            <button type="button" className="acc-btn acc-empty-btn" onClick={openCreate}>
-              <FaPlus size={10} /> Create Account
-            </button>
-          </div>
+          <EmptyState
+            icon={FaFolderOpen}
+            eyebrow="No accounts"
+            title={`No ${selectedType} Accounts Found`}
+            description={`No accounts matching the selected filter category (${selectedType}).`}
+            actions={[
+              {
+                label: 'Create Account',
+                icon: FaPlus,
+                variant: 'primary',
+                onClick: openCreate,
+              },
+            ]}
+          />
         ) : (
           <div className="acc-grid">
             {filteredAccounts.map((acc) => {

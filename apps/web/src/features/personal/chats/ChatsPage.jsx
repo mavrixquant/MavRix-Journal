@@ -1,4 +1,4 @@
-// apps/web/src/features/personal/chats/ChatsPage.jsx
+﻿// apps/web/src/features/personal/chats/ChatsPage.jsx
 //
 // 3-rail chat UI. Rail tabs: dms / groups / friends.
 //
@@ -6,6 +6,11 @@
 // top of the list:
 //   main      — active (non-archived) conversations
 //   archived  — archived-only view; back arrow returns to main
+//
+// PHASE 5 CHANGE (EmptyState migration)
+// -------------------------------------
+//   • The "No conversation selected" empty state now uses the shared
+//     <EmptyState> component (@/shared/components/EmptyState).
 
 import { useState, useMemo, useEffect } from 'react';
 import { MessageSquare } from 'lucide-react';
@@ -15,6 +20,7 @@ import { useChatConversations } from '@/shared/api/chat';
 import { usePageHeader } from '@/app/layout/PageHeaderProvider';
 import { useSettingsModal } from '@/app/layout/Settings/SettingsModalContext';
 import { PageSkeleton } from '@/shared/ui/page-skeleton';
+import EmptyState from '@/shared/components/EmptyState';
 
 import ChatRail from './components/ChatRail';
 import ConversationList from './components/ConversationList';
@@ -170,15 +176,15 @@ export default function ChatsPage() {
     }
     return (
       <div className="chat-thread">
-        <div className="chat-empty">
-          <div className="chat-empty-icon">
-            <MessageSquare size={26} />
-          </div>
-          <h3>No conversation selected</h3>
-          <p>
-            Pick a conversation from the list, or start a new one.
-            Only you and the other participants can see these messages.
-          </p>
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px 24px' }}>
+          <EmptyState
+            size="md"
+            variant="bare"
+            icon={MessageSquare}
+            eyebrow="Select a conversation"
+            title="No conversation selected"
+            description="Pick a conversation from the list, or start a new one. Only you and the other participants can see these messages."
+          />
         </div>
       </div>
     );

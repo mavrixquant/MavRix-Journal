@@ -1,4 +1,4 @@
-// apps/web/src/features/personal/chats/components/FriendRequestsPanel.jsx
+﻿// apps/web/src/features/personal/chats/components/FriendRequestsPanel.jsx
 //
 // Inbox + outbox for friend requests. Rendered as a sub-view of FriendsTab
 // (see FriendsTab.jsx), or — until Phase 3 — reachable from the rail's
@@ -11,8 +11,14 @@
 // When rendered as a sub-view, `onBack` is provided and the header shows a
 // back arrow. When rendered standalone (legacy rail path), `onBack` is
 // undefined and the header only shows the Send-a-request action.
+//
+// PHASE 5 CHANGE (EmptyState migration)
+// -------------------------------------
+//   • The "No pending requests" state now uses the shared <EmptyState>
+//     component (@/shared/components/EmptyState) with an Add friend CTA
+//     when onOpenAddFriend is provided.
 
-import { ArrowLeft, Check, X, UserRoundPlus } from 'lucide-react';
+import { ArrowLeft, Check, X, UserRoundPlus, Inbox } from 'lucide-react';
 import { toast } from 'sonner';
 
 import {
@@ -21,6 +27,7 @@ import {
   useDeclineFriendRequest,
   useCancelFriendRequest,
 } from '@/shared/api/friends';
+import EmptyState from '@/shared/components/EmptyState';
 
 function initialsOf(u) {
   if (!u) return '?';
@@ -134,31 +141,27 @@ export default function FriendRequestsPanel({
         {isLoading && <div className="side-pane-loading">Loading requests…</div>}
 
         {!isLoading && incoming.length === 0 && outgoing.length === 0 && (
-          <div className="side-pane-empty">
-            <strong>No pending requests</strong>
-            When someone sends you a request, or you send one, it'll appear here.
-            {onOpenAddFriend && (
-              <div style={{ marginTop: 16 }}>
-                <button
-                  type="button"
-                  className="pane-icon-btn is-accent"
-                  style={{ width: 'auto', padding: '0 14px', gap: 8, height: 36 }}
-                  onClick={onOpenAddFriend}
-                >
-                  <UserRoundPlus size={13} />
-                  <span
-                    style={{
-                      fontFamily: "'IBM Plex Mono', monospace",
-                      fontSize: 11.5,
-                      fontWeight: 600,
-                      letterSpacing: '.02em',
-                    }}
-                  >
-                    Send a request
-                  </span>
-                </button>
-              </div>
-            )}
+          <div style={{ padding: '24px 12px' }}>
+            <EmptyState
+              size="md"
+              variant="bare"
+              icon={Inbox}
+              eyebrow="Inbox"
+              title="No pending requests"
+              description="When someone sends you a request, or you send one, it'll appear here."
+              actions={
+                onOpenAddFriend
+                  ? [
+                      {
+                        label: 'Send a request',
+                        icon: UserRoundPlus,
+                        variant: 'primary',
+                        onClick: onOpenAddFriend,
+                      },
+                    ]
+                  : []
+              }
+            />
           </div>
         )}
 

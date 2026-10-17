@@ -1,4 +1,4 @@
-// apps/web/src/features/charts/components/CandlestickChart.jsx
+﻿// apps/web/src/features/charts/components/CandlestickChart.jsx
 //
 // Canvas chart: candles + volume + indicators + drawings.
 //
@@ -8,8 +8,15 @@
 // NOTE: trendline points arrive pre-sorted from drawingTools.normalizeDrawing;
 // we sort defensively again here because lightweight-charts hard-rejects
 // out-of-order setData.
+//
+// PHASE 4 CHANGE (EmptyState migration)
+// -------------------------------------
+//   • The "no data" overlay now uses the shared <EmptyState> component.
+//     Wrapped in an absolutely-positioned overlay so it sits centred over
+//     the chart canvas. The old `.cx-empty` CSS rule was removed.
 
 import { useEffect, useRef } from 'react';
+import { BarChart3 } from 'lucide-react';
 import {
   createChart,
   CandlestickSeries,
@@ -20,6 +27,7 @@ import {
   LineStyle,
 } from 'lightweight-charts';
 
+import EmptyState from '@/shared/components/EmptyState';
 import { chartTheme } from '../lib/chartTheme';
 
 const INDICATOR_COLORS = {
@@ -331,10 +339,14 @@ export default function CandlestickChart({
       )}
 
       {showEmpty && (
-        <div className="cx-empty">
-          No data for this symbol and interval.
-          <br />
-          Try a different timeframe or symbol.
+        <div className="cx-empty-overlay">
+          <EmptyState
+            size="sm"
+            icon={BarChart3}
+            eyebrow="No data"
+            title="No chart data"
+            description="No data for this symbol and interval. Try a different timeframe or symbol."
+          />
         </div>
       )}
     </div>

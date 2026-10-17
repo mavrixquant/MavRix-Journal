@@ -1,4 +1,4 @@
-// apps/web/src/features/personal/chats/components/ConversationList.jsx
+﻿// apps/web/src/features/personal/chats/components/ConversationList.jsx
 //
 // Left pane of the chat UI. Renders the current user's conversations.
 //
@@ -12,13 +12,19 @@
 //
 // The FAB (passed as a `fab` prop) is rendered inside the pane so it
 // anchors to the list column, not the viewport.
+//
+// PHASE 5 CHANGE (EmptyState migration)
+// -------------------------------------
+//   • EmptyTabState() now returns the shared <EmptyState> component with
+//     the appropriate icon (MessageSquare / Users / Archive) per tab.
 
 import { useMemo } from 'react';
-import { ArrowLeft, Archive, Pin, Lock } from 'lucide-react';
+import { ArrowLeft, Archive, Pin, Lock, MessageSquare, Users } from 'lucide-react';
 
 import { useTypingConversations } from '@/shared/api/chat';
 import { formatRelative } from '@/shared/format/datetime';
 import { useSettings } from '@/app/layout/Settings/SettingsProvider';
+import EmptyState from '@/shared/components/EmptyState';
 import GroupAvatar from './GroupAvatar';
 
 function initialsOf(user) {
@@ -52,32 +58,44 @@ function sortConversations(arr) {
 function EmptyTabState({ activeTab, archivedMode }) {
   if (archivedMode) {
     return (
-      <div className="chat-list-empty-filtered">
-        <strong>No archived chats</strong>
-        <p>Archived conversations will appear here.</p>
-      </div>
+      <EmptyState
+        size="sm"
+        variant="bare"
+        icon={Archive}
+        title="No archived chats"
+        description="Archived conversations will appear here."
+      />
     );
   }
   if (activeTab === 'dms') {
     return (
-      <div className="chat-list-empty-filtered">
-        <strong>No direct messages</strong>
-        <p>Tap the + button below to start one.</p>
-      </div>
+      <EmptyState
+        size="sm"
+        variant="bare"
+        icon={MessageSquare}
+        title="No direct messages"
+        description="Tap the + button below to start one."
+      />
     );
   }
   if (activeTab === 'groups') {
     return (
-      <div className="chat-list-empty-filtered">
-        <strong>No groups yet</strong>
-        <p>Use the + button below to discover or create one.</p>
-      </div>
+      <EmptyState
+        size="sm"
+        variant="bare"
+        icon={Users}
+        title="No groups yet"
+        description="Use the + button below to discover or create one."
+      />
     );
   }
   return (
-    <div className="chat-list-empty">
-      <p>No conversations yet.</p>
-    </div>
+    <EmptyState
+      size="sm"
+      variant="bare"
+      icon={MessageSquare}
+      title="No conversations yet"
+    />
   );
 }
 
