@@ -1,4 +1,4 @@
-// apps/web/src/features/journal/analyse/AnalysePage.jsx
+﻿// apps/web/src/features/journal/analyse/AnalysePage.jsx
 //
 // The Analyse route — a full analytical report for the currently selected
 // Journal account (Live or Demo).
@@ -14,6 +14,12 @@
 //   05  Breakdowns          — session / day-of-week / direction + strategy
 //   06  Symbols & Duration  — symbol table + holding-time widget
 //   07  Trade Log           — full filterable table
+//
+// PHASE 4 CHANGE (EmptyState migration)
+// -------------------------------------
+//   • The local EmptyState() and NoMatchesState() helpers were deleted.
+//     Both call sites now use the shared <EmptyState> component
+//     (@/shared/components/EmptyState) with the equivalent icon/copy.
 
 import { useAuth } from '@/app/providers/AuthProvider';
 import { useAppContext } from '@/app/providers/AppProvider';
@@ -24,6 +30,8 @@ import { useFilterUrlSync } from '@/features/dashboard/hooks/useFilterUrlSync';
 import { usePageHeader } from '@/app/layout/PageHeaderProvider';
 
 import { PageSkeleton } from '@/shared/ui/page-skeleton';
+import EmptyState from '@/shared/components/EmptyState';
+import { FaChartBar, FaSearch } from 'react-icons/fa';
 
 import AnalyseFilters from './AnalyseFilters';
 import { AnalyseSection, AnalysePanel } from './AnalyseSection';
@@ -347,47 +355,6 @@ const CSS = `
     color: #FFFFFF;
   }
 
-  .an-empty {
-    padding: 60px 24px;
-    text-align: center;
-    border: 1px dashed rgba(255,255,255,.10);
-    border-radius: 18px;
-    background: linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,.005));
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-  }
-  .an-empty-icon {
-    width: 60px;
-    height: 60px;
-    border-radius: 16px;
-    background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 14%, transparent), color-mix(in srgb, var(--accent) 4%, transparent));
-    border: 1px solid var(--accent-soft2);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-bottom: 8px;
-    color: var(--accent);
-    box-shadow: 0 0 30px -10px color-mix(in srgb, var(--accent) 55%, transparent);
-  }
-  .an-empty h3 {
-    margin: 0;
-    font-size: 17px;
-    font-weight: 700;
-    color: var(--ink-1);
-    letter-spacing: -.01em;
-  }
-  .an-empty p {
-    margin: 0;
-    font-size: 12.5px;
-    color: var(--ink-2);
-    line-height: 1.65;
-    max-width: 420px;
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
-  }
-
   @media (prefers-reduced-motion: reduce) {
     .as-panel, .af-btn, .af-btn-reset, .af-chip-x { transition: none !important; }
   }
@@ -424,48 +391,6 @@ function DirectionBreakdown() {
   const { groupBy } = useStats();
   const data = groupBy((o) => o.dir);
   return <CategoryBarChart data={data} horizontal={false} />;
-}
-
-/* ------------------------------------------------------------------ */
-/*  Empty states                                                       */
-/* ------------------------------------------------------------------ */
-function EmptyState() {
-  return (
-    <div className="an-empty">
-      <div className="an-empty-icon">
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none"
-          stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M3 3v18h18" />
-          <path d="M7 14l4-4 4 4 5-5" />
-        </svg>
-      </div>
-      <h3>No trades to analyse</h3>
-      <p>
-        Upload or add trades to this account first. Once there is data, this
-        page will break down performance, timing, edge, and drawdown across
-        seven report sections.
-      </p>
-    </div>
-  );
-}
-
-function NoMatchesState() {
-  return (
-    <div className="an-empty">
-      <div className="an-empty-icon">
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none"
-          stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="11" cy="11" r="8" />
-          <line x1="21" y1="21" x2="16.65" y2="16.65" />
-        </svg>
-      </div>
-      <h3>No trades match your filters</h3>
-      <p>
-        Try removing a filter chip above, or click Reset to see every trade
-        for this account.
-      </p>
-    </div>
-  );
 }
 
 /* ------------------------------------------------------------------ */
@@ -525,9 +450,28 @@ export default function AnalysePage() {
       <AnalyseFilters />
 
       {!hasAnyTrades ? (
-        <EmptyState />
+        <EmptyState
+          size="lg"
+          icon={FaChartBar}
+          eyebrow="No data"
+          title="No trades to analyse"
+          description="Upload or add trades to this account first. Once there is data, this page will break down performance, timing, edge, and drawdown across seven report sections."
+          actions={[
+            {
+              label: 'Open Trade Logs',
+              variant: 'primary',
+              to: '/journal/logs',
+            },
+          ]}
+        />
       ) : filteredCount === 0 ? (
-        <NoMatchesState />
+        <EmptyState
+          size="lg"
+          icon={FaSearch}
+          eyebrow="No matches"
+          title="No trades match your filters"
+          description="Try removing a filter chip above, or click Reset to see every trade for this account."
+        />
       ) : (
         <>
           {/* ───────────────────────── 01 Snapshot ───────────────────────── */}

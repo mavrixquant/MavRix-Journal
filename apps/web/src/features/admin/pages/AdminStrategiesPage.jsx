@@ -2,16 +2,23 @@
 //
 // Cross-user strategies list. Filters: search by name, status segment.
 // Row actions: View user (link), Delete (superadmin only).
+//
+// PHASE 6 CHANGE (EmptyState migration)
+// -------------------------------------
+//   • The "No strategies match" filter-empty state now uses the shared
+//     <EmptyState> component (@/shared/components/EmptyState).
+//   • Dead `.asp-empty` rule removed; `.asp-loading` retained.
 
 import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, Trash2 } from 'lucide-react';
+import { Search, Trash2, Brain } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { useAuth } from '@/app/providers/AuthProvider';
 import { useAdminStrategies, useAdminDeleteStrategy } from '../api';
 import Pagination from '../components/Pagination';
 import ConfirmDangerModal from '../components/ConfirmDangerModal';
+import EmptyState from '@/shared/components/EmptyState';
 
 const PAGE_SIZE = 25;
 
@@ -129,9 +136,9 @@ const CSS = `
   .asp-btn-icon:disabled { opacity: .35; cursor: not-allowed; }
   .asp-actions { display: inline-flex; gap: 6px; justify-content: flex-end; }
 
-  .asp-empty, .asp-loading {
+  .asp-loading {
     padding: 60px 24px; text-align: center;
-    color: #545E6E; font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    color: #8892A3; font-family: 'IBM Plex Mono', ui-monospace, monospace;
     font-size: 12.5px;
   }
 `;
@@ -165,6 +172,8 @@ export default function AdminStrategiesPage() {
   const strategies = data?.strategies || [];
   const total = data?.total || 0;
   const pages = data?.pages || 1;
+
+  const hasFilter = q.trim().length > 0 || status !== '';
 
   const confirmDelete = async () => {
     if (!deleteTarget) return;
@@ -234,7 +243,18 @@ export default function AdminStrategiesPage() {
           {isLoading ? (
             <div className="asp-loading">Loading strategies…</div>
           ) : strategies.length === 0 ? (
-            <div className="asp-empty">No strategies match.</div>
+            <div style={{ padding: '32px 0' }}>
+              <EmptyState
+                icon={Brain}
+                eyebrow={hasFilter ? 'No matches' : 'No strategies'}
+                title={hasFilter ? 'No strategies match' : 'No strategies yet'}
+                description={
+                  hasFilter
+                    ? 'Try a different search term or adjust the status filter.'
+                    : 'Strategies will appear here once users create playbooks in Manage → Strategies.'
+                }
+              />
+            </div>
           ) : (
             <table className="asp-table">
               <thead>

@@ -1,4 +1,4 @@
-// apps/web/src/features/manage/strategies/StrategyDetailPage.jsx
+﻿// apps/web/src/features/manage/strategies/StrategyDetailPage.jsx
 //
 // /manage/strategies/:id — detail page.
 //
@@ -8,6 +8,12 @@
 //
 // Shows strategy meta + rules, KPIs computed from tagged trades, and the
 // list of trades belonging to this strategy.
+//
+// PHASE 3 CHANGE (EmptyState migration)
+// -------------------------------------
+//   • "Strategy not found" now uses the shared <EmptyState> component.
+//   • "No trades tagged yet" (inside the trades card) uses <EmptyState>
+//     with size="sm" + variant="bare".
 
 import { useMemo, useState } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
@@ -16,6 +22,8 @@ import {
   FaEdit,
   FaArchive,
   FaTrash,
+  FaBrain,
+  FaClipboardList,
 } from 'react-icons/fa';
 import { toast } from 'sonner';
 
@@ -26,6 +34,7 @@ import {
   useDeleteStrategy,
 } from '@/shared/api/strategies';
 import Alert from '@/shared/components/Alert';
+import EmptyState from '@/shared/components/EmptyState';
 import { PageSkeleton } from '@/shared/ui/page-skeleton';
 import DataTable from '@/shared/ui/data-table';
 import { usePageHeader } from '@/app/layout/PageHeaderProvider';
@@ -232,10 +241,13 @@ export default function StrategyDetailPage() {
         <Link to="/manage/strategies" className="strat-back">
           <FaArrowLeft size={11} /> Back to Strategies
         </Link>
-        <div className="strat-empty">
-          <h3>Strategy not found</h3>
-          <p>{stratErr?.message || 'The strategy you tried to open does not exist.'}</p>
-        </div>
+        <EmptyState
+          size="lg"
+          icon={FaBrain}
+          eyebrow="Not found"
+          title="Strategy not found"
+          description={stratErr?.message || 'The strategy you tried to open does not exist.'}
+        />
       </div>
     );
   }
@@ -441,13 +453,13 @@ export default function StrategyDetailPage() {
               Loading trades…
             </div>
           ) : trades.length === 0 ? (
-            <div className="strat-empty" style={{ padding: '40px 20px' }}>
-              <h3 style={{ fontSize: 14 }}>No trades tagged yet</h3>
-              <p style={{ fontSize: 12, marginBottom: 0 }}>
-                Tag a trade with this strategy from the Trade Logs page or
-                the Add Trade modal.
-              </p>
-            </div>
+            <EmptyState
+              size="sm"
+              variant="bare"
+              icon={FaClipboardList}
+              title="No trades tagged yet"
+              description="Tag a trade with this strategy from the Trade Logs page or the Add Trade modal."
+            />
           ) : (
             <DataTable
               data={trades}

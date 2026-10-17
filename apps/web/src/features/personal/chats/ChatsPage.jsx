@@ -1,32 +1,36 @@
 // apps/web/src/features/personal/chats/ChatsPage.jsx
 //
-// 3-rail chat UI. Rail tabs: dms / groups / friends.
+// PHASE 6 — mobile polish:
+//   • Thread pane gets a swipe-to-back gesture (right swipe from the left
+//     edge returns to the sidebar on mobile).
+//   • `.chat-shell` classes unchanged, but `.is-mobile-sidebar` /
+//     `.is-mobile-thread` now drive an animated slide transition (see
+//     ChatsShell.css Phase 6 block).
 //
-// The list pane has two modes, toggled by the "Archived (N)" row at the
-// top of the list:
-//   main      — active (non-archived) conversations
-//   archived  — archived-only view; back arrow returns to main
+// BUGFIX — avatar click in ChatRail now opens Account Settings.
+// Previously `onOpenProfile` was never passed, so the button was a no-op.
 
 import { useState, useMemo, useEffect } from 'react';
 import { MessageSquare } from 'lucide-react';
 
 import { useAuth } from '@/app/providers/AuthProvider';
 import { useChatConversations } from '@/shared/api/chat';
+import { useFriendRequests } from '@/shared/api/friends';
 import { usePageHeader } from '@/app/layout/PageHeaderProvider';
 import { useSettingsModal } from '@/app/layout/Settings/SettingsModalContext';
 import { PageSkeleton } from '@/shared/ui/page-skeleton';
+import EmptyState from '@/shared/components/EmptyState';
 
 import ChatRail from './components/ChatRail';
 import ConversationList from './components/ConversationList';
 import MessageThread from './components/MessageThread';
+import FriendsTab from './components/FriendsTab';
 import NewChatModal from './components/NewChatModal';
 import GroupDiscoverModal from './components/GroupDiscoverModal';
 import CreateGroupModal from './components/CreateGroupModal';
 import AddFriendModal from './components/AddFriendModal';
-import FriendsTab from './components/FriendsTab';
-import ChatPageFab from './components/ChatPageFab';
+import { useSwipeBack } from './hooks/useSwipeBack';
 
-import './ChatsPage.css';
 import './ChatsShell.css';
 
 export default function ChatsPage() {
@@ -36,16 +40,16 @@ export default function ChatsPage() {
   const [activeTab, setActiveTab] = useState('dms');
   const [selectedId, setSelectedId] = useState(null);
   const [archivedMode, setArchivedMode] = useState(false);
+  const [mobileThreadOpen, setMobileThreadOpen] = useState(false);
 
   const [newChatOpen, setNewChatOpen] = useState(false);
   const [discoverOpen, setDiscoverOpen] = useState(false);
   const [createGroupOpen, setCreateGroupOpen] = useState(false);
   const [addFriendOpen, setAddFriendOpen] = useState(false);
 
-  const [mobileThreadOpen, setMobileThreadOpen] = useState(false);
-
   const { data: conversations = [], isLoading } = useChatConversations();
-
+  const { data: friendRequestsData } = useFriendRequests();
+  const friendRequestCount = friendRequestsData?.incoming?.length ?? 0;
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
 
   useEffect(() => {
@@ -85,6 +89,11 @@ export default function ChatsPage() {
 
   const handleMobileBack = () => setMobileThreadOpen(false);
 
+  const threadSwipeRef = useSwipeBack({
+    onBack: handleMobileBack,
+    enabled: !!selectedId && mobileThreadOpen,
+  });
+
   const handleOpenThread = (id) => {
     setSelectedId(id);
     setActiveTab('dms');
@@ -113,37 +122,13 @@ export default function ChatsPage() {
 
   if (isLoading) return <PageSkeleton />;
 
-  let rootClass = 'chat-root';
+  let shellClass = 'chat-shell';
   if (activeTab === 'dms' || activeTab === 'groups') {
-    if (!selectedId) rootClass += ' is-mobile-list-open';
-    else if (mobileThreadOpen) rootClass += ' is-mobile-thread-open';
-  } else {
-    rootClass += ' is-single-pane';
+    if (!selectedId) shellClass += ' is-mobile-sidebar';
+    else if (mobileThreadOpen) shellClass += ' is-mobile-thread';
   }
 
-  const renderMiddlePane = () => {
-    if (activeTab === 'dms' || activeTab === 'groups') {
-      return (
-        <ConversationList
-          conversations={filteredConversations}
-          selectedId={selectedId}
-          currentUserId={user?.id}
-          onSelect={handleSelect}
-          activeTab={activeTab === 'groups' ? 'groups' : 'dms'}
-          archivedMode={archivedMode}
-          onArchivedToggle={handleArchivedToggle}
-          fab={
-            <ChatPageFab
-              activeTab={activeTab === 'groups' ? 'groups' : 'dms'}
-              isAdmin={isAdmin}
-              onNewDm={() => setNewChatOpen(true)}
-              onNewGroup={() => setCreateGroupOpen(true)}
-              onDiscover={() => setDiscoverOpen(true)}
-            />
-          }
-        />
-      );
-    }
+  const renderBody = () => {
     if (activeTab === 'friends') {
       return (
         <FriendsTab
@@ -152,55 +137,70 @@ export default function ChatsPage() {
         />
       );
     }
-    return null;
-  };
 
-  const renderRightPane = () => {
-    if (activeTab !== 'dms' && activeTab !== 'groups') return null;
-
-    if (selectedConversation) {
-      return (
-        <MessageThread
-          conversationId={selectedId}
-          onBack={handleMobileBack}
-          onConversationClosed={handleConversationClosed}
-          onOpenThread={handleOpenThread}
-        />
-      );
-    }
     return (
-      <div className="chat-thread">
-        <div className="chat-empty">
-          <div className="chat-empty-icon">
-            <MessageSquare size={26} />
-          </div>
-          <h3>No conversation selected</h3>
-          <p>
-            Pick a conversation from the list, or start a new one.
-            Only you and the other participants can see these messages.
-          </p>
-        </div>
-      </div>
+      <>
+        <aside className="chat-sidebar" aria-label="Conversations">
+          <ConversationList
+            conversations={filteredConversations}
+            selectedId={selectedId}
+            currentUserId={user?.id}
+            onSelect={handleSelect}
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+            archivedMode={archivedMode}
+            onArchivedToggle={handleArchivedToggle}
+            onCreateDm={() => setNewChatOpen(true)}
+            onCreateGroup={() => setCreateGroupOpen(true)}
+            onDiscover={() => setDiscoverOpen(true)}
+            onAddFriend={() => setAddFriendOpen(true)}
+            isAdmin={isAdmin}
+            isLoading={isLoading}
+          />
+        </aside>
+
+        <section
+          className="chat-thread-pane"
+          aria-label="Conversation"
+          ref={threadSwipeRef}
+        >
+          {selectedConversation ? (
+            <MessageThread
+              conversationId={selectedId}
+              onBack={handleMobileBack}
+              onConversationClosed={handleConversationClosed}
+              onOpenThread={handleOpenThread}
+            />
+          ) : (
+            <div className="chat-thread-empty">
+              <EmptyState
+                size="md"
+                variant="bare"
+                icon={MessageSquare}
+                eyebrow="Select a conversation"
+                title="No conversation selected"
+                description="Pick a conversation from the sidebar, or start a new one. Only you and the other participants can see these messages."
+              />
+            </div>
+          )}
+        </section>
+      </>
     );
   };
 
   return (
     <>
-      <div className="chat-shell">
+      <div className={shellClass}>
         <ChatRail
           activeTab={activeTab}
           onTabChange={setActiveTab}
           unreadDms={counts.dmUnread}
           unreadGroups={counts.groupUnread}
+          friendRequestCount={friendRequestCount}
           onOpenSettings={() => openSettings('chats')}
+          onOpenProfile={() => openSettings('account')}
         />
-
-        <div className="chat-page">
-          <div className={rootClass}>
-            {renderMiddlePane()}
-            {renderRightPane()}
-          </div>
-        </div>
+        <div className="chat-body">{renderBody()}</div>
       </div>
 
       <NewChatModal

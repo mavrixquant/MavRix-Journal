@@ -1,4 +1,4 @@
-// apps/web/src/features/journal/economic-calendar/components/EventList.jsx
+﻿// apps/web/src/features/journal/economic-calendar/components/EventList.jsx
 //
 // Grouped list view: one section per calendar day, sticky date headers.
 //
@@ -9,9 +9,17 @@
 //   • No "already scrolled" guard — react-query structural sharing keeps
 //     `events` reference-stable across identical responses, so background
 //     refetches don't cause spurious scrolls.
+//
+// PHASE 4 CHANGE (EmptyState migration)
+// -------------------------------------
+//   • "No economic events match" now uses the shared <EmptyState>
+//     component (@/shared/components/EmptyState). The old `.el-empty`
+//     CSS rule was removed.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { Search } from 'lucide-react';
 import { useSettings } from '@/app/layout/Settings/SettingsProvider';
+import EmptyState from '@/shared/components/EmptyState';
 import {
   resolveTimezone,
   dayKey,
@@ -244,23 +252,13 @@ const CSS = `
   .el-val.is-released { color: var(--win); font-weight: 700; }
   .el-val.is-empty { color: var(--ink-3); }
 
-  .el-empty {
+  .el-empty-wrap {
     flex: 1;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 40px 20px;
-    margin: 18px;
-    text-align: center;
-    border: 1px dashed rgba(255,255,255,.10);
-    border-radius: 14px;
-    background: rgba(255,255,255,.012);
-    color: var(--ink-2);
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    font-size: 12.5px;
-    line-height: 1.7;
+    padding: 18px;
   }
-  .el-empty b { color: var(--accent); }
 
   @media (prefers-reduced-motion: reduce) {
     .el-pulse { animation: none !important; opacity: 1; }
@@ -423,10 +421,14 @@ export default function EventList({ events = [], onEventClick }) {
       <>
         <style>{CSS}</style>
         <div className="el-root">
-          <div className="el-empty">
-            No economic events match the current filters.
-            <br />
-            Try widening the date range or clearing the currency/impact filter.
+          <div className="el-empty-wrap">
+            <EmptyState
+              size="md"
+              icon={Search}
+              eyebrow="No matches"
+              title="No economic events match"
+              description="Try widening the date range or clearing the currency/impact filter."
+            />
           </div>
         </div>
       </>

@@ -1,25 +1,16 @@
-// apps/web/src/features/personal/chats/components/MessageThread.jsx
+﻿// apps/web/src/features/personal/chats/components/MessageThread.jsx
 //
-// Right pane of the chat UI. In DMs, when the caller is not friends with
-// the peer and the free-message cap is reached, the composer is replaced
-// by a locked banner. When the conversation is archived, the composer is
-// replaced by an archived banner with an Unarchive CTA.
+// PHASE 4 — wires the right panel into the thread.
+//
+//   • panelOpen state is persisted per conversation in localStorage
+//   • ChatHeader Info button toggles the panel (both DM and Group)
+//   • Info button shows active state when panel is open
+//   • Group settings modal is opened from inside GroupProfilePanel
 
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
-import {
-  ArrowLeft,
-  Loader2,
-  Pencil,
-  Check,
-  CheckCheck,
-  Clock,
-  Settings,
-  Info,
-} from 'lucide-react';
 import { toast } from 'sonner';
 
 import { useAuth } from '@/app/providers/AuthProvider';
-import { formatTime, formatDayLabel, dayKey } from '@/shared/format/datetime';
 import { useSettings } from '@/app/layout/Settings/SettingsProvider';
 import {
   useChatMessages,
@@ -34,24 +25,17 @@ import {
 } from '@/shared/api/chat';
 import { useSendFriendRequest, useFriendStatus } from '@/shared/api/friends';
 
+import ChatHeader from './ChatHeader';
+import ConversationPanel from './ConversationPanel';
+import MessageList from './MessageList';
 import MessageComposer from './MessageComposer';
 import MessageContextMenu from './MessageContextMenu';
-import GroupAvatar from './GroupAvatar';
+import ScrollToBottom from './ScrollToBottom';
+import ThreadSkeleton from './ThreadSkeleton';
 import GroupSettingsModal from './GroupSettingsModal';
-import UserProfileSidebar from './UserProfileSidebar';
 
 const EDIT_WINDOW_MS = 15 * 60 * 1000;
-const LONG_PRESS_MS = 550;
-
-function initialsOf(user) {
-  if (!user) return '?';
-  const a = (user.firstName || '').trim();
-  const b = (user.lastName || '').trim();
-  if (a && b) return (a[0] + b[0]).toUpperCase();
-  if (a) return a.slice(0, 2).toUpperCase();
-  if (user.email) return user.email.slice(0, 2).toUpperCase();
-  return '?';
-}
+const PANEL_STORAGE_PREFIX = 'mavrix:chat:panel:';
 
 function displayNameOf(user) {
   if (!user) return 'Unknown';
@@ -60,13 +44,6 @@ function displayNameOf(user) {
   if (a && b) return `${a} ${b}`;
   if (a) return a;
   return user.email || 'Unknown';
-}
-
-function MessageTicks({ msg }) {
-  if (msg._optimistic) return <Clock size={12} className="chat-tick is-sending" aria-label="Sending" />;
-  if (msg.readAt)      return <CheckCheck size={13} className="chat-tick is-read" aria-label="Read" />;
-  if (msg.deliveredAt) return <CheckCheck size={13} className="chat-tick is-delivered" aria-label="Delivered" />;
-  return <Check size={12} className="chat-tick is-sent" aria-label="Sent" />;
 }
 
 export default function MessageThread({
@@ -96,7 +73,6 @@ export default function MessageThread({
   } = useChatMessages(conversationId);
 
   const typingUserIds = useTypingIndicator(conversationId, currentUserId);
-  const peerTyping = typingUserIds.length > 0;
 
   const markRead = useMarkRead();
   const sendMessage = useSendMessage();
@@ -132,22 +108,64 @@ export default function MessageThread({
     }
   }, [peer, sendFriendRequest]);
 
+  /* ---------------- Panel state (persisted per conversation) ---------------- */
+
+  const [panelOpen, setPanelOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [profileOpen, setProfileOpen] = useState(false);
+
+  const setPanelOpenPersisted = useCallback(
+    (next) => {
+      setPanelOpen(next);
+      if (!conversationId) return;
+      try {
+        localStorage.setItem(
+          PANEL_STORAGE_PREFIX + conversationId,
+          next ? '1' : '0'
+        );
+      } catch {
+        /* localStorage disabled — ignore */
+      }
+    },
+    [conversationId]
+  );
 
   useEffect(() => {
-    setProfileOpen(false);
     setSettingsOpen(false);
+    if (!conversationId) {
+      setPanelOpen(false);
+      return;
+    }
+    try {
+      const saved = localStorage.getItem(PANEL_STORAGE_PREFIX + conversationId);
+      setPanelOpen(saved === '1');
+    } catch {
+      setPanelOpen(false);
+    }
   }, [conversationId]);
+
+  const handleTogglePanel = useCallback(() => {
+    setPanelOpenPersisted(!panelOpen);
+  }, [panelOpen, setPanelOpenPersisted]);
+
+  const handleClosePanel = useCallback(() => {
+    setPanelOpenPersisted(false);
+  }, [setPanelOpenPersisted]);
+
+  const handleOpenGroupSettings = useCallback(() => {
+    setPanelOpenPersisted(false);
+    setSettingsOpen(true);
+  }, [setPanelOpenPersisted]);
+
+  /* ---------------- Group permissions ---------------- */
 
   const canManageGroup =
     isGroup &&
     conversation &&
-    (
-      user?.role === 'superadmin' ||
+    (user?.role === 'superadmin' ||
       (user?.role === 'admin' && conversation.visibility === 'public') ||
-      conversation.createdById === currentUserId
-    );
+      conversation.createdById === currentUserId);
+
+  /* ---------------- Messages flattening ---------------- */
 
   const messages = useMemo(() => {
     if (!data?.pages) return [];
@@ -161,11 +179,14 @@ export default function MessageThread({
     return all;
   }, [data]);
 
+  /* ---------------- Scroll side-effects ---------------- */
+
   const scrollRef = useRef(null);
   const sentinelRef = useRef(null);
   const atBottomRef = useRef(true);
   const lastCountRef = useRef(0);
   const prependAnchorRef = useRef(null);
+  const [showScrollPill, setShowScrollPill] = useState(false);
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -173,6 +194,7 @@ export default function MessageThread({
     const onScroll = () => {
       const d = el.scrollHeight - el.scrollTop - el.clientHeight;
       atBottomRef.current = d < 120;
+      setShowScrollPill(d > 200);
     };
     el.addEventListener('scroll', onScroll, { passive: true });
     return () => el.removeEventListener('scroll', onScroll);
@@ -181,6 +203,7 @@ export default function MessageThread({
   useEffect(() => {
     lastCountRef.current = 0;
     atBottomRef.current = true;
+    setShowScrollPill(false);
     const el = scrollRef.current;
     if (el) requestAnimationFrame(() => { el.scrollTop = el.scrollHeight; });
   }, [conversationId]);
@@ -226,6 +249,18 @@ export default function MessageThread({
     return () => observer.disconnect();
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
+  /* ---------------- Unread boundary snapshot ---------------- */
+  const unreadBoundaryRef = useRef(null);
+  useEffect(() => {
+    if (unreadBoundaryRef.current !== null) return;
+    if (messages.length === 0) return;
+    const firstUnread = messages.find(
+      (m) => m.senderId !== currentUserId && !m.readAt
+    );
+    unreadBoundaryRef.current = firstUnread?.id || '';
+  }, [messages, currentUserId]);
+
+  /* ---------------- Mark read ---------------- */
   const lastReadCountRef = useRef(0);
   useEffect(() => {
     if (!conversationId) return;
@@ -237,6 +272,7 @@ export default function MessageThread({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversationId, messages.length, sendReadReceipts]);
 
+  /* ---------------- Edit-window clock ---------------- */
   const [nowTs, setNowTs] = useState(0);
   useEffect(() => {
     setNowTs(Date.now());
@@ -244,52 +280,25 @@ export default function MessageThread({
     return () => clearInterval(iv);
   }, []);
 
+  /* ---------------- Context menu ---------------- */
   const [ctxMenu, setCtxMenu] = useState(null);
-  const openContextMenu = useCallback((x, y, message) => {
+
+  const openContextMenu = useCallback((message, event) => {
+    const x = event?.clientX ?? 100;
+    const y = event?.clientY ?? 100;
     setCtxMenu({ x, y, message });
   }, []);
+
   const closeContextMenu = useCallback(() => setCtxMenu(null), []);
 
-  const longPressRef = useRef({ timer: null, fired: false });
-
-  const handleMessageTouchStart = useCallback(
-    (msg, e) => {
-      if (msg._optimistic) return;
-      const touch = e.touches?.[0];
-      if (!touch) return;
-      longPressRef.current.fired = false;
-      longPressRef.current.timer = setTimeout(() => {
-        longPressRef.current.fired = true;
-        openContextMenu(touch.clientX, touch.clientY, msg);
-      }, LONG_PRESS_MS);
-    },
-    [openContextMenu]
-  );
-
-  const cancelLongPress = useCallback(() => {
-    if (longPressRef.current.timer) {
-      clearTimeout(longPressRef.current.timer);
-      longPressRef.current.timer = null;
-    }
-  }, []);
-
-  const handleMessageContextMenu = useCallback(
-    (msg, e) => {
-      if (msg._optimistic) return;
-      e.preventDefault();
-      openContextMenu(e.clientX, e.clientY, msg);
-    },
-    [openContextMenu]
-  );
-
-  useEffect(() => () => cancelLongPress(), [cancelLongPress]);
-
+  /* ---------------- Edit state ---------------- */
   const [editingId, setEditingId] = useState(null);
   const [editText, setEditText] = useState('');
 
   const startEdit = useCallback((msg) => {
     setEditingId(msg.id);
     setEditText(msg.body || '');
+    setCtxMenu(null);
   }, []);
 
   const cancelEdit = useCallback(() => {
@@ -302,22 +311,64 @@ export default function MessageThread({
     if (!trimmed || !editingId) return;
     editMessage.mutate(
       { conversationId, messageId: editingId, body: trimmed },
-      { onSuccess: () => { setEditingId(null); setEditText(''); } }
+      {
+        onSuccess: () => {
+          setEditingId(null);
+          setEditText('');
+        },
+      }
     );
   }, [editText, editingId, conversationId, editMessage]);
 
+  /* ---------------- Delete handlers ---------------- */
   const handleDeleteMe = useCallback(
-    (msg) => deleteMessage.mutate({ conversationId, messageId: msg.id, scope: 'me' }),
-    [conversationId, deleteMessage]
-  );
-  const handleDeleteAll = useCallback(
-    (msg) => deleteMessage.mutate({ conversationId, messageId: msg.id, scope: 'all' }),
+    (msg) => {
+      deleteMessage.mutate(
+        { conversationId, messageId: msg.id, scope: 'me' },
+        { onSuccess: () => setCtxMenu(null) }
+      );
+    },
     [conversationId, deleteMessage]
   );
 
+  const handleDeleteAll = useCallback(
+    (msg) => {
+      deleteMessage.mutate(
+        { conversationId, messageId: msg.id, scope: 'all' },
+        { onSuccess: () => setCtxMenu(null) }
+      );
+    },
+    [conversationId, deleteMessage]
+  );
+
+  /* ---------------- Reply state ---------------- */
+  const [replyTo, setReplyTo] = useState(null);
+
+  const handleReply = useCallback((msg) => {
+    setReplyTo(msg);
+    setCtxMenu(null);
+  }, []);
+
+  const cancelReply = useCallback(() => setReplyTo(null), []);
+
+  useEffect(() => {
+    setReplyTo(null);
+  }, [conversationId]);
+
+  /* ---------------- Send + typing ---------------- */
   const handleSend = useCallback(
-    (body) => sendMessage.mutate({ conversationId, body, senderId: currentUserId }),
-    [conversationId, currentUserId, sendMessage]
+    (body) => {
+      sendMessage.mutate(
+        {
+          conversationId,
+          body,
+          senderId: currentUserId,
+          replyToId: replyTo?.id,
+        },
+        { onSuccess: () => setReplyTo(null) }
+      );
+    },
+    [conversationId, currentUserId, sendMessage, replyTo]
   );
 
   const handleTyping = useCallback(
@@ -325,39 +376,33 @@ export default function MessageThread({
     [conversationId, sendTyping]
   );
 
+  /* ---------------- Archive ---------------- */
   const isArchived = !!conversation?.isArchived;
 
   const handleUnarchive = useCallback(() => {
-    updateConversation.mutate({
-      conversationId,
-      patch: { isArchived: false },
-    });
+    updateConversation.mutate({ conversationId, patch: { isArchived: false } });
   }, [conversationId, updateConversation]);
 
-  const headerName = isGroup
-    ? (conversation?.name || 'Untitled group')
-    : displayNameOf(peer);
+  /* ---------------- Scroll to bottom ---------------- */
+  const handleScrollToBottom = useCallback(() => {
+    const el = scrollRef.current;
+    if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+  }, []);
 
-  const threadSubText = (() => {
-    if (peerTyping && showTypingInThread) return 'typing…';
-    if (isGroup) {
-      const mc = conversation?.memberCount ?? 0;
-      const vis = conversation?.visibility === 'private' ? 'Private' : 'Public';
-      return `${mc} member${mc === 1 ? '' : 's'} · ${vis}`;
-    }
-    return peer?.email || '';
-  })();
+  /* ---------------- Helpers ---------------- */
+  const canEditMessage = useCallback(
+    (msg) => {
+      if (!nowTs) return false;
+      return nowTs - new Date(msg.createdAt).getTime() < EDIT_WINDOW_MS;
+    },
+    [nowTs]
+  );
 
-  const threadSubClass =
-    peerTyping && showTypingInThread ? 'chat-thread-sub is-typing' : 'chat-thread-sub';
-
+  /* ---------------- Loading ---------------- */
   if (convoLoading && !conversation) {
     return (
       <div className="chat-thread">
-        <div className="chat-empty">
-          <Loader2 size={22} style={{ animation: 'chatSpin .8s linear infinite' }} />
-          <style>{`@keyframes chatSpin { to { transform: rotate(360deg); } }`}</style>
-        </div>
+        <ThreadSkeleton rows={8} />
       </div>
     );
   }
@@ -365,224 +410,73 @@ export default function MessageThread({
   if (!conversation) return null;
 
   return (
-    <div className="chat-thread-wrap">
-      <div className="chat-thread">
-        <div className="chat-thread-header">
-          <button
-            type="button"
-            className="chat-thread-back"
-            onClick={onBack}
-            aria-label="Back to conversations"
-          >
-            <ArrowLeft size={15} />
-          </button>
+    <>
+      <div className={`chat-thread${panelOpen ? ' has-panel' : ''}`}>
+        <ChatHeader
+          conversation={conversation}
+          typingUserIds={typingUserIds}
+          showTypingInThread={showTypingInThread}
+          onBack={onBack}
+          onTogglePanel={handleTogglePanel}
+          panelOpen={panelOpen}
+        />
 
-          {isGroup ? (
-            <GroupAvatar group={conversation} size={36} />
-          ) : (
+        <div className="chat-thread-messages-wrap">
+          <MessageList
+            messages={messages}
+            currentUserId={currentUserId}
+            isGroup={isGroup}
+            headerName={
+              isGroup
+                ? (conversation.name || 'this group')
+                : displayNameOf(peer)
+            }
+            typingUserIds={typingUserIds}
+            showTypingInThread={showTypingInThread}
+            timeFormat={timeFormat}
+            timezone={timezone}
+            hasNextPage={hasNextPage}
+            isFetchingNextPage={isFetchingNextPage}
+            onLoadMore={fetchNextPage}
+            isLoading={messagesLoading}
+            editingId={editingId}
+            editText={editText}
+            onEditChange={setEditText}
+            onEditSubmit={submitEdit}
+            onEditCancel={cancelEdit}
+            onEditStart={startEdit}
+            onReply={handleReply}
+            onContextMenu={openContextMenu}
+            unreadBoundaryMsgId={unreadBoundaryRef.current || undefined}
+            scrollRef={scrollRef}
+            sentinelRef={sentinelRef}
+            canEditMessage={canEditMessage}
+          />
+
+          <ScrollToBottom
+            visible={showScrollPill}
+            onClick={handleScrollToBottom}
+          />
+        </div>
+
+        {replyTo && (
+          <div className="chat-reply-banner">
+            <div className="chat-reply-banner-body">
+              <div className="chat-reply-banner-label">Replying to</div>
+              <div className="chat-reply-banner-text">
+                {(replyTo.body || '').slice(0, 100)}
+              </div>
+            </div>
             <button
               type="button"
-              className="chat-thread-avatar-btn"
-              onClick={() => setProfileOpen((v) => !v)}
-              aria-label={`Open ${headerName}'s profile`}
-              title="Open profile"
+              className="chat-reply-banner-cancel"
+              onClick={cancelReply}
+              aria-label="Cancel reply"
             >
-              <span className="chat-avatar" style={{ width: 36, height: 36, fontSize: 12 }}>
-                {peer?.photoUrl ? <img src={peer.photoUrl} alt="" /> : initialsOf(peer)}
-              </span>
+              ✕
             </button>
-          )}
-
-          <div className="chat-thread-peer">
-            <span className="chat-thread-name">{headerName}</span>
-            <span className={threadSubClass}>{threadSubText}</span>
           </div>
-
-          {!isGroup && (
-            <button
-              type="button"
-              className={`chat-thread-settings${profileOpen ? ' is-active' : ''}`}
-              onClick={() => setProfileOpen((v) => !v)}
-              aria-label="Toggle profile"
-              title="Profile"
-            >
-              <Info size={15} />
-            </button>
-          )}
-
-          {isGroup && canManageGroup && (
-            <button
-              type="button"
-              className="chat-thread-settings"
-              onClick={() => setSettingsOpen(true)}
-              title="Group settings"
-              aria-label="Group settings"
-            >
-              <Settings size={15} />
-            </button>
-          )}
-        </div>
-
-        <div className="chat-thread-messages" ref={scrollRef}>
-          <div ref={sentinelRef} style={{ height: 1 }} />
-
-          {hasNextPage && (
-            <button
-              type="button"
-              className="chat-load-more"
-              onClick={() => fetchNextPage()}
-              disabled={isFetchingNextPage}
-            >
-              {isFetchingNextPage ? (
-                <>
-                  <Loader2 size={11} style={{ animation: 'chatSpin .8s linear infinite' }} />
-                  Loading…
-                </>
-              ) : ('Load earlier messages')}
-            </button>
-          )}
-
-          {messagesLoading && messages.length === 0 && (
-            <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--ink-3)', fontSize: 12 }}>
-              Loading messages…
-            </div>
-          )}
-
-          {!messagesLoading && messages.length === 0 && (
-            <div className="chat-empty" style={{ padding: '60px 20px' }}>
-              <div className="chat-empty-icon">
-                <Pencil size={22} />
-              </div>
-              <h3>Say hi 👋</h3>
-              <p>
-                {isGroup
-                  ? `This is the beginning of ${headerName}. Send a message to get started.`
-                  : `This is the beginning of your conversation with ${headerName}. Send a message to get started.`}
-              </p>
-            </div>
-          )}
-
-          {messages.map((msg, idx) => {
-            const prev = messages[idx - 1];
-            const next = messages[idx + 1];
-            const showDaySep =
-              !prev ||
-              dayKey(prev.createdAt, timezone) !== dayKey(msg.createdAt, timezone);
-            const isOwn = msg.senderId === currentUserId;
-            const isDeleted = !!msg.deleted;
-            const isEditing = editingId === msg.id;
-
-            const sameDayAsNext =
-              next && dayKey(next.createdAt) === dayKey(msg.createdAt, timezone);
-            const sameMinuteAsNext =
-              next &&
-              formatTime(next.createdAt, timeFormat) ===
-                formatTime(msg.createdAt, timeFormat, timezone);
-            const sameSenderAsNext = next && next.senderId === msg.senderId;
-            const isLastInGroup =
-              !next || !sameDayAsNext || !sameMinuteAsNext || !sameSenderAsNext;
-
-            const showEditedBadge = !!(msg.editedAt && !isDeleted);
-            const showTicks = isOwn && !isDeleted;
-            const showMetaRow = isLastInGroup || showEditedBadge || showTicks;
-
-            const showSenderRow = isGroup && !isOwn && !isDeleted;
-
-            const msgCls = [
-              'chat-msg',
-              isOwn ? 'is-own' : 'is-peer',
-              isDeleted ? 'is-deleted' : '',
-              isGroup ? 'is-group' : '',
-              msg._optimistic ? 'chat-msg-optimistic' : '',
-            ].filter(Boolean).join(' ');
-
-            return (
-              <div key={msg.id} style={{ display: 'contents' }}>
-                {showDaySep && (
-                  <div className="chat-day-sep">
-                    {formatDayLabel(msg.createdAt, timezone)}
-                  </div>
-                )}
-
-                <div
-                  className={msgCls}
-                  onContextMenu={(e) => handleMessageContextMenu(msg, e)}
-                  onTouchStart={(e) => handleMessageTouchStart(msg, e)}
-                  onTouchMove={cancelLongPress}
-                  onTouchEnd={cancelLongPress}
-                  onTouchCancel={cancelLongPress}
-                >
-                  {showSenderRow && (
-                    <div className="chat-msg-sender">
-                      <span className="chat-msg-sender-avatar">
-                        {msg.sender?.photoUrl ? (
-                          <img src={msg.sender.photoUrl} alt="" />
-                        ) : (
-                          initialsOf(msg.sender)
-                        )}
-                      </span>
-                      <span className="chat-msg-sender-name">
-                        {displayNameOf(msg.sender)}
-                      </span>
-                    </div>
-                  )}
-
-                  {isEditing ? (
-                    <div className="chat-edit-inline">
-                      <textarea
-                        value={editText}
-                        onChange={(e) => setEditText(e.target.value.slice(0, 4000))}
-                        autoFocus
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' && !e.shiftKey) {
-                            e.preventDefault();
-                            submitEdit();
-                          } else if (e.key === 'Escape') {
-                            e.preventDefault();
-                            cancelEdit();
-                          }
-                        }}
-                      />
-                      <div className="chat-edit-actions">
-                        <button type="button" className="chat-edit-btn" onClick={cancelEdit}>
-                          Cancel
-                        </button>
-                        <button
-                          type="button"
-                          className="chat-edit-btn is-save"
-                          onClick={submitEdit}
-                          disabled={!editText.trim() || editMessage.isPending}
-                        >
-                          {editMessage.isPending ? 'Saving…' : 'Save'}
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="chat-msg-bubble">
-                        {isDeleted ? '[message deleted]' : (msg.body || '')}
-                      </div>
-
-                      {showMetaRow && (
-                        <div className="chat-msg-meta">
-                          {isLastInGroup && (
-                            <span>{formatTime(msg.createdAt, timeFormat, timezone)}</span>
-                          )}
-                          {showEditedBadge && (
-                            <span className="chat-msg-edited">
-                              {isLastInGroup ? '· edited' : 'edited'}
-                            </span>
-                          )}
-                          {showTicks && <MessageTicks msg={msg} />}
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        )}
 
         <MessageComposer
           conversationId={conversationId}
@@ -600,11 +494,15 @@ export default function MessageThread({
         />
       </div>
 
-      {!isGroup && profileOpen && (
-        <UserProfileSidebar
-          peer={peer}
+      {panelOpen && (
+        <ConversationPanel
           conversation={conversation}
-          onClose={() => setProfileOpen(false)}
+          currentUserId={currentUserId}
+          canManageGroup={canManageGroup}
+          onClose={handleClosePanel}
+          onOpenGroupSettings={handleOpenGroupSettings}
+          onConversationClosed={onConversationClosed}
+          onOpenThread={onOpenThread}
         />
       )}
 
@@ -612,16 +510,18 @@ export default function MessageThread({
         <MessageContextMenu
           x={ctxMenu.x}
           y={ctxMenu.y}
+          canReply={!ctxMenu.message.deleted}
           canEdit={
             ctxMenu.message.senderId === currentUserId &&
             !ctxMenu.message.deleted &&
             nowTs > 0 &&
-            (nowTs - new Date(ctxMenu.message.createdAt).getTime()) < EDIT_WINDOW_MS
+            nowTs - new Date(ctxMenu.message.createdAt).getTime() < EDIT_WINDOW_MS
           }
           canDeleteAll={
             ctxMenu.message.senderId === currentUserId &&
             !ctxMenu.message.deleted
           }
+          onReply={() => handleReply(ctxMenu.message)}
           onEdit={() => startEdit(ctxMenu.message)}
           onDeleteMe={() => handleDeleteMe(ctxMenu.message)}
           onDeleteAll={() => handleDeleteAll(ctxMenu.message)}
@@ -638,8 +538,6 @@ export default function MessageThread({
           onOpenThread={onOpenThread}
         />
       )}
-
-      <style>{`@keyframes chatSpin { to { transform: rotate(360deg); } }`}</style>
-    </div>
+    </>
   );
 }

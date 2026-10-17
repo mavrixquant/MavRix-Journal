@@ -1,4 +1,4 @@
-// apps/web/src/shared/trade-logs/TradeLogsView.jsx
+﻿// apps/web/src/shared/trade-logs/TradeLogsView.jsx
 //
 // Shared trade-logs page body. Consumed by BOTH:
 //   - features/journal/trade-logs/TradeLogsPage.jsx   (Live + Demo accounts)
@@ -27,6 +27,12 @@
 // auto-open the AddTradeModal. We read the param once on mount, open the
 // modal, and then strip the param from the URL via setSearchParams with
 // { replace: true } so a refresh never re-opens it.
+//
+// EMPTY STATES
+// ------------
+// Both empty states use the shared <EmptyState /> component
+// (@/shared/components/EmptyState) so the visual matches every other
+// page in the app.
 
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
@@ -52,6 +58,7 @@ import { downloadTradeTemplate } from './downloadTemplate';
 import DataTable from '@/shared/ui/data-table';
 import { PageSkeleton } from '@/shared/ui/page-skeleton';
 import Alert from '@/shared/components/Alert';
+import EmptyState from '@/shared/components/EmptyState';
 
 /* ------------------------------------------------------------------ */
 /*  Page-local CSS                                                     */
@@ -286,42 +293,6 @@ const CSS = `
     overflow: hidden;
   }
   .jm-body { padding: 4px 18px 18px; }
-
-  .jm-empty {
-    padding: 60px 24px;
-    text-align: center;
-    border: 1px dashed rgba(255,255,255,.10);
-    border-radius: 14px;
-    background: rgba(255,255,255,.015);
-  }
-  .jm-empty-icon {
-    width: 56px;
-    height: 56px;
-    border-radius: 16px;
-    background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 14%, transparent), color-mix(in srgb, var(--accent) 4%, transparent));
-    border: 1px solid var(--accent-soft2);
-    color: var(--accent);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 20px;
-    margin-bottom: 16px;
-    box-shadow: 0 0 30px -10px color-mix(in srgb, var(--accent) 55%, transparent);
-  }
-  .jm-empty h3 {
-    margin: 0 0 6px;
-    font-size: 16px;
-    font-weight: 700;
-    color: var(--ink-1);
-  }
-  .jm-empty p {
-    margin: 0 auto 18px;
-    max-width: 360px;
-    font-size: 12.5px;
-    line-height: 1.65;
-    color: var(--ink-2);
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
-  }
 
   @media (max-width: 640px) {
     .jm-root { padding: 16px; }
@@ -725,16 +696,24 @@ export default function TradeLogsView({
       <>
         <style>{CSS}</style>
         <div className="jm-root">
-          <div className="jm-empty">
-            <div className="jm-empty-icon">
-              <FaFolderOpen />
-            </div>
-            <h3>{noAccountsTitle || `No ${typesLabel} accounts`}</h3>
-            <p>
-              {noAccountsMessage ||
-                `Create a ${typesLabel} account first, then come back here to upload and browse your trades.`}
-            </p>
-          </div>
+          <EmptyState
+            icon={FaFolderOpen}
+            eyebrow="No accounts"
+            size="lg"
+            title={noAccountsTitle || `No ${typesLabel} accounts`}
+            description={
+              noAccountsMessage ||
+              `Create a ${typesLabel} account first, then come back here to upload and browse your trades.`
+            }
+            actions={[
+              {
+                label: 'Manage accounts',
+                icon: FaFolderOpen,
+                variant: 'primary',
+                to: '/manage/accounts',
+              },
+            ]}
+          />
         </div>
       </>
     );
@@ -825,39 +804,31 @@ export default function TradeLogsView({
         {/* ---------- Table card ---------- */}
         <div className="jm-card jm-body">
           {enrichedTrades.length === 0 ? (
-            <div className="jm-empty">
-              <div className="jm-empty-icon">
-                <FaFileUpload />
-              </div>
-              <h3>No {isBacktest ? 'tests' : 'trades'} yet</h3>
-              <p>
-                Add your first {isBacktest ? 'test' : 'trade'} manually, or
-                bulk-import an .xlsx log. You can also define custom columns
-                to capture more context.
-              </p>
-              <div
-                style={{
-                  display: 'flex',
-                  gap: 10,
-                  justifyContent: 'center',
-                  flexWrap: 'wrap',
-                }}
-              >
-                <button
-                  type="button"
-                  className="jm-btn-primary"
-                  onClick={() => setAddTradeOpen(true)}
-                >
-                  <FaPlus size={11} /> Add {isBacktest ? 'Test' : 'Trade'}
-                </button>
-                <button
-                  type="button"
-                  className="jm-icon-btn"
-                  onClick={() => setUploadOpen(true)}
-                >
-                  <FaFileUpload size={11} /> <span>Upload</span>
-                </button>
-              </div>
+            <div style={{ padding: '32px 0' }}>
+              <EmptyState
+                icon={FaFileUpload}
+                eyebrow="Empty"
+                title={`No ${isBacktest ? 'tests' : 'trades'} yet`}
+                description={
+                  `Add your first ${isBacktest ? 'test' : 'trade'} manually, ` +
+                  `or bulk-import an .xlsx log. You can also define custom ` +
+                  `columns to capture more context.`
+                }
+                actions={[
+                  {
+                    label: `Add ${isBacktest ? 'Test' : 'Trade'}`,
+                    icon: FaPlus,
+                    variant: 'primary',
+                    onClick: () => setAddTradeOpen(true),
+                  },
+                  {
+                    label: 'Upload',
+                    icon: FaFileUpload,
+                    variant: 'ghost',
+                    onClick: () => setUploadOpen(true),
+                  },
+                ]}
+              />
             </div>
           ) : (
             <DataTable

@@ -3,6 +3,12 @@
 // Cross-user chat group administration. Filters: search by name, visibility
 // segment (All / Public / Private). Row click opens the edit modal.
 // Row action deletes (superadmin or admin's own public groups).
+//
+// PHASE 6 CHANGE (EmptyState migration)
+// -------------------------------------
+//   • The "No groups match" filter-empty state now uses the shared
+//     <EmptyState> component (@/shared/components/EmptyState).
+//   • Dead `.agp-empty` rule removed; `.agp-loading` retained.
 
 import { useState, useMemo } from 'react';
 import { Search, Trash2, Plus, Hash, Lock, Users } from 'lucide-react';
@@ -13,6 +19,7 @@ import { useAdminGroups, useDeleteGroup } from '@/shared/api/chat';
 import Pagination from '../components/Pagination';
 import ConfirmDangerModal from '../components/ConfirmDangerModal';
 import AdminGroupModal from '../components/AdminGroupModal';
+import EmptyState from '@/shared/components/EmptyState';
 
 const PAGE_SIZE = 25;
 
@@ -154,9 +161,9 @@ const CSS = `
   .agp-btn-icon:disabled { opacity: .35; cursor: not-allowed; }
   .agp-actions { display: inline-flex; gap: 6px; justify-content: flex-end; }
 
-  .agp-empty, .agp-loading {
+  .agp-loading {
     padding: 60px 24px; text-align: center;
-    color: #545E6E; font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    color: #8892A3; font-family: 'IBM Plex Mono', ui-monospace, monospace;
     font-size: 12.5px;
   }
 `;
@@ -191,6 +198,8 @@ export default function AdminGroupsPage() {
   const groups = data?.groups || [];
   const total = data?.total || 0;
   const pages = data?.pages || 1;
+
+  const hasFilter = q.trim().length > 0 || visibility !== '';
 
   const confirmDelete = async () => {
     if (!deleteTarget) return;
@@ -258,7 +267,18 @@ export default function AdminGroupsPage() {
           {isLoading ? (
             <div className="agp-loading">Loading groups…</div>
           ) : groups.length === 0 ? (
-            <div className="agp-empty">No groups match these filters.</div>
+            <div style={{ padding: '32px 0' }}>
+              <EmptyState
+                icon={Users}
+                eyebrow={hasFilter ? 'No matches' : 'No groups'}
+                title={hasFilter ? 'No groups match' : 'No groups yet'}
+                description={
+                  hasFilter
+                    ? 'Try a different search term or adjust the visibility filter.'
+                    : 'Chat groups will appear here once they\'re created.'
+                }
+              />
+            </div>
           ) : (
             <table className="agp-table">
               <thead>

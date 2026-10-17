@@ -1,44 +1,33 @@
-// apps/web/src/features/personal/chats/components/ConversationList.jsx
+﻿// apps/web/src/features/personal/chats/components/ConversationList.jsx
 //
-// Left pane of the chat UI. Renders the current user's conversations.
+// PHASE 6 — keyboard navigation between rows.
 //
-// Two modes:
-//   archivedMode === false  →  main list. An "Archived (N)" row is shown
-//                              at the top when any archived conversations
-//                              exist, above any pinned rows.
-//   archivedMode === true   →  archived-only view. Header shows a back
-//                              arrow; the list contains only archived
-//                              conversations.
+// The list container catches ArrowUp / ArrowDown / Home / End and moves focus
+// between the rendered `<button data-conv-row>` siblings. Enter and Space
+// already work because each row is a native <button>.
 //
-// The FAB (passed as a `fab` prop) is rendered inside the pane so it
-// anchors to the list column, not the viewport.
+// Everything else (search + tabs + archived row + SidebarFab) is unchanged
+// from Phase 5.
 
-import { useMemo } from 'react';
-import { ArrowLeft, Archive, Pin, Lock } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  ArrowLeft,
+  Archive,
+  MessageSquare,
+  Users,
+} from 'lucide-react';
 
 import { useTypingConversations } from '@/shared/api/chat';
-import { formatRelative } from '@/shared/format/datetime';
 import { useSettings } from '@/app/layout/Settings/SettingsProvider';
-import GroupAvatar from './GroupAvatar';
+import EmptyState from '@/shared/components/EmptyState';
 
-function initialsOf(user) {
-  if (!user) return '?';
-  const a = (user.firstName || '').trim();
-  const b = (user.lastName || '').trim();
-  if (a && b) return (a[0] + b[0]).toUpperCase();
-  if (a) return a.slice(0, 2).toUpperCase();
-  if (user.email) return user.email.slice(0, 2).toUpperCase();
-  return '?';
-}
+import SidebarSearch from './SidebarSearch';
+import SidebarTabs from './SidebarTabs';
+import SidebarSkeleton from './SidebarSkeleton';
+import ConversationRow from './ConversationRow';
+import SidebarFab from './SidebarFab';
 
-function displayNameOf(user) {
-  if (!user) return 'Unknown';
-  const a = (user.firstName || '').trim();
-  const b = (user.lastName || '').trim();
-  if (a && b) return `${a} ${b}`;
-  if (a) return a;
-  return user.email || 'Unknown';
-}
+const SEARCH_DEBOUNCE_MS = 200;
 
 function sortConversations(arr) {
   return [...arr].sort((a, b) => {
@@ -49,55 +38,41 @@ function sortConversations(arr) {
   });
 }
 
-function EmptyTabState({ activeTab, archivedMode }) {
-  if (archivedMode) {
-    return (
-      <div className="chat-list-empty-filtered">
-        <strong>No archived chats</strong>
-        <p>Archived conversations will appear here.</p>
-      </div>
-    );
-  }
-  if (activeTab === 'dms') {
-    return (
-      <div className="chat-list-empty-filtered">
-        <strong>No direct messages</strong>
-        <p>Tap the + button below to start one.</p>
-      </div>
-    );
-  }
-  if (activeTab === 'groups') {
-    return (
-      <div className="chat-list-empty-filtered">
-        <strong>No groups yet</strong>
-        <p>Use the + button below to discover or create one.</p>
-      </div>
-    );
-  }
-  return (
-    <div className="chat-list-empty">
-      <p>No conversations yet.</p>
-    </div>
-  );
-}
-
 export default function ConversationList({
   conversations,
   selectedId,
   currentUserId,
   onSelect,
-  activeTab = 'all',
-  hideHeader = false,
-  fab = null,
+  activeTab = 'dms',
+  onTabChange,
   archivedMode = false,
   onArchivedToggle,
+  onCreateDm,
+  onCreateGroup,
+  onDiscover,
+  onAddFriend,
+  isAdmin = false,
+  isLoading = false,
 }) {
   const { settings } = useSettings();
-  const showTypingInList = settings.notifications.showTypingInList;
   const timeFormat = settings.preferences.timeFormat;
   const timezone = settings.preferences.timezone;
+  const showTypingInList = settings.notifications.showTypingInList;
 
   const typingSet = useTypingConversations(currentUserId);
+
+  const [searchInput, setSearchInput] = useState('');
+  const [search, setSearch] = useState('');
+
+  const listRef = useRef(null);
+
+  useEffect(() => {
+    const t = setTimeout(
+      () => setSearch(searchInput.trim().toLowerCase()),
+      SEARCH_DEBOUNCE_MS
+    );
+    return () => clearTimeout(t);
+  }, [searchInput]);
 
   const { archived, active } = useMemo(() => {
     const arch = [];
@@ -109,199 +84,175 @@ export default function ConversationList({
     return { archived: arch, active: main };
   }, [conversations]);
 
-  const source = archivedMode ? archived : active;
+  const base = archivedMode ? archived : active;
 
   const filtered = useMemo(() => {
-    if (activeTab === 'dms') return source.filter((c) => !c.isGroup);
-    if (activeTab === 'groups') return source.filter((c) => c.isGroup);
-    return source;
-  }, [source, activeTab]);
+    if (!search) return base;
+    return base.filter((c) => {
+      const name = c.isGroup
+        ? (c.name || '').toLowerCase()
+        : `${c.peer?.firstName || ''} ${c.peer?.lastName || ''} ${c.peer?.email || ''}`.toLowerCase();
+      return name.includes(search);
+    });
+  }, [base, search]);
 
-  const { dms, groups } = useMemo(() => {
-    const dmArr = [];
-    const grpArr = [];
-    for (const c of filtered) {
-      if (c.isGroup) grpArr.push(c);
-      else dmArr.push(c);
+  const visible = useMemo(() => sortConversations(filtered), [filtered]);
+
+  const counts = useMemo(() => {
+    let dms = 0;
+    let groups = 0;
+    for (const c of active) {
+      if (c.unreadCount > 0) {
+        if (c.isGroup) groups += 1;
+        else dms += 1;
+      }
     }
-    return { dms: sortConversations(dmArr), groups: sortConversations(grpArr) };
-  }, [filtered]);
+    return { dms, groups };
+  }, [active]);
 
-  const showSections =
-    activeTab === 'all' && dms.length > 0 && groups.length > 0;
+  // Keyboard navigation between conversation rows
+  const handleListKeyDown = (e) => {
+    const list = listRef.current;
+    if (!list) return;
 
-  const renderDmRow = (c) => {
-    const peer = c.peer;
-    const isOwn = c.lastMessageById === currentUserId;
-    const isTyping = showTypingInList && typingSet.has(c.id);
-    const preview = c.lastMessageText
-      ? (isOwn ? `You: ${c.lastMessageText}` : c.lastMessageText)
-      : 'No messages yet';
+    const rows = Array.from(list.querySelectorAll('button[data-conv-row]'));
+    if (rows.length === 0) return;
 
-    const showFriendPill =
-      c.isFriend === false &&
-      typeof c.messagesRemaining === 'number' &&
-      c.messagesRemaining >= 0;
+    const idx = rows.indexOf(document.activeElement);
 
-    return (
-      <button
-        key={c.id}
-        type="button"
-        className={`chat-list-row${c.id === selectedId ? ' is-active' : ''}`}
-        onClick={() => onSelect(c.id)}
-      >
-        <div className="chat-avatar">
-          {peer?.photoUrl ? (
-            <img src={peer.photoUrl} alt="" />
-          ) : (
-            initialsOf(peer)
-          )}
-        </div>
-
-        <div className="chat-list-body">
-          <div className="chat-list-row-top">
-            <span className="chat-list-name">{displayNameOf(peer)}</span>
-            <span className="chat-list-time">
-              {formatRelative(c.lastMessageAt, timeFormat, timezone)}
-            </span>
-          </div>
-          <div className="chat-list-row-bottom">
-            <span className={`chat-list-preview${isTyping ? ' is-typing' : ''}`}>
-              {isTyping ? 'typing...' : preview}
-            </span>
-            {showFriendPill && (
-              <span
-                className={`chat-list-friend-pill${
-                  c.messagesRemaining === 0 ? ' is-locked' : ''
-                }`}
-                title={
-                  c.messagesRemaining === 0
-                    ? 'Add as friend to keep chatting'
-                    : `${c.messagesRemaining} free messages left`
-                }
-              >
-                <Lock size={9} />
-                {c.messagesRemaining}/3
-              </span>
-            )}
-            {c.isPinned && <Pin size={10} className="chat-list-pin" />}
-            {c.unreadCount > 0 && (
-              <span className="chat-list-badge">
-                {c.unreadCount > 99 ? '99+' : c.unreadCount}
-              </span>
-            )}
-          </div>
-        </div>
-      </button>
-    );
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      let next;
+      if (idx === -1) {
+        next = e.key === 'ArrowDown' ? 0 : rows.length - 1;
+      } else if (e.key === 'ArrowDown') {
+        next = Math.min(idx + 1, rows.length - 1);
+      } else {
+        next = Math.max(idx - 1, 0);
+      }
+      rows[next].focus();
+    } else if (e.key === 'Home') {
+      e.preventDefault();
+      rows[0].focus();
+    } else if (e.key === 'End') {
+      e.preventDefault();
+      rows[rows.length - 1].focus();
+    }
   };
 
-  const renderGroupRow = (c) => {
-    const isOwn = c.lastMessageById === currentUserId;
-    const isTyping = showTypingInList && typingSet.has(c.id);
-    const preview = c.lastMessageText
-      ? (isOwn ? `You: ${c.lastMessageText}` : c.lastMessageText)
-      : 'No messages yet';
+  const headerTitle = archivedMode
+    ? 'Archived'
+    : activeTab === 'groups'
+      ? 'Groups'
+      : 'Messages';
 
-    return (
-      <button
-        key={c.id}
-        type="button"
-        className={`chat-list-row is-group${c.id === selectedId ? ' is-active' : ''}`}
-        onClick={() => onSelect(c.id)}
-      >
-        <GroupAvatar group={c} size={40} />
+  const headerCount = archivedMode ? archived.length : filtered.length;
 
-        <div className="chat-list-body">
-          <div className="chat-list-row-top">
-            <span className="chat-list-name">{c.name || 'Untitled group'}</span>
-            <span className="chat-list-time">
-              {formatRelative(c.lastMessageAt, timeFormat, timezone)}
-            </span>
-          </div>
-          <div className="chat-list-row-bottom">
-            <span className={`chat-list-preview${isTyping ? ' is-typing' : ''}`}>
-              {isTyping ? 'typing...' : preview}
-            </span>
-            {c.isPinned && <Pin size={10} className="chat-list-pin" />}
-            {c.unreadCount > 0 && (
-              <span className="chat-list-badge">
-                {c.unreadCount > 99 ? '99+' : c.unreadCount}
-              </span>
-            )}
-          </div>
-        </div>
-      </button>
-    );
-  };
+  const emptyTitle = archivedMode
+    ? 'No archived chats'
+    : search
+      ? 'No conversations match'
+      : activeTab === 'groups'
+        ? 'No groups yet'
+        : 'No direct messages yet';
 
-  const showEmptyState = filtered.length === 0;
-
-  const headerContent = archivedMode ? (
-    <>
-      <button
-        type="button"
-        className="chat-list-back"
-        onClick={onArchivedToggle}
-        aria-label="Back to conversations"
-        title="Back to conversations"
-      >
-        <ArrowLeft size={14} />
-      </button>
-      <span className="chat-list-title">Archived</span>
-      <span className="chat-list-count-badge">{archived.length}</span>
-    </>
-  ) : (
-    <span className="chat-list-title">Conversations</span>
-  );
+  const emptyDescription = archivedMode
+    ? 'Archived conversations will appear here.'
+    : search
+      ? 'Try a different search term.'
+      : activeTab === 'groups'
+        ? 'Use the Discover button below to find a public group.'
+        : 'Tap "New message" below to start chatting.';
 
   return (
-    <aside className="chat-list">
-      {!hideHeader && (
-        <div className={`chat-list-header${archivedMode ? ' is-archived' : ''}`}>
-          {headerContent}
+    <>
+      <div className="chat-sidebar-head">
+        <div className="chat-sidebar-title-row">
+          {archivedMode && (
+            <button
+              type="button"
+              className="chat-sidebar-icon-btn"
+              onClick={onArchivedToggle}
+              aria-label="Back"
+              title="Back to conversations"
+              style={{ width: 28, height: 28 }}
+            >
+              <ArrowLeft size={13} />
+            </button>
+          )}
+          <span className="chat-sidebar-title">{headerTitle}</span>
+          <span className="chat-sidebar-count">{headerCount}</span>
         </div>
-      )}
 
-      <div className="chat-list-items">
-        {!archivedMode && archived.length > 0 && (
-          <button
-            type="button"
-            className="chat-list-archived"
-            onClick={onArchivedToggle}
-            aria-label={`Archived chats (${archived.length})`}
-          >
-            <span className="chat-list-archived-icon" aria-hidden>
-              <Archive size={14} />
-            </span>
-            <span className="chat-list-archived-label">Archived</span>
-            <span className="chat-list-archived-count">{archived.length}</span>
-          </button>
-        )}
+        <SidebarSearch value={searchInput} onChange={setSearchInput} />
 
-        {showEmptyState ? (
-          <EmptyTabState activeTab={activeTab} archivedMode={archivedMode} />
-        ) : (
-          <>
-            {dms.length > 0 && (
-              <>
-                {showSections && (
-                  <div className="chat-list-section">Direct Messages</div>
-                )}
-                {dms.map(renderDmRow)}
-              </>
-            )}
-            {groups.length > 0 && (
-              <>
-                {showSections && <div className="chat-list-section">Groups</div>}
-                {groups.map(renderGroupRow)}
-              </>
-            )}
-          </>
+        {!archivedMode && (
+          <SidebarTabs
+            active={activeTab}
+            onChange={onTabChange}
+            counts={counts}
+          />
         )}
       </div>
 
-      {fab}
-    </aside>
+      <div
+        className="chat-sidebar-list"
+        ref={listRef}
+        onKeyDown={handleListKeyDown}
+        role="list"
+        aria-label={headerTitle}
+      >
+        {!archivedMode && archived.length > 0 && (
+          <button
+            type="button"
+            className="chat-sidebar-archived"
+            onClick={onArchivedToggle}
+            aria-label={`Archived chats (${archived.length})`}
+          >
+            <Archive size={13} />
+            <span style={{ flex: 1 }}>Archived</span>
+            <span className="chat-sidebar-count">{archived.length}</span>
+          </button>
+        )}
+
+        {isLoading ? (
+          <SidebarSkeleton />
+        ) : visible.length === 0 ? (
+          <div className="chat-sidebar-empty">
+            <EmptyState
+              size="sm"
+              variant="bare"
+              icon={activeTab === 'groups' ? Users : MessageSquare}
+              eyebrow={archivedMode ? 'Archived' : search ? 'No matches' : 'Nothing here'}
+              title={emptyTitle}
+              description={emptyDescription}
+            />
+          </div>
+        ) : (
+          visible.map((c) => (
+            <ConversationRow
+              key={c.id}
+              conversation={c}
+              selected={c.id === selectedId}
+              currentUserId={currentUserId}
+              onClick={() => onSelect(c.id)}
+              timeFormat={timeFormat}
+              timezone={timezone}
+              isTyping={showTypingInList && typingSet.has(c.id)}
+            />
+          ))
+        )}
+      </div>
+
+      <SidebarFab
+        activeTab={activeTab}
+        archivedMode={archivedMode}
+        isAdmin={isAdmin}
+        onCreateDm={onCreateDm}
+        onCreateGroup={onCreateGroup}
+        onDiscover={onDiscover}
+        onAddFriend={onAddFriend}
+      />
+    </>
   );
 }

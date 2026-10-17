@@ -1,4 +1,4 @@
-// apps/web/src/features/journal/dashboard/DashboardPage.jsx
+﻿// apps/web/src/features/journal/dashboard/DashboardPage.jsx
 //
 // Journal dashboard — Live & Demo accounts only.
 //
@@ -21,23 +21,19 @@
 // PHASE E CHANGE
 // --------------
 //   • Uses <MeasuredGrid> (local wrapper) instead of RGL's WidthProvider.
-//     WidthProvider initializes its width to 1280 and measures the real
-//     container only in componentDidMount, producing two renders on cold
-//     mount. With the CSS transition on .react-grid-item, the second
-//     render animates every panel into place — most visibly the calendar
-//     snapping from its lg-columns size to its md-columns size. MeasuredGrid
-//     measures synchronously in useLayoutEffect (pre-paint), so RGL only
-//     ever sees the correct width. No reflow, no transition replay.
 //
 // PHASE F CHANGE
 // --------------
 //   • Boot gate is now TYPE-AWARE. The gate only blocks on "account not
 //     selected" when there is at least one account of the type this
 //     dashboard renders (Live/Demo for Journal, Backtest for Backtester).
-//     Without this, a user with only Live accounts would see the Backtester
-//     dashboard stuck on its loading skeleton forever, because the account
-//     selector would never auto-select a Live account for a Backtest-only
-//     dashboard.
+//
+// PHASE 3 CHANGE (EmptyState migration)
+// -------------------------------------
+//   • The "No Trading Data Available" empty state now uses the shared
+//     <EmptyState> component (@/shared/components/EmptyState) for a
+//     consistent look across the whole app. Gains a "Manage accounts"
+//     primary CTA so users can resolve the empty condition in one click.
 
 import { useState, useEffect, useMemo } from 'react';
 
@@ -66,6 +62,7 @@ import {
   FaCheck,
   FaGripVertical,
   FaPlus,
+  FaChartBar,
 } from 'react-icons/fa';
 
 import { useAuth } from '@/app/providers/AuthProvider';
@@ -81,6 +78,7 @@ import { PANEL_REGISTRY, panelLabel } from '@/features/dashboard/components/pane
 import { PanelSkeleton } from '@/shared/ui/panel-skeleton';
 import { PageSkeleton } from '@/shared/ui/page-skeleton';
 import TradeTable from '@/features/dashboard/components/panels/TradeTable';
+import EmptyState from '@/shared/components/EmptyState';
 
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
@@ -346,22 +344,6 @@ export default function DashboardPage() {
 
   /* ---------------------------------------------------------------- */
   /*  Boot gate — wait for the full bootstrap sequence to complete.    */
-  /*                                                                   */
-  /*  Conditions (any true means stay on skeleton):                    */
-  /*    • user is null (defensive; guards prevent this)                */
-  /*    • accounts list not yet resolved                               */
-  /*    • there ARE compatible accounts, but the header's auto-select  */
-  /*      hasn't landed yet (accountIdValid === false)                 */
-  /*    • a valid account is selected and trades are in flight or      */
-  /*      haven't yet propagated into AppProvider                      */
-  /*    • layout hydration has not resolved                            */
-  /*                                                                   */
-  /*  Crucial: "compatible" means matching THIS dashboard's allowed    */
-  /*  types. A user with only a Live account, viewing /backtester,     */
-  /*  has zero compatible accounts — the gate releases so the "No      */
-  /*  Backtest Data Available" empty state can render. Without this,   */
-  /*  the page would be stuck on the skeleton forever, because         */
-  /*  state.backtesterAccountId is never set.                          */
   /* ---------------------------------------------------------------- */
   const accountIdValid =
     accountId != null && compatibleAccounts.some((a) => a.id === accountId);
@@ -381,23 +363,20 @@ export default function DashboardPage() {
     <div className="dash-root is-ready">
       {!hasData ? (
         <div className="dash-empty-wrap">
-          <div className="dash-empty">
-            <div className="dash-empty-icon">
-              <svg
-                width="28" height="28" viewBox="0 0 24 24" fill="none"
-                stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-              >
-                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                <line x1="3" y1="9" x2="21" y2="9" />
-                <line x1="9" y1="21" x2="9" y2="9" />
-              </svg>
-            </div>
-            <h3>No Trading Data Available</h3>
-            <p>
-              Upload trades to a Live or Demo account to populate performance
-              statistics and analytics.
-            </p>
-          </div>
+          <EmptyState
+            size="lg"
+            icon={FaChartBar}
+            eyebrow="No data"
+            title="No Trading Data Available"
+            description="Upload trades to a Live or Demo account to populate performance statistics and analytics."
+            actions={[
+              {
+                label: 'Manage accounts',
+                variant: 'primary',
+                to: '/manage/accounts',
+              },
+            ]}
+          />
         </div>
       ) : (
         <>

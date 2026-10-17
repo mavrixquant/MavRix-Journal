@@ -2,14 +2,21 @@
 //
 // Users list — searchable, filterable, paginated.
 // Click any row → /admin/users/:id
+//
+// PHASE 6 CHANGE (EmptyState migration)
+// -------------------------------------
+//   • The "No users match" filter-empty state now uses the shared
+//     <EmptyState> component (@/shared/components/EmptyState).
+//   • Dead `.aup-empty` rule removed; `.aup-loading` retained.
 
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, ShieldCheck, Ban, CheckCircle2 } from 'lucide-react';
+import { Search, ShieldCheck, Ban, CheckCircle2, Users } from 'lucide-react';
 
 import { useAdminUsers } from '../api';
 import RoleBadge from '../components/RoleBadge';
 import Pagination from '../components/Pagination';
+import EmptyState from '@/shared/components/EmptyState';
 
 const PAGE_SIZE = 25;
 
@@ -122,12 +129,6 @@ const CSS = `
     border-color: color-mix(in srgb, var(--accent) 30%, transparent);
   }
 
-  .aup-empty {
-    padding: 60px 24px; text-align: center;
-    color: #545E6E;
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    font-size: 12.5px;
-  }
   .aup-loading {
     padding: 60px 24px; text-align: center;
     color: #8892A3;
@@ -190,6 +191,11 @@ export default function AdminUsersPage() {
   const users = data?.users || [];
   const total = data?.total || 0;
   const pages = data?.pages || 1;
+
+  const hasFilter =
+    q.trim().length > 0 ||
+    roleFilter !== '' ||
+    bannedFilter !== '';
 
   return (
     <>
@@ -263,7 +269,18 @@ export default function AdminUsersPage() {
           {isLoading ? (
             <div className="aup-loading">Loading users…</div>
           ) : users.length === 0 ? (
-            <div className="aup-empty">No users match these filters.</div>
+            <div style={{ padding: '32px 0' }}>
+              <EmptyState
+                icon={Users}
+                eyebrow={hasFilter ? 'No matches' : 'No users'}
+                title={hasFilter ? 'No users match' : 'No users yet'}
+                description={
+                  hasFilter
+                    ? 'Try a different search term or adjust the role / status filters.'
+                    : 'Registered users will appear here once someone signs up.'
+                }
+              />
+            </div>
           ) : (
             <table className="aup-table">
               <thead>

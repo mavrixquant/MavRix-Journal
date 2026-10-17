@@ -1,17 +1,14 @@
 // apps/web/src/features/personal/chats/components/FriendsTab.jsx
 //
-// The "Friends" tab of the chat shell. Hosts two sub-views:
+// PHASE 5 — polished Discord/Slack-style friends pane.
 //
-//   view === 'list'      → the friends list (default)
-//   view === 'requests'  → incoming + outgoing friend requests, rendered
-//                          by <FriendRequestsPanel onBack={...} />
-//
-// The header shows:
-//   • title + friend count
-//   • a Requests button (with a badge when there are pending incoming)
-//   • an Add Friend button
-//
-// Per-row actions unchanged: Message, Remove friend, Block user.
+// Changes vs Phase 1:
+//   • Inline search filter on friends.
+//   • Count chip shows total friends in the side-pane header.
+//   • Row actions now reveal on hover via a compact "More" menu.
+//   • Row name shows an inline archived badge when applicable.
+//   • Empty state uses the shared <EmptyState /> component.
+//   • Requests sub-view is rendered by FriendRequestsPanel (unchanged API).
 
 import { useMemo, useState } from 'react';
 import {
@@ -23,6 +20,7 @@ import {
   Inbox,
   Archive,
   ArchiveRestore,
+  Search,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -33,6 +31,7 @@ import {
 } from '@/shared/api/friends';
 import { useCreateConversation, useUpdateConversation } from '@/shared/api/chat';
 import Alert from '@/shared/components/Alert';
+import EmptyState from '@/shared/components/EmptyState';
 import BlockConfirmModal from './BlockConfirmModal';
 import FriendRequestsPanel from './FriendRequestsPanel';
 
@@ -55,7 +54,6 @@ function displayNameOf(u) {
   return u.email || 'Unknown';
 }
 
-/** Inline badge used on the Requests button. */
 function CountBadge({ count }) {
   if (!count || count <= 0) return null;
   return (
@@ -85,11 +83,8 @@ function CountBadge({ count }) {
   );
 }
 
-export default function FriendsTab({
-  onOpenAddFriend,
-  onOpenThread,
-}) {
-  const [view, setView] = useState('list'); // 'list' | 'requests'
+export default function FriendsTab({ onOpenAddFriend, onOpenThread }) {
+  const [requestsOpen, setRequestsOpen] = useState(false);
 
   const { data: friends = [], isLoading } = useFriends();
   const { data: requests } = useFriendRequests();
@@ -100,6 +95,7 @@ export default function FriendsTab({
   const [pendingRemove, setPendingRemove] = useState(null);
   const [pendingBlock, setPendingBlock] = useState(null);
   const [menuOpenId, setMenuOpenId] = useState(null);
+  const [searchInput, setSearchInput] = useState('');
 
   const pendingIncoming = (requests?.incoming || []).length;
 
@@ -107,6 +103,16 @@ export default function FriendsTab({
     () => [...friends].sort((a, b) => displayNameOf(a).localeCompare(displayNameOf(b))),
     [friends]
   );
+
+  const visible = useMemo(() => {
+    const q = searchInput.trim().toLowerCase();
+    if (!q) return sortedFriends;
+    return sortedFriends.filter((f) => {
+      const name = displayNameOf(f).toLowerCase();
+      const email = (f.email || '').toLowerCase();
+      return name.includes(q) || email.includes(q);
+    });
+  }, [sortedFriends, searchInput]);
 
   const handleMessage = async (friend) => {
     try {
@@ -142,10 +148,7 @@ export default function FriendsTab({
     setMenuOpenId(null);
     const willArchive = !friend.isArchived;
     updateConversation.mutate(
-      {
-        conversationId: friend.conversationId,
-        patch: { isArchived: willArchive },
-      },
+      { conversationId: friend.conversationId, patch: { isArchived: willArchive } },
       {
         onSuccess: () => {
           toast.success(
@@ -160,24 +163,11 @@ export default function FriendsTab({
       }
     );
   };
-  /* ------------------------------------------------------------------ */
-  /*  Requests sub-view                                                 */
-  /* ------------------------------------------------------------------ */
-  if (view === 'requests') {
-    return (
-      <FriendRequestsPanel
-        onBack={() => setView('list')}
-        onOpenAddFriend={onOpenAddFriend}
-      />
-    );
-  }
 
-  /* ------------------------------------------------------------------ */
-  /*  Friends list view                                                 */
-  /* ------------------------------------------------------------------ */
+
   return (
     <>
-      <div className="side-pane">
+      <div className="side-pane" onClick={() => setMenuOpenId(null)}>
         <div className="side-pane-header">
           <span className="side-pane-title">Friends</span>
           <span className="side-pane-count">{friends.length}</span>
@@ -186,7 +176,7 @@ export default function FriendsTab({
             <button
               type="button"
               className="pane-icon-btn"
-              onClick={() => setView('requests')}
+              onClick={() => setRequestsOpen(true)}
               title={
                 pendingIncoming > 0
                   ? `${pendingIncoming} pending friend request${pendingIncoming === 1 ? '' : 's'}`
@@ -211,37 +201,59 @@ export default function FriendsTab({
           </div>
         </div>
 
-        <div className="side-pane-body" onClick={() => setMenuOpenId(null)}>
+        <div style={{ padding: '8px 12px 4px' }}>
+          <div className="chat-sidebar-search" style={{ marginTop: 0 }}>
+            <Search size={13} aria-hidden />
+            <input
+              type="text"
+              placeholder="Search friends…"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              spellCheck={false}
+              autoComplete="off"
+              aria-label="Search friends"
+            />
+          </div>
+        </div>
+
+        <div className="side-pane-body">
           {isLoading && <div className="side-pane-loading">Loading friends…</div>}
 
           {!isLoading && sortedFriends.length === 0 && (
-            <div className="side-pane-empty">
-              <strong>No friends yet</strong>
-              Add a friend by email to start direct messaging.
-              <div style={{ marginTop: 16 }}>
-                <button
-                  type="button"
-                  className="pane-icon-btn is-accent"
-                  style={{ width: 'auto', padding: '0 14px', gap: 8, height: 36 }}
-                  onClick={onOpenAddFriend}
-                >
-                  <UserRoundPlus size={13} />
-                  <span
-                    style={{
-                      fontFamily: "'IBM Plex Mono', monospace",
-                      fontSize: 11.5,
-                      fontWeight: 600,
-                      letterSpacing: '.02em',
-                    }}
-                  >
-                    Add friend
-                  </span>
-                </button>
-              </div>
+            <div style={{ padding: '24px 12px' }}>
+              <EmptyState
+                size="md"
+                variant="bare"
+                icon={UserRoundPlus}
+                eyebrow="No friends"
+                title="No friends yet"
+                description="Add a friend by email to start direct messaging."
+                actions={[
+                  {
+                    label: 'Add friend',
+                    icon: UserRoundPlus,
+                    variant: 'primary',
+                    onClick: onOpenAddFriend,
+                  },
+                ]}
+              />
             </div>
           )}
 
-          {sortedFriends.map((friend) => {
+          {!isLoading && sortedFriends.length > 0 && visible.length === 0 && (
+            <div style={{ padding: '24px 12px' }}>
+              <EmptyState
+                size="sm"
+                variant="bare"
+                icon={Search}
+                eyebrow="No matches"
+                title="No friends match"
+                description={`"${searchInput.trim()}" didn't match any of your friends.`}
+              />
+            </div>
+          )}
+
+          {visible.map((friend) => {
             const menuOpen = menuOpenId === friend.id;
             return (
               <div
@@ -337,29 +349,16 @@ export default function FriendsTab({
                           className="chat-ctx-item"
                           onClick={() => handleArchiveToggle(friend)}
                           disabled={updateConversation.isPending}
-                          title={
-                            friend.conversationId
-                              ? undefined
-                              : 'Start a conversation first'
-                          }
+                          title={friend.conversationId ? undefined : 'Start a conversation first'}
                         >
-                          {friend.isArchived ? (
-                            <ArchiveRestore size={13} />
-                          ) : (
-                            <Archive size={13} />
-                          )}
-                          <span>
-                            {friend.isArchived ? 'Unarchive chat' : 'Archive chat'}
-                          </span>
+                          {friend.isArchived ? <ArchiveRestore size={13} /> : <Archive size={13} />}
+                          <span>{friend.isArchived ? 'Unarchive chat' : 'Archive chat'}</span>
                         </button>
 
                         <button
                           type="button"
                           className="chat-ctx-item"
-                          onClick={() => {
-                            setMenuOpenId(null);
-                            setPendingRemove(friend);
-                          }}
+                          onClick={() => { setMenuOpenId(null); setPendingRemove(friend); }}
                         >
                           <UserMinus size={13} />
                           <span>Remove friend</span>
@@ -401,6 +400,14 @@ export default function FriendsTab({
         isOpen={!!pendingBlock}
         user={pendingBlock}
         onClose={() => setPendingBlock(null)}
+      />
+      <FriendRequestsPanel
+        isOpen={requestsOpen}
+        onClose={() => setRequestsOpen(false)}
+        onOpenAddFriend={() => {
+          setRequestsOpen(false);
+          onOpenAddFriend?.();
+        }}
       />
     </>
   );
