@@ -1,16 +1,11 @@
 ﻿// apps/web/src/features/personal/chats/components/MessageThread.jsx
 //
-// State orchestrator for the conversation. Owns all data hooks, scroll
-// side-effects, edit/delete/reply state, and renders:
+// PHASE 4 — wires the right panel into the thread.
 //
-//   <ChatHeader />          ← title + subtitle + actions
-//   <MessageList />         ← scroll container + message rows
-//   <ScrollToBottom />      ← floating pill
-//   <chat-reply-banner />   ← slim strip above composer when replying
-//   <MessageComposer />     ← unchanged until Phase 3
-//   <UserProfileSidebar />  ← unchanged until Phase 4
-//   <GroupSettingsModal />  ← unchanged until Phase 4
-//   <MessageContextMenu />  ← right-click / long-press
+//   • panelOpen state is persisted per conversation in localStorage
+//   • ChatHeader Info button toggles the panel (both DM and Group)
+//   • Info button shows active state when panel is open
+//   • Group settings modal is opened from inside GroupProfilePanel
 
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { toast } from 'sonner';
@@ -31,15 +26,16 @@ import {
 import { useSendFriendRequest, useFriendStatus } from '@/shared/api/friends';
 
 import ChatHeader from './ChatHeader';
+import ConversationPanel from './ConversationPanel';
 import MessageList from './MessageList';
 import MessageComposer from './MessageComposer';
 import MessageContextMenu from './MessageContextMenu';
 import ScrollToBottom from './ScrollToBottom';
 import ThreadSkeleton from './ThreadSkeleton';
-import UserProfileSidebar from './UserProfileSidebar';
 import GroupSettingsModal from './GroupSettingsModal';
 
 const EDIT_WINDOW_MS = 15 * 60 * 1000;
+const PANEL_STORAGE_PREFIX = 'mavrix:chat:panel:';
 
 function displayNameOf(user) {
   if (!user) return 'Unknown';
@@ -112,13 +108,55 @@ export default function MessageThread({
     }
   }, [peer, sendFriendRequest]);
 
+  /* ---------------- Panel state (persisted per conversation) ---------------- */
+
+  const [panelOpen, setPanelOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [profileOpen, setProfileOpen] = useState(false);
+
+  const setPanelOpenPersisted = useCallback(
+    (next) => {
+      setPanelOpen(next);
+      if (!conversationId) return;
+      try {
+        localStorage.setItem(
+          PANEL_STORAGE_PREFIX + conversationId,
+          next ? '1' : '0'
+        );
+      } catch {
+        /* localStorage disabled — ignore */
+      }
+    },
+    [conversationId]
+  );
 
   useEffect(() => {
-    setProfileOpen(false);
     setSettingsOpen(false);
+    if (!conversationId) {
+      setPanelOpen(false);
+      return;
+    }
+    try {
+      const saved = localStorage.getItem(PANEL_STORAGE_PREFIX + conversationId);
+      setPanelOpen(saved === '1');
+    } catch {
+      setPanelOpen(false);
+    }
   }, [conversationId]);
+
+  const handleTogglePanel = useCallback(() => {
+    setPanelOpenPersisted(!panelOpen);
+  }, [panelOpen, setPanelOpenPersisted]);
+
+  const handleClosePanel = useCallback(() => {
+    setPanelOpenPersisted(false);
+  }, [setPanelOpenPersisted]);
+
+  const handleOpenGroupSettings = useCallback(() => {
+    setPanelOpenPersisted(false);
+    setSettingsOpen(true);
+  }, [setPanelOpenPersisted]);
+
+  /* ---------------- Group permissions ---------------- */
 
   const canManageGroup =
     isGroup &&
@@ -126,6 +164,8 @@ export default function MessageThread({
     (user?.role === 'superadmin' ||
       (user?.role === 'admin' && conversation.visibility === 'public') ||
       conversation.createdById === currentUserId);
+
+  /* ---------------- Messages flattening ---------------- */
 
   const messages = useMemo(() => {
     if (!data?.pages) return [];
@@ -209,10 +249,7 @@ export default function MessageThread({
     return () => observer.disconnect();
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
-  /* ---------------- Unread boundary snapshot ----------------
-     MUST be declared BEFORE the markRead effect so this runs first on
-     mount — markRead sets readAt on peer messages, which would erase the
-     information we're trying to capture. */
+  /* ---------------- Unread boundary snapshot ---------------- */
   const unreadBoundaryRef = useRef(null);
   useEffect(() => {
     if (unreadBoundaryRef.current !== null) return;
@@ -356,9 +393,7 @@ export default function MessageThread({
   const canEditMessage = useCallback(
     (msg) => {
       if (!nowTs) return false;
-      return (
-        nowTs - new Date(msg.createdAt).getTime() < EDIT_WINDOW_MS
-      );
+      return nowTs - new Date(msg.createdAt).getTime() < EDIT_WINDOW_MS;
     },
     [nowTs]
   );
@@ -376,15 +411,14 @@ export default function MessageThread({
 
   return (
     <>
-      <div className="chat-thread">
+      <div className={`chat-thread${panelOpen ? ' has-panel' : ''}`}>
         <ChatHeader
           conversation={conversation}
           typingUserIds={typingUserIds}
           showTypingInThread={showTypingInThread}
           onBack={onBack}
-          onTogglePanel={() => setProfileOpen((v) => !v)}
-          onOpenGroupSettings={() => setSettingsOpen(true)}
-          canManageGroup={canManageGroup}
+          onTogglePanel={handleTogglePanel}
+          panelOpen={panelOpen}
         />
 
         <div className="chat-thread-messages-wrap">
@@ -460,11 +494,15 @@ export default function MessageThread({
         />
       </div>
 
-      {!isGroup && profileOpen && (
-        <UserProfileSidebar
-          peer={peer}
+      {panelOpen && (
+        <ConversationPanel
           conversation={conversation}
-          onClose={() => setProfileOpen(false)}
+          currentUserId={currentUserId}
+          canManageGroup={canManageGroup}
+          onClose={handleClosePanel}
+          onOpenGroupSettings={handleOpenGroupSettings}
+          onConversationClosed={onConversationClosed}
+          onOpenThread={onOpenThread}
         />
       )}
 

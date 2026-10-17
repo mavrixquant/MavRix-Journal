@@ -1,10 +1,9 @@
-// apps/web/src/features/personal/chats/components/ChatHeader.jsx
+﻿// apps/web/src/features/personal/chats/components/ChatHeader.jsx
 //
-// Conversation header. Shows avatar, name, dynamic subtitle (typing /
-// member count / email) and per-type actions (info toggle for DMs,
-// settings for groups).
+// PHASE 4 — the single Info button now toggles the right panel for BOTH
+// DMs and Groups. Group settings moved inside GroupProfilePanel.
 
-import { ArrowLeft, Info, Settings } from 'lucide-react';
+import { ArrowLeft, Info } from 'lucide-react';
 import GroupAvatar from './GroupAvatar';
 
 function initialsOf(user) {
@@ -32,8 +31,7 @@ export default function ChatHeader({
   showTypingInThread = true,
   onBack,
   onTogglePanel,
-  onOpenGroupSettings,
-  canManageGroup = false,
+  panelOpen = false,
 }) {
   const isGroup = !!conversation?.isGroup;
   const peer = conversation?.peer;
@@ -83,29 +81,16 @@ export default function ChatHeader({
         </span>
       </div>
 
-      {!isGroup && (
-        <button
-          type="button"
-          className="chat-header-action"
-          onClick={onTogglePanel}
-          title="Profile"
-          aria-label="Toggle profile panel"
-        >
-          <Info size={15} />
-        </button>
-      )}
-
-      {isGroup && canManageGroup && (
-        <button
-          type="button"
-          className="chat-header-action"
-          onClick={onOpenGroupSettings}
-          title="Group settings"
-          aria-label="Group settings"
-        >
-          <Settings size={15} />
-        </button>
-      )}
+      <button
+        type="button"
+        className={`chat-header-action${panelOpen ? ' is-active' : ''}`}
+        onClick={onTogglePanel}
+        title={isGroup ? 'Group info' : 'Profile'}
+        aria-label={isGroup ? 'Toggle group info' : 'Toggle profile'}
+        aria-pressed={panelOpen}
+      >
+        <Info size={15} />
+      </button>
     </div>
   );
 }
