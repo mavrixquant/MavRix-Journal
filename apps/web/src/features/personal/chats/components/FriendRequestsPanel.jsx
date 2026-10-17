@@ -1,22 +1,12 @@
 ﻿// apps/web/src/features/personal/chats/components/FriendRequestsPanel.jsx
 //
-// Inbox + outbox for friend requests. Rendered as a sub-view of FriendsTab
-// (see FriendsTab.jsx), or — until Phase 3 — reachable from the rail's
-// legacy Requests tab.
+// PHASE 5 — polished incoming/outgoing request inbox.
 //
-// Two sections:
-//   Incoming — Accept / Decline actions
-//   Outgoing — Cancel action
-//
-// When rendered as a sub-view, `onBack` is provided and the header shows a
-// back arrow. When rendered standalone (legacy rail path), `onBack` is
-// undefined and the header only shows the Send-a-request action.
-//
-// PHASE 5 CHANGE (EmptyState migration)
-// -------------------------------------
-//   • The "No pending requests" state now uses the shared <EmptyState>
-//     component (@/shared/components/EmptyState) with an Add friend CTA
-//     when onOpenAddFriend is provided.
+// Changes vs Phase 1:
+//   • Row shows a muted "· Sent X ago" suffix on incoming rows.
+//   • Section headers carry a per-section count chip.
+//   • Empty state uses the shared <EmptyState /> component and offers a
+//     "Send a request" CTA when onOpenAddFriend is provided.
 
 import { ArrowLeft, Check, X, UserRoundPlus, Inbox } from 'lucide-react';
 import { toast } from 'sonner';
@@ -63,10 +53,7 @@ function relativeTime(iso) {
   return new Date(iso).toLocaleDateString();
 }
 
-export default function FriendRequestsPanel({
-  onBack,
-  onOpenAddFriend,
-}) {
+export default function FriendRequestsPanel({ onBack, onOpenAddFriend }) {
   const { data, isLoading } = useFriendRequests();
   const acceptMutation = useAcceptFriendRequest();
   const declineMutation = useDeclineFriendRequest();
@@ -183,7 +170,7 @@ export default function FriendRequestsPanel({
                 <div className="pane-row-body">
                   <div className="pane-row-name">{displayNameOf(req.fromUser)}</div>
                   <div className="pane-row-sub">
-                    {req.fromUser?.email} · {relativeTime(req.createdAt)}
+                    {req.fromUser?.email} · Sent {relativeTime(req.createdAt)}
                   </div>
                   {req.message && (
                     <div className="pane-row-message">"{req.message}"</div>

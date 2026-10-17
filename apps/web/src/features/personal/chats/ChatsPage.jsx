@@ -1,18 +1,14 @@
 ﻿// apps/web/src/features/personal/chats/ChatsPage.jsx
 //
-// PHASE 1 of the Chat UI Revamp.
+// PHASE 5 — final orchestrator.
 //
-// Thin orchestrator. Owns all shared state (active tab, selected
-// conversation, archived-mode toggle, modal open flags) and lays out the
-// new 3-pane shell:
+// Phase 5 additions:
+//   • Passes `onAddFriend` through to ConversationList so the Friends tab
+//     gets its own footer CTA.
+//   • Slightly cleaner handler wiring (no behaviour change).
 //
-//   ┌────────┬──────────────┬────────────────────────┐
-//   │  Rail  │   Sidebar    │   Thread pane          │
-//   └────────┴──────────────┴────────────────────────┘
-//
-// The right panel (Phase 4) will slot in on the right edge of .chat-body.
-// For now .chat-thread-pane renders the existing <MessageThread> exactly
-// as before, so the app works end-to-end at the end of Phase 1.
+// The 3-pane layout from Phase 1 is unchanged; the right panel from
+// Phase 4 still lives inside .chat-thread-pane.
 
 import { useState, useMemo, useEffect } from 'react';
 import { MessageSquare } from 'lucide-react';

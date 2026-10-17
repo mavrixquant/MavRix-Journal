@@ -4549,3 +4549,43 @@
   .chat-panel-close { transition: none !important; }
   .panel-spinner { animation-duration: 1.6s; }
 }
+
+/* ════════════════════════════════════════════════════════════════════════
+   PHASE 5 — Shared modal backdrop + small safety nets
+   ────────────────────────────────────────────────────────────────────────
+   Every Phase-5 modal ships its own scoped overlay class (.ncm-overlay,
+   .afm2-overlay, .bcm2-overlay, .gdm2-overlay, .cgm2-overlay). This block
+   exists for any future chat modal that would prefer the standard
+   backdrop look without duplicating the CSS.
+   ════════════════════════════════════════════════════════════════════════ */
+
+.chat-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  background: rgba(4, 6, 9, .72);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  animation: chatModalFade .18s ease;
+}
+
+@keyframes chatModalFade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* ---------- Sidebar footer FAB polish ---------- */
+.chat-sidebar-cta:focus-visible,
+.chat-sidebar-icon-btn:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-modal-overlay { animation: none !important; }
+}

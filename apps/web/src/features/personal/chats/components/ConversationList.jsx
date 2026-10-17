@@ -1,16 +1,16 @@
 ﻿// apps/web/src/features/personal/chats/components/ConversationList.jsx
 //
-// Sidebar contents for the DMs / Groups panes. Composes:
-//   SidebarSearch   → filter box
-//   SidebarTabs     → DMs / Groups pills
-//   ConversationRow → one row per conversation
+// PHASE 5 — delegates the FAB/footer to <SidebarFab /> so the tab-aware
+// action button has a single source of truth.
+//
+// The rest of the file (search + debounce + tab counts + archived modes)
+// is unchanged from Phase 1.
 
 import { useEffect, useMemo, useState } from 'react';
 import {
   ArrowLeft,
   Archive,
   MessageSquare,
-  MessageSquarePlus,
   Users,
 } from 'lucide-react';
 
@@ -22,6 +22,7 @@ import SidebarSearch from './SidebarSearch';
 import SidebarTabs from './SidebarTabs';
 import SidebarSkeleton from './SidebarSkeleton';
 import ConversationRow from './ConversationRow';
+import SidebarFab from './SidebarFab';
 
 const SEARCH_DEBOUNCE_MS = 200;
 
@@ -46,6 +47,7 @@ export default function ConversationList({
   onCreateDm,
   onCreateGroup,
   onDiscover,
+  onAddFriend,
   isAdmin = false,
   isLoading = false,
 }) {
@@ -127,53 +129,6 @@ export default function ConversationList({
         ? 'Use the Discover button below to find a public group.'
         : 'Tap "New message" below to start chatting.';
 
-  const renderFooter = () => {
-    if (archivedMode) return null;
-
-    if (activeTab === 'dms') {
-      return (
-        <div className="chat-sidebar-foot">
-          <button
-            type="button"
-            className="chat-sidebar-cta"
-            onClick={onCreateDm}
-          >
-            <MessageSquarePlus size={12} />
-            <span>New message</span>
-          </button>
-        </div>
-      );
-    }
-
-    if (activeTab === 'groups') {
-      return (
-        <div className="chat-sidebar-foot">
-          <button
-            type="button"
-            className="chat-sidebar-cta"
-            onClick={onDiscover}
-          >
-            <Users size={12} />
-            <span>Discover</span>
-          </button>
-          {isAdmin && (
-            <button
-              type="button"
-              className="chat-sidebar-icon-btn"
-              onClick={onCreateGroup}
-              title="Create group"
-              aria-label="Create group"
-            >
-              <MessageSquarePlus size={14} />
-            </button>
-          )}
-        </div>
-      );
-    }
-
-    return null;
-  };
-
   return (
     <>
       <div className="chat-sidebar-head">
@@ -248,7 +203,15 @@ export default function ConversationList({
         )}
       </div>
 
-      {renderFooter()}
+      <SidebarFab
+        activeTab={activeTab}
+        archivedMode={archivedMode}
+        isAdmin={isAdmin}
+        onCreateDm={onCreateDm}
+        onCreateGroup={onCreateGroup}
+        onDiscover={onDiscover}
+        onAddFriend={onAddFriend}
+      />
     </>
   );
 }
