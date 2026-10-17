@@ -2,12 +2,19 @@
 //
 // Paginated audit log. Filters: search by actor email, action prefix,
 // target type. Row expands to show metadata JSON.
+//
+// PHASE 6 CHANGE (EmptyState migration)
+// -------------------------------------
+//   • The "No audit entries" filter-empty state now uses the shared
+//     <EmptyState> component (@/shared/components/EmptyState).
+//   • Dead `.aad-empty` rule removed; `.aad-loading` retained.
 
 import { useState, useMemo, Fragment } from 'react';
-import { Search, ChevronDown, ChevronRight } from 'lucide-react';
+import { Search, ChevronDown, ChevronRight, ScrollText } from 'lucide-react';
 
 import { useAdminAuditLog } from '../api';
 import Pagination from '../components/Pagination';
+import EmptyState from '@/shared/components/EmptyState';
 
 const PAGE_SIZE = 50;
 
@@ -109,9 +116,9 @@ const CSS = `
     line-height: 1.55;
   }
 
-  .aad-empty, .aad-loading {
+  .aad-loading {
     padding: 60px 24px; text-align: center;
-    color: #545E6E; font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    color: #8892A3; font-family: 'IBM Plex Mono', ui-monospace, monospace;
     font-size: 12.5px;
   }
 `;
@@ -150,6 +157,8 @@ export default function AdminAuditPage() {
   const entries = data?.entries || [];
   const total = data?.total || 0;
   const pages = data?.pages || 1;
+
+  const hasFilter = q.trim().length > 0 || actionPrefix !== '';
 
   const toggle = (id) => setExpandedId((prev) => (prev === id ? null : id));
 
@@ -191,9 +200,17 @@ export default function AdminAuditPage() {
           {isLoading ? (
             <div className="aad-loading">Loading audit log…</div>
           ) : entries.length === 0 ? (
-            <div className="aad-empty">
-              No audit entries match. Every admin mutation (ban, delete,
-              settings change, …) will appear here.
+            <div style={{ padding: '32px 0' }}>
+              <EmptyState
+                icon={ScrollText}
+                eyebrow={hasFilter ? 'No matches' : 'No entries'}
+                title={hasFilter ? 'No audit entries match' : 'No audit entries yet'}
+                description={
+                  hasFilter
+                    ? 'Try adjusting the action filter or clearing your search.'
+                    : 'Every admin mutation (ban, delete, settings change, …) is recorded here.'
+                }
+              />
             </div>
           ) : (
             <table className="aad-table">

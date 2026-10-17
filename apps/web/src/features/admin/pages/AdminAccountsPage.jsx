@@ -2,16 +2,24 @@
 //
 // Cross-user accounts. Filters: search by name, type segment.
 // Row actions: View user, Delete (superadmin only).
+//
+// PHASE 6 CHANGE (EmptyState migration)
+// -------------------------------------
+//   • The "No accounts match" filter-empty state now uses the shared
+//     <EmptyState> component (@/shared/components/EmptyState) so it matches
+//     the Test Logs pattern.
+//   • Dead `.aap-empty` rule was merged out of the shared loading rule.
 
 import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, Trash2 } from 'lucide-react';
+import { Search, Trash2, Wallet } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { useAuth } from '@/app/providers/AuthProvider';
 import { useAdminAccounts, useAdminDeleteAccount } from '../api';
 import Pagination from '../components/Pagination';
 import ConfirmDangerModal from '../components/ConfirmDangerModal';
+import EmptyState from '@/shared/components/EmptyState';
 
 const PAGE_SIZE = 25;
 
@@ -124,9 +132,9 @@ const CSS = `
   .aap-btn-icon:disabled { opacity: .35; cursor: not-allowed; }
   .aap-actions { display: inline-flex; gap: 6px; justify-content: flex-end; }
 
-  .aap-empty, .aap-loading {
+  .aap-loading {
     padding: 60px 24px; text-align: center;
-    color: #545E6E; font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    color: #8892A3; font-family: 'IBM Plex Mono', ui-monospace, monospace;
     font-size: 12.5px;
   }
 `;
@@ -164,6 +172,8 @@ export default function AdminAccountsPage() {
   const accounts = data?.accounts || [];
   const total = data?.total || 0;
   const pages = data?.pages || 1;
+
+  const hasFilter = q.trim().length > 0 || type !== '';
 
   const confirmDelete = async () => {
     if (!deleteTarget) return;
@@ -228,7 +238,18 @@ export default function AdminAccountsPage() {
           {isLoading ? (
             <div className="aap-loading">Loading accounts…</div>
           ) : accounts.length === 0 ? (
-            <div className="aap-empty">No accounts match.</div>
+            <div style={{ padding: '32px 0' }}>
+              <EmptyState
+                icon={Wallet}
+                eyebrow={hasFilter ? 'No matches' : 'No accounts'}
+                title={hasFilter ? 'No accounts match' : 'No accounts yet'}
+                description={
+                  hasFilter
+                    ? 'Try a different search term or adjust the type filter.'
+                    : 'Trading accounts will appear here once users create them in Manage → Accounts.'
+                }
+              />
+            </div>
           ) : (
             <table className="aap-table">
               <thead>

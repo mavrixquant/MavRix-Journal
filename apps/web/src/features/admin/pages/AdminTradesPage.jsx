@@ -2,14 +2,21 @@
 //
 // Cross-user trades. Filters: search (symbol/notes/tradeId), account, user, date range.
 // Row actions: Delete single.
+//
+// PHASE 6 CHANGE (EmptyState migration)
+// -------------------------------------
+//   • The "No trades match" filter-empty state now uses the shared
+//     <EmptyState> component (@/shared/components/EmptyState).
+//   • Dead `.atp-empty` rule removed; `.atp-loading` retained.
 
 import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, Trash2 } from 'lucide-react';
+import { Search, Trash2, TrendingUp } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { useAdminTrades, useAdminDeleteTrade } from '../api';
 import Pagination from '../components/Pagination';
+import EmptyState from '@/shared/components/EmptyState';
 
 const PAGE_SIZE = 50;
 
@@ -108,9 +115,9 @@ const CSS = `
   }
   .atp-btn-icon:disabled { opacity: .35; cursor: not-allowed; }
 
-  .atp-empty, .atp-loading {
+  .atp-loading {
     padding: 60px 24px; text-align: center;
-    color: #545E6E; font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    color: #8892A3; font-family: 'IBM Plex Mono', ui-monospace, monospace;
     font-size: 12.5px;
   }
 `;
@@ -148,6 +155,13 @@ export default function AdminTradesPage() {
   const pages = data?.pages || 1;
 
   const deleteTrade = useAdminDeleteTrade();
+
+  const hasFilter =
+    q.trim().length > 0 ||
+    accountId.trim().length > 0 ||
+    userId.trim().length > 0 ||
+    !!from ||
+    !!to;
 
   const handleDelete = async (t) => {
     if (!window.confirm(`Delete trade "${t.tradeId}"?`)) return;
@@ -214,7 +228,18 @@ export default function AdminTradesPage() {
           {isLoading ? (
             <div className="atp-loading">Loading trades…</div>
           ) : trades.length === 0 ? (
-            <div className="atp-empty">No trades match.</div>
+            <div style={{ padding: '32px 0' }}>
+              <EmptyState
+                icon={TrendingUp}
+                eyebrow={hasFilter ? 'No matches' : 'No trades'}
+                title={hasFilter ? 'No trades match' : 'No trades yet'}
+                description={
+                  hasFilter
+                    ? 'Try a different search term or clear the account / user / date filters.'
+                    : 'Trades will appear here as users log them from the Journal or Test Logs pages.'
+                }
+              />
+            </div>
           ) : (
             <table className="atp-table">
               <thead>
