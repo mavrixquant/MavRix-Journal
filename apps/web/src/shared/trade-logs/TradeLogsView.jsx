@@ -1,4 +1,4 @@
-﻿// apps/web/src/shared/trade-logs/TradeLogsView.jsx
+// apps/web/src/shared/trade-logs/TradeLogsView.jsx
 //
 // Shared trade-logs page body. Consumed by BOTH:
 //   - features/journal/trade-logs/TradeLogsPage.jsx   (Live + Demo accounts)
@@ -28,11 +28,13 @@
 // modal, and then strip the param from the URL via setSearchParams with
 // { replace: true } so a refresh never re-opens it.
 //
-// EMPTY STATES
-// ------------
-// Both empty states use the shared <EmptyState /> component
-// (@/shared/components/EmptyState) so the visual matches every other
-// page in the app.
+// EMPTY STATE
+// -----------
+// When the account has zero trades, we now ALWAYS render the <DataTable />
+// so the toolbar, column picker, and header row stay visible, and pass the
+// <EmptyState /> through the new `emptyState` prop so it renders inside
+// the table body. This preserves all the affordances the user needs to
+// recover from an empty log (Add, Upload).
 
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
@@ -607,14 +609,6 @@ export default function TradeLogsView({
   const currency = selectedAccount?.currency || 'USD';
 
   /* -------- Deep-link: ?addTrade=1 opens the AddTradeModal -------- */
-  //
-  // The DashboardFab navigates here with ?addTrade=1. We open the modal
-  // once, then strip the param from the URL so a page refresh never
-  // re-opens it.
-  //
-  // We wait for the accounts list to hydrate before acting so the modal
-  // mounts with a valid `account` prop (AddTradeModal early-returns when
-  // account is falsy).
   useEffect(() => {
     if (accountsLoading) return;
     if (searchParams.get('addTrade') !== '1') return;
@@ -801,10 +795,23 @@ export default function TradeLogsView({
           </div>
         </div>
 
-        {/* ---------- Table card ---------- */}
+        {/* ---------- Table card (always rendered) ---------- */}
         <div className="jm-card jm-body">
-          {enrichedTrades.length === 0 ? (
-            <div style={{ padding: '32px 0' }}>
+          <DataTable
+            data={enrichedTrades}
+            columns={columns}
+            getRowId={(row, idx) =>
+              row.id ?? `${row.date}-${row.entry}-${idx}`
+            }
+            searchPlaceholder={`Search ${isBacktest ? 'tests' : 'trades'}…`}
+            searchableColumnIds={searchableIds}
+            initialSort={[{ id: 'date', desc: true }]}
+            estimateRowHeight={36}
+            maxHeight={620}
+            emptyMessage="No records match your search."
+            stickyFirstColumn={false}
+            stickyLastColumn={true}
+            emptyState={
               <EmptyState
                 icon={FaFileUpload}
                 eyebrow="Empty"
@@ -829,24 +836,8 @@ export default function TradeLogsView({
                   },
                 ]}
               />
-            </div>
-          ) : (
-            <DataTable
-              data={enrichedTrades}
-              columns={columns}
-              getRowId={(row, idx) =>
-                row.id ?? `${row.date}-${row.entry}-${idx}`
-              }
-              searchPlaceholder={`Search ${isBacktest ? 'tests' : 'trades'}…`}
-              searchableColumnIds={searchableIds}
-              initialSort={[{ id: 'date', desc: true }]}
-              estimateRowHeight={36}
-              maxHeight={620}
-              emptyMessage="No records match your search."
-              stickyFirstColumn={false}
-              stickyLastColumn={true}
-            />
-          )}
+            }
+          />
         </div>
 
         <UploadModal

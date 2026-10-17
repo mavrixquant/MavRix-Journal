@@ -1,14 +1,16 @@
-
 // apps/web/src/shared/ui/data-table.jsx
 //
 // Virtualized, sortable, resizable, hideable, and REORDERABLE data table.
 //
 // Column reordering is exposed via the "Columns" popover: each column row
 // has a drag handle on its left. Dragging a row up/down reorders the visible
-// columns in real time.
+// columns with a smooth FLIP animation.
 //
-// Reordering uses the native HTML5 drag API — no external dependency.
-// TanStack Table's `columnOrder` state drives the display order.
+// The panel is rendered through <Portal> (position: fixed) so it can escape
+// the `overflow: hidden` of any ancestor card and never gets clipped.
+//
+// New prop: `emptyState` — a ReactNode that renders inside <tbody> when
+// `data` is empty. When provided, it replaces the plain-text `emptyMessage`.
 
 import {
   flexRender,
@@ -18,7 +20,14 @@ import {
   useReactTable,
 } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { useRef, useState, useMemo, useDeferredValue } from 'react';
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  useMemo,
+  useDeferredValue,
+} from 'react';
 import {
   ArrowDown,
   ArrowUp,
@@ -28,6 +37,8 @@ import {
   Search,
   SlidersHorizontal,
 } from 'lucide-react';
+
+import Portal from '@/shared/components/Portal';
 
 /* ------------------------------------------------------------------ */
 /*  Styles — inline, no Tailwind required                              */
@@ -117,11 +128,20 @@ const CSS = `
     background: color-mix(in srgb, var(--accent) 8%, transparent);
   }
 
+  /* Panel is portaled to document.body — position comes from inline
+     style. Local CSS vars are redeclared here so nothing breaks once
+     the element leaves the .dt-root subtree. */
   .dt-cols-panel {
-    position: absolute;
-    top: calc(100% + 6px);
-    right: 0;
-    z-index: 50;
+    --dt-accent: var(--accent);
+    --dt-accent-2: var(--accent-2);
+    --dt-line: rgba(255,255,255,.085);
+    --dt-line-soft: rgba(255,255,255,.05);
+    --dt-ink-1: #E7E9EE;
+    --dt-ink-2: #8892A3;
+    --dt-ink-3: #545E6E;
+    --dt-panel: #11151F;
+
+    z-index: 9999;
     min-width: 240px;
     max-height: 380px;
     overflow-y: auto;
@@ -130,7 +150,15 @@ const CSS = `
     border-radius: 10px;
     box-shadow: 0 16px 40px -12px rgba(0,0,0,.7);
     padding: 6px;
+    font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+    color: var(--dt-ink-1);
+    animation: dtPanelIn 140ms cubic-bezier(.2,.8,.25,1);
   }
+  @keyframes dtPanelIn {
+    from { opacity: 0; transform: translateY(-4px) scale(.985); }
+    to   { opacity: 1; transform: none; }
+  }
+
   .dt-cols-header {
     font-family: 'IBM Plex Mono', ui-monospace, monospace;
     font-size: 9.5px;
@@ -167,6 +195,8 @@ const CSS = `
     font-family: 'IBM Plex Mono', ui-monospace, monospace;
     user-select: none;
     transition: background-color .12s ease, opacity .12s ease;
+    will-change: transform;
+    backface-visibility: hidden;
   }
   .dt-cols-row:hover {
     background: rgba(255,255,255,.04);
@@ -174,10 +204,8 @@ const CSS = `
   }
   .dt-cols-row.is-dragging {
     opacity: .35;
-  }
-  .dt-cols-row.is-dragover {
     background: color-mix(in srgb, var(--accent) 10%, transparent);
-    box-shadow: inset 0 2px 0 var(--dt-accent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent);
   }
   .dt-cols-row.is-locked {
     cursor: default;
@@ -199,12 +227,8 @@ const CSS = `
     cursor: grab;
     transition: color .15s;
   }
-  .dt-cols-handle:hover {
-    color: var(--dt-accent);
-  }
-  .dt-cols-handle:active {
-    cursor: grabbing;
-  }
+  .dt-cols-handle:hover { color: var(--dt-accent); }
+  .dt-cols-handle:active { cursor: grabbing; }
   .dt-cols-row.is-locked .dt-cols-handle {
     cursor: not-allowed;
     opacity: .35;
@@ -217,7 +241,6 @@ const CSS = `
     height: 14px;
     flex-shrink: 0;
   }
-
   .dt-cols-label {
     flex: 1;
     overflow: hidden;
@@ -260,12 +283,8 @@ const CSS = `
     position: relative;
     background: #151A26;
   }
-  .dt-th.sortable {
-    cursor: pointer;
-  }
-  .dt-th.sortable:hover {
-    color: var(--dt-accent);
-  }
+  .dt-th.sortable { cursor: pointer; }
+  .dt-th.sortable:hover { color: var(--dt-accent); }
   .dt-th-inner {
     display: inline-flex;
     align-items: center;
@@ -288,12 +307,8 @@ const CSS = `
     background: var(--dt-accent);
   }
 
-  .dt-row {
-    transition: background-color .12s ease;
-  }
-  .dt-row:hover {
-    background: rgba(255,255,255,.025);
-  }
+  .dt-row { transition: background-color .12s ease; }
+  .dt-row:hover { background: rgba(255,255,255,.025); }
   .dt-td {
     padding: 9px 12px;
     color: var(--dt-ink-2);
@@ -308,13 +323,9 @@ const CSS = `
     background: #0D1117;
     z-index: 2;
   }
-  .dt-row:hover .dt-td.sticky-left {
-    background: #10151D;
-  }
+  .dt-row:hover .dt-td.sticky-left { background: #10151D; }
 
-  .dt-th.sticky-right {
-    box-shadow: -10px 0 14px -10px rgba(0,0,0,.7);
-  }
+  .dt-th.sticky-right { box-shadow: -10px 0 14px -10px rgba(0,0,0,.7); }
   .dt-td.sticky-right {
     position: sticky;
     right: 0;
@@ -323,9 +334,7 @@ const CSS = `
     overflow: visible;
     box-shadow: -10px 0 14px -10px rgba(0,0,0,.7);
   }
-  .dt-row:hover .dt-td.sticky-right {
-    background: #10151D;
-  }
+  .dt-row:hover .dt-td.sticky-right { background: #10151D; }
 
   .dt-cell-num { text-align: right; }
   .dt-cell-pos { color: #35C4A1; font-weight: 700; }
@@ -351,6 +360,11 @@ const CSS = `
     font-family: 'IBM Plex Mono', ui-monospace, monospace;
     font-size: 12px;
   }
+  .dt-empty-cell {
+    padding: 0 !important;
+    background: transparent;
+    border-bottom: none;
+  }
 
   .dt-count {
     margin-left: auto;
@@ -365,171 +379,272 @@ const CSS = `
 /*  Column picker with drag-to-reorder                                 */
 /* ------------------------------------------------------------------ */
 
+const FLIP_MS = 200;
+const FLIP_EASE = 'cubic-bezier(0.2, 0.8, 0.25, 1)';
+
 function ColumnPicker({ table, columnOrder, onReorder }) {
   const [open, setOpen] = useState(false);
+  const [panelStyle, setPanelStyle] = useState(null);
   const [draggingId, setDraggingId] = useState(null);
-  const [dragOverId, setDragOverId] = useState(null);
+  const [previewOrder, setPreviewOrder] = useState(null);
 
-  // Close on outside click. Uses a ref to the wrapper.
-  const wrapRef = useRef(null);
-  const handleMouseDown = (e) => {
-    if (wrapRef.current && !wrapRef.current.contains(e.target)) {
-      setOpen(false);
-    }
-  };
-  if (typeof document !== 'undefined' && open) {
-    document.addEventListener('mousedown', handleMouseDown);
-  }
+  const buttonRef = useRef(null);
+  const panelRef = useRef(null);
+  const itemsRef = useRef(new Map());       // id -> DOM node
+  const prevOrderRef = useRef([]);          // order before the last reorder
+  const itemHeightRef = useRef(30);
 
-  // Order columns by the user's current reorder state, then pin any that
-  // weren't explicitly included (e.g. new columns added later).
   const allLeafColumns = table.getAllLeafColumns();
-  const orderedColumns = useMemo(() => {
-    const byId = new Map(allLeafColumns.map((c) => [c.id, c]));
-    const ordered = [];
+
+  const reorderableAll = useMemo(
+    () => allLeafColumns.filter((c) => c.getCanHide()),
+    [allLeafColumns]
+  );
+  const lockedAll = useMemo(
+    () => allLeafColumns.filter((c) => !c.getCanHide()),
+    [allLeafColumns]
+  );
+
+  // Effective display order for the reorderable rows.
+  const displayOrder = useMemo(() => {
+    if (previewOrder) return previewOrder;
+    const byId = new Map(reorderableAll.map((c) => [c.id, c]));
+    const ids = [];
     for (const id of columnOrder) {
-      const c = byId.get(id);
-      if (c) {
-        ordered.push(c);
+      if (byId.has(id)) {
+        ids.push(id);
         byId.delete(id);
       }
     }
-    // Append any columns that weren't in columnOrder (fresh columns)
-    for (const c of byId.values()) ordered.push(c);
-    return ordered;
-  }, [allLeafColumns, columnOrder]);
+    for (const c of byId.values()) ids.push(c.id);
+    return ids;
+  }, [previewOrder, columnOrder, reorderableAll]);
 
-  const reorderable = orderedColumns.filter((c) => c.getCanHide());
-  const locked = orderedColumns.filter((c) => !c.getCanHide());
+  const reorderable = useMemo(() => {
+    const byId = new Map(reorderableAll.map((c) => [c.id, c]));
+    return displayOrder.map((id) => byId.get(id)).filter(Boolean);
+  }, [displayOrder, reorderableAll]);
+
+  /* ---------------- Panel open / position ---------------- */
+
+  const recalcPosition = () => {
+    if (!buttonRef.current) return;
+    const rect = buttonRef.current.getBoundingClientRect();
+    setPanelStyle({
+      position: 'fixed',
+      top: rect.bottom + 6,
+      right: Math.max(8, window.innerWidth - rect.right),
+    });
+  };
+
+  const toggleOpen = () => {
+    if (open) {
+      setOpen(false);
+      return;
+    }
+    recalcPosition();
+    setOpen(true);
+  };
+
+  useEffect(() => {
+    if (!open) return undefined;
+
+    const handleDown = (e) => {
+      if (buttonRef.current?.contains(e.target)) return;
+      if (panelRef.current?.contains(e.target)) return;
+      setOpen(false);
+    };
+
+    // Only close when the *page* scrolls (which would move the anchor
+    // button out from under our fixed-position panel). Scrolls that
+    // originate INSIDE the panel — e.g. scrolling the column list or
+    // dragging its scrollbar — must be ignored so the user can browse
+    // a long column list without the panel vanishing on them.
+    const handleScroll = (e) => {
+      const target = e.target;
+      if (panelRef.current && target && panelRef.current.contains(target)) {
+        return;
+      }
+      setOpen(false);
+    };
+
+    const handleResize = () => setOpen(false);
+
+    document.addEventListener('mousedown', handleDown, true);
+    window.addEventListener('resize', handleResize);
+    window.addEventListener('scroll', handleScroll, true);
+
+    return () => {
+      document.removeEventListener('mousedown', handleDown, true);
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('scroll', handleScroll, true);
+    };
+  }, [open]);
+
+  /* ---------------- Drag handlers ---------------- */
+
+  const measureItemHeight = () => {
+    const nodes = reorderable
+      .map((c) => itemsRef.current.get(c.id))
+      .filter(Boolean);
+    if (nodes.length >= 2) {
+      const delta = nodes[1].offsetTop - nodes[0].offsetTop;
+      if (delta > 0) return delta;
+    }
+    return nodes[0]?.offsetHeight || 30;
+  };
 
   const handleDragStart = (e, id) => {
     setDraggingId(id);
     e.dataTransfer.effectAllowed = 'move';
-    // Firefox needs some data set for the drag to fire
-    try { e.dataTransfer.setData('text/plain', id); } catch { /* noop */ }
+    try {
+      e.dataTransfer.setData('text/plain', id);
+    } catch {
+      /* Firefox sometimes rejects — no-op */
+    }
+    itemHeightRef.current = measureItemHeight();
+    prevOrderRef.current = displayOrder;
   };
 
-  const handleDragOver = (e, id) => {
+  const handleDragOver = (e, overId) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
-    if (id !== dragOverId) setDragOverId(id);
+    if (!draggingId || draggingId === overId) return;
+
+    const fromIdx = displayOrder.indexOf(draggingId);
+    const toIdx = displayOrder.indexOf(overId);
+    if (fromIdx === -1 || toIdx === -1 || fromIdx === toIdx) return;
+
+    prevOrderRef.current = displayOrder;
+
+    const next = [...displayOrder];
+    next.splice(fromIdx, 1);
+    next.splice(toIdx, 0, draggingId);
+    setPreviewOrder(next);
   };
 
-  const handleDragLeave = () => {
-    setDragOverId(null);
-  };
-
-  const handleDrop = (e, targetId) => {
+  const handleDrop = (e) => {
     e.preventDefault();
-    const sourceId = draggingId;
-    setDraggingId(null);
-    setDragOverId(null);
-    if (!sourceId || sourceId === targetId) return;
-
-    // Compute new order from the current columnOrder array. If a column
-    // wasn't in the array yet, initialize it from the ordered list first.
-    const baseOrder = columnOrder.length
-      ? [...columnOrder]
-      : orderedColumns.map((c) => c.id);
-
-    // Ensure both source and target are represented
-    const ensure = (id) => {
-      if (!baseOrder.includes(id)) baseOrder.push(id);
-    };
-    ensure(sourceId);
-    ensure(targetId);
-
-    const fromIdx = baseOrder.indexOf(sourceId);
-    const toIdx = baseOrder.indexOf(targetId);
-    if (fromIdx === -1 || toIdx === -1) return;
-
-    baseOrder.splice(fromIdx, 1);
-    baseOrder.splice(toIdx, 0, sourceId);
-    onReorder(baseOrder);
   };
 
   const handleDragEnd = () => {
+    if (previewOrder) onReorder(previewOrder);
     setDraggingId(null);
-    setDragOverId(null);
+    setPreviewOrder(null);
+    prevOrderRef.current = [];
   };
 
+  /* ---------------- FLIP animation for reordering ---------------- */
+
+  useLayoutEffect(() => {
+    if (!previewOrder || !draggingId) return;
+
+    const prev = prevOrderRef.current;
+    const itemH = itemHeightRef.current;
+
+    itemsRef.current.forEach((el, id) => {
+      if (!el || id === draggingId) return;
+
+      const prevIdx = prev.indexOf(id);
+      const currIdx = previewOrder.indexOf(id);
+      if (prevIdx === -1 || currIdx === -1 || prevIdx === currIdx) return;
+
+      const deltaY = (prevIdx - currIdx) * itemH;
+      if (Math.abs(deltaY) < 1) return;
+
+      el.style.transition = 'none';
+      el.style.transform = `translateY(${deltaY}px)`;
+
+      requestAnimationFrame(() => {
+        el.style.transition = `transform ${FLIP_MS}ms ${FLIP_EASE}`;
+        el.style.transform = '';
+      });
+    });
+  }, [previewOrder, draggingId]);
+
+  /* ---------------- Render ---------------- */
+
   return (
-    <div className="dt-cols-wrap" ref={wrapRef}>
+    <div className="dt-cols-wrap">
       <button
+        ref={buttonRef}
         type="button"
         className="dt-cols-btn"
         data-open={open ? 'true' : 'false'}
-        onClick={() => setOpen((v) => !v)}
+        onClick={toggleOpen}
       >
         <SlidersHorizontal size={12} />
         Columns
         <ChevronDown size={11} />
       </button>
 
-      {open && (
-        <div className="dt-cols-panel">
-          <div className="dt-cols-header">
-            <span>Reorder & visibility</span>
-            <span className="dt-cols-hint">drag ⋮⋮</span>
+      {open && panelStyle && (
+        <Portal>
+          <div
+            ref={panelRef}
+            className="dt-cols-panel"
+            style={panelStyle}
+          >
+            <div className="dt-cols-header">
+              <span>Reorder & visibility</span>
+              <span className="dt-cols-hint">drag ⋮⋮</span>
+            </div>
+
+            {reorderable.map((col) => {
+              const id = col.id;
+              const label = col.columnDef.meta?.label || id;
+              const isDragging = draggingId === id;
+
+              return (
+                <div
+                  key={id}
+                  ref={(el) => {
+                    if (el) itemsRef.current.set(id, el);
+                    else itemsRef.current.delete(id);
+                  }}
+                  className={`dt-cols-row${isDragging ? ' is-dragging' : ''}`}
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, id)}
+                  onDragOver={(e) => handleDragOver(e, id)}
+                  onDrop={handleDrop}
+                  onDragEnd={handleDragEnd}
+                >
+                  <span className="dt-cols-handle" aria-hidden>
+                    <GripVertical size={13} />
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={col.getIsVisible()}
+                    onChange={col.getToggleVisibilityHandler()}
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                  <span className="dt-cols-label">{label}</span>
+                </div>
+              );
+            })}
+
+            {lockedAll.length > 0 && (
+              <>
+                <div className="dt-cols-header" style={{ marginTop: 6 }}>
+                  <span>Fixed</span>
+                </div>
+                {lockedAll.map((col) => {
+                  const id = col.id;
+                  const label = col.columnDef.meta?.label || id;
+                  return (
+                    <div key={id} className="dt-cols-row is-locked">
+                      <span className="dt-cols-handle" aria-hidden>
+                        <GripVertical size={13} />
+                      </span>
+                      <input type="checkbox" checked disabled />
+                      <span className="dt-cols-label">{label}</span>
+                    </div>
+                  );
+                })}
+              </>
+            )}
           </div>
-
-          {reorderable.map((col) => {
-            const id = col.id;
-            const label = col.columnDef.meta?.label || id;
-            const isDragging = draggingId === id;
-            const isDragOver = dragOverId === id && draggingId && draggingId !== id;
-            const cls = [
-              'dt-cols-row',
-              isDragging ? 'is-dragging' : '',
-              isDragOver ? 'is-dragover' : '',
-            ].filter(Boolean).join(' ');
-
-            return (
-              <div
-                key={id}
-                className={cls}
-                draggable
-                onDragStart={(e) => handleDragStart(e, id)}
-                onDragOver={(e) => handleDragOver(e, id)}
-                onDragLeave={handleDragLeave}
-                onDrop={(e) => handleDrop(e, id)}
-                onDragEnd={handleDragEnd}
-              >
-                <span className="dt-cols-handle" aria-hidden>
-                  <GripVertical size={13} />
-                </span>
-                <input
-                  type="checkbox"
-                  checked={col.getIsVisible()}
-                  onChange={col.getToggleVisibilityHandler()}
-                  onClick={(e) => e.stopPropagation()}
-                />
-                <span className="dt-cols-label">{label}</span>
-              </div>
-            );
-          })}
-
-          {locked.length > 0 && (
-            <>
-              <div className="dt-cols-header" style={{ marginTop: 6 }}>
-                <span>Fixed</span>
-              </div>
-              {locked.map((col) => {
-                const id = col.id;
-                const label = col.columnDef.meta?.label || id;
-                return (
-                  <div key={id} className="dt-cols-row is-locked">
-                    <span className="dt-cols-handle" aria-hidden>
-                      <GripVertical size={13} />
-                    </span>
-                    <input type="checkbox" checked disabled />
-                    <span className="dt-cols-label">{label}</span>
-                  </div>
-                );
-              })}
-            </>
-          )}
-        </div>
+        </Portal>
       )}
     </div>
   );
@@ -549,6 +664,7 @@ export default function DataTable({
   initialSort,
   maxHeight = 560,
   emptyMessage = 'No data',
+  emptyState = null,
   stickyFirstColumn = true,
   stickyLastColumn = false,
   showToolbar = true,
@@ -559,9 +675,6 @@ export default function DataTable({
   const [sorting, setSorting] = useState(initialSort || []);
   const [columnVisibility, setColumnVisibility] = useState({});
   const [columnSizing, setColumnSizing] = useState({});
-
-  // Column order — initialized empty; the picker falls back to TanStack's
-  // natural order until the user reorders once.
   const [columnOrder, setColumnOrder] = useState([]);
 
   const table = useReactTable({
@@ -680,29 +793,39 @@ export default function DataTable({
                   const canSort = header.column.getCanSort();
                   const sortDir = header.column.getIsSorted();
                   const isStickyLeft = stickyFirstColumn && idx === 0;
-                  const isStickyRight = stickyLastColumn && idx === hg.headers.length - 1;
+                  const isStickyRight =
+                    stickyLastColumn && idx === hg.headers.length - 1;
 
                   const cls = [
                     'dt-th',
                     canSort ? 'sortable' : '',
                     isStickyLeft ? 'sticky-left' : '',
                     isStickyRight ? 'sticky-right' : '',
-                  ].filter(Boolean).join(' ');
+                  ]
+                    .filter(Boolean)
+                    .join(' ');
 
                   const inlineSticky = isStickyRight
-                    ? { position: 'sticky', right: 0, zIndex: 7, background: '#151A26' }
+                    ? {
+                        position: 'sticky',
+                        right: 0,
+                        zIndex: 7,
+                        background: '#151A26',
+                      }
                     : isStickyLeft
-                      ? { position: 'sticky', left: 0, zIndex: 6, background: '#151A26' }
+                      ? {
+                          position: 'sticky',
+                          left: 0,
+                          zIndex: 6,
+                          background: '#151A26',
+                        }
                       : {};
 
                   return (
                     <th
                       key={header.id}
                       className={cls}
-                      style={{
-                        width: header.getSize(),
-                        ...inlineSticky,
-                      }}
+                      style={{ width: header.getSize(), ...inlineSticky }}
                       onClick={
                         canSort
                           ? header.column.getToggleSortingHandler()
@@ -720,10 +843,7 @@ export default function DataTable({
                           ) : sortDir === 'desc' ? (
                             <ArrowDown size={10} />
                           ) : (
-                            <ArrowUpDown
-                              size={10}
-                              style={{ opacity: 0.3 }}
-                            />
+                            <ArrowUpDown size={10} style={{ opacity: 0.3 }} />
                           ))}
                       </span>
 
@@ -749,41 +869,50 @@ export default function DataTable({
               <tr>
                 <td
                   colSpan={visibleCols.length}
-                  className="dt-empty"
+                  className="dt-empty-cell"
                   style={{ position: 'sticky', left: 0 }}
                 >
-                  {emptyMessage}
+                  {emptyState || <div className="dt-empty">{emptyMessage}</div>}
                 </td>
               </tr>
             ) : (
               <>
                 {paddingTop > 0 && (
                   <tr>
-                    <td style={{ height: paddingTop }} colSpan={visibleCols.length} />
+                    <td
+                      style={{ height: paddingTop }}
+                      colSpan={visibleCols.length}
+                    />
                   </tr>
                 )}
 
                 {items.map((vRow) => {
                   const row = rows[vRow.index];
                   return (
-                    <tr key={row.id} className="dt-row" style={{ height: estimateRowHeight }}>
+                    <tr
+                      key={row.id}
+                      className="dt-row"
+                      style={{ height: estimateRowHeight }}
+                    >
                       {row.getVisibleCells().map((cell, idx) => {
-                        const isStickyLeft = stickyFirstColumn && idx === 0;
-                        const isStickyRight = stickyLastColumn && idx === lastColIndex;
+                        const isStickyLeft =
+                          stickyFirstColumn && idx === 0;
+                        const isStickyRight =
+                          stickyLastColumn && idx === lastColIndex;
 
                         const cls = [
                           'dt-td',
                           isStickyLeft ? 'sticky-left' : '',
                           isStickyRight ? 'sticky-right' : '',
-                        ].filter(Boolean).join(' ');
+                        ]
+                          .filter(Boolean)
+                          .join(' ');
 
                         return (
                           <td
                             key={cell.id}
                             className={cls}
-                            style={{
-                              width: cell.column.getSize(),
-                            }}
+                            style={{ width: cell.column.getSize() }}
                           >
                             {flexRender(
                               cell.column.columnDef.cell,
@@ -798,7 +927,10 @@ export default function DataTable({
 
                 {paddingBottom > 0 && (
                   <tr>
-                    <td style={{ height: paddingBottom }} colSpan={visibleCols.length} />
+                    <td
+                      style={{ height: paddingBottom }}
+                      colSpan={visibleCols.length}
+                    />
                   </tr>
                 )}
               </>
