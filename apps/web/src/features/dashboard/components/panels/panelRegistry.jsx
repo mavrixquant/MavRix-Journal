@@ -49,7 +49,7 @@ function Panel({
             justifyContent: 'space-between',
             alignItems: 'center',
             gap: 10,
-            padding: '14px 18px 10px',
+            padding: '2px 8px 10px',
             borderBottom: '1px solid rgba(255,255,255,.05)',
             flexShrink: 0,
             minWidth: 0,
@@ -132,7 +132,7 @@ function CalendarPanel() {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          padding: '14px 18px 10px',
+          padding: '8px 14px 10px',
           borderBottom: '1px solid rgba(255,255,255,.05)',
           flexShrink: 0,
         }}
@@ -253,6 +253,7 @@ function CategoryChartsPanel() {
           height: '100%',
           minHeight: 0,
           minWidth: 0,
+          padding: '8px',
         }}
       >
         {charts.map((p) => (

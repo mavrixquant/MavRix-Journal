@@ -50,7 +50,6 @@ const CAL_CSS = `
     display: flex;
     gap: 6px;
     overflow-x: auto;
-    padding-bottom: 8px;
     margin-bottom: 14px;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;

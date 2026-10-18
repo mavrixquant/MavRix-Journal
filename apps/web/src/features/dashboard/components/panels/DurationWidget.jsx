@@ -43,7 +43,7 @@ export default function DurationWidget() {
     { text: 'Held similar duration', color: COLORS.amber };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontFamily: "'Inter', sans-serif" }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontFamily: "'Inter', sans-serif",padding:'10px' }}>
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span style={{ fontSize: '11px', fontWeight: '600', color: COLORS.text, letterSpacing: '0.02em', textTransform: 'uppercase' }}>

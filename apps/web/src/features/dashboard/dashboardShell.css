@@ -84,6 +84,7 @@
   position: relative;
   backdrop-filter: blur(10px) saturate(140%);
   transition: border-color .35s ease, box-shadow .35s ease, background .35s ease;
+  padding: 8px;
 }
 
 .dash-panel:hover {
@@ -723,6 +724,7 @@
   align-items: stretch;
   gap: 24px;
   box-sizing: border-box;
+  padding: 10px 23px 12px;
 }
 
 .dash-panel .hero-left {

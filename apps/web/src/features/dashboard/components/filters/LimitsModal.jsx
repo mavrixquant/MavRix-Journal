@@ -159,7 +159,6 @@ const CSS = `
     background: #0D1117;
     border: 1px solid #2A3241;
     border-radius: 6px;
-    color: var(--ink-3);
     font-family: 'IBM Plex Mono', ui-monospace, monospace;
     font-size: 12px;
     text-align: center;

@@ -109,8 +109,7 @@ const CSS = `
     display: flex;
     align-items: center;
     gap: 12px;
-    padding-bottom: 10px;
-    border-bottom: 1px solid var(--line);
+    padding-bottom: 2px;
   }
   .as-num {
     font-family: 'IBM Plex Mono', ui-monospace, monospace;
@@ -207,7 +206,7 @@ const CSS = `
   .as-panel-body {
     flex: 1 1 auto;
     min-height: 0;
-    padding: 16px 18px;
+    padding: 16px 16px;
     position: relative;
     overflow: auto;
   }
