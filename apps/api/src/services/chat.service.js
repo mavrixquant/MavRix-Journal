@@ -4,40 +4,15 @@
 // helper first — that is the ONLY check for chat, and it is the guarantee
 // that no admin route can ever see these conversations.
 //
-// Conversation types:
-//   'dm'    — one-to-one direct message. `dmKey` is set. Peer lookup used.
-//   'group' — multi-user group. `name`, `visibility`, etc. are set. Any
-//             participant can read/write. Group creation is admin-only.
-//
-// ── Friends integration ─────────────────────────────────────────────────
-//
-//   • searchUsers()               → friends only (per product spec).
-//   • getOrCreateDm()             → rejected if either side has blocked the
-//                                   other. Non-friends CAN still create a
-//                                   DM (from a group member card, etc.).
-//   • sendMessage()               → non-friends are capped at
-//                                   NON_FRIEND_MESSAGE_LIMIT messages.
-//                                   Error carries
-//                                   `details.reason = 'friend_required'`.
-//   • listConversations()         → DMs with blocked peers are hidden; DMs
-//                                   carry `isFriend` + `messagesRemaining`.
-//   • assertAccessibleConversation → 404s any DM where either side has
-//                                   blocked the other.
-//   • listGroupMembers()          → blocked users are filtered out of the
-//                                   caller's view; each member carries a
-//                                   `friendStatus` snapshot.
-//
-// SSE events emitted (all via broadcastToUser):
-//   chat:message:new         { conversationId, message }                       -> all participants
-//   chat:message:edited      { conversationId, messageId, body, editedAt }     -> all participants
-//   chat:message:deleted     { conversationId, messageId, scope:'all' }        -> all participants
-//   chat:message:delivered   { conversationId, messageId, deliveredAt }        -> all participants
-//   chat:typing              { conversationId, userId, isTyping }              -> other participants
-//   chat:read                { conversationId, readerUserId, lastReadMsgId, readAt } -> other participants
+// Phase 4 additions:
+//   - Mave AI trigger (triggers when peer is AI)
+//   - Archive protection (blocks archiving an AI conversation)
 
 import { prisma } from '../lib/prisma.js';
 import { HttpError } from '../middleware/error.js';
 import { broadcastToUser } from '../lib/broadcaster.js';
+import { triggerAiResponse } from './ai.service.js';
+import { getMaveAiId } from './maveAiBootstrap.js';
 import {
   areFriends,
   isBlockedEither,
@@ -91,6 +66,7 @@ function serializeMessage(m) {
     senderId: m.senderId,
     sender: m.sender ? serializePublicUser(m.sender) : null,
     body: m.deletedAt ? null : m.body,
+    kind: m.kind || 'user',
     replyToId: m.replyToId,
     createdAt: m.createdAt,
     editedAt: m.editedAt,
@@ -153,7 +129,8 @@ function serializeConversation(c, userId, participantRow, extras = {}) {
 
   if (!isGroup) {
     base.isFriend = !!extras.isFriend;
-    if (!extras.isFriend && typeof extras.messagesRemaining === 'number') {
+    base.isAi = !!extras.isAi; // NEW: flag for Mave AI
+    if (!extras.isFriend && !extras.isAi && typeof extras.messagesRemaining === 'number') {
       base.messagesRemaining = extras.messagesRemaining;
     }
   }
@@ -261,16 +238,16 @@ export async function getOrCreateDm(userId, peerId) {
 
   const peer = await prisma.user.findUnique({
     where: { id: peerId },
-    select: { id: true, isBanned: true, emailVerified: true },
+    select: { id: true, isBanned: true, emailVerified: true, isAi: true },
   });
-  if (!peer || peer.isBanned) throw new HttpError(404, 'User not found');
-  if (!peer.emailVerified) {
+  if (!peer || (peer.isBanned && !peer.isAi)) throw new HttpError(404, 'User not found');
+  if (!peer.emailVerified && !peer.isAi) {
     throw new HttpError(403, 'This user has not verified their email');
   }
 
   // Blocks are asymmetric to create but symmetric to enforce — either
   // direction hides the pair from each other.
-  if (await isBlockedEither(userId, peerId)) {
+  if (!peer.isAi && (await isBlockedEither(userId, peerId))) {
     throw new HttpError(403, 'Cannot message this user');
   }
 
@@ -287,9 +264,9 @@ export async function getOrCreateDm(userId, peerId) {
 
   if (existing) {
     const myRow = await assertParticipant(userId, existing.id);
-    const friend = await areFriends(userId, peerId);
-    const extras = { isFriend: friend };
-    if (!friend) {
+    const friend = peer.isAi ? true : await areFriends(userId, peerId);
+    const extras = { isFriend: friend, isAi: peer.isAi };
+    if (!friend && !peer.isAi) {
       const sent = await prisma.message.count({
         where: { conversationId: existing.id, senderId: userId, deletedAt: null },
       });
@@ -314,11 +291,12 @@ export async function getOrCreateDm(userId, peerId) {
   });
 
   const myRow = await assertParticipant(userId, created.id);
-  const friend = await areFriends(userId, peerId);
+  const friend = peer.isAi ? true : await areFriends(userId, peerId);
 
   return serializeConversation(created, userId, myRow, {
     isFriend: friend,
-    messagesRemaining: friend ? undefined : NON_FRIEND_MESSAGE_LIMIT,
+    isAi: peer.isAi,
+    messagesRemaining: (friend || peer.isAi) ? undefined : NON_FRIEND_MESSAGE_LIMIT,
   });
 }
 
@@ -328,9 +306,7 @@ export async function getOrCreateDm(userId, peerId) {
 
 export async function listConversations(userId) {
   const rows = await prisma.conversationParticipant.findMany({
-    where: {
-      userId,
-      },
+    where: { userId },
     include: {
       conversation: {
         include: {
@@ -341,6 +317,9 @@ export async function listConversations(userId) {
       },
     },
   });
+
+  // Extract AI ID for fast matching
+  const aiId = getMaveAiId();
 
   const [blockedIds, dmPeerIds] = await Promise.all([
     getBlockedUserIds(userId),
@@ -361,7 +340,7 @@ export async function listConversations(userId) {
     .filter((r) => {
       if (r.conversation.type !== 'dm') return false;
       const peerId = r.conversation.participants.find((p) => p.userId !== userId)?.userId;
-      return peerId && !friendStatus[peerId]?.isFriend;
+      return peerId && peerId !== aiId && !friendStatus[peerId]?.isFriend;
     })
     .map((r) => r.conversation.id);
 
@@ -385,6 +364,7 @@ export async function listConversations(userId) {
     if (c.type !== 'dm') return true;
     const peerId = c.participants.find((p) => p.userId !== userId)?.userId;
     if (!peerId) return false;
+    if (peerId === aiId) return true; // Never hide AI
     return !blockedSet.has(peerId);
   });
 
@@ -397,15 +377,22 @@ export async function listConversations(userId) {
 
   return visibleRows.map((p) => {
     const c = p.conversation;
-    const extras = {};
+    const extras = { isAi: false };
 
     if (c.type === 'dm') {
       const peerId = c.participants.find((x) => x.userId !== userId)?.userId;
-      const fs = friendStatus[peerId];
-      extras.isFriend = !!fs?.isFriend;
-      if (!extras.isFriend) {
-        const sent = sentMap.get(c.id) || 0;
-        extras.messagesRemaining = Math.max(0, NON_FRIEND_MESSAGE_LIMIT - sent);
+      const isAi = peerId === aiId;
+      extras.isAi = isAi;
+
+      if (!isAi) {
+        const fs = friendStatus[peerId];
+        extras.isFriend = !!fs?.isFriend;
+        if (!extras.isFriend) {
+          const sent = sentMap.get(c.id) || 0;
+          extras.messagesRemaining = Math.max(0, NON_FRIEND_MESSAGE_LIMIT - sent);
+        }
+      } else {
+        extras.isFriend = true; // treat as friend for UI logic
       }
     }
 
@@ -426,17 +413,26 @@ export async function getConversation(userId, conversationId) {
   });
   if (!c) throw new HttpError(404, 'Conversation not found');
 
-  const extras = {};
+  const aiId = getMaveAiId();
+  const extras = { isAi: false };
+
   if (c.type === 'dm') {
     const peerId = c.participants.find((p) => p.userId !== userId)?.userId;
     if (peerId) {
-      const friend = await areFriends(userId, peerId);
-      extras.isFriend = friend;
-      if (!friend) {
-        const sent = await prisma.message.count({
-          where: { conversationId, senderId: userId, deletedAt: null },
-        });
-        extras.messagesRemaining = Math.max(0, NON_FRIEND_MESSAGE_LIMIT - sent);
+      const isAi = peerId === aiId;
+      extras.isAi = isAi;
+      
+      if (!isAi) {
+        const friend = await areFriends(userId, peerId);
+        extras.isFriend = friend;
+        if (!friend) {
+          const sent = await prisma.message.count({
+            where: { conversationId, senderId: userId, deletedAt: null },
+          });
+          extras.messagesRemaining = Math.max(0, NON_FRIEND_MESSAGE_LIMIT - sent);
+        }
+      } else {
+        extras.isFriend = true;
       }
     }
   }
@@ -446,6 +442,19 @@ export async function getConversation(userId, conversationId) {
 
 export async function updateConversation(userId, conversationId, patch) {
   await assertAccessibleConversation(userId, conversationId);
+
+  const aiId = getMaveAiId();
+
+  // NEW: Prevent archiving the Mave AI conversation
+  if (patch.isArchived === true && aiId) {
+    const conv = await prisma.conversation.findUnique({
+      where: { id: conversationId },
+      select: { type: true, participants: { select: { userId: true } } }
+    });
+    if (conv?.type === 'dm' && conv.participants.some((p) => p.userId === aiId)) {
+      throw new HttpError(403, 'Mave AI conversations cannot be archived.');
+    }
+  }
 
   const data = {};
   if (typeof patch.isPinned === 'boolean') data.isPinned = patch.isPinned;
@@ -509,9 +518,12 @@ export async function sendMessage(userId, conversationId, { body, replyToId }) {
   if (!trimmed) throw new HttpError(400, 'Message body is required');
   if (trimmed.length > 4000) throw new HttpError(400, 'Message too long');
 
+  const aiId = getMaveAiId();
+
   // ------------------------------------------------------------------
   // Non-friend DM cap. Only applies to DMs (groups have their own
   // membership rules). Admins, friends, and group members are unlimited.
+  // Also bypass the cap for Mave AI.
   // ------------------------------------------------------------------
   const conv = await prisma.conversation.findUnique({
     where: { id: conversationId },
@@ -523,7 +535,7 @@ export async function sendMessage(userId, conversationId, { body, replyToId }) {
 
   if (conv?.type === 'dm') {
     const peerId = conv.participants.find((p) => p.userId !== userId)?.userId;
-    if (peerId) {
+    if (peerId && peerId !== aiId) {
       const friend = await areFriends(userId, peerId);
       if (!friend) {
         const sent = await prisma.message.count({
@@ -598,6 +610,14 @@ export async function sendMessage(userId, conversationId, { body, replyToId }) {
   const payload = { conversationId, message: serializeMessage(message) };
   for (const pid of participantIds) {
     broadcastToUser(pid, 'chat:message:new', payload);
+  }
+
+  // NEW: Trigger Mave AI if this is a DM with the AI
+  if (conv?.type === 'dm' && aiId) {
+    const peerId = conv.participants.find((p) => p.userId !== userId)?.userId;
+    if (peerId === aiId) {
+      triggerAiResponse(conversationId, userId, aiId);
+    }
   }
 
   return serializeMessage(message);

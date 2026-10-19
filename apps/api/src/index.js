@@ -11,6 +11,7 @@ import { eventsRoutes } from './routes/events.routes.js';
 import { errorHandler, notFound } from './middleware/error.js';
 import { startCalendarSync, stopCalendarSync } from './lib/calendarSync.js';
 import { ensureSuperadmin } from './lib/adminBootstrap.js';
+import { ensureMaveAi } from './services/maveAiBootstrap.js';
 
 const app = express();
 
@@ -49,8 +50,8 @@ app.use(notFound);
 app.use(errorHandler);
 
 // ---------------------------------------------------------------------------
-// Boot: start the HTTP server, ensure a superadmin exists, then kick off the
-// calendar sync loop.
+// Boot: start the HTTP server, ensure a superadmin exists, ensure the Mave AI
+// sentinel exists, then kick off the calendar sync loop.
 //
 // Sync runs in-process — no external cron, no queue.
 // ---------------------------------------------------------------------------
@@ -64,6 +65,13 @@ const server = app.listen(env.port, async () => {
     await ensureSuperadmin();
   } catch (err) {
     console.error('[admin] bootstrap failed:', err);
+  }
+
+  // Idempotent — creates the Mave AI user and ensures all users have a DM.
+  try {
+    await ensureMaveAi();
+  } catch (err) {
+    console.error('[mave-ai] bootstrap failed:', err);
   }
 
   if (env.calendar.syncEnabled) {

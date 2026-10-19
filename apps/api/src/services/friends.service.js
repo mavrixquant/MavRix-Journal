@@ -12,13 +12,13 @@
 //   - cancels any pending FriendRequest in either direction
 // Unblock does NOT restore friendship; the pair must re-request.
 //
-// This module is fully private to the two users involved. No admin route
-// reads from it. SSE events are broadcast so the other side's client
-// updates without a manual refetch.
+// Phase 4 additions:
+//   - Protection guards preventing removing/blocking Mave AI.
 
 import { prisma } from '../lib/prisma.js';
 import { HttpError } from '../middleware/error.js';
 import { broadcastToUser } from '../lib/broadcaster.js';
+import { getMaveAiId } from './maveAiBootstrap.js';
 
 const PUBLIC_USER_SELECT = {
   id: true,
@@ -338,9 +338,9 @@ export async function sendFriendRequest(userId, { toUserId, email, message }) {
 
   const target = await prisma.user.findUnique({
     where: { id: targetId },
-    select: { id: true, isBanned: true, emailVerified: true },
+    select: { id: true, isBanned: true, emailVerified: true, isAi: true },
   });
-  if (!target || target.isBanned) {
+  if (!target || target.isBanned || target.isAi) {
     throw new HttpError(404, 'User not found');
   }
   if (!target.emailVerified) {
@@ -493,6 +493,12 @@ export async function removeFriend(userId, friendId) {
   if (!friendId) throw new HttpError(400, 'friendId is required');
   if (friendId === userId) throw new HttpError(400, 'Cannot remove yourself');
 
+  // NEW: Prevent removing Mave AI
+  const aiId = getMaveAiId();
+  if (aiId && friendId === aiId) {
+    throw new HttpError(403, 'Mave AI cannot be removed from your friends list.');
+  }
+
   const [userAId, userBId] = canonicalPair(userId, friendId);
   const existing = await prisma.friendship.findUnique({
     where: { userAId_userBId: { userAId, userBId } },
@@ -522,6 +528,12 @@ export async function removeFriend(userId, friendId) {
 export async function blockUser(userId, targetId, reason) {
   if (!targetId) throw new HttpError(400, 'userId is required');
   if (targetId === userId) throw new HttpError(400, 'Cannot block yourself');
+
+  // NEW: Prevent blocking Mave AI
+  const aiId = getMaveAiId();
+  if (aiId && targetId === aiId) {
+    throw new HttpError(403, 'Mave AI cannot be blocked.');
+  }
 
   const target = await prisma.user.findUnique({
     where: { id: targetId },
