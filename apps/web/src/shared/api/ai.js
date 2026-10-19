@@ -1,6 +1,9 @@
 // apps/web/src/shared/api/ai.js
 //
 // React Query hooks for Mave AI BYOK settings.
+//
+// The server exposes an ARRAY of credentials (one per saved provider).
+// `useAiSettings` returns that array; the panel renders one card per entry.
 
 import {
   useQuery,
@@ -26,19 +29,27 @@ export async function getProviders() {
 
 export async function getSettings() {
   const data = await apiJson('/api/ai/settings');
-  return data.credential;
+  return data.credentials || [];
 }
 
 export async function saveSettings(payload) {
-  const data = await apiJson('/api/ai/settings', {
+  return apiJson('/api/ai/settings', {
     method: 'POST',
     body: JSON.stringify(payload),
   });
-  return data.credential;
 }
 
-export async function deleteSettings() {
-  return apiJson('/api/ai/settings', { method: 'DELETE' });
+export async function deleteSettings(provider) {
+  return apiJson(`/api/ai/settings/${encodeURIComponent(provider)}`, {
+    method: 'DELETE',
+  });
+}
+
+export async function updateModels(provider, models) {
+  return apiJson(`/api/ai/settings/${encodeURIComponent(provider)}/models`, {
+    method: 'PATCH',
+    body: JSON.stringify({ models }),
+  });
 }
 
 export async function testKey(payload) {
@@ -56,7 +67,7 @@ export function useAiProviders() {
   return useQuery({
     queryKey: aiKeys.providers(),
     queryFn: getProviders,
-    staleTime: Infinity, // Static list
+    staleTime: Infinity,
   });
 }
 
@@ -87,7 +98,17 @@ export function useSaveAiCredential() {
 export function useDeleteAiCredential() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: deleteSettings,
+    mutationFn: (provider) => deleteSettings(provider),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: aiKeys.settings() });
+    },
+  });
+}
+
+export function useUpdateAiModels() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ provider, models }) => updateModels(provider, models),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: aiKeys.settings() });
     },

@@ -1,18 +1,30 @@
 // apps/web/src/app/layout/Settings/panels/MaveAiPanel.jsx
 //
 // BYOK configuration panel for Mave AI.
-// Allows users to connect their own OpenAI, Anthropic, Groq, etc., API keys
-// for unlimited, priority access to the assistant.
+//
+// Multi-provider layout:
+//   1. Hero blurb explaining what BYOK buys you.
+//   2. Saved credentials list — one card per provider. Each card shows
+//      the models in rotation and lets the user toggle individual models
+//      on/off (PATCH /settings/:provider/models).
+//   3. Add / edit form — provider dropdown (all 6, ordered per
+//      AI_PROVIDERS), API key, optional primary model override, Test, Save.
+//
+// Saving a key auto-discovers the models available to that key (see
+// apps/api/src/lib/ai/discoverModels.js). If discovery fails, the API
+// falls back to `fallbackModels[provider]` from @mavrix/shared so the save
+// still succeeds.
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   Sparkles,
   KeyRound,
-  CheckCircle2,
   AlertTriangle,
   Loader2,
   Trash2,
   ExternalLink,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { AI_PROVIDERS, getProviderMeta } from '@mavrix/shared';
@@ -22,6 +34,7 @@ import {
   useAiProviders,
   useSaveAiCredential,
   useDeleteAiCredential,
+  useUpdateAiModels,
   useTestAiKey,
 } from '@/shared/api/ai';
 import Alert from '@/shared/components/Alert';
@@ -71,47 +84,92 @@ const CSS = `
     font-family: 'IBM Plex Mono', monospace;
   }
 
-  .mave-status-card {
-    padding: 14px 16px;
-    border-radius: 12px;
-    background: rgba(255,255,255,.03);
-    border: 1px solid rgba(255,255,255,.08);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 12px;
-  }
-  .mave-status-left {
+  /* Saved credentials list */
+  .mave-cred-list {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 10px;
   }
-  .mave-status-title {
+  .mave-cred {
+    padding: 12px 14px;
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,.08);
+    background: rgba(255,255,255,.02);
+    transition: border-color .18s;
+  }
+  .mave-cred:hover { border-color: rgba(255,255,255,.14); }
+  .mave-cred-head {
     display: flex;
-    align-items: center;
-    gap: 6px;
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: .14em;
-    text-transform: uppercase;
-    color: #4ade80;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    flex-wrap: wrap;
   }
-  .mave-status-title.is-default {
-    color: var(--ink-3);
-  }
-  .mave-status-desc {
+  .mave-cred-provider {
     font-size: 13px;
+    font-weight: 700;
     color: var(--ink-1);
-    font-weight: 500;
+    margin-bottom: 3px;
   }
-  .mave-status-date {
+  .mave-cred-meta {
     font-family: 'IBM Plex Mono', monospace;
     font-size: 10.5px;
     color: var(--ink-3);
+    letter-spacing: .02em;
+  }
+  .mave-cred-actions {
+    display: inline-flex;
+    gap: 6px;
+    flex-shrink: 0;
+    flex-wrap: wrap;
+  }
+  .mave-cred-models {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px dashed rgba(255,255,255,.06);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    max-height: 240px;
+    overflow-y: auto;
+  }
+  .mave-cred-models::-webkit-scrollbar { width: 6px; }
+  .mave-cred-models::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,.08);
+    border-radius: 99px;
+  }
+  .mave-cred-model-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 8px;
+    border-radius: 6px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11.5px;
+    color: var(--ink-2);
+    cursor: pointer;
+    transition: background-color .15s;
+  }
+  .mave-cred-model-row:hover { background: rgba(255,255,255,.03); }
+  .mave-cred-model-row input[type="checkbox"] {
+    accent-color: var(--accent);
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .mave-cred-model-row span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .mave-cred-empty {
+    padding: 16px;
+    text-align: center;
+    color: var(--ink-3);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
   }
 
-  /* Form elements */
+  /* Form */
   .mave-form {
     display: flex;
     flex-direction: column;
@@ -121,11 +179,7 @@ const CSS = `
     background: rgba(0,0,0,.15);
     border: 1px solid rgba(255,255,255,.05);
   }
-  .mave-field {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
+  .mave-field { display: flex; flex-direction: column; gap: 6px; }
   .mave-label {
     display: flex;
     justify-content: space-between;
@@ -147,10 +201,7 @@ const CSS = `
     text-transform: none;
     letter-spacing: 0;
   }
-  .mave-label a:hover {
-    text-decoration: underline;
-  }
-
+  .mave-label a:hover { text-decoration: underline; }
   .mave-input, .mave-select {
     width: 100%;
     padding: 10px 12px;
@@ -176,7 +227,6 @@ const CSS = `
     padding-right: 32px;
     cursor: pointer;
   }
-
   .mave-actions {
     display: flex;
     align-items: center;
@@ -184,44 +234,123 @@ const CSS = `
     margin-top: 4px;
   }
 `;
+
 /* ------------------------------------------------------------------ */
-/*  Main Component                                                     */
+/*  Saved-credential card                                              */
+/* ------------------------------------------------------------------ */
+
+function SavedCredentialCard({ cred, onRequestDelete, onToggleModel, updating }) {
+  const [expanded, setExpanded] = useState(false);
+  const meta = getProviderMeta(cred.provider);
+  const models = Array.isArray(cred.models) ? cred.models : [];
+
+  return (
+    <div className="mave-cred">
+      <div className="mave-cred-head">
+        <div style={{ minWidth: 0 }}>
+          <div className="mave-cred-provider">{meta?.label || cred.provider}</div>
+          <div className="mave-cred-meta">
+            {models.length} model{models.length === 1 ? '' : 's'} in rotation
+            {' · '}
+            updated {new Date(cred.updatedAt).toLocaleDateString()}
+          </div>
+        </div>
+        <div className="mave-cred-actions">
+          <button
+            type="button"
+            className="settings-btn"
+            onClick={() => setExpanded((v) => !v)}
+          >
+            {expanded ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
+            {expanded ? 'Hide models' : 'Manage models'}
+          </button>
+          <button
+            type="button"
+            className="settings-btn settings-btn-danger"
+            onClick={() => onRequestDelete(cred.provider)}
+          >
+            <Trash2 size={11} />
+            Disconnect
+          </button>
+        </div>
+      </div>
+
+      {expanded && (
+        <div className="mave-cred-models">
+          {models.length === 0 && (
+            <div className="mave-cred-empty">
+              No models discovered. Re-save the key to refresh.
+            </div>
+          )}
+          {models.map((m) => (
+            <label key={m} className="mave-cred-model-row">
+              <input
+                type="checkbox"
+                defaultChecked
+                disabled={updating}
+                onChange={(e) => onToggleModel(cred.provider, m, e.target.checked)}
+              />
+              <span title={m}>{m}</span>
+            </label>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Main                                                               */
 /* ------------------------------------------------------------------ */
 
 export default function MaveAiPanel() {
-  const { data: settings, isLoading: loadingSettings } = useAiSettings();
+  const { data: credentials = [], isLoading: loadingSettings } = useAiSettings();
   const { data: providers = [], isLoading: loadingProviders } = useAiProviders();
 
   const saveMutation = useSaveAiCredential();
   const deleteMutation = useDeleteAiCredential();
+  const updateModelsMutation = useUpdateAiModels();
   const testMutation = useTestAiKey();
 
-  // Form state
-  const [provider, setProvider] = useState('openai');
+  const [provider, setProvider] = useState('openrouter');
   const [apiKey, setApiKey] = useState('');
   const [model, setModel] = useState('');
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(null);
   const [errorMsg, setErrorMsg] = useState('');
 
-  // Sync initial provider
+  const availableProviders = useMemo(
+    () => (providers.length > 0 ? providers : AI_PROVIDERS),
+    [providers]
+  );
+
+  const savedProviders = useMemo(
+    () => new Set(credentials.map((c) => c.provider)),
+    [credentials]
+  );
+
+  // Keep the selected provider valid if the list changes.
   useEffect(() => {
-    if (providers.length > 0 && !providers.find(p => p.id === provider)) {
-      setProvider(providers[0].id);
+    if (
+      availableProviders.length > 0 &&
+      !availableProviders.find((p) => p.id === provider)
+    ) {
+      setProvider(availableProviders[0].id);
     }
-  }, [providers, provider]);
+  }, [availableProviders, provider]);
 
   if (loadingSettings || loadingProviders) {
     return (
       <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--ink-3)' }}>
         <Loader2 size={20} className="settings-spin" style={{ margin: '0 auto 12px' }} />
-        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12 }}>Loading AI configuration…</span>
+        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12 }}>
+          Loading AI configuration…
+        </span>
       </div>
     );
   }
 
-  const isConnected = !!settings;
-  const currentMeta = getProviderMeta(settings?.provider || '');
   const selectedMeta = getProviderMeta(provider);
+  const isProviderSaved = savedProviders.has(provider);
 
   const handleTest = async () => {
     setErrorMsg('');
@@ -229,7 +358,6 @@ export default function MaveAiPanel() {
       setErrorMsg('Please enter an API key first.');
       return;
     }
-
     try {
       await testMutation.mutateAsync({
         provider,
@@ -251,34 +379,64 @@ export default function MaveAiPanel() {
     }
 
     try {
-      await saveMutation.mutateAsync({
+      const result = await saveMutation.mutateAsync({
         provider,
         apiKey: apiKey.trim(),
         model: model.trim() || undefined,
       });
-      toast.success('Mave AI connected to your API key.');
-      setApiKey(''); // Clear input for security
+
+      const count = result?.credential?.models?.length ?? 0;
+      const discovered = result?.discovered;
+      const label = selectedMeta?.label || provider;
+
+      if (discovered) {
+        toast.success(`${label} connected · ${count} model${count === 1 ? '' : 's'} in rotation.`);
+      } else {
+        toast.success(`${label} connected · using ${count} fallback model${count === 1 ? '' : 's'} (discovery failed).`);
+      }
+
+      setApiKey('');
       setModel('');
     } catch (err) {
       setErrorMsg(err?.message || 'Failed to save key.');
     }
   };
 
-  const handleDelete = async () => {
-    setShowDeleteConfirm(false);
+  const handleDelete = async (targetProvider) => {
+    setShowDeleteConfirm(null);
     try {
-      await deleteMutation.mutateAsync();
-      toast.success('API key removed. Falling back to default providers.');
-    } catch (err) {
+      await deleteMutation.mutateAsync(targetProvider);
+      toast.success('API key removed.');
+    } catch {
       toast.error('Failed to delete key.');
     }
+  };
+
+  const handleToggleModel = (prov, modelId, checked) => {
+    const cred = credentials.find((c) => c.provider === prov);
+    if (!cred) return;
+
+    const current = Array.isArray(cred.models) ? cred.models : [];
+    const next = checked
+      ? (current.includes(modelId) ? current : [...current, modelId])
+      : current.filter((m) => m !== modelId);
+
+    if (next.length === 0) {
+      toast.error('Keep at least one model in the rotation.');
+      return;
+    }
+
+    updateModelsMutation.mutate(
+      { provider: prov, models: next },
+      { onError: (err) => toast.error(err?.message || 'Failed to update models.') }
+    );
   };
 
   return (
     <>
       <style>{CSS}</style>
       <div className="mave-panel">
-        
+
         {/* Hero */}
         <div className="mave-hero">
           <div className="mave-hero-icon">
@@ -287,53 +445,44 @@ export default function MaveAiPanel() {
           <div className="mave-hero-text">
             <h3>Power up Mave AI</h3>
             <p>
-              By default, Mave AI uses shared free-tier providers (which have hourly limits). 
-              Connect your own OpenAI, Anthropic, or Groq API key for unlimited messages and priority speed.
+              By default, Mave AI uses shared free-tier providers (which have hourly limits).
+              Connect your own keys — the router rotates across every saved provider
+              and, within each provider, across every model, so a single exhausted
+              model doesn't end the conversation.
             </p>
           </div>
         </div>
 
-        {/* Status Card */}
-        {isConnected ? (
-          <div className="mave-status-card" style={{ borderColor: 'rgba(34,197,94,.3)', background: 'rgba(34,197,94,.05)' }}>
-            <div className="mave-status-left">
-              <span className="mave-status-title">
-                <CheckCircle2 size={13} /> Connected to {currentMeta?.label || settings.provider}
-              </span>
-              <span className="mave-status-desc">
-                Using model: <b style={{ fontFamily: "'IBM Plex Mono', monospace" }}>{settings.model || currentMeta?.defaultModel}</b>
-              </span>
-              <span className="mave-status-date">
-                Added {new Date(settings.updatedAt).toLocaleDateString()}
-              </span>
-            </div>
-            <button
-              type="button"
-              className="settings-btn settings-btn-danger"
-              onClick={() => setShowDeleteConfirm(true)}
-              disabled={deleteMutation.isPending}
-            >
-              <Trash2 size={12} />
-              {deleteMutation.isPending ? 'Removing…' : 'Disconnect'}
-            </button>
-          </div>
-        ) : (
-          <div className="mave-status-card">
-            <div className="mave-status-left">
-              <span className="mave-status-title is-default">
-                <AlertTriangle size={13} /> Using shared free-tier providers
-              </span>
-              <span className="mave-status-desc" style={{ color: 'var(--ink-2)' }}>
-                You may hit hourly rate limits. Connect a key below to remove limits.
-              </span>
+        {/* Saved credentials */}
+        {credentials.length > 0 && (
+          <div className="settings-section">
+            <h4 className="settings-section-title">
+              Saved providers ({credentials.length})
+            </h4>
+            <p className="settings-hint">
+              The router tries the least-recently-used provider first.
+              On a 429 or 5xx it slides to the next model — no interruption.
+            </p>
+            <div className="mave-cred-list">
+              {credentials.map((cred) => (
+                <SavedCredentialCard
+                  key={cred.provider}
+                  cred={cred}
+                  onRequestDelete={setShowDeleteConfirm}
+                  onToggleModel={handleToggleModel}
+                  updating={updateModelsMutation.isPending}
+                />
+              ))}
             </div>
           </div>
         )}
 
-        {/* Form */}
+        {/* Add / edit form */}
         <div className="settings-section">
           <h4 className="settings-section-title">
-            {isConnected ? 'Update API Key' : 'Connect Your API Key'}
+            {isProviderSaved
+              ? `Update ${selectedMeta?.label || provider} key`
+              : 'Connect a provider'}
           </h4>
 
           {errorMsg && (
@@ -343,7 +492,7 @@ export default function MaveAiPanel() {
           )}
 
           <form className="mave-form" onSubmit={handleSave}>
-            
+
             <div className="mave-field">
               <label className="mave-label">
                 <span>AI Provider</span>
@@ -354,9 +503,11 @@ export default function MaveAiPanel() {
                 onChange={(e) => setProvider(e.target.value)}
                 disabled={saveMutation.isPending}
               >
-                {AI_PROVIDERS.map((p) => (
+                {availableProviders.map((p) => (
                   <option key={p.id} value={p.id}>
-                    {p.label} {p.freeTier ? '(Free tier available)' : ''}
+                    {p.label}
+                    {p.freeTier ? ' (free tier available)' : ''}
+                    {savedProviders.has(p.id) ? '  ✓ saved' : ''}
                   </option>
                 ))}
               </select>
@@ -366,7 +517,11 @@ export default function MaveAiPanel() {
               <label className="mave-label">
                 <span>API Key</span>
                 {selectedMeta?.keyDocsUrl && (
-                  <a href={selectedMeta.keyDocsUrl} target="_blank" rel="noreferrer">
+                  <a
+                    href={selectedMeta.keyDocsUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
                     Get {selectedMeta.label} key <ExternalLink size={10} />
                   </a>
                 )}
@@ -374,7 +529,11 @@ export default function MaveAiPanel() {
               <input
                 type="password"
                 className="mave-input"
-                placeholder={selectedMeta ? `e.g. ${selectedMeta.keyPrefix}...` : 'Paste your key here'}
+                placeholder={
+                  selectedMeta
+                    ? `e.g. ${selectedMeta.keyPrefix}…`
+                    : 'Paste your key here'
+                }
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
                 disabled={saveMutation.isPending || testMutation.isPending}
@@ -385,12 +544,16 @@ export default function MaveAiPanel() {
 
             <div className="mave-field">
               <label className="mave-label">
-                <span>Model Override (Optional)</span>
+                <span>Primary model (optional)</span>
               </label>
               <input
                 type="text"
                 className="mave-input"
-                placeholder={selectedMeta ? `Default: ${selectedMeta.defaultModel}` : 'Leave blank for default'}
+                placeholder={
+                  selectedMeta
+                    ? `Default: ${selectedMeta.defaultModel}`
+                    : 'Leave blank for default'
+                }
                 value={model}
                 onChange={(e) => setModel(e.target.value)}
                 disabled={saveMutation.isPending || testMutation.isPending}
@@ -404,12 +567,20 @@ export default function MaveAiPanel() {
                 type="button"
                 className="settings-btn"
                 onClick={handleTest}
-                disabled={!apiKey.trim() || testMutation.isPending || saveMutation.isPending}
+                disabled={
+                  !apiKey.trim() ||
+                  testMutation.isPending ||
+                  saveMutation.isPending
+                }
               >
                 {testMutation.isPending ? (
-                  <><Loader2 size={12} className="settings-spin" /> Testing…</>
+                  <>
+                    <Loader2 size={12} className="settings-spin" /> Testing…
+                  </>
                 ) : (
-                  <><KeyRound size={12} /> Test Key</>
+                  <>
+                    <KeyRound size={12} /> Test key
+                  </>
                 )}
               </button>
 
@@ -418,9 +589,17 @@ export default function MaveAiPanel() {
               <button
                 type="submit"
                 className="settings-btn settings-btn-primary"
-                disabled={!apiKey.trim() || saveMutation.isPending || testMutation.isPending}
+                disabled={
+                  !apiKey.trim() ||
+                  saveMutation.isPending ||
+                  testMutation.isPending
+                }
               >
-                {saveMutation.isPending ? 'Saving…' : 'Save Key'}
+                {saveMutation.isPending
+                  ? 'Saving…'
+                  : isProviderSaved
+                    ? 'Update key'
+                    : 'Save key'}
               </button>
             </div>
           </form>
@@ -429,14 +608,18 @@ export default function MaveAiPanel() {
       </div>
 
       <Alert
-        isOpen={showDeleteConfirm}
+        isOpen={!!showDeleteConfirm}
         type="confirm"
-        title="Disconnect API Key?"
-        message={`Are you sure you want to remove your ${currentMeta?.label || 'API'} key? Mave AI will revert to using the shared free-tier providers.`}
+        title="Disconnect provider?"
+        message={
+          showDeleteConfirm
+            ? `Remove the ${getProviderMeta(showDeleteConfirm)?.label || showDeleteConfirm} key? The router will stop using it. You can re-add it later.`
+            : ''
+        }
         confirmText="Disconnect"
         cancelText="Cancel"
-        onConfirm={handleDelete}
-        onCancel={() => setShowDeleteConfirm(false)}
+        onConfirm={() => handleDelete(showDeleteConfirm)}
+        onCancel={() => setShowDeleteConfirm(null)}
       />
     </>
   );

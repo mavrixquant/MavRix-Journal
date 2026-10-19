@@ -12,7 +12,7 @@ import { getProviderMeta } from '@mavrix/shared';
 /**
  * Generates and saves an AI reply, then broadcasts it via SSE.
  *
- * @param {string} conversationId 
+ * @param {string} conversationId
  * @param {string} userId — the human user's ID
  * @param {string} maveAiId — the Mave AI user's ID
  */
@@ -22,7 +22,7 @@ export async function triggerAiResponse(conversationId, userId, maveAiId) {
   (async () => {
     try {
       const messages = await buildContext(conversationId, maveAiId);
-      
+
       // If the last message is from the AI, don't trigger another AI reply
       // (prevents infinite loops).
       const lastMsg = messages[messages.length - 1];
@@ -30,14 +30,16 @@ export async function triggerAiResponse(conversationId, userId, maveAiId) {
 
       const result = await executeChat(userId, messages);
 
-      // 1. If we had to switch providers, save a system notice first.
+      // 1. If we had to switch providers or models, save a system notice first.
       if (result.switchedFrom) {
-        const newProviderLabel = getProviderMeta(result.provider)?.label || result.provider;
+        const newProviderLabel =
+          getProviderMeta(result.provider)?.label || result.provider;
+        const modelLabel = result.model || 'unknown model';
         const switchMsg = await prisma.message.create({
           data: {
             conversationId,
             senderId: maveAiId, // Sent by the AI user
-            body: `Switched to ${newProviderLabel} (previous provider limited).`,
+            body: `Switched to ${newProviderLabel} · ${modelLabel} (previous provider limited).`,
             kind: 'ai_switch',
           },
         });
@@ -111,14 +113,13 @@ export async function triggerAiResponse(conversationId, userId, maveAiId) {
       };
 
       broadcastToUser(userId, 'chat:message:new', payload);
-
     } catch (err) {
       console.error('[mave-ai] Error generating response:', err.message);
 
       // Catch errors (like rate limits or all providers failing) and
       // tell the user inside the chat.
-      const errorText = err.message.includes('Rate limit') 
-        ? err.message 
+      const errorText = err.message.includes('Rate limit')
+        ? err.message
         : 'Mave AI is temporarily unavailable. Please try again or add your own API key in Settings.';
 
       const errorMsg = await prisma.message.create({

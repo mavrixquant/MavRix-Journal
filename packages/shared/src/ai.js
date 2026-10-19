@@ -1,83 +1,155 @@
 // packages/shared/src/ai.js
-export const MAVE_AI_EMAIL = 'mave-ai@mavrix.internal';
-export const MAVE_AI_FIRST_NAME = 'Mave';
-export const MAVE_AI_LAST_NAME = 'AI';
-export const MAVE_AI_DISPLAY_NAME = 'Mave AI';
+//
+// Provider registry shared by the API (router, discovery, controllers) and
+// the web client (Settings → Mave AI panel, BYOK form).
+//
+// ORDER MATTERS:
+//   • AI_PROVIDERS[] order drives the Settings dropdown AND the default
+//     admin provider chain (env.ai.providerPriority).
+//   • Adding a provider here immediately makes it selectable in the UI.
+//     The API needs a matching adapter in apps/api/src/lib/ai/providers/.
 
-export const AI_PROVIDERS = Object.freeze([
+export const AI_PROVIDERS = [
   {
-    id: 'openai',
-    label: 'OpenAI',
-    keyPrefix: 'sk-',
-    keyDocsUrl: 'https://platform.openai.com/api-keys',
-    defaultModel: 'gpt-4o-mini',
-    models: ['gpt-4o-mini', 'gpt-4o'],
-    freeTier: false,
-    note: 'Requires minimum $5 balance',
+    id: 'openrouter',
+    label: 'OpenRouter',
+    freeTier: true,
+    keyPrefix: 'sk-or-v1-',
+    keyDocsUrl: 'https://openrouter.ai/keys',
+    defaultModel: 'meta-llama/llama-3.3-70b-instruct:free',
   },
   {
-    id: 'anthropic',
-    label: 'Anthropic Claude',
-    keyPrefix: 'sk-ant-',
-    keyDocsUrl: 'https://console.anthropic.com/settings/keys',
-    defaultModel: 'claude-3-5-sonnet-latest',
-    models: ['claude-3-5-sonnet-latest', 'claude-3-haiku-20240307'],
-    freeTier: false,
-    note: 'Requires minimum $5 balance',
+    id: 'groq',
+    label: 'Groq',
+    freeTier: true,
+    keyPrefix: 'gsk_',
+    keyDocsUrl: 'https://console.groq.com/keys',
+    defaultModel: 'openai/gpt-oss-20b',
   },
   {
     id: 'gemini',
     label: 'Google Gemini',
+    freeTier: true,
     keyPrefix: 'AIza',
     keyDocsUrl: 'https://aistudio.google.com/apikey',
     defaultModel: 'gemini-3.8-flash',
-    models: ['gemini-3.8-flash', 'gemini-3.5-flash'],
-    freeTier: true,
-    freeNote: 'Free tier: 15 req/min, no card required',
-  },
-  {
-    id: 'groq',
-    label: 'Groq (GPT-OSS)',
-    keyPrefix: 'gsk_',
-    keyDocsUrl: 'https://console.groq.com/keys',
-    defaultModel: 'openai/gpt-oss-20b',
-    models: ['openai/gpt-oss-20b', 'openai/gpt-oss-120b'],
-    freeTier: true,
-    freeNote: 'Free tier: 30 req/min, no card required · very fast',
   },
   {
     id: 'deepseek',
     label: 'DeepSeek',
+    freeTier: false,
     keyPrefix: 'sk-',
     keyDocsUrl: 'https://platform.deepseek.com/api_keys',
     defaultModel: 'deepseek-chat',
-    models: ['deepseek-chat'],
-    freeTier: false,
-    note: 'Requires minimum $2 balance',
   },
-]);
+  {
+    id: 'openai',
+    label: 'OpenAI',
+    freeTier: false,
+    keyPrefix: 'sk-',
+    keyDocsUrl: 'https://platform.openai.com/api-keys',
+    defaultModel: 'gpt-4o-mini',
+  },
+  {
+    id: 'anthropic',
+    label: 'Anthropic',
+    freeTier: false,
+    keyPrefix: 'sk-ant-',
+    keyDocsUrl: 'https://console.anthropic.com/settings/keys',
+    defaultModel: 'claude-3-5-haiku-latest',
+  },
+];
 
-export const AI_PROVIDER_IDS = AI_PROVIDERS.map((p) => p.id);
+const PROVIDER_MAP = Object.fromEntries(AI_PROVIDERS.map((p) => [p.id, p]));
 
 export function getProviderMeta(id) {
-  return AI_PROVIDERS.find((p) => p.id === id) || null;
+  return PROVIDER_MAP[id] || null;
 }
 
-export function validateApiKeyFormat(providerId, key) {
-  const meta = getProviderMeta(providerId);
-  if (!meta) return { ok: false, reason: 'Unknown provider' };
-  if (!key || typeof key !== 'string') {
-    return { ok: false, reason: 'API key is required' };
+// ---------------------------------------------------------------------------
+// Curated fallback model lists.
+//
+// Used ONLY when live model discovery fails at save time (network error,
+// /models returns 403/404, provider temporarily down). The key save still
+// succeeds — the credential just gets a smaller default rotation instead of
+// the full live list. The user can re-save to retry discovery, or toggle
+// individual models in Settings → Mave AI.
+//
+// Ordered by preference. The router tries models[] in order.
+// ---------------------------------------------------------------------------
+
+export const fallbackModels = {
+  openrouter: [
+    'meta-llama/llama-3.3-70b-instruct:free',
+    'google/gemini-2.0-flash-exp:free',
+    'deepseek/deepseek-r1:free',
+    'qwen/qwen-2.5-72b-instruct:free',
+    'mistralai/mistral-small-24b-instruct-2501:free',
+  ],
+  groq: [
+    'openai/gpt-oss-20b',
+    'llama-3.3-70b-versatile',
+    'llama-3.1-8b-instant',
+  ],
+  gemini: [
+    'gemini-3.8-flash',
+    'gemini-3.8-pro',
+  ],
+  deepseek: [
+    'deepseek-chat',
+    'deepseek-reasoner',
+  ],
+  openai: [
+    'gpt-4o-mini',
+    'gpt-4o',
+  ],
+  anthropic: [
+    'claude-3-5-haiku-latest',
+    'claude-3-5-sonnet-latest',
+  ],
+};
+
+// ---------------------------------------------------------------------------
+// Chat-model filter — drops embedding / TTS / image / moderation models
+// that some providers return alongside chat models.
+// ---------------------------------------------------------------------------
+
+const OPENAI_EXCLUDE_PREFIXES = [
+  'text-embedding-', 'text-moderation-', 'whisper-', 'tts-',
+  'dall-e-', 'omni-moderation-', 'sora-',
+];
+
+const OPENAI_KEEP_PREFIXES = [
+  'gpt-', 'o1', 'o3', 'o4', 'chatgpt-',
+];
+
+export function filterChatModels(provider, ids) {
+  if (!Array.isArray(ids)) return [];
+  const unique = [...new Set(ids.map((s) => String(s).trim()).filter(Boolean))];
+
+  if (provider === 'openai') {
+    return unique.filter((id) => {
+      if (OPENAI_EXCLUDE_PREFIXES.some((p) => id.startsWith(p))) return false;
+      return OPENAI_KEEP_PREFIXES.some((p) => id.startsWith(p));
+    });
   }
-  const trimmed = key.trim();
-  if (trimmed.length < 10) {
-    return { ok: false, reason: 'API key looks too short' };
-  }
-  if (meta.keyPrefix && !trimmed.startsWith(meta.keyPrefix)) {
-    return {
-      ok: false,
-      reason: `${meta.label} keys should start with "${meta.keyPrefix}"`,
-    };
-  }
-  return { ok: true };
+
+  return unique;
 }
+// ---------------------------------------------------------------------------
+// Built-in Mave AI sentinel identity.
+//
+// Used by apps/api/src/services/maveAiBootstrap.js when CREATING the AI user
+// on a fresh database. On databases where the AI user already exists (the
+// normal case), these values are never applied — the bootstrap does
+// `findFirst({ where: { isAi: true } })` first and short-circuits.
+//
+// If you want to match your EXISTING AI user's email exactly (check with
+// `npx prisma studio` → users → filter isAi=true), update MAVE_AI_EMAIL to
+// the value you see there. Otherwise the defaults below are fine for a
+// future fresh deploy.
+// ---------------------------------------------------------------------------
+
+export const MAVE_AI_EMAIL      = 'mave-ai@mavrix.local';
+export const MAVE_AI_FIRST_NAME = 'Mave';
+export const MAVE_AI_LAST_NAME  = 'AI';

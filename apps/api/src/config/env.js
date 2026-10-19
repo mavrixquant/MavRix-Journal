@@ -86,24 +86,26 @@ export const env = {
   // the master key is missing.
   //
   // Get free keys:
-  //   Groq    → https://console.groq.com/keys
-  //   Gemini  → https://aistudio.google.com/apikey
-  //   DeepSeek → https://platform.deepseek.com/api_keys (cheap, not free)
+  //   OpenRouter → https://openrouter.ai/keys          (free models)
+  //   Groq       → https://console.groq.com/keys        (free tier)
+  //   Gemini     → https://aistudio.google.com/apikey   (free tier)
+  //   DeepSeek   → https://platform.deepseek.com/api_keys (paid, cheap)
   // ---------------------------------------------------------------------------
   ai: {
     masterKey: optional('MAVE_AI_MASTER_KEY'),
 
-    providerPriority: optional('MAVE_AI_PROVIDER_PRIORITY', 'groq,gemini,deepseek')
+    providerPriority: optional('MAVE_AI_PROVIDER_PRIORITY', 'openrouter,groq,gemini,deepseek')
       .split(',')
       .map((s) => s.trim())
       .filter(Boolean),
 
     keys: {
-      groq:      optional('MAVE_AI_GROQ_KEY'),
-      gemini:    optional('MAVE_AI_GEMINI_KEY'),
-      deepseek:  optional('MAVE_AI_DEEPSEEK_KEY'),
-      openai:    optional('MAVE_AI_OPENAI_KEY'),
-      anthropic: optional('MAVE_AI_ANTHROPIC_KEY'),
+      openrouter: optional('MAVE_AI_OPENROUTER_KEY'),
+      groq:       optional('MAVE_AI_GROQ_KEY'),
+      gemini:     optional('MAVE_AI_GEMINI_KEY'),
+      deepseek:   optional('MAVE_AI_DEEPSEEK_KEY'),
+      openai:     optional('MAVE_AI_OPENAI_KEY'),
+      anthropic:  optional('MAVE_AI_ANTHROPIC_KEY'),
     },
 
     historyLimit:     Number(optional('MAVE_AI_HISTORY_LIMIT', 20)),

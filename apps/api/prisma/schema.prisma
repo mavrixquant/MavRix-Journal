@@ -74,9 +74,10 @@ model User {
   blocksInitiated    UserBlock[]     @relation("UserBlockBlocker")
   blocksReceived     UserBlock[]     @relation("UserBlockBlocked")
 
-  // Per-user BYOK credential for Mave AI. Nullable — most users will not
-  // have one (they use the app's shared provider chain).
-  aiCredential AiCredential?
+  // Per-user BYOK credentials for Mave AI. One row per (userId, provider).
+  // The router rotates across all of a user's credentials using lastUsedAt
+  // as the LRU driver.
+  aiCredentials AiCredential[]
 
   @@index([role])
   @@index([isBanned])
@@ -479,35 +480,38 @@ model UserBlock {
 }
 
 // ---------------------------------------------------------------------------
-// AiCredential — one encrypted BYOK credential per user.
+// AiCredential — BYOK credentials for Mave AI.
 //
-// The plaintext API key never touches the database. It is encrypted with
-// AES-256-GCM using MAVE_AI_MASTER_KEY (a 32-byte hex string stored only
-// in the API's environment). The three hex columns below are:
+// ONE ROW PER (userId, provider). The router lists every row for a user
+// ordered by `lastUsedAt` (nulls first) and tries each credential's
+// `models[]` in sequence until one succeeds.
 //
-//   encryptedKey — the ciphertext (hex)
-//   keyIv        — the 12-byte nonce (hex)
-//   keyTag       — the 16-byte GCM authentication tag (hex)
+// Encryption: AES-256-GCM with MAVE_AI_MASTER_KEY. The three hex columns
+// below must all be present to decrypt.
 //
-// All three must be present to decrypt. If any is missing or the tag does
-// not verify (meaning the ciphertext was tampered with or the master key
-// was rotated), decryption throws and the BYOK path is skipped — the
-// router falls back to admin providers.
-//
-// ONE row per user: enforced by UNIQUE(userId).
+//   models[]    — ordered list of chat models for this credential. Populated
+//                 by discoverModels() at save time; falls back to the curated
+//                 list from @mavrix/shared on discovery failure.
+//   lastUsedAt  — LRU rotation driver. NULL means never used → first.
+//   model       — legacy "primary model" override. Still respected if
+//                 models[] is empty (backward compat for pre-migration rows).
 // ---------------------------------------------------------------------------
 model AiCredential {
   id           String   @id @default(cuid())
-  userId       String   @unique
-  provider     String   // 'openai' | 'anthropic' | 'gemini' | 'groq' | 'deepseek'
+  userId       String
+  provider     String   // 'openrouter' | 'openai' | 'anthropic' | 'gemini' | 'groq' | 'deepseek'
   encryptedKey String   // hex ciphertext
   keyIv        String   // hex IV (12 bytes)
   keyTag       String   // hex GCM tag (16 bytes)
-  model        String?  // optional model override, e.g. 'gpt-4o-mini'
+  model        String?  // legacy primary model override
+  models       Json     @default("[]")  // ordered list of chat models
+  lastUsedAt   DateTime?                // LRU rotation driver
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@unique([userId, provider])
+  @@index([userId])
   @@map("ai_credentials")
 }
