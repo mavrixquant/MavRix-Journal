@@ -11,6 +11,7 @@ import { marketDataRoutes } from './marketData.routes.js';
 import { adminRoutes } from './admin.routes.js';
 import { chatRoutes } from './chat.routes.js';
 import { friendsRoutes } from './friends.routes.js';
+import { aiRoutes } from './ai.routes.js'; // NEW
 
 export const apiRouter = Router();
 
@@ -26,4 +27,5 @@ apiRouter.use('/gex', gexRoutes);
 apiRouter.use('/market-data', marketDataRoutes);
 apiRouter.use('/chat', chatRoutes);
 apiRouter.use('/friends', friendsRoutes);
+apiRouter.use('/ai', aiRoutes); // NEW
 apiRouter.use('/admin', adminRoutes);
