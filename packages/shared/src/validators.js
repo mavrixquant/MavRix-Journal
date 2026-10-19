@@ -281,3 +281,18 @@ export const updateConversationSchema = z.object({
   isMuted: z.boolean().optional(),
   isArchived: z.boolean().optional(),
 });
+/* ------------------------------------------------------------------ */
+/*  Mave AI — BYOK credential (settings panel)                         */
+/* ------------------------------------------------------------------ */
+//
+// Client sends the plaintext API key once. The API encrypts it before
+// writing to the database; the plaintext never touches disk.
+//
+// Provider must match one of the AI_PROVIDERS ids in ai.js. The API
+// re-validates this on the server side as well.
+
+export const aiCredentialSchema = z.object({
+  provider: z.enum(['openai', 'anthropic', 'gemini', 'groq', 'deepseek']),
+  apiKey: z.string().trim().min(10).max(500),
+  model: z.string().trim().max(100).optional().nullable(),
+});

@@ -36,6 +36,10 @@ model User {
 
   preferences Json @default("{}")
 
+  // Mave AI sentinel. Exactly one user has isAi = true (the built-in
+  // assistant). Enforced at the service layer — see maveAiBootstrap.js.
+  isAi Boolean @default(false)
+
   accounts      Account[]
   layouts       UserLayout[]
   strategies    Strategy[]
@@ -70,8 +74,13 @@ model User {
   blocksInitiated    UserBlock[]     @relation("UserBlockBlocker")
   blocksReceived     UserBlock[]     @relation("UserBlockBlocked")
 
+  // Per-user BYOK credential for Mave AI. Nullable — most users will not
+  // have one (they use the app's shared provider chain).
+  aiCredential AiCredential?
+
   @@index([role])
   @@index([isBanned])
+  @@index([isAi])
   @@map("users")
 }
 
@@ -290,6 +299,9 @@ model Strategy {
 // Group-specific columns on ConversationParticipant:
 //   role         — 'owner' | 'moderator' | 'member'. Default 'member'.
 //                  DMs leave this at 'member'.
+//
+// Mave AI DMs are ordinary `type='dm'` rows. The only distinguishing feature
+// is that the peer (User.isAi === true) is the built-in assistant.
 // ---------------------------------------------------------------------------
 model Conversation {
   id              String   @id @default(cuid())
@@ -350,6 +362,13 @@ model Message {
   conversationId String
   senderId       String
   body           String
+
+  // 'user'      — normal message written by a human
+  // 'system'    — inline system notice (e.g. "Mave AI is cooling down")
+  // 'ai_switch' — inline notice explaining a provider switch
+  // All kinds render inside the thread; the UI treats them differently.
+  kind           String    @default("user")
+
   replyToId      String?
   createdAt      DateTime  @default(now())
   editedAt       DateTime?
@@ -457,4 +476,38 @@ model UserBlock {
   @@index([blockerId])
   @@index([blockedId])
   @@map("user_blocks")
+}
+
+// ---------------------------------------------------------------------------
+// AiCredential — one encrypted BYOK credential per user.
+//
+// The plaintext API key never touches the database. It is encrypted with
+// AES-256-GCM using MAVE_AI_MASTER_KEY (a 32-byte hex string stored only
+// in the API's environment). The three hex columns below are:
+//
+//   encryptedKey — the ciphertext (hex)
+//   keyIv        — the 12-byte nonce (hex)
+//   keyTag       — the 16-byte GCM authentication tag (hex)
+//
+// All three must be present to decrypt. If any is missing or the tag does
+// not verify (meaning the ciphertext was tampered with or the master key
+// was rotated), decryption throws and the BYOK path is skipped — the
+// router falls back to admin providers.
+//
+// ONE row per user: enforced by UNIQUE(userId).
+// ---------------------------------------------------------------------------
+model AiCredential {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  provider     String   // 'openai' | 'anthropic' | 'gemini' | 'groq' | 'deepseek'
+  encryptedKey String   // hex ciphertext
+  keyIv        String   // hex IV (12 bytes)
+  keyTag       String   // hex GCM tag (16 bytes)
+  model        String?  // optional model override, e.g. 'gpt-4o-mini'
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("ai_credentials")
 }

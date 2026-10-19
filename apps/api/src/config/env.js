@@ -5,6 +5,8 @@ const required = (key) => {
   return v;
 };
 
+const optional = (key, fallback = '') => process.env[key] || fallback;
+
 export const env = {
   nodeEnv: process.env.NODE_ENV || 'development',
   port: Number(process.env.PORT || 4000),
@@ -69,5 +71,44 @@ export const env = {
       '4h':  Number(process.env.YAHOO_TTL_4H  || 60 * 60_000),
       '1d':  Number(process.env.YAHOO_TTL_1D  || 60 * 60_000),
     },
+  },
+
+  // ---------------------------------------------------------------------------
+  // Mave AI — built-in assistant.
+  //
+  // Providers are tried in `providerPriority` order. Each provider's key
+  // can be blank (the router just skips that provider). BYOK credentials
+  // live in the DB; these env keys are the ADMIN fallback chain.
+  //
+  // `masterKey` is used to encrypt/decrypt BYOK credentials (AES-256-GCM).
+  // It is optional at boot so that local dev without BYOK works. The
+  // crypto module throws only when someone tries to SAVE a BYOK key and
+  // the master key is missing.
+  //
+  // Get free keys:
+  //   Groq    → https://console.groq.com/keys
+  //   Gemini  → https://aistudio.google.com/apikey
+  //   DeepSeek → https://platform.deepseek.com/api_keys (cheap, not free)
+  // ---------------------------------------------------------------------------
+  ai: {
+    masterKey: optional('MAVE_AI_MASTER_KEY'),
+
+    providerPriority: optional('MAVE_AI_PROVIDER_PRIORITY', 'groq,gemini,deepseek')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean),
+
+    keys: {
+      groq:      optional('MAVE_AI_GROQ_KEY'),
+      gemini:    optional('MAVE_AI_GEMINI_KEY'),
+      deepseek:  optional('MAVE_AI_DEEPSEEK_KEY'),
+      openai:    optional('MAVE_AI_OPENAI_KEY'),
+      anthropic: optional('MAVE_AI_ANTHROPIC_KEY'),
+    },
+
+    historyLimit:     Number(optional('MAVE_AI_HISTORY_LIMIT', 20)),
+    userRatePerHour:  Number(optional('MAVE_AI_USER_RATE_PER_HOUR', 20)),
+    maxTokens:        Number(optional('MAVE_AI_MAX_TOKENS', 1024)),
+    requestTimeoutMs: Number(optional('MAVE_AI_TIMEOUT_MS', 30_000)),
   },
 };
