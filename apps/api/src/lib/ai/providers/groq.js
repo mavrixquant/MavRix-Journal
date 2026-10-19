@@ -1,8 +1,4 @@
 // apps/api/src/lib/ai/providers/groq.js
-//
-// Groq adapter (OpenAI-compatible endpoint).
-// Docs: https://console.groq.com/docs/api-reference#chat-create
-
 import { safeFetch, ProviderError } from './base.js';
 
 export async function chat(messages, { apiKey, model, maxTokens, timeoutMs }) {
@@ -17,7 +13,7 @@ export async function chat(messages, { apiKey, model, maxTokens, timeoutMs }) {
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: model || 'llama-3.3-70b-versatile',
+        model: model || 'openai/gpt-oss-20b',
         messages,
         max_tokens: maxTokens,
         temperature: 0.7,

@@ -5,7 +5,7 @@
 //   - Settings icon → Preferences tab
 //   - User pill     → Account tab
 //
-// All 7 tabs are functional. Preference persistence lives in
+// All 8 tabs are functional. Preference persistence lives in
 // SettingsProvider (mounted at the app root).
 
 import { useEffect, useState } from 'react';
@@ -18,6 +18,7 @@ import {
   Database,
   Info,
   X,
+  Sparkles, // NEW
 } from 'lucide-react';
 
 import Portal from '@/shared/components/Portal';
@@ -29,6 +30,7 @@ import NotificationsPanel from './panels/NotificationsPanel';
 import ChatsPanel         from './panels/ChatsPanel';
 import DataPanel          from './panels/DataPanel';
 import AboutPanel         from './panels/AboutPanel';
+import MaveAiPanel        from './panels/MaveAiPanel'; // NEW
 
 import './SettingsModal.css';
 
@@ -43,6 +45,13 @@ const TABS = [
     title: 'Account Settings',
     subtitle: 'Your profile, email verification, and connected accounts.',
     icon: User,
+  },
+  {
+    id: 'mave-ai',
+    label: 'Mave AI',
+    title: 'Mave AI Assistant',
+    subtitle: 'Configure your personal AI assistant and API keys.',
+    icon: Sparkles,
   },
   {
     id: 'appearance',
@@ -95,6 +104,7 @@ const TABS = [
 function renderPanel(id) {
   switch (id) {
     case 'account':       return <AccountPanel />;
+    case 'mave-ai':       return <MaveAiPanel />;
     case 'appearance':    return <AppearancePanel />;
     case 'preferences':   return <PreferencesPanel />;
     case 'notifications': return <NotificationsPanel />;

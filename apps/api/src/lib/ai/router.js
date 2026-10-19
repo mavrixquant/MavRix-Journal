@@ -103,18 +103,21 @@ export async function executeChat(userId, messages) {
       const meta = getProviderMeta(attempt.id);
       previousProviderName = meta ? meta.label : attempt.id;
 
-      // If it's a rate limit (429), or a generic 5xx server error,
-      // we try the next provider.
-      // If it's a 401 (invalid key), we also try the next provider
-      // (e.g., user BYOK is dead, fall back to admin).
+      // Fallback on:
+      // - 429 Rate limit
+      // - 401 Invalid Key
+      // - 404 Model Not Found (deprecated)
+      // - 5xx Server Errors
+      // - 504 Timeout
       if (
         err.isRateLimit ||
         err.status === 401 ||
+        err.status === 404 ||
         err.status === 429 ||
         (err.status >= 500 && err.status <= 599) ||
-        err.status === 504 // timeout
+        err.status === 504
       ) {
-        continue; // try next
+        continue; // try next provider
       }
 
       // Hard failure (e.g., bad request, content policy)
