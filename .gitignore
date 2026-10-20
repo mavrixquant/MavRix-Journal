@@ -1,22 +1,18 @@
 node_modules/
 dist/
 build/
+.vscode/
+.idea/
+coverage/
+
+
 .env
 .env.*
 !.env.example
 *.log
 .DS_Store
-.vscode/
-.idea/
-coverage/
-apps/api/prisma/migrations/dev.db*
-ai-context
-*.ps1
-*.mjs
-notes.*
-# GEX data backups (contains real data � never commit)
-apps/api/backups/
 
-# Chat smoke-test scratch files
-.chat-*
-_smoke-chat.ps1
+apps/api/prisma/migrations/dev.db*
+notes.*
+
+backups/
