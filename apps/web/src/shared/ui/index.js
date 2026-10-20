@@ -1,8 +1,3 @@
-// apps/web/src/shared/ui/index.js
-//
-// Public surface of the shadcn-style primitives. Deep-imports are fine for
-// rarely-used components; this barrel is for the ones that show up across
-// multiple features.
 
 export { Toaster } from './sonner';
 export { PageSkeleton } from './page-skeleton';

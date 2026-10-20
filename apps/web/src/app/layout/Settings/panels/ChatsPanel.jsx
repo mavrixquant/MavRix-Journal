@@ -1,14 +1,3 @@
-// apps/web/src/app/layout/Settings/panels/ChatsPanel.jsx
-//
-// Chat preferences + Blocked Users management.
-//
-// The Blocked Users section was previously surfaced via a floating modal
-// opened from the chat rail. That button was removed in Phase 3; the list
-// now lives here, inline, alongside the rest of the chat preferences.
-//
-// Unblock always goes through a confirm dialog — it's destructive to the
-// friendship (which is already torn down on block), so we don't want a
-// stray click to silently restore visibility.
 
 import { useState } from 'react';
 import { ShieldOff, ShieldCheck, Loader2 } from 'lucide-react';
@@ -18,9 +7,6 @@ import { useSettings } from '../SettingsProvider';
 import { useBlocks, useUnblockUser } from '@/shared/api/friends';
 import Alert from '@/shared/components/Alert';
 
-/* ------------------------------------------------------------------ */
-/*  Local primitives (unchanged from previous version)                 */
-/* ------------------------------------------------------------------ */
 
 function Toggle({ on, onChange, label }) {
   return (
@@ -35,9 +21,6 @@ function Toggle({ on, onChange, label }) {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Blocked Users section                                             */
-/* ------------------------------------------------------------------ */
 
 function initialsOf(u) {
   if (!u) return '?';
@@ -240,9 +223,6 @@ function BlockedUsersSection() {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Panel                                                             */
-/* ------------------------------------------------------------------ */
 
 export default function ChatsPanel() {
   const { settings, update } = useSettings();

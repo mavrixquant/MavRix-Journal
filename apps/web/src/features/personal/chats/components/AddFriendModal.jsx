@@ -1,9 +1,3 @@
-﻿// apps/web/src/features/personal/chats/components/AddFriendModal.jsx
-//
-// PHASE 5 — self-contained scoped CSS. Same functionality as before:
-// send a friend request by email, show success or error inline, close on
-// success. Visual polish: consistent eyebrow/label typography, tighter
-// field spacing, entrance animation on the modal.
 
 import { useEffect, useState } from 'react';
 import { X, UserRoundPlus, Mail } from 'lucide-react';

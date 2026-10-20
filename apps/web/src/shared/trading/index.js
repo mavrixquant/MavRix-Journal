@@ -1,7 +1,3 @@
-// apps/web/src/shared/trading/index.js
-//
-// Barrel for the trading domain logic that multiple features depend on
-// (dashboard, simulator, journal, accounts).
 
 export * from './sl.js';
 export * from './time.js';

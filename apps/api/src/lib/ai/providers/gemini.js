@@ -1,11 +1,9 @@
-// apps/api/src/lib/ai/providers/gemini.js
 import { safeFetch, ProviderError } from './base.js';
 
 export async function chat(messages, { apiKey, model, maxTokens, timeoutMs }) {
   const targetModel = model || 'gemini-3.8-flash';
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:generateContent?key=${apiKey}`;
 
-  // Split out the system prompt
   const systemMsg = messages.find((m) => m.role === 'system');
   const chatMessages = messages.filter((m) => m.role !== 'system');
 

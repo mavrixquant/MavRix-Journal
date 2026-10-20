@@ -1,4 +1,3 @@
-// apps/web/src/features/journal/dashboard/api/layouts.js
 import { apiJson } from '@/shared/api/client';
 
 export async function getLayouts() {
@@ -31,7 +30,6 @@ export async function deleteLayout(layoutId) {
   return apiJson(`/api/users/layouts/${layoutId}`, { method: 'DELETE' });
 }
 
-// Firebase-compatible subscribe — fetches once. There is no server push.
 export function subscribeToUserLayouts(_userId, callback) {
   let cancelled = false;
 
@@ -48,8 +46,6 @@ export function subscribeToUserLayouts(_userId, callback) {
   return () => { cancelled = true; };
 }
 
-// Matches the old Firebase signature: saveUserLayouts(userId, layouts, activeId).
-// Diffs against current server state and issues the minimal set of calls.
 export async function saveUserLayouts(_userId, desiredLayouts, desiredActiveId) {
   const current = await getLayouts();
   const currentById = new Map(current.layouts.map((l) => [l.id, l]));

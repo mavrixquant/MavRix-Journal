@@ -1,4 +1,3 @@
-// src/components/dashboard/sections/AdvancedKPIGrid.jsx
 import { useStats } from '@/features/dashboard/hooks/useStats';
 
 const ADV_CSS = `

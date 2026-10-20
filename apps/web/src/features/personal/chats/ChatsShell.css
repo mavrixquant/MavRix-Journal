@@ -1,40 +1,6 @@
-/* apps/web/src/features/personal/chats/ChatsShell.css
- * ────────────────────────────────────────────────────────────────────────
- * PHASE 6 — FINAL, CLEAN REWRITE.
- *
- * Only classes used by the current chat components are declared here.
- * All legacy rules from Phases 1–5 (.chat-thread-wrap, .user-profile-*,
- * .chat-msg-*, .chat-composer-*, .rail-*, .chat-newchat-*, .bcm-*, .afm-*,
- * .bum-*, .gsm-member-*, .gsm-role-chip*, .gsm-search, .gsm-add-*,
- * .gsm-empty, .gsm-spin, .gsm-stale, .gsm-icon-btn) have been removed —
- * their hosting components were rewritten or deleted in earlier phases.
- *
- * Sections:
- *   1.  Shell (chat-shell / chat-body / chat-sidebar / chat-thread-pane)
- *   2.  Rail (chat-rail-*)
- *   3.  Sidebar head + search + tabs + archived row + list + footer
- *   4.  Conversation row (conv-*) + friend pill
- *   5.  Sidebar skeleton
- *   6.  Thread skeleton
- *   7.  Conversation header (chat-header-*)
- *   8.  Thread pane + message scroll + day/unread separators + load-more
- *   9.  Message bubble (msg-*)
- *   10. Typing indicator
- *   11. Scroll-to-bottom pill
- *   12. Reply banner
- *   13. Composer (composer-*)
- *   14. Right panel (chat-panel-* + panel-*)
- *   15. Member popover (mpp-*)
- *   16. Message context menu (chat-ctx-*)
- *   17. Friends panes (side-pane-* + pane-*)
- *   18. Group settings modal (gsm-* — settings only)
- *   19. Shared modal backdrop (chat-modal-overlay)
- *   20. Responsive + reduced-motion + focus-visible
- * ──────────────────────────────────────────────────────────────────────── */
 
-/* ══════════════════════════════════════════════════════════════════════
-   1. SHELL
-   ══════════════════════════════════════════════════════════════════════ */
+
+
 
 .chat-shell {
   display: flex;
@@ -100,9 +66,7 @@
   overflow: hidden;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
-   2. RAIL
-   ══════════════════════════════════════════════════════════════════════ */
+
 
 .chat-rail {
   flex: 0 0 76px;
@@ -251,9 +215,7 @@
   white-space: nowrap !important;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
-   3. SIDEBAR
-   ══════════════════════════════════════════════════════════════════════ */
+
 
 .chat-sidebar-head {
   flex-shrink: 0;
@@ -464,9 +426,7 @@
   border-color: var(--accent-soft2);
 }
 
-/* ══════════════════════════════════════════════════════════════════════
-   4. CONVERSATION ROW
-   ══════════════════════════════════════════════════════════════════════ */
+
 
 .conv-row {
   position: relative;
@@ -602,9 +562,7 @@
   color: #f87171;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
-   5. SIDEBAR SKELETON
-   ══════════════════════════════════════════════════════════════════════ */
+
 
 .chat-skel-row {
   display: flex;
@@ -644,9 +602,7 @@
   100% { background-position: -200% 0; }
 }
 
-/* ══════════════════════════════════════════════════════════════════════
-   6. THREAD SKELETON
-   ══════════════════════════════════════════════════════════════════════ */
+
 
 .thread-skeleton {
   padding: 22px;
@@ -685,9 +641,7 @@
   animation: chatSkelShimmer 1.4s linear infinite;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
-   7. CONVERSATION HEADER
-   ══════════════════════════════════════════════════════════════════════ */
+
 
 .chat-header {
   flex-shrink: 0;
@@ -782,9 +736,7 @@
   background: color-mix(in srgb, var(--accent) 6%, transparent);
 }
 
-/* ══════════════════════════════════════════════════════════════════════
-   8. THREAD — SCROLL AREA, SEPARATORS, LOAD MORE
-   ══════════════════════════════════════════════════════════════════════ */
+
 
 .chat-thread-messages-wrap {
   position: relative;
@@ -823,7 +775,7 @@
   flex-direction: column;
 }
 
-/* ---------- Day separator ---------- */
+
 .chat-day-sep {
   align-self: center;
   margin: 18px 0 8px;
@@ -844,7 +796,7 @@
 }
 .chat-day-sep time { color: inherit; }
 
-/* ---------- Unread separator ---------- */
+
 .chat-unread-sep {
   align-self: center;
   margin: 18px 0 10px;
@@ -878,7 +830,7 @@
   border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
 }
 
-/* ---------- Load earlier ---------- */
+
 .chat-load-more {
   align-self: center;
   margin: 4px auto 16px;
@@ -907,9 +859,7 @@
   cursor: default;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
-   9. MESSAGE BUBBLES
-   ══════════════════════════════════════════════════════════════════════ */
+
 
 .msg-row {
   display: flex;
@@ -1050,9 +1000,7 @@
   box-shadow: 0 4px 14px -6px rgba(0,0,0,.75);
   opacity: 0;
   visibility: hidden;
-  /* 250ms grace period: buttons stay clickable for 250ms after the row
-     loses hover, so the cursor can cross the 6px gap between the bubble
-     and the buttons without them disappearing first. */
+
   transition: opacity .14s ease, visibility 0s linear .25s;
   z-index: 2;
 }
@@ -1151,9 +1099,7 @@
 
 .msg-row.is-optimistic .msg-bubble { opacity: .75; }
 
-/* ══════════════════════════════════════════════════════════════════════
-   10. TYPING INDICATOR
-   ══════════════════════════════════════════════════════════════════════ */
+
 
 .typing-indicator {
   align-self: flex-start;
@@ -1185,9 +1131,7 @@
   40%           { transform: translateY(-3px); opacity: 1;   }
 }
 
-/* ══════════════════════════════════════════════════════════════════════
-   11. SCROLL-TO-BOTTOM PILL
-   ══════════════════════════════════════════════════════════════════════ */
+
 
 .scroll-to-bottom {
   position: absolute;
@@ -1234,9 +1178,7 @@
   to   { opacity: 1; transform: none; }
 }
 
-/* ══════════════════════════════════════════════════════════════════════
-   12. REPLY BANNER
-   ══════════════════════════════════════════════════════════════════════ */
+
 
 .chat-reply-banner {
   flex-shrink: 0;
@@ -1301,9 +1243,7 @@
   to   { opacity: 1; transform: none; }
 }
 
-/* ══════════════════════════════════════════════════════════════════════
-   13. COMPOSER
-   ══════════════════════════════════════════════════════════════════════ */
+
 
 .composer {
   flex-shrink: 0;
@@ -1498,9 +1438,7 @@
   white-space: nowrap;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
-   14. RIGHT PANEL
-   ══════════════════════════════════════════════════════════════════════ */
+
 
 .chat-panel {
   flex: 0 0 320px;
@@ -2006,9 +1944,7 @@
   gap: 1px;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
-   15. MEMBER PROFILE POPOVER
-   ══════════════════════════════════════════════════════════════════════ */
+
 
 .mpp-content {
   width: 288px;
@@ -2178,9 +2114,7 @@
   border-color: rgba(239,68,68,.32);
 }
 
-/* ══════════════════════════════════════════════════════════════════════
-   16. MESSAGE CONTEXT MENU
-   ══════════════════════════════════════════════════════════════════════ */
+
 
 .chat-ctx-menu {
   position: fixed;
@@ -2235,9 +2169,7 @@
 .chat-ctx-item.is-danger svg { color: #f87171; }
 .chat-ctx-item:disabled { opacity: .45; cursor: not-allowed; }
 
-/* ══════════════════════════════════════════════════════════════════════
-   17. FRIENDS PANES (side-pane + pane-*)
-   ══════════════════════════════════════════════════════════════════════ */
+
 
 .side-pane {
   display: flex;
@@ -2442,10 +2374,7 @@
   background: rgba(255,255,255,.04);
 }
 
-/* ══════════════════════════════════════════════════════════════════════
-   18. GROUP SETTINGS MODAL (settings-only — member management moved
-       to GroupProfilePanel in Phase 4)
-   ══════════════════════════════════════════════════════════════════════ */
+
 
 .gsm-modal {
   --line: rgba(255,255,255,.085);
@@ -2687,9 +2616,7 @@
   border-color: rgba(239,68,68,.55);
 }
 
-/* ══════════════════════════════════════════════════════════════════════
-   19. SHARED MODAL BACKDROP (used by GroupSettingsModal)
-   ══════════════════════════════════════════════════════════════════════ */
+
 
 .chat-modal-overlay {
   position: fixed;
@@ -2709,12 +2636,9 @@
   to   { opacity: 1; }
 }
 
-/* ══════════════════════════════════════════════════════════════════════
-   20. FOCUS-VISIBLE / RESPONSIVE / REDUCED MOTION
-   ══════════════════════════════════════════════════════════════════════ */
 
-/* Keyboard focus rings — one place for every interactive row/button.
-   Uses outline-offset so focus is visible even on full-bleed rows. */
+
+
 .conv-row:focus-visible,
 .chat-rail-btn:focus-visible,
 .chat-sidebar-tab:focus-visible,
@@ -2746,7 +2670,7 @@
   border-color: var(--accent);
 }
 
-/* ---------- Tablet: right panel becomes overlay drawer ---------- */
+
 @media (max-width: 1100px) {
   .chat-panel {
     position: absolute;
@@ -2760,7 +2684,7 @@
   }
 }
 
-/* ---------- Mobile: single-pane with slide animation ---------- */
+
 @media (max-width: 900px) {
   .chat-shell {
     flex-direction: column;
@@ -2816,7 +2740,7 @@
     overflow: hidden;
   }
 
-  /* Mobile single-pane: sidebar and thread swap with a slide */
+
   .chat-shell .chat-sidebar,
   .chat-shell .chat-thread-pane {
     display: flex;
@@ -2827,7 +2751,7 @@
     will-change: transform, opacity;
   }
 
-  /* Sidebar is visible by default (is-mobile-sidebar) */
+
   .chat-shell.is-mobile-sidebar .chat-sidebar {
     transform: translateX(0);
     opacity: 1;
@@ -2838,7 +2762,7 @@
     pointer-events: none;
   }
 
-  /* Thread is visible when user has opened a conversation */
+
   .chat-shell.is-mobile-thread .chat-sidebar {
     transform: translateX(-25%);
     opacity: 0;
@@ -2869,7 +2793,7 @@
   .msg-row { max-width: 82%; }
 }
 
-/* ---------- Reduced motion ---------- */
+
 @media (prefers-reduced-motion: reduce) {
   .chat-rail-btn,
   .chat-rail-icon,
@@ -2927,7 +2851,7 @@
     animation: none !important;
   }
 
-  /* Pane swap: instant instead of sliding */
+
   .chat-shell .chat-sidebar,
   .chat-shell .chat-thread-pane {
     transition: none !important;
@@ -2944,10 +2868,7 @@
   }
 }
 
-/* ==================================================================
-   BUGFIX - Reply-quote jump-to-message highlight.
-   Appended at end so it can safely override the base rules above.
-   ================================================================== */
+
 @keyframes msgJumpHighlight {
   0%, 55% {
     background-color: color-mix(in srgb, var(--accent) 18%, transparent);
@@ -2986,11 +2907,9 @@
   }
 }
 
-/* ==================================================================
-   MAVE AI EXTENSIONS
-   ================================================================== */
 
-/* System Message inline banners */
+
+
 .chat-system-msg-wrap {
   display: flex;
   justify-content: center;
@@ -3017,7 +2936,7 @@
   color: var(--accent);
 }
 
-/* Typing dots used inside MaveAiTyping */
+
 .typing-dots {
   display: inline-flex;
   gap: 3px;

@@ -1,7 +1,3 @@
-// apps/api/src/lib/ai/registry.js
-//
-// Maps provider names to their adapter modules. The router uses this to
-// resolve which file to call when trying a provider.
 
 import * as openrouter from './providers/openrouter.js';
 import * as groq from './providers/groq.js';

@@ -1,9 +1,3 @@
-﻿// apps/web/src/features/personal/chats/components/BlockConfirmModal.jsx
-//
-// PHASE 5 — self-contained scoped CSS. Same behaviour as before:
-// destructive confirmation for blocking a user, with an optional private
-// reason and a red warning banner. Refresh of dependencies happens via
-// the useBlockUser mutation in shared/api/friends.js.
 
 import { useEffect, useState } from 'react';
 import { X, ShieldOff } from 'lucide-react';

@@ -1,8 +1,3 @@
-// apps/web/src/features/charts/components/SymbolSearch.jsx
-//
-// Searchable symbol picker. Reads the catalog from the API — nothing is
-// hardcoded here. Adding a symbol to apps/api/src/lib/marketData/symbolMap.js
-// makes it appear automatically.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronDown, Search } from 'lucide-react';
@@ -13,7 +8,6 @@ export default function SymbolSearch({ catalog = [], value, onChange }) {
   const rootRef = useRef(null);
   const inputRef = useRef(null);
 
-  // Close on outside click
   useEffect(() => {
     if (!open) return undefined;
     const onDown = (e) => {
@@ -25,12 +19,10 @@ export default function SymbolSearch({ catalog = [], value, onChange }) {
     return () => document.removeEventListener('mousedown', onDown);
   }, [open]);
 
-  // Focus search input when the panel opens
   useEffect(() => {
     if (open) inputRef.current?.focus();
   }, [open]);
 
-  // Close on Escape
   useEffect(() => {
     if (!open) return undefined;
     const onKey = (e) => {

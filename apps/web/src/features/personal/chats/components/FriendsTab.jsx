@@ -1,14 +1,3 @@
-// apps/web/src/features/personal/chats/components/FriendsTab.jsx
-//
-// PHASE 5 — polished Discord/Slack-style friends pane.
-//
-// Changes vs Phase 1:
-//   • Inline search filter on friends.
-//   • Count chip shows total friends in the side-pane header.
-//   • Row actions now reveal on hover via a compact "More" menu.
-//   • Row name shows an inline archived badge when applicable.
-//   • Empty state uses the shared <EmptyState /> component.
-//   • Requests sub-view is rendered by FriendRequestsPanel (unchanged API).
 
 import { useMemo, useState } from 'react';
 import {

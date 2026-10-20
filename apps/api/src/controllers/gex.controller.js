@@ -1,7 +1,3 @@
-// apps/api/src/controllers/gex.controller.js
-//
-// User-side GEX endpoints. Thin HTTP layer — auth is applied at the router
-// level (requireAuth), so `req.userId` is guaranteed here.
 
 import * as gexService from '../services/gex.service.js';
 

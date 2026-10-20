@@ -1,23 +1,3 @@
-// apps/web/src/shared/trade-logs/AddTradeModal.jsx
-//
-// Single trade entry form. The field set depends on the account type:
-//
-//   Live / Demo : date*, entryTime*, exitTime*, direction*, symbol*,
-//                 strategyId, entryPrice, takeProfit, stopLoss,
-//                 pnl*, quantity*, notes, then custom columns.
-//
-//   Backtest    : date*, entryTime*, exitTime*, direction*, symbol*,
-//                 strategyId, mae*, mfe*, sl* (ticks/points from account),
-//                 pnl, quantity*, notes, then custom columns.
-//
-// (* = mandatory)
-//
-// STRATEGY PICKER
-// ---------------
-// Optional dropdown populated from the user's active strategies. Hidden
-// entirely when the user has no strategies — no point cluttering the form.
-// If a trade being EDITED has an archived strategy, we still show it (so
-// editing doesn't silently clear the tag).
 
 import { useEffect, useMemo, useState } from 'react';
 import { FaTimes, FaPlus, FaCheck } from 'react-icons/fa';
@@ -30,7 +10,6 @@ import { SymbolSelect } from '@/shared/symbols';
 
 const TICKS_PER_POINT = 4;
 
-/* ---------- helpers ---------- */
 
 function resolveSlPoints(rawSl, account) {
   const raw = rawSl === '' || rawSl == null ? null : Number(rawSl);
@@ -65,23 +44,17 @@ const EMPTY = {
   direction: 'Long',
   symbol: '',
   strategyId: '',
-  // Backtest-only
   mae: '',
   mfe: '',
   sl: '',
-  // Journal-only
   entryPrice: '',
   takeProfit: '',
   stopLoss: '',
-  // Common
   pnl: '',
   quantity: '',
   notes: '',
 };
 
-/* ------------------------------------------------------------------ */
-/*  Scoped CSS                                                        */
-/* ------------------------------------------------------------------ */
 const CSS = `
   .at-overlay {
     position: fixed; inset: 0;
@@ -293,9 +266,6 @@ const CSS = `
   }
 `;
 
-/* ------------------------------------------------------------------ */
-/*  Custom column field                                               */
-/* ------------------------------------------------------------------ */
 
 function CustomColumnField({ name, config, value, onChange, disabled }) {
   const isDropdown =
@@ -335,9 +305,6 @@ function CustomColumnField({ name, config, value, onChange, disabled }) {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Main modal                                                        */
-/* ------------------------------------------------------------------ */
 
 export default function AddTradeModal({ isOpen, onClose, account, trade = null }) {
   const isEdit = !!trade;
@@ -351,12 +318,8 @@ export default function AddTradeModal({ isOpen, onClose, account, trade = null }
   const updateTrade = useUpdateTrade();
   const saving = createTrade.isPending || updateTrade.isPending;
 
-  // Fetch the user's strategies for the picker.
   const { data: allStrategies = [] } = useStrategies();
 
-  // Show active + paused. On edit, keep the trade's current strategy even
-  // if it's archived, so the dropdown reflects reality and doesn't silently
-  // blank the field.
   const availableStrategies = useMemo(() => {
     const visible = allStrategies.filter((s) => s.status !== 'archived');
     if (isEdit && trade?.strategyId) {
@@ -368,7 +331,6 @@ export default function AddTradeModal({ isOpen, onClose, account, trade = null }
     return visible.sort((a, b) => a.name.localeCompare(b.name));
   }, [allStrategies, isEdit, trade]);
 
-  // Normalized columnConfigs — always v2 shape { type, options? }.
   const columnConfigs = useMemo(
     () => normalizeColumnConfigs(account?.columnConfigs || {}),
     [account]
@@ -377,12 +339,10 @@ export default function AddTradeModal({ isOpen, onClose, account, trade = null }
   const customKeys = useMemo(() => {
     const cfgKeys = Object.keys(columnConfigs);
     const tradeKeys = isEdit ? Object.keys(trade?.dynamic || {}) : [];
-    // Union of both, so nothing is dropped when a trade has keys not yet in config
     const union = new Set([...cfgKeys, ...tradeKeys]);
     return [...union].sort();
   }, [columnConfigs, isEdit, trade]);
 
-  // Prefill / reset whenever the modal opens or the target trade changes
   useEffect(() => {
     if (!isOpen) return;
 
@@ -394,15 +354,12 @@ export default function AddTradeModal({ isOpen, onClose, account, trade = null }
         direction: trade.dir || 'Long',
         symbol: trade.symbol || '',
         strategyId: trade.strategyId || '',
-        // Backtest
         mae: trade.mae != null ? String(trade.mae) : '',
         mfe: trade.mfe != null ? String(trade.mfe) : '',
         sl: isBacktest ? slPointsToDisplay(trade.slPoints, account) : '',
-        // Journal
         entryPrice: trade.entryPrice != null ? String(trade.entryPrice) : '',
         takeProfit: trade.takeProfit != null ? String(trade.takeProfit) : '',
         stopLoss: trade.stopLoss != null ? String(trade.stopLoss) : '',
-        // Common
         pnl: trade.pnl != null ? String(trade.pnl) : '',
         quantity: trade.quantity != null ? String(trade.quantity) : '',
         notes: trade.notes || '',
@@ -552,7 +509,7 @@ export default function AddTradeModal({ isOpen, onClose, account, trade = null }
 
               {error && <div className="at-error">{error}</div>}
 
-              {/* ---------------- Execution ---------------- */}
+              {}
               <div className="at-section">
                 <span className="at-section-title">Execution</span>
 
@@ -644,7 +601,7 @@ export default function AddTradeModal({ isOpen, onClose, account, trade = null }
                 )}
               </div>
 
-              {/* ---------------- Outcomes ---------------- */}
+              {}
               <div className="at-section">
                 <span className="at-section-title">Outcome</span>
 

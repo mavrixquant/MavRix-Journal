@@ -1,6 +1,3 @@
-// apps/web/src/shared/api/marketData.js
-//
-// React Query hooks for the market data API.
 
 import { useQuery } from '@tanstack/react-query';
 import { apiJson } from './client';
@@ -13,9 +10,6 @@ export const marketDataKeys = {
   quotes: (symbolsKey) => ['market-data', 'quotes', symbolsKey],
 };
 
-/* ------------------------------------------------------------------ */
-/*  Raw fetchers                                                       */
-/* ------------------------------------------------------------------ */
 
 export async function getCatalog() {
   return apiJson('/api/market-data/catalog');
@@ -36,9 +30,6 @@ export async function getQuotes(symbols) {
   return apiJson(`/api/market-data/quotes?${params.toString()}`);
 }
 
-/* ------------------------------------------------------------------ */
-/*  Hooks                                                              */
-/* ------------------------------------------------------------------ */
 
 const ONE_HOUR = 60 * 60 * 1000;
 

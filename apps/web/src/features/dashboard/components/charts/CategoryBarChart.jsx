@@ -1,6 +1,3 @@
-// apps/web/src/features/dashboard/components/charts/CategoryBarChart.jsx
-//
-// Phase 2: removed minHeight: 180 from wrapper + empty state.
 
 import { Bar } from 'react-chartjs-2';
 import { useMemo, useRef } from 'react';

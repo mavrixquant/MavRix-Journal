@@ -1,8 +1,3 @@
-﻿// apps/web/src/features/personal/chats/components/GroupDiscoverModal.jsx
-//
-// PHASE 5 — polish only. Grouped under an eyebrow-style head, joined rows
-// get a proper icon, and the empty state uses the shared <EmptyState />
-// component. Functionality is unchanged from Phase 1.
 
 import { useEffect, useState, useCallback } from 'react';
 import { X, Loader2, Users, Lock } from 'lucide-react';

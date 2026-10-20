@@ -1,12 +1,8 @@
-// apps/web/src/features/auth/components/AuthLayout.jsx
 import { Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import AuthBackground from '@/shared/components/AuthBackground';
 import navLogo from '@/assets/navLOGO.png';
 
-/* ------------------------------------------------------------------ */
-/*  Shared auth page chrome                                           */
-/* ------------------------------------------------------------------ */
 
 const S = {
   wrapper: {

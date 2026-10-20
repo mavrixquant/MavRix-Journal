@@ -1,7 +1,3 @@
-// apps/web/src/shared/api/strategies.js
-//
-// React Query hooks + raw fetchers for Strategy CRUD + strategy-scoped
-// trade lists. Mirrors the shape of accounts.js / trades.js.
 
 import {
   useQuery,
@@ -11,9 +7,6 @@ import {
 import { apiJson } from './client';
 import { useSSEFallback } from '@/shared/api/sse';
 
-/* ------------------------------------------------------------------ */
-/*  Query keys                                                         */
-/* ------------------------------------------------------------------ */
 
 export const strategiesKeys = {
   all: ['strategies'],
@@ -22,9 +15,6 @@ export const strategiesKeys = {
   trades: (strategyId) => ['strategies', 'trades', strategyId],
 };
 
-/* ------------------------------------------------------------------ */
-/*  Raw fetchers                                                       */
-/* ------------------------------------------------------------------ */
 
 export async function getStrategies({ status } = {}) {
   const params = new URLSearchParams();
@@ -68,11 +58,6 @@ export async function deleteStrategy(id) {
   });
 }
 
-/**
- * Fetch every trade (across all accounts of the current user) tagged with
- * this strategy. Backed by /api/trades?strategyId=… which is scoped to
- * the requesting user on the server.
- */
 export async function getStrategyTrades(strategyId) {
   const data = await apiJson(
     `/api/trades?strategyId=${encodeURIComponent(strategyId)}`
@@ -80,17 +65,7 @@ export async function getStrategyTrades(strategyId) {
   return data.trades;
 }
 
-/* ------------------------------------------------------------------ */
-/*  Hooks — reads                                                      */
-/* ------------------------------------------------------------------ */
 
-/**
- * List the current user's strategies.
- *
- * Polls every 60s ONLY when the SSE bridge has fallen back. Otherwise
- * relies on the SSE invalidation broadcast sent by strategy mutations
- * (see strategies.service.js → notify).
- */
 export function useStrategies({ status, enabled = true } = {}) {
   const sseFallback = useSSEFallback();
   const filters = status ? { status } : {};
@@ -124,16 +99,12 @@ export function useStrategyTrades(strategyId) {
   });
 }
 
-/* ------------------------------------------------------------------ */
-/*  Hooks — mutations                                                  */
-/* ------------------------------------------------------------------ */
 
 function useInvalidateStrategies() {
   const qc = useQueryClient();
   return (id) => {
     qc.invalidateQueries({ queryKey: strategiesKeys.all });
     if (id) qc.invalidateQueries({ queryKey: strategiesKeys.detail(id) });
-    // Trades embed a strategy snapshot — refresh them too.
     qc.invalidateQueries({ queryKey: ['trades'] });
   };
 }

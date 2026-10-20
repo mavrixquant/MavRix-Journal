@@ -1,8 +1,3 @@
-// apps/web/src/features/admin/components/ConfirmDangerModal.jsx
-//
-// Reusable two-step confirmation. The user must type `confirmPhrase` (usually
-// the target's email or "DELETE") before the confirm button enables. Used for
-// destructive ops: delete user, delete account, wipe cache.
 
 import { useState, useEffect } from 'react';
 import Portal from '@/shared/components/Portal';
@@ -13,7 +8,7 @@ export default function ConfirmDangerModal({
   description,
   confirmPhrase = 'DELETE',
   confirmLabel = 'Delete',
-  confirmVariant = 'danger', // 'danger' | 'amber'
+  confirmVariant = 'danger',
   onConfirm,
   onCancel,
   busy = false,

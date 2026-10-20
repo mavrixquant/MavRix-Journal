@@ -1,25 +1,17 @@
-// src/components/dashboard/sections/Calendar.jsx
 import { useState, useMemo, useEffect, Fragment } from 'react';
 import { useStats } from '@/features/dashboard/hooks/useStats';
 
-/* ------------------------------------------------------------------ */
-/*  Formatters                                                         */
-/* ------------------------------------------------------------------ */
 const formatR = (v) => (v >= 0 ? '+' : '') + v.toFixed(2) + 'R';
 const formatMoney = (v) => {
   const sign = v >= 0 ? '+' : '-';
   return `${sign}$${Math.abs(v).toFixed(2)}`;
 };
 
-/* ------------------------------------------------------------------ */
-/*  Solid color blending — KPI base #11151F mixed with win/loss tint   */
-/* ------------------------------------------------------------------ */
-const BASE_RGB = [17, 21, 31];       // #11151F  (same solid base as KPI cards)
-const WIN_RGB  = [32, 201, 151];     // old calendar mint
-const LOSS_RGB = [255, 77, 77];      // old calendar red
-const BE_RGB   = [143, 155, 186];    // old calendar blue-gray
+const BASE_RGB = [17, 21, 31];
+const WIN_RGB  = [32, 201, 151];
+const LOSS_RGB = [255, 77, 77];
+const BE_RGB   = [143, 155, 186];
 
-/* Returns an [r, g, b] array */
 const mixRgb = (a, b, t) => [
   Math.round(a[0] + (b[0] - a[0]) * t),
   Math.round(a[1] + (b[1] - a[1]) * t),
@@ -32,9 +24,6 @@ const colorForR = (v) =>
   : v < 0 ? rgbCss(LOSS_RGB)
   : rgbCss(BE_RGB);
 
-/* ------------------------------------------------------------------ */
-/*  Scoped CSS                                                         */
-/* ------------------------------------------------------------------ */
 const CAL_CSS = `
   .cal-root {
     
@@ -216,9 +205,6 @@ const CAL_CSS = `
   }
 `;
 
-/* ------------------------------------------------------------------ */
-/*  Component                                                          */
-/* ------------------------------------------------------------------ */
 export default function Calendar() {
   const { stats, metric } = useStats();
   const isMoney = metric === '$';
@@ -312,7 +298,7 @@ export default function Calendar() {
     <>
       <style>{CAL_CSS}</style>
       <div className="cal-root">
-        {/* Month tabs */}
+        {}
         <div className="cal-tabs">
           {months.map((m) => {
             const [y, mo] = m.split('-');
@@ -333,7 +319,7 @@ export default function Calendar() {
           })}
         </div>
 
-        {/* Grid */}
+        {}
         <div className="cal-scroll">
           <div className="cal-grid">
             {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => (
@@ -344,7 +330,6 @@ export default function Calendar() {
             {cells.map((cell, idx) => {
               const { days: dayCells, weekV, weekN } = cell;
 
-              /* Weekly cell — solid tint, matching KPI opacity */
               const weekTint = !weekN
                 ? BASE_RGB
                 : weekV > 0
@@ -369,11 +354,10 @@ export default function Calendar() {
 
                     const intensity = day.n ? Math.min(1, Math.abs(day.v) / maxAbs) : 0;
 
-                    /* Solid tint from base #11151F toward win/loss */
                     let cellBg = rgbCss(BASE_RGB);
                     if (day.n) {
                       const target = day.v > 0 ? WIN_RGB : day.v < 0 ? LOSS_RGB : BE_RGB;
-                      const ratio = 0.06 + intensity * 0.24;  /* 0.06 → 0.30 */
+                      const ratio = 0.06 + intensity * 0.24;
                       cellBg = rgbCss(mixRgb(BASE_RGB, target, ratio));
                     }
                     const dayColor = day.n ? colorForR(day.v) : '#8892A3';

@@ -1,9 +1,3 @@
-// apps/web/src/shared/api/ai.js
-//
-// React Query hooks for Mave AI BYOK settings.
-//
-// The server exposes an ARRAY of credentials (one per saved provider).
-// `useAiSettings` returns that array; the panel renders one card per entry.
 
 import {
   useQuery,
@@ -18,9 +12,6 @@ export const aiKeys = {
   settings: () => ['ai', 'settings'],
 };
 
-/* ------------------------------------------------------------------ */
-/*  Raw fetchers                                                       */
-/* ------------------------------------------------------------------ */
 
 export async function getProviders() {
   const data = await apiJson('/api/ai/providers');
@@ -59,9 +50,6 @@ export async function testKey(payload) {
   });
 }
 
-/* ------------------------------------------------------------------ */
-/*  Hooks                                                              */
-/* ------------------------------------------------------------------ */
 
 export function useAiProviders() {
   return useQuery({

@@ -1,4 +1,3 @@
-// apps/web/src/features/admin/layout/AdminSidebar.jsx
 import { NavLink, Link, useLocation } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { useAuth } from '@/app/providers/AuthProvider';
@@ -21,7 +20,6 @@ export default function AdminSidebar({ onNavigate }) {
 
       <nav className="admin-sidebar-nav">
         {ADMIN_NAV.map((section) => {
-          // Filter out superadmin-only items when the user isn't a super.
           const visibleItems = section.items.filter(
             (item) => !item.superadminOnly || isSuperadmin
           );

@@ -1,4 +1,3 @@
-// apps/web/src/main.jsx
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';

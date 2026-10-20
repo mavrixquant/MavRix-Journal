@@ -1,13 +1,3 @@
-// apps/web/src/features/admin/pages/AdminUsersPage.jsx
-//
-// Users list — searchable, filterable, paginated.
-// Click any row → /admin/users/:id
-//
-// PHASE 6 CHANGE (EmptyState migration)
-// -------------------------------------
-//   • The "No users match" filter-empty state now uses the shared
-//     <EmptyState> component (@/shared/components/EmptyState).
-//   • Dead `.aup-empty` rule removed; `.aup-loading` retained.
 
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -171,8 +161,8 @@ function displayName(u) {
 export default function AdminUsersPage() {
   const navigate = useNavigate();
   const [q, setQ] = useState('');
-  const [roleFilter, setRoleFilter] = useState('');    // '' | 'user' | 'admin' | 'superadmin'
-  const [bannedFilter, setBannedFilter] = useState(''); // '' | 'true' | 'false'
+  const [roleFilter, setRoleFilter] = useState('');
+  const [bannedFilter, setBannedFilter] = useState('');
   const [page, setPage] = useState(1);
 
   const filters = useMemo(
@@ -211,7 +201,7 @@ export default function AdminUsersPage() {
           </div>
         </div>
 
-        {/* ---------- Filter bar ---------- */}
+        {}
         <div className="aup-bar">
           <div className="aup-search">
             <Search size={14} className="aup-search-icon" />
@@ -264,7 +254,7 @@ export default function AdminUsersPage() {
           </div>
         </div>
 
-        {/* ---------- Table ---------- */}
+        {}
         <div className="aup-card">
           {isLoading ? (
             <div className="aup-loading">Loading users…</div>

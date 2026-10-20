@@ -1,6 +1,3 @@
-// apps/api/src/services/adminAccounts.service.js
-//
-// Cross-user account administration. Every mutation writes an audit row.
 
 import { prisma } from '../lib/prisma.js';
 import { HttpError } from '../middleware/error.js';
@@ -33,9 +30,6 @@ const serialize = (a) => ({
   _count: a._count || undefined,
 });
 
-/* ------------------------------------------------------------------ */
-/*  List                                                                */
-/* ------------------------------------------------------------------ */
 export async function listAccounts({
   q = '',
   userId,
@@ -76,9 +70,6 @@ export async function listAccounts({
   };
 }
 
-/* ------------------------------------------------------------------ */
-/*  Detail                                                              */
-/* ------------------------------------------------------------------ */
 export async function getAccount(accountId) {
   const acc = await prisma.account.findUnique({
     where: { id: accountId },
@@ -93,9 +84,6 @@ export async function getAccount(accountId) {
   return serialize(acc);
 }
 
-/* ------------------------------------------------------------------ */
-/*  Update                                                              */
-/* ------------------------------------------------------------------ */
 export async function updateAccount(actor, accountId, patch) {
   const existing = await prisma.account.findUnique({ where: { id: accountId } });
   if (!existing) throw new HttpError(404, 'Account not found');
@@ -116,7 +104,6 @@ export async function updateAccount(actor, accountId, patch) {
 
   await prisma.account.update({ where: { id: accountId }, data });
 
-  // Invalidate the owner's dashboard queries.
   broadcastToUser(existing.userId, 'invalidate', {
     keys: [['accounts'], ['trades', accountId]],
   });
@@ -134,9 +121,6 @@ export async function updateAccount(actor, accountId, patch) {
   return getAccount(accountId);
 }
 
-/* ------------------------------------------------------------------ */
-/*  Reassign — change ownership (superadmin only, enforced in route)   */
-/* ------------------------------------------------------------------ */
 export async function reassignAccount(actor, accountId, newUserId) {
   if (!newUserId) throw new HttpError(400, 'newUserId is required');
 
@@ -146,14 +130,13 @@ export async function reassignAccount(actor, accountId, newUserId) {
   const target = await prisma.user.findUnique({ where: { id: newUserId } });
   if (!target) throw new HttpError(404, 'Target user not found');
 
-  if (acc.userId === newUserId) return getAccount(accountId); // idempotent
+  if (acc.userId === newUserId) return getAccount(accountId);
 
   await prisma.account.update({
     where: { id: accountId },
     data: { userId: newUserId },
   });
 
-  // Both users' dashboards need to refresh.
   broadcastToUser(acc.userId, 'invalidate', { keys: [['accounts'], ['trades', accountId]] });
   broadcastToUser(newUserId, 'invalidate', { keys: [['accounts'], ['trades', accountId]] });
 
@@ -170,11 +153,6 @@ export async function reassignAccount(actor, accountId, newUserId) {
   return getAccount(accountId);
 }
 
-/* ------------------------------------------------------------------ */
-/*  Delete (superadmin only, enforced in route)                        */
-/*                                                                      */
-/*  Cascades to the account's trades (FK onDelete: Cascade).            */
-/* ------------------------------------------------------------------ */
 export async function deleteAccount(actor, accountId) {
   const acc = await prisma.account.findUnique({
     where: { id: accountId },

@@ -1,8 +1,3 @@
-// apps/api/src/services/healthCheck/phases/chat.js
-//
-// Chat phase — 16 tests.
-// Covers DMs (create, send, edit, delete, receipts) and groups
-// (admin-created public group, discover, join, members, leave).
 
 export async function run(ctx) {
   const { test, tokens, ids } = ctx;
@@ -12,11 +7,8 @@ export async function run(ctx) {
     return;
   }
 
-  /* ---------------- DM conversation ---------------- */
 
   await test('chat.users.search · B finds A by name fragment', async () => {
-    // Search is friends-only. A and B are not friends at this point, so the
-    // result may be empty — we simply assert the endpoint responds 200.
     const res = await ctx.fetch('/api/chat/users/search?q=Health', {
       token: tokens.b,
     });
@@ -72,7 +64,6 @@ export async function run(ctx) {
     ctx.assertStatus(res, 200);
   });
 
-  /* ---------------- messages ---------------- */
 
   await test('chat.messages.send · A → B "hello"', async () => {
     const res = await ctx.fetch(
@@ -145,7 +136,6 @@ export async function run(ctx) {
     ctx.expect(res.body.scope === 'all', 'wrong scope');
   });
 
-  /* ---------------- groups (admin-created, discovery, join) ---------------- */
 
   await test('chat.groups.discover · list public groups', async () => {
     const res = await ctx.fetch('/api/chat/groups/discover', {

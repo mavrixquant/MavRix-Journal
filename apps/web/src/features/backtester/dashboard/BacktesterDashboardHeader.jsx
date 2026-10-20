@@ -1,14 +1,3 @@
-// apps/web/src/features/backtester/dashboard/BacktesterDashboardHeader.jsx
-//
-// Backtester-dashboard header.
-//
-// Title + badge are published to the GLOBAL header bar via usePageHeader().
-//
-// NOTE: The `useEnrichedTrades(accountId)` hook used to live here. It has
-// been moved to BacktesterDashboardPage because the parent page reads
-// `state.trades` for its `hasData` gate, and a hook installed in a child
-// component one level deep wasn't reliably driving the parent's render
-// cycle. See BacktesterDashboardPage.jsx for the canonical call site.
 
 import { useState } from 'react';
 
@@ -24,9 +13,6 @@ import SessionTimeModal from '@/features/dashboard/components/filters/SessionTim
 import LimitsModal from '@/features/dashboard/components/filters/LimitsModal';
 import OptimizeModal from '@/features/dashboard/components/optimize/OptimizeModal';
 
-/* ------------------------------------------------------------------ */
-/*  Header-local CSS                                                   */
-/* ------------------------------------------------------------------ */
 const HDR_CSS = `
   .hdr-root {
     --line: rgba(255,255,255,.085);
@@ -217,20 +203,17 @@ export default function BacktesterDashboardHeader() {
   const { state } = useAppContext();
   const { accountId } = useDashboardAccount();
   const { resetAllFilters } = useFilters();
-  // Mirror filter state to the URL for shareable / back-button support.
   useFilterUrlSync();
 
   const [showSessionModal, setShowSessionModal] = useState(false);
   const [showLimitsModal, setShowLimitsModal] = useState(false);
   const [showOptimizeModal, setShowOptimizeModal] = useState(false);
 
-  // Toolbar expand/collapse — default OPEN.
   const [toolbarOpen, setToolbarOpen] = useState(true);
 
   const selectedAccount =
     state.accounts.find((acc) => acc.id === accountId) || null;
 
-  // Publish title + badge to the global header bar.
   usePageHeader({
     title: 'Backtester',
     badge: selectedAccount?.type,
@@ -241,7 +224,7 @@ export default function BacktesterDashboardHeader() {
     <>
       <style>{HDR_CSS}</style>
       <div className="hdr-root">
-        {/* ---------- Top actions row ---------- */}
+        {}
         <div className="hdr-actions-row">
           <button
             type="button"
@@ -267,7 +250,7 @@ export default function BacktesterDashboardHeader() {
           <div className="hdr-spacer" />
         </div>
 
-        {/* ---------- Collapsible toolbar ---------- */}
+        {}
         <div className={`hdr-toolbar-wrap ${toolbarOpen ? '' : 'is-closed'}`}>
           <div className="hdr-toolbar-inner">
             <div className="hdr-toolbar" id="hdr-toolbar">

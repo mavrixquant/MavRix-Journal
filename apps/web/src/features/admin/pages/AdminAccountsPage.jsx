@@ -1,14 +1,3 @@
-// apps/web/src/features/admin/pages/AdminAccountsPage.jsx
-//
-// Cross-user accounts. Filters: search by name, type segment.
-// Row actions: View user, Delete (superadmin only).
-//
-// PHASE 6 CHANGE (EmptyState migration)
-// -------------------------------------
-//   • The "No accounts match" filter-empty state now uses the shared
-//     <EmptyState> component (@/shared/components/EmptyState) so it matches
-//     the Test Logs pattern.
-//   • Dead `.aap-empty` rule was merged out of the shared loading rule.
 
 import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
@@ -157,7 +146,7 @@ export default function AdminAccountsPage() {
   const isSuper = me?.role === 'superadmin';
 
   const [q, setQ] = useState('');
-  const [type, setType] = useState('');   // '' | 'Backtest' | 'Live' | 'Demo'
+  const [type, setType] = useState('');
   const [page, setPage] = useState(1);
 
   const [deleteTarget, setDeleteTarget] = useState(null);

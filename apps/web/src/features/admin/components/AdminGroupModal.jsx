@@ -1,20 +1,3 @@
-// apps/web/src/features/admin/components/AdminGroupModal.jsx
-//
-// Combined create / edit modal for chat groups. Used only from the admin
-// panel — the chat side has its own GroupSettingsModal.
-//
-// Modes:
-//   groupId == null  → create mode. Empty form, no members tab.
-//   groupId != null  → edit mode. Loads the group + its members.
-//
-// Tabs:
-//   Settings — name, description, visibility, color, iconEmoji
-//   Members  — list, role chips, add via search, promote, remove
-//
-// Permission model (matches backend):
-//   superadmin → may toggle visibility, may delete any group
-//   admin      → cannot toggle visibility (public stays public),
-//                may delete public groups + ones they created
 
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import {
@@ -40,9 +23,6 @@ import {
   GROUP_ICON_EMOJI_MAX,
 } from '@mavrix/shared';
 
-/* ------------------------------------------------------------------ */
-/*  Scoped styles                                                      */
-/* ------------------------------------------------------------------ */
 
 const CSS = `
   .agm-modal {
@@ -474,7 +454,6 @@ const CSS = `
   }
 `;
 
-/* ------------------------------------------------------------------ */
 
 function initialsOf(user) {
   if (!user) return '?';
@@ -516,7 +495,6 @@ export default function AdminGroupModal({ isOpen, onClose, groupId = null }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedTerm, setDebouncedTerm] = useState('');
 
-  // ----- data -----
   const {
     data: group,
     isLoading: loadingGroup,
@@ -525,7 +503,6 @@ export default function AdminGroupModal({ isOpen, onClose, groupId = null }) {
   const { data: searchResults = [], isFetching: searchingUsers } =
     useChatUserSearch(debouncedTerm);
 
-  // ----- mutations -----
   const createMutation = useCreateGroup();
   const updateMutation = useUpdateGroup();
   const deleteMutation = useDeleteGroup();
@@ -538,14 +515,12 @@ export default function AdminGroupModal({ isOpen, onClose, groupId = null }) {
     updateMutation.isPending ||
     deleteMutation.isPending;
 
-  /* ---------- Debounce the member search ---------- */
   useEffect(() => {
     if (!isOpen) return undefined;
     const t = setTimeout(() => setDebouncedTerm(searchTerm.trim()), 300);
     return () => clearTimeout(t);
   }, [searchTerm, isOpen]);
 
-  /* ---------- Reset / hydrate ---------- */
   useEffect(() => {
     if (!isOpen) return;
     setTab('settings');
@@ -565,7 +540,6 @@ export default function AdminGroupModal({ isOpen, onClose, groupId = null }) {
     }
   }, [isOpen, isCreate, group]);
 
-  /* ---------- Derived ---------- */
   const members = group?.members || [];
   const memberUserIds = useMemo(
     () => new Set(members.map((m) => m.userId)),
@@ -580,7 +554,6 @@ export default function AdminGroupModal({ isOpen, onClose, groupId = null }) {
     [members]
   );
 
-  /* ---------- Handlers ---------- */
 
   const set = (k, v) => setForm((prev) => ({ ...prev, [k]: v }));
 
@@ -674,10 +647,8 @@ export default function AdminGroupModal({ isOpen, onClose, groupId = null }) {
     }
   }, [group, deleteMutation, groupId, onClose]);
 
-  /* ---------- Guard ---------- */
   if (!isOpen) return null;
 
-  /* ---------- Render ---------- */
 
   return (
     <Portal>
@@ -689,7 +660,7 @@ export default function AdminGroupModal({ isOpen, onClose, groupId = null }) {
         }}
       >
         <div className="agm-modal" role="dialog" aria-modal="true">
-          {/* Header */}
+          {}
           <div className="agm-head">
             <div style={{ minWidth: 0 }}>
               <h2 className="agm-title">
@@ -712,7 +683,7 @@ export default function AdminGroupModal({ isOpen, onClose, groupId = null }) {
             </button>
           </div>
 
-          {/* Tabs */}
+          {}
           {!isCreate && (
             <div className="agm-tabs" role="tablist">
               <button
@@ -736,7 +707,7 @@ export default function AdminGroupModal({ isOpen, onClose, groupId = null }) {
             </div>
           )}
 
-          {/* Body */}
+          {}
           <div className="agm-body">
             {error && <div className="agm-error">{error}</div>}
 
@@ -747,7 +718,7 @@ export default function AdminGroupModal({ isOpen, onClose, groupId = null }) {
               </div>
             )}
 
-            {/* ============= Settings tab (or create mode) ============= */}
+            {}
             {(isCreate || tab === 'settings') && (!loadingGroup || isCreate) && (
               <>
                 <div className="agm-field">
@@ -876,7 +847,7 @@ export default function AdminGroupModal({ isOpen, onClose, groupId = null }) {
               </>
             )}
 
-            {/* ============= Members tab (edit only) ============= */}
+            {}
             {!isCreate && tab === 'members' && !loadingGroup && (
               <>
                 <div className="agm-search">
@@ -982,7 +953,7 @@ export default function AdminGroupModal({ isOpen, onClose, groupId = null }) {
             )}
           </div>
 
-          {/* Footer */}
+          {}
           <div className="agm-foot">
             <button type="button" className="agm-btn" onClick={onClose} disabled={saving}>
               Close

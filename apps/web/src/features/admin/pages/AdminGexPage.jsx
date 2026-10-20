@@ -1,18 +1,3 @@
-// apps/web/src/features/admin/pages/AdminGexPage.jsx
-//
-// Admin GEX upload page — /admin/gex
-//
-// Flow:
-//   1. Pick a date (defaults to today IST)
-//   2. Paste JSON into the textarea (or load the built-in example)
-//   3. Convert → shows preview (counts + pipe-string)
-//   4. Save → POST /api/admin/gex
-//        - 200 → toast, clear form, refresh list
-//        - 409 → overwrite confirmation modal → re-POST with ?overwrite=true
-//
-// Editing the JSON textarea clears the preview, forcing re-convert.
-// The server re-serializes `levels` and rejects if `converted` doesn't
-// match — so a stale preview can never be saved silently.
 
 import { useState, useCallback } from 'react';
 import {
@@ -30,11 +15,7 @@ import {
 import Alert from '@/shared/components/Alert';
 import { convertGexJson, GEX_DEFAULT_TIMEZONE } from '@mavrix/shared';
 
-/* ------------------------------------------------------------------ */
-/*  Helpers                                                            */
-/* ------------------------------------------------------------------ */
 
-/** "YYYY-MM-DD" for today, in IST (Asia/Kolkata). */
 function todayIST() {
   const parts = new Intl.DateTimeFormat('en-GB', {
     timeZone: GEX_DEFAULT_TIMEZONE,
@@ -48,7 +29,6 @@ function todayIST() {
   return `${y}-${m}-${d}`;
 }
 
-/** "Oct 5, 2026" from "2026-10-05". */
 function formatDate(isoDate) {
   const [y, m, d] = isoDate.split('-').map(Number);
   return new Date(y, m - 1, d).toLocaleDateString('en-US', {
@@ -58,7 +38,6 @@ function formatDate(isoDate) {
   });
 }
 
-/** "5 min ago" from an ISO timestamp. */
 function relativeTime(iso) {
   if (!iso) return '—';
   const delta = Date.now() - new Date(iso).getTime();
@@ -72,9 +51,6 @@ function relativeTime(iso) {
   return `${days}d ago`;
 }
 
-/* ------------------------------------------------------------------ */
-/*  Scoped CSS                                                         */
-/* ------------------------------------------------------------------ */
 
 const CSS = `
   .gexp-root { display: flex; flex-direction: column; gap: 20px; }
@@ -436,9 +412,6 @@ const CSS = `
   .gexp-loading { color: #8892A3; }
 `;
 
-/* ------------------------------------------------------------------ */
-/*  Example JSON                                                       */
-/* ------------------------------------------------------------------ */
 
 const EXAMPLE_JSON = JSON.stringify(
   [
@@ -461,33 +434,25 @@ const EXAMPLE_JSON = JSON.stringify(
   2
 );
 
-/* ------------------------------------------------------------------ */
-/*  Page                                                               */
-/* ------------------------------------------------------------------ */
 
 export default function AdminGexPage() {
   const { user: me } = useAuth();
   const isSuper = me?.role === 'superadmin';
 
-  // ---- Upload form state ----
   const [date, setDate] = useState(todayIST);
   const [jsonInput, setJsonInput] = useState('');
-  const [preview, setPreview] = useState(null);   // convert result or null
+  const [preview, setPreview] = useState(null);
   const [copied, setCopied] = useState(false);
 
-  // ---- Modals ----
-  const [overwritePrompt, setOverwritePrompt] = useState(null);   // { existing } | null
-  const [deleteTarget, setDeleteTarget] = useState(null);         // row | null
+  const [overwritePrompt, setOverwritePrompt] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
-  // ---- Data ----
   const { data: days = [], isLoading } = useAdminGexDays();
   const upsert = useAdminUpsertGex();
   const remove = useAdminDeleteGex();
 
-  // Live-derived preview placeholder (for the info banner text)
   const hasPreview = !!preview?.ok;
 
-  /* -------- Convert -------- */
   const handleConvert = useCallback(() => {
     const result = convertGexJson(jsonInput);
     setPreview(result);
@@ -496,13 +461,11 @@ export default function AdminGexPage() {
     }
   }, [jsonInput]);
 
-  /* -------- Textarea edits invalidate the previous preview -------- */
   const handleJsonChange = useCallback((value) => {
     setJsonInput(value);
-    if (preview) setPreview(null);   // force re-convert before save
+    if (preview) setPreview(null);
   }, [preview]);
 
-  /* -------- Save -------- */
   const runSave = useCallback(
     async (overwrite) => {
       const payload = {
@@ -546,7 +509,6 @@ export default function AdminGexPage() {
     }
   }, [date, runSave]);
 
-  /* -------- Delete -------- */
   const handleConfirmDelete = useCallback(async () => {
     if (!deleteTarget) return;
     try {
@@ -559,7 +521,6 @@ export default function AdminGexPage() {
     }
   }, [deleteTarget, remove]);
 
-  /* -------- Copy converted string -------- */
   const handleCopyConverted = useCallback(async () => {
     if (!preview?.converted) return;
     try {
@@ -571,7 +532,6 @@ export default function AdminGexPage() {
     }
   }, [preview]);
 
-  /* -------- Derived -------- */
   const canSave = hasPreview && !!date && !upsert.isPending;
   const counts = preview?.counts;
 
@@ -580,7 +540,7 @@ export default function AdminGexPage() {
       <style>{CSS}</style>
       <div className="gexp-root">
 
-        {/* ---------- Header ---------- */}
+        {}
         <div className="admin-ph">
           <div className="admin-ph-left">
             <span className="admin-ph-eyebrow">Operations</span>
@@ -591,10 +551,10 @@ export default function AdminGexPage() {
           </div>
         </div>
 
-        {/* ---------- Upload + Preview ---------- */}
+        {}
         <div className="gexp-top">
 
-          {/* ---------- Input card ---------- */}
+          {}
           <div className="gexp-card">
             <div className="gexp-card-head">
               <Wand2 size={14} style={{ color: 'var(--accent)' }} />
@@ -663,7 +623,7 @@ export default function AdminGexPage() {
             </div>
           </div>
 
-          {/* ---------- Preview card ---------- */}
+          {}
           <div className="gexp-card">
             <div className="gexp-card-head">
               <Layers size={14} style={{ color: 'var(--accent)' }} />
@@ -756,7 +716,7 @@ export default function AdminGexPage() {
           </div>
         </div>
 
-        {/* ---------- Existing days ---------- */}
+        {}
         <div className="gexp-card">
           <div className="gexp-card-head">
             <span className="gexp-card-title">Uploaded Days</span>
@@ -813,7 +773,7 @@ export default function AdminGexPage() {
         </div>
       </div>
 
-      {/* ---------- Overwrite confirmation ---------- */}
+      {}
       <Alert
         isOpen={!!overwritePrompt}
         type="confirm"
@@ -833,7 +793,7 @@ export default function AdminGexPage() {
         onCancel={() => setOverwritePrompt(null)}
       />
 
-      {/* ---------- Delete confirmation ---------- */}
+      {}
       <Alert
         isOpen={!!deleteTarget}
         type="confirm"

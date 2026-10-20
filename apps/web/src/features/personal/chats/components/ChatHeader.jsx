@@ -1,7 +1,3 @@
-// apps/web/src/features/personal/chats/components/ChatHeader.jsx
-//
-// Shows the current thread's header. For AI DMs, displays "AI Assistant"
-// in the subtitle slot instead of the AI user's email address.
 
 import { ArrowLeft, Info } from 'lucide-react';
 import GroupAvatar from './GroupAvatar';

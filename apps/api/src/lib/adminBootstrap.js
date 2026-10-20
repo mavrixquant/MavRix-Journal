@@ -1,13 +1,3 @@
-// apps/api/src/lib/adminBootstrap.js
-//
-// Boots the very first superadmin account.
-//
-// Called once at API startup. Behaviour:
-//   1. If any user with role='superadmin' already exists → no-op.
-//   2. If ADMIN_BOOTSTRAP_EMAIL + ADMIN_BOOTSTRAP_PASSWORD are set → create
-//      (or promote) that user to superadmin, mark email verified.
-//   3. Otherwise → log a clear warning and do nothing. The operator must
-//      set the env vars, restart the API, then remove them from .env.
 
 import { prisma } from './prisma.js';
 import { hashPassword } from './password.js';
@@ -48,8 +38,6 @@ export async function ensureSuperadmin() {
   const existingUser = await prisma.user.findUnique({ where: { email } });
 
   if (existingUser) {
-    // Promote an existing account. Mark verified — we can't run the email
-    // flow from the bootstrap. Clear any ban so we don't lock ourselves out.
     await prisma.user.update({
       where: { id: existingUser.id },
       data: {

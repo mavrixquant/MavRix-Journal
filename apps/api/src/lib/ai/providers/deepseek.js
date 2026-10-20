@@ -1,7 +1,3 @@
-// apps/api/src/lib/ai/providers/deepseek.js
-//
-// DeepSeek adapter (OpenAI-compatible endpoint).
-// Docs: https://platform.deepseek.com/api-docs/
 
 import { safeFetch, ProviderError } from './base.js';
 

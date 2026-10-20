@@ -1,4 +1,3 @@
-// apps/api/src/routes/index.js
 import { Router } from 'express';
 import { authRoutes } from './auth.routes.js';
 import { accountsRoutes } from './accounts.routes.js';
@@ -11,7 +10,7 @@ import { marketDataRoutes } from './marketData.routes.js';
 import { adminRoutes } from './admin.routes.js';
 import { chatRoutes } from './chat.routes.js';
 import { friendsRoutes } from './friends.routes.js';
-import { aiRoutes } from './ai.routes.js'; // NEW
+import { aiRoutes } from './ai.routes.js';
 
 export const apiRouter = Router();
 
@@ -27,5 +26,5 @@ apiRouter.use('/gex', gexRoutes);
 apiRouter.use('/market-data', marketDataRoutes);
 apiRouter.use('/chat', chatRoutes);
 apiRouter.use('/friends', friendsRoutes);
-apiRouter.use('/ai', aiRoutes); // NEW
+apiRouter.use('/ai', aiRoutes);
 apiRouter.use('/admin', adminRoutes);

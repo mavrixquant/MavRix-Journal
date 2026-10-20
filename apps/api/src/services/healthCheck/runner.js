@@ -1,22 +1,3 @@
-// apps/api/src/services/healthCheck/runner.js
-//
-// The test-runner context every phase receives. Owns:
-//   • test(name, fn)         — records timing + status, never throws
-//   • skip(name, reason)     — records an intentional skip
-//   • fetch(path, opts)      — thin wrapper around global fetch
-//   • expect / assertStatus  — tiny assertion helpers
-//   • onCleanup(fn)          — registers a cleanup step
-//   • runCleanups()          — runs them in reverse (LIFO) order
-//
-// Every emitted event goes through runStore.emit() so the SSE controller
-// can stream it live.
-//
-// HEALTH-CHECK HEADER
-// -------------------
-// Every outbound request carries `X-Health-Check-Run: <runId>`. The API's
-// rate limiter checks this header (plus the superadmin role) and skips its
-// bucket. That lets the suite exercise sensitive endpoints back-to-back
-// without tripping limits designed for human-paced use.
 
 import { emit } from './runStore.js';
 
@@ -29,9 +10,6 @@ export function createRunner({ run, baseUrl, adminId, prisma }) {
   let phaseName = null;
   let testCount = 0;
 
-  /* ------------------------------------------------------------------ */
-  /*  Phase lifecycle                                                    */
-  /* ------------------------------------------------------------------ */
 
   function setPhase(name) {
     phaseName = name;
@@ -54,9 +32,6 @@ export function createRunner({ run, baseUrl, adminId, prisma }) {
     phaseName = null;
   }
 
-  /* ------------------------------------------------------------------ */
-  /*  Test recording                                                     */
-  /* ------------------------------------------------------------------ */
 
   async function test(name, fn) {
     const id = `${phaseName}:${++testCount}`;
@@ -91,7 +66,6 @@ export function createRunner({ run, baseUrl, adminId, prisma }) {
       };
       results.push(result);
       emit(run, { type: 'test:end', ...result });
-      // Never throw — one failure shouldn't abort the phase.
       return null;
     }
   }
@@ -110,9 +84,6 @@ export function createRunner({ run, baseUrl, adminId, prisma }) {
     emit(run, { type: 'test:end', ...result });
   }
 
-  /* ------------------------------------------------------------------ */
-  /*  HTTP wrapper                                                       */
-  /* ------------------------------------------------------------------ */
 
   async function httpFetch(path, opts = {}) {
     const url = `${baseUrl}${path}`;
@@ -122,8 +93,6 @@ export function createRunner({ run, baseUrl, adminId, prisma }) {
       headers['Content-Type'] = 'application/json';
     }
 
-    // Health-check bypass header — lets the API's rate limiter skip its
-    // bucket for this superadmin run.
     if (run?.id) headers['X-Health-Check-Run'] = run.id;
 
     const res = await fetch(url, {
@@ -157,9 +126,6 @@ export function createRunner({ run, baseUrl, adminId, prisma }) {
     return { status: res.status, body, ok: res.ok };
   }
 
-  /* ------------------------------------------------------------------ */
-  /*  Tiny assertions                                                    */
-  /* ------------------------------------------------------------------ */
 
   function expect(condition, message) {
     if (!condition) throw new Error(message || 'Assertion failed');
@@ -175,9 +141,6 @@ export function createRunner({ run, baseUrl, adminId, prisma }) {
     }
   }
 
-  /* ------------------------------------------------------------------ */
-  /*  Cleanup registry                                                   */
-  /* ------------------------------------------------------------------ */
 
   function onCleanup(fn) {
     cleanups.push(fn);
@@ -185,7 +148,6 @@ export function createRunner({ run, baseUrl, adminId, prisma }) {
 
   async function runCleanups() {
     const cleanupResults = [];
-    // LIFO — later tests may depend on earlier fixtures being alive.
     for (const fn of [...cleanups].reverse()) {
       try {
         const label = await fn();
@@ -200,7 +162,6 @@ export function createRunner({ run, baseUrl, adminId, prisma }) {
     return cleanupResults;
   }
 
-  /* ------------------------------------------------------------------ */
 
   return {
     run,

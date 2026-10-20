@@ -1,10 +1,3 @@
-// apps/web/src/features/admin/components/HealthCheckPhasePanel.jsx
-//
-// Collapsible card for one phase. Header shows a chevron, phase label,
-// per-status counts, and total test count. Body lists tests.
-//
-// `defaultExpanded` allows the parent to auto-open the currently running
-// phase so users see tests stream in without clicking.
 
 import { useState, useEffect } from 'react';
 import { ChevronDown } from 'lucide-react';
@@ -159,8 +152,6 @@ export default function HealthCheckPhasePanel({
 }) {
   const [expanded, setExpanded] = useState(defaultExpanded);
 
-  // When the parent flips `defaultExpanded` (e.g. a new phase starts
-  // running), sync the expanded state.
   useEffect(() => {
     if (defaultExpanded) setExpanded(true);
   }, [defaultExpanded]);

@@ -1,4 +1,3 @@
-// apps/web/src/features/auth/components/Divider.jsx
 export function Divider() {
   return (
     <div

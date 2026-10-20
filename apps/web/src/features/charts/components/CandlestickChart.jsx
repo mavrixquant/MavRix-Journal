@@ -1,19 +1,3 @@
-﻿// apps/web/src/features/charts/components/CandlestickChart.jsx
-//
-// Canvas chart: candles + volume + indicators + drawings.
-//
-// Chart is created once on mount. Indicator series and drawing shapes are
-// added/removed declaratively as props change.
-//
-// NOTE: trendline points arrive pre-sorted from drawingTools.normalizeDrawing;
-// we sort defensively again here because lightweight-charts hard-rejects
-// out-of-order setData.
-//
-// PHASE 4 CHANGE (EmptyState migration)
-// -------------------------------------
-//   • The "no data" overlay now uses the shared <EmptyState> component.
-//     Wrapped in an absolutely-positioned overlay so it sits centred over
-//     the chart canvas. The old `.cx-empty` CSS rule was removed.
 
 import { useEffect, useRef } from 'react';
 import { BarChart3 } from 'lucide-react';
@@ -37,9 +21,6 @@ const INDICATOR_COLORS = {
   bb:    '#8892A3',
 };
 
-/* ------------------------------------------------------------------ */
-/*  Time comparator — works for number or string times                 */
-/* ------------------------------------------------------------------ */
 
 function ascendingByTime(a, b) {
   if (a.time === b.time) return 0;
@@ -67,14 +48,10 @@ export default function CandlestickChart({
   const clickHandlerRef = useRef(onChartClick);
   useEffect(() => { clickHandlerRef.current = onChartClick; }, [onChartClick]);
 
-  /* ------------------------------------------------------------------ */
-  /*  Create chart once                                                  */
-  /* ------------------------------------------------------------------ */
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return undefined;
 
-    // Capture stable refs so the cleanup doesn't chase .current.
     const indicatorMap = indicatorRefs.current;
     const drawingMap = drawingRefs.current;
 
@@ -155,18 +132,12 @@ export default function CandlestickChart({
     };
   }, []);
 
-  /* ------------------------------------------------------------------ */
-  /*  Time-visible flag when interval changes                            */
-  /* ------------------------------------------------------------------ */
   useEffect(() => {
     const chart = chartRef.current;
     if (!chart) return;
     chart.timeScale().applyOptions({ timeVisible: interval !== '1d' });
   }, [interval]);
 
-  /* ------------------------------------------------------------------ */
-  /*  Feed base candle + volume data                                     */
-  /* ------------------------------------------------------------------ */
   useEffect(() => {
     const candle = candleRef.current;
     const volume = volumeRef.current;
@@ -187,9 +158,6 @@ export default function CandlestickChart({
     chart.timeScale().fitContent();
   }, [bars, interval]);
 
-  /* ------------------------------------------------------------------ */
-  /*  Sync indicator series                                              */
-  /* ------------------------------------------------------------------ */
   useEffect(() => {
     const chart = chartRef.current;
     if (!chart || !indicators || !indicatorData) return;
@@ -206,7 +174,6 @@ export default function CandlestickChart({
         crosshairMarkerVisible: false,
       });
 
-    // --- EMA 20 ---
     if (indicators.ema20 && !refs.has('ema20')) {
       refs.set('ema20', createLine(INDICATOR_COLORS.ema20, 2));
     } else if (!indicators.ema20 && refs.has('ema20')) {
@@ -214,7 +181,6 @@ export default function CandlestickChart({
       refs.delete('ema20');
     }
 
-    // --- EMA 50 ---
     if (indicators.ema50 && !refs.has('ema50')) {
       refs.set('ema50', createLine(INDICATOR_COLORS.ema50, 2));
     } else if (!indicators.ema50 && refs.has('ema50')) {
@@ -222,7 +188,6 @@ export default function CandlestickChart({
       refs.delete('ema50');
     }
 
-    // --- VWAP ---
     if (indicators.vwap && !refs.has('vwap')) {
       refs.set('vwap', createLine(INDICATOR_COLORS.vwap, 2, true));
     } else if (!indicators.vwap && refs.has('vwap')) {
@@ -230,7 +195,6 @@ export default function CandlestickChart({
       refs.delete('vwap');
     }
 
-    // --- Bollinger Bands ---
     if (indicators.bb && !refs.has('bbUpper')) {
       refs.set('bbUpper', createLine(INDICATOR_COLORS.bb, 1));
       refs.set('bbMiddle', createLine(INDICATOR_COLORS.bb, 1, true));
@@ -254,9 +218,6 @@ export default function CandlestickChart({
     }
   }, [indicators, indicatorData]);
 
-  /* ------------------------------------------------------------------ */
-  /*  Sync drawings                                                      */
-  /* ------------------------------------------------------------------ */
   useEffect(() => {
     const chart = chartRef.current;
     const candle = candleRef.current;
@@ -265,7 +226,6 @@ export default function CandlestickChart({
     const refs = drawingRefs.current;
     const incomingIds = new Set(drawings.map((d) => d.id));
 
-    // Remove drawings that no longer exist
     for (const [id, entry] of refs.entries()) {
       if (incomingIds.has(id)) continue;
       if (entry.kind === 'priceLine') candle.removePriceLine(entry.handle);
@@ -273,10 +233,9 @@ export default function CandlestickChart({
       refs.delete(id);
     }
 
-    // Add or update drawings
     for (const d of drawings) {
       if (d.mode === 'hline') {
-        if (refs.has(d.id)) continue; // already drawn
+        if (refs.has(d.id)) continue;
         const handle = candle.createPriceLine({
           price: d.points[0].price,
           color: d.color,
@@ -290,12 +249,10 @@ export default function CandlestickChart({
       }
 
       if (d.mode === 'trendline') {
-        // Defensive: sort ascending before handing to lightweight-charts.
         const sortedPoints = [...d.points]
           .map((p) => ({ time: p.time, value: p.price }))
           .sort(ascendingByTime);
 
-        // Guard against degenerate (identical times) — skip silently.
         if (sortedPoints.length < 2 || sortedPoints[0].time === sortedPoints[1].time) {
           continue;
         }
@@ -319,9 +276,6 @@ export default function CandlestickChart({
     }
   }, [drawings]);
 
-  /* ------------------------------------------------------------------ */
-  /*  Cursor hint when a drawing tool is active                          */
-  /* ------------------------------------------------------------------ */
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;

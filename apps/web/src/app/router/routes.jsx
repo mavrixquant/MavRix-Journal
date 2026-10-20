@@ -1,4 +1,3 @@
-// apps/web/src/app/router/routes.jsx
 
 import { lazy, Suspense } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
@@ -10,17 +9,14 @@ import { useSettings } from '@/app/layout/Settings/SettingsProvider';
 import { RequireAdmin, RequireSuperadmin } from '@/features/admin/guards';
 import { BootLoader } from '@/shared/ui/boot-loader';
 
-/* ---- Landing ---- */
 const LandingPage = lazy(() => import('@/features/landing/LandingPage'));
 
-/* ---- Auth pages ---- */
 const Login = lazy(() => import('@/features/auth/pages/LoginPage'));
 const Signup = lazy(() => import('@/features/auth/pages/SignupPage'));
 const VerifyEmail = lazy(() => import('@/features/auth/pages/VerifyEmailPage'));
 const ForgotPassword = lazy(() => import('@/features/auth/pages/ForgotPasswordPage'));
 const ResetPassword = lazy(() => import('@/features/auth/pages/ResetPasswordPage'));
 
-/* ---- Journal ---- */
 const DashboardPage = lazy(() => import('@/features/journal/dashboard/DashboardPage'));
 const AnalysePage = lazy(() => import('@/features/journal/analyse/AnalysePage'));
 const TradeLogsPage = lazy(() => import('@/features/journal/trade-logs/TradeLogsPage'));
@@ -28,7 +24,6 @@ const EconomicCalendarPage = lazy(() =>
   import('@/features/journal/economic-calendar/EconomicCalendarPage')
 );
 
-/* ---- Backtester ---- */
 const BacktesterDashboardPage = lazy(() =>
   import('@/features/backtester/dashboard/BacktesterDashboardPage')
 );
@@ -36,18 +31,14 @@ const TestLogsPage = lazy(() => import('@/features/backtester/test-logs/TestLogs
 const SimulatorPage = lazy(() => import('@/features/backtester/simulator/SimulatorPage'));
 const MarketChartPage = lazy(() => import('@/features/charts/MarketChartPage'));
 
-/* ---- Manage ---- */
 const AccountsPage = lazy(() => import('@/features/manage/accounts/AccountsPage'));
 const StrategiesPage = lazy(() => import('@/features/manage/strategies/StrategiesPage'));
 const StrategyDetailPage = lazy(() => import('@/features/manage/strategies/StrategyDetailPage'));
 
-/* ---- Utilities ---- */
 const GexPage = lazy(() => import('@/features/utilities/gex/GexPage'));
 
-/* ---- Personal ---- */
 const ChatsPage = lazy(() => import('@/features/personal/chats/ChatsPage'));
 
-/* ---- Admin ---- */
 const AdminLayout = lazy(() => import('@/features/admin/layout/AdminLayout'));
 const AdminDashboardPage    = lazy(() => import('@/features/admin/pages/AdminDashboardPage'));
 const AdminUsersPage        = lazy(() => import('@/features/admin/pages/AdminUsersPage'));
@@ -67,21 +58,6 @@ const AdminHealthCheckPage  = lazy(() => import('@/features/admin/pages/AdminHea
 
 const LAST_PATH_KEY = 'mavrix:lastPath';
 
-/* ------------------------------------------------------------------ */
-/*  HomeRoute — the `/` entry point.                                   */
-/*                                                                     */
-/*  Three states, in order:                                            */
-/*                                                                     */
-/*    1. Auth refresh in flight → BootLoader. Without this gate, a     */
-/*       logged-in user's first paint on `/` renders `user === null`,  */
-/*       which redirects to `/login`; RequireGuest then bounces them   */
-/*       to `/journal`. That is two full navigations + a blank frame   */
-/*       on every cold boot.                                            */
-/*                                                                     */
-/*    2. No user → marketing landing page.                              */
-/*                                                                     */
-/*    3. Authed → role-aware + preference-aware redirect.              */
-/* ------------------------------------------------------------------ */
 function HomeRoute() {
   const { user, loading } = useAuth();
   const { settings } = useSettings();
@@ -111,7 +87,6 @@ function HomeRoute() {
     try {
       last = localStorage.getItem(LAST_PATH_KEY);
     } catch {
-      // localStorage disabled — fall through to default
     }
     if (last && last.startsWith('/') && last !== '/') {
       return <Navigate to={last} replace />;
@@ -133,7 +108,7 @@ export function AppRoutes() {
 
       <Route path="/verify-email" element={<RequireAuth><VerifyEmail /></RequireAuth>} />
 
-      {/* ---------------- Admin subtree ---------------- */}
+      {}
       <Route
         path="/admin"
         element={
@@ -162,7 +137,7 @@ export function AppRoutes() {
         />
       </Route>
 
-      {/* ---------------- User app shell ---------------- */}
+      {}
       <Route element={<RequireVerified><AppLayout /></RequireVerified>}>
         <Route path="/journal" element={<DashboardPage />} />
         <Route path="/journal/analyse" element={<AnalysePage />} />

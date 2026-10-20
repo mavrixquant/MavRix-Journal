@@ -1,11 +1,3 @@
-// apps/api/scripts/backup-gex-days.mjs
-//
-// Dump every row of the `gex_days` table to a timestamped JSON file under
-// apps/api/backups/. Uses the already-installed Prisma client — nothing to
-// download, nothing to install.
-//
-// Usage (from apps/api):
-//   node --env-file=.env scripts/backup-gex-days.mjs
 
 import { PrismaClient } from '@prisma/client';
 import fs from 'node:fs/promises';
@@ -22,7 +14,6 @@ async function main() {
 
   console.log(`[backup] fetched ${rows.length} row(s)`);
 
-  // Timestamp filename: 2026-10-05T22-15-30 (colons stripped for Windows)
   const stamp = new Date()
     .toISOString()
     .replace(/[:.]/g, '-')

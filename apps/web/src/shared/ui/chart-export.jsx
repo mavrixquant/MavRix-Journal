@@ -1,4 +1,3 @@
-// apps/web/src/components/ui/chart-export.jsx
 import { Download } from 'lucide-react';
 
 const CSS = `

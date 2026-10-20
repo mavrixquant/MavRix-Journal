@@ -1,4 +1,3 @@
-// apps/api/src/config/env.js
 const required = (key) => {
   const v = process.env[key];
   if (!v) throw new Error(`Missing env var: ${key}`);
@@ -23,17 +22,11 @@ export const env = {
 
   isProd: (process.env.NODE_ENV || 'development') === 'production',
 
-  // ---------------------------------------------------------------------------
-  // Admin panel — first-superadmin bootstrap.
-  // ---------------------------------------------------------------------------
   admin: {
     bootstrapEmail: process.env.ADMIN_BOOTSTRAP_EMAIL || '',
     bootstrapPassword: process.env.ADMIN_BOOTSTRAP_PASSWORD || '',
   },
 
-  // ---------------------------------------------------------------------------
-  // Economic Calendar (Biquote)
-  // ---------------------------------------------------------------------------
   calendar: {
     syncEnabled: process.env.CALENDAR_SYNC_ENABLED !== 'false',
     syncIntervalMs: Number(process.env.CALENDAR_SYNC_INTERVAL_MS || 60_000),
@@ -44,19 +37,6 @@ export const env = {
     baseUrl: process.env.BIQUOTE_BASE_URL || 'https://biquote.io',
   },
 
-  // ---------------------------------------------------------------------------
-  // Market Data (Yahoo Finance)
-  //
-  // No API key required. The v8 chart endpoint is undocumented but stable
-  // and used by yfinance and dozens of other libraries.
-  //
-  // Safety rails:
-  //   - yahooMaxConcurrent: max in-flight requests (see lib/marketData/queue.js)
-  //   - yahooMinGapMs:      min ms between two request STARTS
-  //   - yahooTimeoutMs:     per-request AbortController timeout
-  //
-  // Cache TTLs are per-interval — shorter for finer granularity.
-  // ---------------------------------------------------------------------------
   marketData: {
     yahooBaseUrl: process.env.YAHOO_BASE_URL || 'https://query1.finance.yahoo.com',
     yahooTimeoutMs: Number(process.env.YAHOO_TIMEOUT_MS || 10_000),
@@ -73,24 +53,6 @@ export const env = {
     },
   },
 
-  // ---------------------------------------------------------------------------
-  // Mave AI — built-in assistant.
-  //
-  // Providers are tried in `providerPriority` order. Each provider's key
-  // can be blank (the router just skips that provider). BYOK credentials
-  // live in the DB; these env keys are the ADMIN fallback chain.
-  //
-  // `masterKey` is used to encrypt/decrypt BYOK credentials (AES-256-GCM).
-  // It is optional at boot so that local dev without BYOK works. The
-  // crypto module throws only when someone tries to SAVE a BYOK key and
-  // the master key is missing.
-  //
-  // Get free keys:
-  //   OpenRouter → https://openrouter.ai/keys          (free models)
-  //   Groq       → https://console.groq.com/keys        (free tier)
-  //   Gemini     → https://aistudio.google.com/apikey   (free tier)
-  //   DeepSeek   → https://platform.deepseek.com/api_keys (paid, cheap)
-  // ---------------------------------------------------------------------------
   ai: {
     masterKey: optional('MAVE_AI_MASTER_KEY'),
 

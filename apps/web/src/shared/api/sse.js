@@ -1,4 +1,3 @@
-// apps/web/src/shared/api/sse.js
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { ensureFreshAccessToken, apiJson } from './client';
@@ -7,9 +6,6 @@ import { toast } from 'sonner';
 
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 
-/* ------------------------------------------------------------------ */
-/*  Fallback store - when SSE fails 3x we let hooks resume polling.   */
-/* ------------------------------------------------------------------ */
 
 let fallbackMode = false;
 const fallbackListeners = new Set();
@@ -35,9 +31,6 @@ export function useSSEFallback() {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Chat cache helpers                                                 */
-/* ------------------------------------------------------------------ */
 
 function appendMessage(queryClient, conversationId, message) {
   queryClient.setQueryData(['chat', 'messages', conversationId], (old) => {
@@ -69,23 +62,11 @@ function patchMessage(queryClient, conversationId, messageId, patch) {
   });
 }
 
-/* ------------------------------------------------------------------ */
-/*  The bridge hook                                                    */
-/* ------------------------------------------------------------------ */
 
 const MAX_FAILURES = 3;
 const RECONNECT_BASE_MS = 1000;
 const RECONNECT_MAX_MS = 8000;
 
-/**
- * Opens a single SSE connection per logged-in user.
- *
- * @param {object}  opts
- * @param {boolean} opts.enabled
- * @param {string}  opts.currentUserId — the logged-in user's id. Used to
- *   decide whether an inbound chat:message:new needs a delivery ack.
- *   Changes to this value do NOT reconnect the stream (ref-based).
- */
 export function useSSEBridge({ enabled = true, currentUserId = null } = {}) {
   const queryClient = useQueryClient();
   const [connected, setConnected] = useState(false);
@@ -95,7 +76,6 @@ export function useSSEBridge({ enabled = true, currentUserId = null } = {}) {
   const failuresRef = useRef(0);
   const userIdRef = useRef(currentUserId);
 
-  // Keep the ref in sync without restarting the SSE stream on login.
   useEffect(() => {
     userIdRef.current = currentUserId;
   }, [currentUserId]);
@@ -129,10 +109,8 @@ export function useSSEBridge({ enabled = true, currentUserId = null } = {}) {
       });
 
       es.addEventListener('hello', () => {
-        // Handshake acknowledged.
       });
 
-      /* ---------------- Generic query invalidation ---------------- */
 
       es.addEventListener('invalidate', (e) => {
         let payload;
@@ -148,7 +126,6 @@ export function useSSEBridge({ enabled = true, currentUserId = null } = {}) {
         });
       });
 
-      /* ---------------- Chat: new message ---------------- */
 
       es.addEventListener('chat:message:new', (e) => {
         let payload;
@@ -167,8 +144,6 @@ export function useSSEBridge({ enabled = true, currentUserId = null } = {}) {
           setTypingState(conversationId, message.senderId, false);
         }
 
-        // Auto-ack delivery for inbound messages. Fire-and-forget; a dropped
-        // ack just means the sender sees ✓ until the peer opens the thread.
         const myId = userIdRef.current;
         if (myId && message.senderId && message.senderId !== myId) {
           apiJson(
@@ -178,7 +153,6 @@ export function useSSEBridge({ enabled = true, currentUserId = null } = {}) {
         }
       });
 
-      /* ---------------- Chat: edit ---------------- */
 
       es.addEventListener('chat:message:edited', (e) => {
         let payload;
@@ -193,7 +167,6 @@ export function useSSEBridge({ enabled = true, currentUserId = null } = {}) {
         queryClient.invalidateQueries({ queryKey: ['chat', 'conversations'] });
       });
 
-      /* ---------------- Chat: delete for everyone ---------------- */
 
       es.addEventListener('chat:message:deleted', (e) => {
         let payload;
@@ -212,7 +185,6 @@ export function useSSEBridge({ enabled = true, currentUserId = null } = {}) {
         queryClient.invalidateQueries({ queryKey: ['chat', 'conversations'] });
       });
 
-      /* ---------------- Chat: delivered ---------------- */
 
       es.addEventListener('chat:message:delivered', (e) => {
         let payload;
@@ -226,7 +198,6 @@ export function useSSEBridge({ enabled = true, currentUserId = null } = {}) {
         patchMessage(queryClient, conversationId, messageId, { deliveredAt });
       });
 
-      /* ---------------- Chat: read receipt ---------------- */
 
       es.addEventListener('chat:read', (e) => {
         let payload;
@@ -240,9 +211,6 @@ export function useSSEBridge({ enabled = true, currentUserId = null } = {}) {
 
         const readTs = new Date(readAt).getTime();
 
-        // Mark all OWN messages in this conversation whose createdAt <= readAt
-        // as read. The reader's own messages are skipped (we shouldn't tick
-        // our own inbound messages on their behalf).
         queryClient.setQueryData(['chat', 'messages', conversationId], (old) => {
           if (!old || !Array.isArray(old.pages)) return old;
           return {
@@ -260,7 +228,6 @@ export function useSSEBridge({ enabled = true, currentUserId = null } = {}) {
         });
       });
 
-      /* ---------------- Chat: typing (ephemeral) ---------------- */
 
       es.addEventListener('chat:typing', (e) => {
         let payload;
@@ -274,16 +241,6 @@ export function useSSEBridge({ enabled = true, currentUserId = null } = {}) {
         setTypingState(conversationId, userId, !!isTyping);
       });
 
-      /* ---------------- Chat: cleared ---------------- */
-      //
-      // Phase 5. The API broadcasts this to the CALLER ONLY after a
-      // successful clearChat. Invalidating the affected keys refetches:
-      //   - messages  → empty (AI) or filtered (human)
-      //   - conversation detail
-      //   - the sidebar list → preview flips to "Cleared" / "No messages yet"
-      //
-      // No participant needs notifying — the clear is per-user (or, for AI,
-      // hard-delete for everyone in the DM which is only the caller + AI).
 
       es.addEventListener('chat:cleared', (e) => {
         let payload;
@@ -300,14 +257,11 @@ export function useSSEBridge({ enabled = true, currentUserId = null } = {}) {
         queryClient.invalidateQueries({ queryKey: ['chat', 'conversations'] });
       });
 
-      /* ---------------- Friends: incoming request ---------------- */
 
       es.addEventListener('friend:request:new', (e) => {
         queryClient.invalidateQueries({ queryKey: ['friends', 'requests'] });
         queryClient.invalidateQueries({ queryKey: ['friends', 'status'] });
 
-        // Pop a notification so the recipient knows immediately,
-        // regardless of which route they're on.
         try {
           const payload = JSON.parse(e.data);
           const from = payload?.request?.fromUser;
@@ -320,20 +274,14 @@ export function useSSEBridge({ enabled = true, currentUserId = null } = {}) {
             duration: 6000,
           });
         } catch {
-          // Malformed payload — ignore.
         }
       });
 
-      /* ---------------- Friends: request accepted ---------------- */
 
       es.addEventListener('friend:request:accepted', (e) => {
-        // Broad — a new friend appears in the list, the peer's card flips
-        // to "friend", and any open DM with the peer gains a fresh badge.
         queryClient.invalidateQueries({ queryKey: ['friends'] });
         queryClient.invalidateQueries({ queryKey: ['chat', 'conversations'] });
 
-        // Notify both sides. Server broadcasts `peer` = the OTHER user:
-        // to the accepter, peer=requester; to the requester, peer=accepter.
         try {
           const payload = JSON.parse(e.data);
           const peer = payload?.peer;
@@ -345,41 +293,33 @@ export function useSSEBridge({ enabled = true, currentUserId = null } = {}) {
             description: `You and ${name} are now friends.`,
           });
         } catch {
-          // Malformed payload — ignore.
         }
       });
 
-      /* ---------------- Friends: request declined ---------------- */
 
       es.addEventListener('friend:request:declined', () => {
         queryClient.invalidateQueries({ queryKey: ['friends', 'requests'] });
         queryClient.invalidateQueries({ queryKey: ['friends', 'status'] });
       });
 
-      /* ---------------- Friends: request cancelled ---------------- */
 
       es.addEventListener('friend:request:cancelled', () => {
         queryClient.invalidateQueries({ queryKey: ['friends', 'requests'] });
         queryClient.invalidateQueries({ queryKey: ['friends', 'status'] });
       });
 
-      /* ---------------- Friends: removed ---------------- */
 
       es.addEventListener('friend:removed', () => {
         queryClient.invalidateQueries({ queryKey: ['friends'] });
         queryClient.invalidateQueries({ queryKey: ['chat', 'conversations'] });
       });
 
-      /* ---------------- Blocks: added ---------------- */
 
       es.addEventListener('block:new', () => {
-        // A block tears down friendships, cancels requests, hides DMs, and
-        // filters group member lists — invalidate everything friends/chat.
         queryClient.invalidateQueries({ queryKey: ['friends'] });
         queryClient.invalidateQueries({ queryKey: ['chat'] });
       });
 
-      /* ---------------- Blocks: removed ---------------- */
 
       es.addEventListener('block:removed', () => {
         queryClient.invalidateQueries({ queryKey: ['friends'] });
@@ -390,7 +330,7 @@ export function useSSEBridge({ enabled = true, currentUserId = null } = {}) {
         if (cancelled) return;
 
         setConnected(false);
-        try { es.close(); } catch { /* noop */ }
+        try { es.close(); } catch { }
         esRef.current = null;
 
         failuresRef.current += 1;
@@ -420,7 +360,7 @@ export function useSSEBridge({ enabled = true, currentUserId = null } = {}) {
       cancelled = true;
       if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
       if (esRef.current) {
-        try { esRef.current.close(); } catch { /* noop */ }
+        try { esRef.current.close(); } catch { }
         esRef.current = null;
       }
     };

@@ -1,4 +1,3 @@
-// apps/web/src/shared/api/trades.js
 import {
   useQuery,
   useMutation,
@@ -8,16 +7,13 @@ import { apiJson } from './client';
 import { accountsKeys } from './accounts';
 import { useSSEFallback } from '@/shared/api/sse';
 
-// ---------- Trade ID generator (canonical source: @/shared/trading/tradeId) ----------
 export { generateTradeId } from '@/shared/trading/tradeId';
 
-// ---------- Query keys ----------
 export const tradesKeys = {
   all: ['trades'],
   byAccount: (accountId) => ['trades', accountId],
 };
 
-// ---------- Raw API calls ----------
 export async function getTrades(accountId) {
   const data = await apiJson(
     `/api/trades?accountId=${encodeURIComponent(accountId)}`
@@ -80,7 +76,6 @@ export async function renameCustomColumn(accountId, oldName, newName) {
   );
 }
 
-// ---------- Value-level operations ----------
 
 export async function renameColumnValue(accountId, columnName, { oldValue, newValue }) {
   return apiJson(
@@ -102,12 +97,7 @@ export async function clearColumnValue(accountId, columnName, { value }) {
   );
 }
 
-// ---------- Hooks ----------
 
-/**
- * Trades for a given account.
- * Pass `null` / `undefined` to disable the query (e.g. no account selected yet).
- */
 export function useTrades(accountId, { refetchInterval } = {}) {
   const sseFallback = useSSEFallback();
 
@@ -126,7 +116,6 @@ export function useTrades(accountId, { refetchInterval } = {}) {
   });
 }
 
-/** Bulk-import trades. Invalidates the account's trade list on success. */
 export function useBulkCreateTrades() {
   const qc = useQueryClient();
   return useMutation({
@@ -233,7 +222,6 @@ export function useClearColumnValue() {
   });
 }
 
-// ---------- Deprecated polling helper (kept for compat) ----------
 export function subscribeToTrades(accountId, callback) {
   let cancelled = false;
   let timer = null;

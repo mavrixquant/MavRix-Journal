@@ -1,4 +1,3 @@
-// apps/web/src/shared/trading/optimization.js
 import { applyLimitsFilter, applySessionTimeFilter } from './filters.js';
 import { computeStats } from './stats.js';
 
@@ -39,16 +38,6 @@ export function applySubsetCombinationFilter(trades, combo, selectedKeys) {
   });
 }
 
-/**
- * Run a filter-combination optimization sweep.
- *
- * R mode  (Backtest account)  → sweeps every combo × every selected RR target.
- * $ mode  (Live / Demo)       → skips the RR sweep; a single placeholder R is
- *                               used so computeStats returns net-P&L scores.
- *
- * Backwards compatible: the caller may keep passing the same arguments.
- * In money mode the `rrSelected` arg is ignored internally.
- */
 export async function runOptimization(
   allTrades,
   columnEnabled,
@@ -63,7 +52,6 @@ export async function runOptimization(
   onProgress,
   account
 ) {
-  // Money mode detection — driven purely by account type.
   const isMoneyMode = account?.type !== 'Backtest';
   const rrList = isMoneyMode ? [1] : rrSelected;
 
@@ -133,7 +121,6 @@ export async function runOptimization(
           return `${colName}: ${display}`;
         }).join(' | ');
 
-        // In money mode we skip the RR suffix — the sweep is not RR-based.
         const comboDisplay = isMoneyMode
           ? comboLabel
           : `${comboLabel} | RR: 1:${rr}`;
@@ -142,7 +129,6 @@ export async function runOptimization(
           combo: combo.slice(),
           comboDisplay,
           rr,
-          // `totalR` and `total` are identical in money mode (both = net P&L).
           totalR: stats.totalR,
           total: stats.total,
           winRate: stats.winRate,

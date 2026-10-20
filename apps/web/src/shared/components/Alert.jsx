@@ -1,11 +1,6 @@
-// src/components/common/Alert.jsx
 import Portal from './Portal';
 import { FaCheckCircle, FaExclamationTriangle, FaQuestionCircle, FaTimes } from 'react-icons/fa';
 
-/* ------------------------------------------------------------------ */
-/*  Scoped CSS — matches JournalMain / UploadModal / DashboardHeader   */
-/*  Vars live on .alert-overlay so they cascade into the portaled tree */
-/* ------------------------------------------------------------------ */
 const ALERT_CSS = `
   .alert-overlay {
     --win: #22c55e;
@@ -271,7 +266,7 @@ export default function Alert({
   isOpen,
   title,
   message,
-  type = 'confirm', // 'confirm', 'success', 'error'
+  type = 'confirm',
   confirmText = 'OK',
   cancelText = 'Cancel',
   onConfirm,
@@ -288,7 +283,6 @@ export default function Alert({
     if (onCancel) onCancel();
   };
 
-  // Map type → icon, eyebrow label, modal modifier class
   const TYPE = {
     confirm: { icon: <FaQuestionCircle />, label: 'Confirm', cls: 'is-confirm' },
     success: { icon: <FaCheckCircle />,    label: 'Success', cls: 'is-success' },
@@ -302,7 +296,6 @@ export default function Alert({
       <div
         className="alert-overlay"
         onClick={(e) => {
-          // Backdrop click only cancels non-confirm alerts
           if (e.target === e.currentTarget && type !== 'confirm') {
             if (onCancel) onCancel();
           }

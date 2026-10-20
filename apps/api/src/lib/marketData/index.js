@@ -1,6 +1,3 @@
-// apps/api/src/lib/marketData/index.js
-//
-// Public surface of the market data layer.
 
 export {
   resolveSymbol,

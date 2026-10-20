@@ -1,12 +1,3 @@
-// apps/web/src/app/layout/Settings/SettingsModal.jsx
-//
-// Global settings modal. Opens from three places in the HeaderBar:
-//   - Palette icon  → Appearance tab
-//   - Settings icon → Preferences tab
-//   - User pill     → Account tab
-//
-// All 8 tabs are functional. Preference persistence lives in
-// SettingsProvider (mounted at the app root).
 
 import { useEffect, useState } from 'react';
 import {
@@ -18,7 +9,7 @@ import {
   Database,
   Info,
   X,
-  Sparkles, // NEW
+  Sparkles,
 } from 'lucide-react';
 
 import Portal from '@/shared/components/Portal';
@@ -30,13 +21,10 @@ import NotificationsPanel from './panels/NotificationsPanel';
 import ChatsPanel         from './panels/ChatsPanel';
 import DataPanel          from './panels/DataPanel';
 import AboutPanel         from './panels/AboutPanel';
-import MaveAiPanel        from './panels/MaveAiPanel'; // NEW
+import MaveAiPanel        from './panels/MaveAiPanel';
 
 import './SettingsModal.css';
 
-/* ------------------------------------------------------------------ */
-/*  Tab metadata                                                       */
-/* ------------------------------------------------------------------ */
 
 const TABS = [
   {
@@ -97,9 +85,6 @@ const TABS = [
   },
 ];
 
-/* ------------------------------------------------------------------ */
-/*  Panel dispatch                                                     */
-/* ------------------------------------------------------------------ */
 
 function renderPanel(id) {
   switch (id) {
@@ -115,9 +100,6 @@ function renderPanel(id) {
   }
 }
 
-/* ------------------------------------------------------------------ */
-/*  Component                                                          */
-/* ------------------------------------------------------------------ */
 
 export default function SettingsModal({
   isOpen,
@@ -126,13 +108,10 @@ export default function SettingsModal({
 }) {
   const [activeTab, setActiveTab] = useState(initialTab);
 
-  // Re-sync the active tab whenever the modal is (re)opened from a
-  // different entry point.
   useEffect(() => {
     if (isOpen) setActiveTab(initialTab);
   }, [isOpen, initialTab]);
 
-  // Escape closes.
   useEffect(() => {
     if (!isOpen) return undefined;
     const onKey = (e) => {
@@ -160,7 +139,7 @@ export default function SettingsModal({
           aria-modal="true"
           aria-label="Settings"
         >
-          {/* ---------- Left rail ---------- */}
+          {}
           <aside className="settings-rail">
             <div className="settings-rail-head">
               <span className="settings-rail-eyebrow">Preferences</span>
@@ -187,7 +166,7 @@ export default function SettingsModal({
             </nav>
           </aside>
 
-          {/* ---------- Right pane ---------- */}
+          {}
           <section className="settings-pane">
             <header className="settings-pane-head">
               <div className="settings-pane-headtext">

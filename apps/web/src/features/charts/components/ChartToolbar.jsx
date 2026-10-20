@@ -1,6 +1,3 @@
-// apps/web/src/features/charts/components/ChartToolbar.jsx
-//
-// Interval selector + live status + fullscreen toggle for the market chart.
 
 import { Maximize2, Minimize2 } from 'lucide-react';
 

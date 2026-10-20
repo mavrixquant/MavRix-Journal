@@ -1,23 +1,3 @@
-// apps/api/src/lib/ai/discoverModels.js
-//
-// Discovers the list of chat models available to a user's API key.
-//
-// This is also the AUTHORITATIVE auth check for the Test Key button. If
-// /models returns 200, the key is valid — period. We never test a key by
-// calling /chat/completions with a specific model, because providers
-// deprecate, promote to paid, or rename models constantly, which would make
-// the "test" fail for reasons unrelated to the key.
-//
-// Return shape (unchanged by provider):
-//
-//   { ok: true,  status: 200, models: string[] }
-//   { ok: false, status: <number|0>, error: string }
-//
-//   status 0      — network error or timeout
-//   status 401    — invalid key
-//   status 403    — key lacks permission to list models
-//   status 429    — rate-limited (key still valid)
-//   status 5xx    — provider temporarily down
 
 import { filterChatModels } from '@mavrix/shared';
 
@@ -44,9 +24,6 @@ async function fetchJson(url, init = {}) {
   }
 }
 
-/* ------------------------------------------------------------------ */
-/*  Per-provider discoverers                                          */
-/* ------------------------------------------------------------------ */
 
 async function discoverOpenRouter(apiKey) {
   const r = await fetchJson('https://openrouter.ai/api/v1/models?limit=500', {
@@ -61,8 +38,6 @@ async function discoverOpenRouter(apiKey) {
   }
   const data = Array.isArray(r.body?.data) ? r.body.data : [];
 
-  // Free models first, then paid — the router's linear scan then prefers
-  // the free tier automatically.
   const free = [];
   const paid = [];
   for (const m of data) {
@@ -189,9 +164,6 @@ async function discoverAnthropic(apiKey) {
   return { ok: true, status: 200, models: ids };
 }
 
-/* ------------------------------------------------------------------ */
-/*  Public entry point                                                */
-/* ------------------------------------------------------------------ */
 
 const DISCOVERERS = {
   openrouter: discoverOpenRouter,
@@ -202,17 +174,6 @@ const DISCOVERERS = {
   anthropic:  discoverAnthropic,
 };
 
-/**
- * Discover available chat models for a (provider, apiKey) pair.
- *
- * Also serves as the auth check for the Test Key button — if this returns
- * `{ ok: true }`, the key is valid.
- *
- * @returns {Promise<
- *   { ok: true,  status: 200, models: string[] } |
- *   { ok: false, status: number, error: string }
- * >}
- */
 export async function discoverModels(provider, apiKey) {
   const fn = DISCOVERERS[provider];
   if (!fn || !apiKey) {

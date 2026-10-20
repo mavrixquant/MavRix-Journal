@@ -1,58 +1,28 @@
-// apps/web/src/shared/charts/theme.js
-//
-// Single source of truth for every chart's visual language.
-//
-// Non-accent colors are stable constants — change one here and every
-// chart updates on next render.
-//
-// ACCENT COLOR
-// ------------
-// The `amber*` fields below are LEGACY. They are pinned at the default
-// chart amber and DO NOT follow the user's accent preference.
-//
-// Any chart component that needs an accent color which tracks the user's
-// choice MUST use the useChartColors() hook instead:
-//
-//   import { useChartColors } from '@/shared/charts';
-//
-//   function MyChart() {
-//     const colors = useChartColors();
-//     // colors.amber / colors.amberHover / colors.amberSoft / colors.amberFill
-//   }
-//
-// useChartColors() reads the live --accent* CSS custom properties off
-// <html> and re-renders the consuming component whenever they change.
 
 export const chartColors = {
-  // Semantic
   win: '#35C4A1',
   winHover: '#45D1AD',
   loss: '#FF5C5C',
   lossHover: '#FF7070',
   be: '#6C7686',
 
-  // Accent — LEGACY DEFAULT ONLY. Use useChartColors() for accent-tracking.
   amber: '#FFB020',
   amberHover: '#FFC04D',
   amberSoft: 'rgba(255,176,32,.18)',
   amberSoft2: 'rgba(255,176,32,.08)',
   amberFill: 'rgba(255,176,32,.28)',
 
-  // Blue (actual-path overlay in FanChart)
   blue: '#4C8BF5',
   blueHover: '#609AF8',
 
-  // Text
   text: '#8892A3',
   textLight: '#E7E9EE',
   textDim: '#545E6E',
 
-  // Surfaces
   grid: '#1A2029',
   zeroLine: 'rgba(255,255,255,.16)',
   threshold: 'rgba(239,68,68,.60)',
 
-  // Tooltip
   tooltipBg: '#11151F',
   tooltipBorder: '#212836',
 };
@@ -63,9 +33,6 @@ export const chartFonts = {
   body: "'Inter', sans-serif",
 };
 
-/* ------------------------------------------------------------------ */
-/*  Pure helpers — for non-hook contexts (workers, tests, SSR).        */
-/* ------------------------------------------------------------------ */
 
 function hexToRgba(hex, alpha) {
   const h = String(hex || '').replace('#', '');
@@ -87,13 +54,6 @@ function lightenHex(hex, amount = 60) {
   return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
 }
 
-/**
- * Given an accent hex, return a full chart-color palette anchored on it.
- * Prefer useChartColors() inside React components — this is a pure
- * helper for non-hook contexts only.
- *
- * @param {string} [accentHex]  e.g. "#4C8BF5". Defaults to chartColors.amber.
- */
 export function getChartColors(accentHex) {
   const accent = accentHex || chartColors.amber;
   return {
@@ -106,9 +66,6 @@ export function getChartColors(accentHex) {
   };
 }
 
-/* ------------------------------------------------------------------ */
-/*  Reusable option fragments                                          */
-/* ------------------------------------------------------------------ */
 
 export function baseTooltip(overrides = {}) {
   return {
@@ -168,12 +125,10 @@ export function baseLegend(overrides = {}) {
   };
 }
 
-/** Chart.js v4 built-in decimation config (LTTB algorithm). */
 export const decimationConfig = {
   enabled: true,
   algorithm: 'lttb',
   samples: 500,
 };
 
-/** Standard animation config to keep interactions snappy. */
 export const baseAnimation = { duration: 300, easing: 'easeOutQuart' };

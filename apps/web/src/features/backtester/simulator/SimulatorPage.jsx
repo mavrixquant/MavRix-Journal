@@ -1,11 +1,3 @@
-// apps/web/src/features/backtester/simulator/SimulatorPage.jsx
-//
-// Monte Carlo Simulator.
-//
-// Title + badge are published to the GLOBAL header bar via usePageHeader().
-// The account is the one currently selected in the header's account selector
-// (via useDashboardAccount()). The old in-page "Context" dropdown has been
-// removed — the header selector is the single source of truth.
 
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useAppContext } from '@/app/providers/AppProvider';
@@ -39,9 +31,6 @@ const simulationConfigsEqual = (a, b) => {
   );
 };
 
-/* ------------------------------------------------------------------ */
-/*  Page-local CSS.                                                    */
-/* ------------------------------------------------------------------ */
 const SIM_CSS = `
   .sim-page {
      
@@ -152,13 +141,8 @@ const SIM_CSS = `
 
 export default function SimulatorPage() {
   const { state } = useAppContext();
-  // The active account comes from the header's account selector for
-  // the /backtester route. No local dropdown anymore.
   const { accountId } = useDashboardAccount();
 
-  // ──────────────────────────────────────────────────────────────
-  //  Data layer — React Query hooks
-  // ──────────────────────────────────────────────────────────────
   const { data: accounts = [] } = useAccounts();
 
   const { data: rawSimTrades = [], isLoading: loadingTrades } =
@@ -183,9 +167,6 @@ export default function SimulatorPage() {
     [simTrades, state.currentR, simAccount]
   );
 
-  // ──────────────────────────────────────────────────────────────
-  //  Simulation state
-  // ──────────────────────────────────────────────────────────────
   const [method, setMethod] = useState('permutation');
   const [runs, setRuns] = useState(10000);
   const [blockSize, setBlockSize] = useState(5);
@@ -200,7 +181,6 @@ export default function SimulatorPage() {
 
   useEffect(() => {
     setInitialCapital(accountBalance);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accountId]);
 
   const dollarsPerR = useMemo(() => {
@@ -247,7 +227,6 @@ export default function SimulatorPage() {
     setResult(null);
     setThresholdCustomized(false);
     setRuinThreshold(defaultRuin);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accountId, unitMode, defaultRuin]);
 
   useEffect(() => {
@@ -350,9 +329,6 @@ export default function SimulatorPage() {
 
   const summary = useMemo(() => summarizeMC(result), [result]);
 
-  // ──────────────────────────────────────────────────────────────
-  //  Export handlers
-  // ──────────────────────────────────────────────────────────────
   const handleExport = () => {
     if (!result || !summary || resultIsStale) return;
 
@@ -576,7 +552,6 @@ export default function SimulatorPage() {
 
   const canRun = scores.length >= 5;
 
-  // Publish title + badge to the global header bar.
   const badgeVariant = simAccount?.type === 'Backtest'
     ? 'is-backtest'
     : simAccount?.type === 'Live'
@@ -591,9 +566,6 @@ export default function SimulatorPage() {
     badgeVariant,
   });
 
-  /* ---------------------------------------------------------------- */
-  /*  Early returns                                                    */
-  /* ---------------------------------------------------------------- */
 
   if (accounts.length === 0) {
     return (

@@ -1,15 +1,3 @@
-// apps/web/src/features/admin/pages/AdminHealthCheckPage.jsx
-//
-// /admin/health-check — superadmin-only.
-//
-// Live SSE streaming: POST /run → receive runId → open a streaming fetch
-// to /stream/:runId (Bearer-authenticated) → parse SSE frames → reduce
-// each event into UI state.
-//
-// Why `fetch` + ReadableStream instead of `EventSource`:
-//   EventSource cannot set custom headers, and our admin router is
-//   Bearer-authenticated only (no ?token= fallback). Fetch + stream
-//   reader gives us auth + full control.
 
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
@@ -31,9 +19,6 @@ import { toast } from 'sonner';
 import { apiJson, apiFetch } from '@/shared/api/client';
 import HealthCheckPhasePanel from '../components/HealthCheckPhasePanel';
 
-/* ============================================================ */
-/*  Scoped CSS                                                   */
-/* ============================================================ */
 
 const CSS = `
   .hc-root { display: flex; flex-direction: column; gap: 20px; }
@@ -418,35 +403,25 @@ const CSS = `
   }
 `;
 
-/* ============================================================ */
-/*  Constants                                                    */
-/* ============================================================ */
 
 const IDLE_STATE = {
   runId: null,
-  status: 'idle',     // 'idle' | 'running' | 'completed' | 'failed'
-  phases: {},         // { [phaseId]: { status, tests: [] } }
-  cleanup: [],        // [{ ok, label }]
+  status: 'idle',
+  phases: {},
+  cleanup: [],
   summary: null,
   error: null,
   startedAt: null,
   completedAt: null,
 };
 
-/* ============================================================ */
-/*  Component                                                    */
-/* ============================================================ */
 
 export default function AdminHealthCheckPage() {
   const [selected, setSelected] = useState(null);
   const [runState, setRunState] = useState(IDLE_STATE);
 
-  // React 19 purity: `now` starts at 0 and is set inside an effect.
-  // While a run is active, a 250ms interval refreshes it. When idle,
-  // it stays 0 (nothing reads it).
   const [now, setNow] = useState(0);
 
-  /* ---------------- fetch phase metadata ---------------- */
 
   const phasesQuery = useQuery({
     queryKey: ['admin', 'health-check', 'phases'],
@@ -454,7 +429,6 @@ export default function AdminHealthCheckPage() {
     staleTime: 5 * 60_000,
   });
 
-  // FIX for Phase-3 warning: keep a stable reference via useMemo.
   const phases = useMemo(
     () => phasesQuery.data?.phases ?? [],
     [phasesQuery.data]
@@ -465,7 +439,6 @@ export default function AdminHealthCheckPage() {
     setSelected((prev) => prev ?? new Set(phases.map((p) => p.id)));
   }, [phases]);
 
-  /* ---------------- start run ---------------- */
 
   const startMutation = useMutation({
     mutationFn: (phasesList) =>
@@ -497,7 +470,6 @@ export default function AdminHealthCheckPage() {
     },
   });
 
-  /* ---------------- SSE consumer ---------------- */
 
   const abortRef = useRef(null);
 
@@ -649,7 +621,6 @@ export default function AdminHealthCheckPage() {
           if (done) break;
           buffer += decoder.decode(value, { stream: true });
 
-          // SSE frames are separated by a blank line (\n\n).
           let idx;
           while ((idx = buffer.indexOf('\n\n')) !== -1) {
             const frame = buffer.slice(0, idx);
@@ -667,7 +638,6 @@ export default function AdminHealthCheckPage() {
               const event = JSON.parse(dataLines.join('\n'));
               handleStreamEvent(event);
             } catch {
-              // Malformed frame — skip.
             }
           }
         }
@@ -686,7 +656,6 @@ export default function AdminHealthCheckPage() {
               }));
             }
           } catch {
-            /* give up silently */
           }
         }
       }
@@ -696,12 +665,11 @@ export default function AdminHealthCheckPage() {
 
     return () => {
       cancelled = true;
-      try { controller.abort(); } catch { /* noop */ }
+      try { controller.abort(); } catch { }
       abortRef.current = null;
     };
   }, [runState.status, runState.runId, handleStreamEvent]);
 
-  /* ---------------- elapsed timer ---------------- */
   useEffect(() => {
     if (runState.status !== 'running') return undefined;
     const iv = setInterval(() => setNow(Date.now()), 250);
@@ -712,7 +680,6 @@ export default function AdminHealthCheckPage() {
     ? (runState.completedAt ?? now) - runState.startedAt
     : 0;
 
-  /* ---------------- derived ---------------- */
   const selectedList = useMemo(() => [...(selected ?? [])], [selected]);
   const allSelected = phases.length > 0 && selectedList.length === phases.length;
   const noneSelected = selectedList.length === 0;
@@ -736,7 +703,7 @@ export default function AdminHealthCheckPage() {
 
   const handleStop = () => {
     if (abortRef.current) {
-      try { abortRef.current.abort(); } catch { /* noop */ }
+      try { abortRef.current.abort(); } catch { }
     }
   };
 
@@ -759,7 +726,6 @@ export default function AdminHealthCheckPage() {
     return null;
   }, [runState.phases]);
 
-  /* ---------------- report download ---------------- */
   const handleDownload = useCallback(() => {
     if (!runState.summary) return;
     const payload = {
@@ -790,7 +756,6 @@ export default function AdminHealthCheckPage() {
     setNow(0);
   }, []);
 
-  /* ---------------- render ---------------- */
 
   const terminalState =
     runState.status === 'completed' || runState.status === 'failed';
@@ -799,7 +764,7 @@ export default function AdminHealthCheckPage() {
     <>
       <style>{CSS}</style>
       <div className="hc-root">
-        {/* ---------- Header ---------- */}
+        {}
         <div className="admin-ph">
           <div className="admin-ph-left">
             <span className="admin-ph-eyebrow">System</span>
@@ -863,7 +828,7 @@ export default function AdminHealthCheckPage() {
           </div>
         </div>
 
-        {/* ---------- KPI strip ---------- */}
+        {}
         <div className="hc-kpis">
           <div className="hc-kpi">
             <ListChecks size={14} className="hc-kpi-icon" />
@@ -917,7 +882,7 @@ export default function AdminHealthCheckPage() {
           )}
         </div>
 
-        {/* ---------- Phase picker ---------- */}
+        {}
         {!isRunning && !terminalState && (
           <div className="hc-card">
             <div className="hc-card-head">
@@ -976,7 +941,7 @@ export default function AdminHealthCheckPage() {
           </div>
         )}
 
-        {/* ---------- Idle empty state ---------- */}
+        {}
         {runState.status === 'idle' && (
           <div className="hc-card hc-results-empty">
             <div className="hc-empty-icon">
@@ -991,7 +956,7 @@ export default function AdminHealthCheckPage() {
           </div>
         )}
 
-        {/* ---------- Running header ---------- */}
+        {}
         {isRunning && (
           <div className="hc-card hc-results-running">
             <RefreshCw size={22} className="hc-spin" />
@@ -1032,7 +997,7 @@ export default function AdminHealthCheckPage() {
           </div>
         )}
 
-        {/* ---------- Failed header ---------- */}
+        {}
         {runState.status === 'failed' && (
           <div className="hc-card hc-results-failed">
             <AlertTriangle size={22} />
@@ -1045,7 +1010,7 @@ export default function AdminHealthCheckPage() {
           </div>
         )}
 
-        {/* ---------- Summary (terminal) ---------- */}
+        {}
         {runState.summary && (
           <div className="hc-card">
             <div className="hc-card-head">
@@ -1086,7 +1051,7 @@ export default function AdminHealthCheckPage() {
           </div>
         )}
 
-        {/* ---------- Cleanup log (running or terminal) ---------- */}
+        {}
         {runState.cleanup.length > 0 && (
           <div className="hc-card">
             <div className="hc-card-head">
@@ -1113,7 +1078,7 @@ export default function AdminHealthCheckPage() {
           </div>
         )}
 
-        {/* ---------- Phase panels (running + terminal) ---------- */}
+        {}
         {phases.length > 0 && (isRunning || terminalState) && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {phases

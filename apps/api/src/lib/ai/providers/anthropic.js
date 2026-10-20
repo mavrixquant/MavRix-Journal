@@ -1,12 +1,3 @@
-// apps/api/src/lib/ai/providers/anthropic.js
-//
-// Anthropic Claude adapter.
-// Docs: https://docs.anthropic.com/en/api/messages
-//
-// Anthropic has a slightly different format:
-//   - system prompt is a top-level string field
-//   - messages only contain 'user' and 'assistant' roles
-//   - required headers: 'x-api-key' and 'anthropic-version'
 
 import { safeFetch, ProviderError } from './base.js';
 

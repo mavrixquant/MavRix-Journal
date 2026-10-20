@@ -1,7 +1,3 @@
-// apps/web/src/features/journal/economic-calendar/hooks/useCalendarFilters.js
-//
-// Filter state for the Economic Calendar page.
-// Default range preset is "today" — the page opens scoped to today's events.
 
 import { useCallback, useMemo, useState } from 'react';
 import {
@@ -10,9 +6,6 @@ import {
   DEFAULT_CALENDAR_DAYS_FORWARD,
 } from '@mavrix/shared';
 
-/* ------------------------------------------------------------------ */
-/*  Date utilities                                                     */
-/* ------------------------------------------------------------------ */
 
 function toIsoDate(d) {
   const y = d.getFullYear();
@@ -47,12 +40,8 @@ function rangeFromPreset(preset) {
   }
 }
 
-/* ------------------------------------------------------------------ */
-/*  Hook                                                               */
-/* ------------------------------------------------------------------ */
 
 export function useCalendarFilters() {
-  // Default preset = "today". Users can widen to Week / Month from the bar.
   const initialRange = useMemo(
     () => rangeFromPreset('today') ?? { from: '', to: '' },
     []
@@ -69,7 +58,6 @@ export function useCalendarFilters() {
 
   const [selectedEventId, setSelectedEventId] = useState(null);
 
-  /* ---------------- Range setters ---------------- */
 
   const applyPreset = useCallback((preset) => {
     const range = rangeFromPreset(preset);
@@ -89,7 +77,6 @@ export function useCalendarFilters() {
     applyPreset('today');
   }, [applyPreset]);
 
-  /* ---------------- Filter setters ---------------- */
 
   const toggleCurrency = useCallback((code) => {
     setCurrencies((prev) =>
@@ -112,12 +99,10 @@ export function useCalendarFilters() {
 
   const clearImpacts = useCallback(() => setImpacts([]), []);
 
-  /* ---------------- Modal setters ---------------- */
 
   const openEvent = useCallback((id) => setSelectedEventId(id), []);
   const closeEvent = useCallback(() => setSelectedEventId(null), []);
 
-  /* ---------------- Derived query object ---------------- */
 
   const query = useMemo(
     () => ({ from, to, currencies, impacts }),

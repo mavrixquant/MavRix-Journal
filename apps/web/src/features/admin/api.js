@@ -1,12 +1,3 @@
-// apps/web/src/features/admin/api.js
-//
-// React Query hooks for every admin endpoint.
-// All calls go through the shared apiJson wrapper which injects the Bearer
-// token and handles 401s.
-//
-// Group management hooks (create / update / delete / member mgmt) live in
-// shared/api/chat.js because they operate on chat-domain objects and are
-// called from both the admin panel and the chat UI. Import them from there.
 
 import {
   useQuery,
@@ -15,9 +6,6 @@ import {
 } from '@tanstack/react-query';
 import { apiJson } from '@/shared/api/client';
 
-/* ------------------------------------------------------------------ */
-/*  Query keys                                                        */
-/* ------------------------------------------------------------------ */
 export const adminKeys = {
   me:         ['admin', 'me'],
   stats:      ['admin', 'stats'],
@@ -35,9 +23,6 @@ export const adminKeys = {
   calLogs:    ['admin', 'calendar', 'logs'],
 };
 
-/* ------------------------------------------------------------------ */
-/*  Me / Dashboard                                                    */
-/* ------------------------------------------------------------------ */
 
 export function useAdminMe() {
   return useQuery({
@@ -63,9 +48,6 @@ export function useAdminHealth() {
   });
 }
 
-/* ------------------------------------------------------------------ */
-/*  Users                                                             */
-/* ------------------------------------------------------------------ */
 
 function buildQS(filters) {
   const params = new URLSearchParams();
@@ -182,9 +164,6 @@ export function useAdminDeleteUser() {
   });
 }
 
-/* ------------------------------------------------------------------ */
-/*  Accounts                                                          */
-/* ------------------------------------------------------------------ */
 
 export function useAdminAccounts(filters = {}) {
   return useQuery({
@@ -246,9 +225,6 @@ export function useAdminDeleteAccount() {
   });
 }
 
-/* ------------------------------------------------------------------ */
-/*  Trades                                                            */
-/* ------------------------------------------------------------------ */
 
 export function useAdminTrades(filters = {}) {
   return useQuery({
@@ -285,9 +261,6 @@ export function useAdminDeleteTradesByAccount() {
   });
 }
 
-/* ------------------------------------------------------------------ */
-/*  Strategies                                                        */
-/* ------------------------------------------------------------------ */
 
 export function useAdminStrategies(filters = {}) {
   return useQuery({
@@ -319,9 +292,6 @@ export function useAdminDeleteStrategy() {
   });
 }
 
-/* ------------------------------------------------------------------ */
-/*  Audit log                                                         */
-/* ------------------------------------------------------------------ */
 
 export function useAdminAuditLog(filters = {}) {
   return useQuery({
@@ -332,9 +302,6 @@ export function useAdminAuditLog(filters = {}) {
   });
 }
 
-/* ------------------------------------------------------------------ */
-/*  Settings                                                          */
-/* ------------------------------------------------------------------ */
 
 export function useAdminSettings() {
   return useQuery({
@@ -358,9 +325,6 @@ export function useAdminUpdateSettings() {
   });
 }
 
-/* ------------------------------------------------------------------ */
-/*  Sessions                                                          */
-/* ------------------------------------------------------------------ */
 
 export function useAdminSessions() {
   return useQuery({
@@ -381,9 +345,6 @@ export function useAdminDisconnectSession() {
   });
 }
 
-/* ------------------------------------------------------------------ */
-/*  Broadcast                                                         */
-/* ------------------------------------------------------------------ */
 
 export function useAdminBroadcast() {
   const qc = useQueryClient();
@@ -399,9 +360,6 @@ export function useAdminBroadcast() {
   });
 }
 
-/* ------------------------------------------------------------------ */
-/*  Calendar                                                          */
-/* ------------------------------------------------------------------ */
 
 export function useAdminCalendarLogs() {
   return useQuery({

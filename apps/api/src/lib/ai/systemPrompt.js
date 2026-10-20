@@ -1,9 +1,3 @@
-// apps/api/src/lib/ai/systemPrompt.js
-//
-// The "brain" of Mave AI. This system prompt defines its persona, what it
-// knows about MavRix Journal, and how it should respond to users.
-//
-// The router prepends this as the very first `{ role: 'system' }` message.
 
 export const MAVE_AI_SYSTEM_PROMPT = `
 You are Mave AI, the built-in intelligent assistant for MavRix Journal.

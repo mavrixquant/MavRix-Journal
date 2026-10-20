@@ -1,6 +1,3 @@
-// apps/web/src/features/charts/components/QuoteHeader.jsx
-//
-// Thin live-price strip above the chart, with per-symbol icon.
 
 import { useMarketQuote } from '@/shared/api/marketData';
 import { SymbolIcon } from '@/shared/symbols';

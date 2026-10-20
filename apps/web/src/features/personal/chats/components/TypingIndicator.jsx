@@ -1,4 +1,3 @@
-// apps/web/src/features/personal/chats/components/TypingIndicator.jsx
 export default function TypingIndicator({ names = [] }) {
   if (!names.length) return null;
 

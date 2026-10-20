@@ -1,34 +1,18 @@
-// apps/web/src/features/simulator/hooks/useMonteCarloWorker.js
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-/**
- * Manages a single Monte Carlo Web Worker instance.
- *
- *   const { run, cancel, isRunning, progress } = useMonteCarloWorker();
- *   const result = await run(scores, options);
- *
- * Only one run can be in-flight at a time. Starting a new run while one is
- * already running is disallowed by the caller (SimulatorPage gates on isRunning).
- */
 export function useMonteCarloWorker() {
   const workerRef = useRef(null);
   const [isRunning, setIsRunning] = useState(false);
   const [progress, setProgress] = useState(0);
 
-  // Track the ID of the current run. Incoming messages that don't match
-  // this ID are treated as stale and ignored.
   const runIdRef = useRef(0);
 
-  // Deferred promise for the currently awaited run.
   const pendingRef = useRef(null);
 
-  /* ---------------- Worker lifecycle ---------------- */
 
   const ensureWorker = useCallback(() => {
     if (workerRef.current) return workerRef.current;
 
-    // Vite-specific: `new URL('./file.worker.js', import.meta.url)` is the
-    // canonical way to reference a worker from source code.
     const worker = new Worker(
       new URL('../workers/monteCarlo.worker.js', import.meta.url),
       { type: 'module' }
@@ -36,7 +20,7 @@ export function useMonteCarloWorker() {
 
     worker.onmessage = (e) => {
       const msg = e.data;
-      if (msg.runId !== runIdRef.current) return; // stale
+      if (msg.runId !== runIdRef.current) return;
 
       switch (msg.type) {
         case 'progress':
@@ -88,7 +72,6 @@ export function useMonteCarloWorker() {
     return worker;
   }, []);
 
-  /* ---------------- Run / Cancel ---------------- */
 
   const run = useCallback(
     (scores, options) => {
@@ -118,7 +101,6 @@ export function useMonteCarloWorker() {
     });
   }, []);
 
-  /* ---------------- Cleanup ---------------- */
 
   useEffect(() => {
     return () => {

@@ -1,8 +1,3 @@
-// apps/api/src/services/calendar.service.js
-//
-// Read-side service. Always reads from the local Prisma cache.
-// The background sync in lib/calendarSync.js keeps the cache fresh.
-// This service never blocks on a network call to Biquote.
 
 import { prisma } from '../lib/prisma.js';
 import { HttpError } from '../middleware/error.js';
@@ -82,8 +77,6 @@ export async function getEventById(id) {
 }
 
 export async function listCurrencies() {
-  // Distinct currency codes present in the cache, with counts and
-  // min/max dates. Powers the filter dropdown in the UI.
   const rows = await prisma.economicEvent.groupBy({
     by: ['currency'],
     _count: { _all: true },
@@ -101,8 +94,6 @@ export async function listCurrencies() {
 }
 
 export async function getCalendarMeta() {
-  // Lightweight metadata for the UI header: total events, date span,
-  // last sync timestamp.
   const [count, minRow, maxRow] = await Promise.all([
     prisma.economicEvent.count(),
     prisma.economicEvent.findFirst({

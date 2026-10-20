@@ -1,11 +1,3 @@
-// apps/web/src/shared/ui/boot-loader.jsx
-//
-// Full-viewport splash rendered during the AuthProvider's initial session
-// refresh. Replaces the previous `null` returns in guards.jsx and
-// routes.jsx, which caused a blank-white frame on every cold boot.
-//
-// Visual language: same dark canvas + accent glow as the rest of the app,
-// so the loader → content transition is a single fade, not a white flash.
 
 import navLogo from '@/assets/navLOGO.png';
 

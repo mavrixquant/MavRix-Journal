@@ -1,8 +1,5 @@
-// apps/web/src/features/auth/api.js
 import { apiJson, setAccessToken } from '@/shared/api/client';
 
-// Normalize our API's user shape into a Firebase-compatible shape
-// so existing consumers don't need to change.
 function normalizeUser(u) {
   if (!u) return null;
   const displayName =
@@ -23,9 +20,6 @@ function normalizeUser(u) {
     photoURL: u.photoUrl ?? null,
     providerData,
     hasGoogle: !!u.hasGoogle,
-    // ─── admin extension ─────────────────────────────────────────────
-    // Exposed so guards.jsx and HeaderBar can branch without a second
-    // /me call. Values: 'user' | 'admin' | 'superadmin'.
     role: u.role || 'user',
     isBanned: !!u.isBanned,
   };
@@ -81,9 +75,6 @@ export async function resendVerification() {
 
 export { normalizeUser };
 
-// ---------------------------------------------------------------------------
-// Google
-// ---------------------------------------------------------------------------
 
 export async function googleLogin(googleAccessToken) {
   const data = await apiJson('/api/auth/google', {
@@ -107,9 +98,6 @@ export async function unlinkGoogle() {
   return normalizeUser(data.user);
 }
 
-// ---------------------------------------------------------------------------
-// Password reset
-// ---------------------------------------------------------------------------
 
 export async function requestPasswordReset(email) {
   return apiJson('/api/auth/request-password-reset', {

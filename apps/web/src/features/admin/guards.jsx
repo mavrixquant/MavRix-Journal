@@ -1,13 +1,3 @@
-// apps/web/src/features/admin/guards.jsx
-//
-// Route guards for the admin subtree.
-//
-//   RequireAdmin       — user must be logged in + role ∈ { admin, superadmin }
-//   RequireSuperadmin  — user must be role === superadmin
-//
-// Both redirect to /journal (NOT /login) if the user is logged in but lacks
-// role. This is friendlier than bouncing them to the login page they just
-// came from — they're authenticated, they just don't have admin access.
 
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/app/providers/AuthProvider';

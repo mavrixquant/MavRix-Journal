@@ -1,4 +1,3 @@
-// apps/web/src/features/dashboard/components/filters/LimitsModal.jsx
 import { useState, useEffect, useMemo } from 'react';
 import { X } from 'lucide-react';
 
@@ -6,9 +5,6 @@ import { useFilters } from '@/features/dashboard/hooks/useFilters';
 import { useStats } from '@/features/dashboard/hooks/useStats';
 import Portal from '@/shared/components/Portal';
 
-/* ------------------------------------------------------------------ */
-/*  Scoped styles                                                      */
-/* ------------------------------------------------------------------ */
 const CSS = `
   .lim-overlay {
     
@@ -247,9 +243,6 @@ const CSS = `
   }
 `;
 
-/* ------------------------------------------------------------------ */
-/*  Main                                                                */
-/* ------------------------------------------------------------------ */
 export default function LimitsModal({ isOpen, onClose }) {
   const {
     activeFilterType,
@@ -300,7 +293,6 @@ export default function LimitsModal({ isOpen, onClose }) {
     [isMoney]
   );
 
-  // Sync state whenever modal opens
   useEffect(() => {
     if (isOpen) {
       setLocalType(activeFilterType || 'none');
@@ -314,7 +306,6 @@ export default function LimitsModal({ isOpen, onClose }) {
     }
   }, [isOpen, activeFilterType, filterParams, isMoney]);
 
-  // ESC to close
   useEffect(() => {
     if (!isOpen) return;
     const h = (e) => e.key === 'Escape' && onClose();

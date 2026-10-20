@@ -1,4 +1,3 @@
-// apps/api/src/index.js
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -26,17 +25,8 @@ app.use(express.json({ limit: '5mb' }));
 app.use(cookieParser());
 app.use(morgan(env.isProd ? 'combined' : 'dev'));
 
-// ---------------------------------------------------------------------------
-// SSE — mounted BEFORE the /api no-cache middleware and BEFORE the main API
-// router, because:
-//   - SSE needs its own Cache-Control header (the no-cache middleware would
-//     conflict with EventSource's expectations)
-//   - It manages its own long-lived response lifecycle
-//   - Only the events route uses this prefix
-// ---------------------------------------------------------------------------
 app.use('/api/events', eventsRoutes);
 
-// Disable HTTP caching for all OTHER API responses.
 app.use('/api', (_req, res, next) => {
   res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
   res.set('Pragma', 'no-cache');
@@ -49,25 +39,17 @@ app.use('/api', apiRouter);
 app.use(notFound);
 app.use(errorHandler);
 
-// ---------------------------------------------------------------------------
-// Boot: start the HTTP server, ensure a superadmin exists, ensure the Mave AI
-// sentinel exists, then kick off the calendar sync loop.
-//
-// Sync runs in-process — no external cron, no queue.
-// ---------------------------------------------------------------------------
 const server = app.listen(env.port, async () => {
   console.log(
     `[api] listening on http://localhost:${env.port} (${env.nodeEnv})`
   );
 
-  // Idempotent — no-op once any superadmin exists.
   try {
     await ensureSuperadmin();
   } catch (err) {
     console.error('[admin] bootstrap failed:', err);
   }
 
-  // Idempotent — creates the Mave AI user and ensures all users have a DM.
   try {
     await ensureMaveAi();
   } catch (err) {
@@ -79,7 +61,6 @@ const server = app.listen(env.port, async () => {
   }
 });
 
-// Graceful shutdown — stop the sync loop before the process exits.
 const shutdown = (signal) => {
   console.log(`[api] received ${signal}, shutting down…`);
   stopCalendarSync();

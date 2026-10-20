@@ -1,12 +1,3 @@
-// apps/web/src/features/admin/pages/AdminDashboardPage.jsx
-//
-// Admin overview — the first thing an admin sees after logging in.
-//
-// Sections:
-//   1. Header (title + sub)
-//   2. KPI strip (5 stat cards)
-//   3. Signup chart (30-day bar chart)
-//   4. Health panel (DB, memory, SSE, uptime)
 
 import { useMemo } from 'react';
 import {
@@ -26,9 +17,6 @@ import {
 import StatCard from '../components/StatCard';
 import { chartColors, baseTooltip, baseAxis, baseCategoryAxis } from '@/shared/charts/theme';
 
-/* ------------------------------------------------------------------ */
-/*  Local page styles                                                  */
-/* ------------------------------------------------------------------ */
 const CSS = `
   .ad-root {
     display: flex;
@@ -116,14 +104,11 @@ const CSS = `
   }
 `;
 
-/* ------------------------------------------------------------------ */
-/*  Chart options                                                     */
-/* ------------------------------------------------------------------ */
 function useSignupChartData(signups = []) {
   return useMemo(() => {
     if (!signups || signups.length === 0) return null;
     return {
-      labels: signups.map((s) => s.date.slice(5)),  // MM-DD
+      labels: signups.map((s) => s.date.slice(5)),
       datasets: [
         {
           label: 'Signups',
@@ -172,9 +157,6 @@ const signupOptions = {
   },
 };
 
-/* ------------------------------------------------------------------ */
-/*  Page                                                              */
-/* ------------------------------------------------------------------ */
 export default function AdminDashboardPage() {
   const { data: me } = useAdminMe();
   const { data: stats, isLoading: statsLoading } = useAdminStats();
@@ -197,7 +179,7 @@ export default function AdminDashboardPage() {
     <>
       <style>{CSS}</style>
       <div className="ad-root">
-        {/* ---------- Header ---------- */}
+        {}
         <div className="admin-ph">
           <div className="admin-ph-left">
             <span className="admin-ph-eyebrow">Control Panel</span>
@@ -210,7 +192,7 @@ export default function AdminDashboardPage() {
           </div>
         </div>
 
-        {/* ---------- KPI strip ---------- */}
+        {}
         <div className="ad-kpi-grid">
           <StatCard
             label="Total Users"
@@ -247,7 +229,7 @@ export default function AdminDashboardPage() {
           />
         </div>
 
-        {/* ---------- Signup chart ---------- */}
+        {}
         <div className="ad-panel">
           <div className="ad-panel-head">
             <span className="ad-panel-title">Signups · Last 30 days</span>
@@ -264,7 +246,7 @@ export default function AdminDashboardPage() {
           </div>
         </div>
 
-        {/* ---------- Health panel ---------- */}
+        {}
         <div className="ad-panel">
           <div className="ad-panel-head">
             <span className="ad-panel-title">System Health</span>

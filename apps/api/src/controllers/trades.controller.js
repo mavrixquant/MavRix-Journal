@@ -78,7 +78,6 @@ export async function renameColumn(req, res, next) {
   } catch (e) { next(e); }
 }
 
-// ---------- Value-level operations ----------
 
 export async function renameColumnValue(req, res, next) {
   try {

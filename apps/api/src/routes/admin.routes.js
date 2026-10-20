@@ -1,18 +1,3 @@
-// apps/api/src/routes/admin.routes.js
-//
-// All admin endpoints. Mounted at /api/admin.
-//
-// Mount order:
-//   1. requireAuth   — Bearer token + sv check
-//   2. requireAdmin  — gate the whole subtree
-//   3. per-route extra guards (requireSuperadmin) for role-changing actions
-//
-// Groups: route-level guard is requireAdmin only. Fine-grained visibility
-// (admin vs private groups) is enforced inside the service so the error
-// messages can be specific.
-//
-// Health Checkup: the entire /health-check subtree is SUPERADMIN-ONLY.
-// See the block at the bottom.
 
 import { Router } from 'express';
 import { z } from 'zod';
@@ -37,11 +22,9 @@ import * as hcCtrl from '../controllers/healthCheck.controller.js';
 
 export const adminRoutes = Router();
 
-/* ---------------- Global auth gate ---------------- */
 adminRoutes.use(requireAuth);
 adminRoutes.use(requireAdmin);
 
-/* ---------------- Validation ---------------- */
 const validate = (schema) => (req, _res, next) => {
   try {
     req.body = schema.parse(req.body);
@@ -90,7 +73,6 @@ const healthCheckStartSchema = z.object({
   phases: z.array(z.string().min(1)).max(64).optional(),
 });
 
-/* ---------------- Rate limiters ---------------- */
 const sensitive = rateLimit({
   windowMs: 60_000,
   max: 20,
@@ -115,19 +97,16 @@ const groupLimiter = rateLimit({
   message: 'Too many group operations. Slow down.',
 });
 
-/* Health-check has its own limiter — one run per 10 seconds per superadmin. */
 const healthCheckLimiter = rateLimit({
   windowMs: 10_000,
   max: 3,
   message: 'Health check launched too recently. Wait a few seconds.',
 });
 
-/* ---------------- Me / Stats / Health ---------------- */
 adminRoutes.get('/me', ctrl.me);
 adminRoutes.get('/stats', ctrl.stats);
 adminRoutes.get('/health', ctrl.health);
 
-/* ---------------- Users ---------------- */
 adminRoutes.get('/users', ctrl.listUsers);
 adminRoutes.get('/users/:id', ctrl.getUser);
 adminRoutes.patch('/users/:id', validate(userUpdateSchema), ctrl.updateUser);
@@ -142,40 +121,27 @@ adminRoutes.post('/users/:id/force-logout', ctrl.forceLogout);
 
 adminRoutes.delete('/users/:id', requireSuperadmin, sensitive, ctrl.removeUser);
 
-/* ---------------- Sessions ---------------- */
 adminRoutes.get('/sessions', ctrl.sessions);
 adminRoutes.get('/sessions/:id', ctrl.userSessions);
 adminRoutes.post('/sessions/:id/disconnect', sensitive, opsCtrl.kickSession);
 
-/* ---------------- Settings ---------------- */
 adminRoutes.get('/settings', ctrl.getSettingsCtrl);
 adminRoutes.put('/settings', requireSuperadmin, validate(settingsSchema), ctrl.updateSettingsCtrl);
 
-/* ---------------- Accounts ---------------- */
 adminRoutes.get('/accounts', accCtrl.list);
 adminRoutes.get('/accounts/:id', accCtrl.get);
 adminRoutes.patch('/accounts/:id', writeLimiter, validate(accountUpdateSchema), accCtrl.update);
 adminRoutes.post('/accounts/:id/reassign', requireSuperadmin, sensitive, validate(reassignSchema), accCtrl.reassign);
 adminRoutes.delete('/accounts/:id', requireSuperadmin, sensitive, accCtrl.remove);
 
-/* ---------------- Trades ---------------- */
 adminRoutes.get('/trades', tradeCtrl.list);
-// Order matters: by-account before /:id
 adminRoutes.delete('/trades/by-account/:accountId', writeLimiter, tradeCtrl.removeByAccount);
 adminRoutes.delete('/trades/:id', writeLimiter, tradeCtrl.remove);
 
-/* ---------------- Strategies ---------------- */
 adminRoutes.get('/strategies', strategyCtrl.list);
 adminRoutes.get('/strategies/:id', strategyCtrl.get);
 adminRoutes.delete('/strategies/:id', requireSuperadmin, sensitive, strategyCtrl.remove);
 
-/* ---------------- Chat Groups ---------------- */
-// Route-level guard is requireAdmin. Visibility rules (admin vs private
-// groups they don't own) live in adminGroups.service.js so the error
-// messages can be specific.
-//
-// Order matters: /groups/:id/members/:userId before /groups/:id/members and
-// /groups/:id/* to avoid path shadowing.
 adminRoutes.get('/groups', groupLimiter, groupCtrl.list);
 adminRoutes.post('/groups', groupLimiter, validate(createGroupSchema), groupCtrl.create);
 
@@ -201,30 +167,18 @@ adminRoutes.delete(
   groupCtrl.removeMember
 );
 
-/* ---------------- Audit ---------------- */
 adminRoutes.get('/audit', opsCtrl.audit);
 
-/* ---------------- Broadcast ---------------- */
 adminRoutes.post('/broadcast', broadcastLimiter, validate(broadcastSchema), opsCtrl.broadcast);
 
-/* ---------------- Calendar ---------------- */
 adminRoutes.post('/calendar/sync', sensitive, opsCtrl.calendarSync);
 adminRoutes.delete('/calendar/cache', requireSuperadmin, sensitive, opsCtrl.calendarWipe);
 adminRoutes.get('/calendar/logs', opsCtrl.calendarLogs);
 
-/* ---------------- GEX Levels ---------------- */
-// GET    /api/admin/gex              — list every uploaded day
-// POST   /api/admin/gex              — upsert (409 unless ?overwrite=true)
-// DELETE /api/admin/gex/:date        — superadmin only
 adminRoutes.get('/gex', gexCtrl.list);
 adminRoutes.post('/gex', writeLimiter, validate(gexDaySchema), gexCtrl.upsert);
 adminRoutes.delete('/gex/:date', requireSuperadmin, sensitive, gexCtrl.remove);
 
-/* ---------------- Health Checkup (SUPERADMIN-ONLY) ---------------- */
-//
-// The entire subtree is gated by requireSuperadmin — the top-level
-// requireAdmin gate is not enough. This block deliberately sits at the
-// bottom so any future route additions land above it.
 adminRoutes.get(
   '/health-check/phases',
   requireSuperadmin,

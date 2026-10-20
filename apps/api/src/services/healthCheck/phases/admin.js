@@ -1,28 +1,8 @@
-// apps/api/src/services/healthCheck/phases/admin.js
-//
-// Admin Panel phase — the biggest in the suite.
-//
-// ALL destructive tests are scoped to healthcheck fixtures (user A / B)
-// or (in the settings case) write the value that was read. Nothing real
-// is touched.
-//
-// FIXTURE INVARIANT — READ THIS
-// -----------------------------
-// Every test below assumes user A is `emailVerified: true`. The
-// `unverify-email` test deliberately flips this to false (to prove the
-// endpoint works), then immediately restores it via `prisma.user.update`.
-// Without this restore, the subsequent group-member tests fail with 403
-// because groups require verified users.
-//
-// Superadmin-only tests are marked `skip` if the caller isn't super —
-// but our orchestrator already gates the whole feature to superadmins,
-// so in practice every test here runs.
 
 export async function run(ctx) {
   const { test, tokens, ids } = ctx;
   const admin = tokens.admin;
 
-  /* ---------------- me / stats / health ---------------- */
 
   await test('admin.me · caller identity + capabilities', async () => {
     const res = await ctx.fetch('/api/admin/me', { token: admin });
@@ -44,7 +24,6 @@ export async function run(ctx) {
     ctx.expect(res.body.database.ok === true, 'db not ok');
   });
 
-  /* ---------------- users list + detail ---------------- */
 
   await test('admin.users.list · paginated', async () => {
     const res = await ctx.fetch('/api/admin/users?limit=10', { token: admin });
@@ -95,11 +74,6 @@ export async function run(ctx) {
     ctx.assertStatus(res, 200);
     ctx.expect(res.body.user.emailVerified === false, 'still verified');
 
-    // -------------------------------------------------------------------
-    // RESTORE the invariant: every downstream test (group members, chat,
-    // friends) requires user A to be verified. We flip the flag back via
-    // prisma directly so the endpoint-under-test's behaviour is preserved.
-    // -------------------------------------------------------------------
     await ctx.prisma.user.update({
       where: { id: ids.userA },
       data: { emailVerified: true },
@@ -147,7 +121,6 @@ export async function run(ctx) {
     ctx.assertStatus(res, 200);
   });
 
-  /* ---------------- sessions ---------------- */
 
   await test('admin.sessions.list · totals', async () => {
     const res = await ctx.fetch('/api/admin/sessions', { token: admin });
@@ -174,7 +147,6 @@ export async function run(ctx) {
     ctx.expect(typeof res.body.closedSockets === 'number', 'closedSockets not number');
   });
 
-  /* ---------------- accounts ---------------- */
 
   await test('admin.accounts.list · paginated', async () => {
     const res = await ctx.fetch('/api/admin/accounts?limit=10', { token: admin });
@@ -202,7 +174,6 @@ export async function run(ctx) {
     ctx.expect(res.body.account.name === 'HealthAdminRenamed', 'name not updated');
   });
 
-  /* ---------------- trades ---------------- */
 
   await test('admin.trades.list · paginated', async () => {
     const res = await ctx.fetch('/api/admin/trades?limit=10', { token: admin });
@@ -210,7 +181,6 @@ export async function run(ctx) {
     ctx.expect(Array.isArray(res.body.trades), 'trades not array');
   });
 
-  /* ---------------- strategies ---------------- */
 
   await test('admin.strategies.list · paginated', async () => {
     const res = await ctx.fetch('/api/admin/strategies?limit=10', { token: admin });
@@ -231,7 +201,6 @@ export async function run(ctx) {
     ctx.assertStatus(res, 200);
   });
 
-  /* ---------------- groups ---------------- */
 
   await test('admin.groups.list · paginated', async () => {
     const res = await ctx.fetch('/api/admin/groups?limit=10', { token: admin });
@@ -278,10 +247,6 @@ export async function run(ctx) {
       return;
     }
 
-    // Defensive: assert the fixture invariant is intact. If a previous
-    // test ever left user A unverified (it shouldn't — we restore in the
-    // unverify-email test), this catches it with a clear message rather
-    // than an opaque 403.
     const ua = await ctx.prisma.user.findUnique({
       where: { id: ids.userA },
       select: { emailVerified: true },
@@ -333,17 +298,14 @@ export async function run(ctx) {
     ctx.assertStatus(res, 200);
   });
 
-  /* ---------------- audit ---------------- */
 
   await test('admin.audit.list · returns rows', async () => {
     const res = await ctx.fetch('/api/admin/audit?limit=10', { token: admin });
     ctx.assertStatus(res, 200);
     ctx.expect(Array.isArray(res.body.entries), 'entries not array');
-    // Non-empty — the destructive ops above must have written audit rows.
     ctx.expect(res.body.entries.length > 0, 'audit log empty after mutations');
   });
 
-  /* ---------------- broadcast ---------------- */
 
   await test('admin.broadcast · SSE-only, no email', async () => {
     const res = await ctx.fetch('/api/admin/broadcast', {
@@ -359,7 +321,6 @@ export async function run(ctx) {
     ctx.expect(typeof res.body.sseSent === 'number', 'sseSent not number');
   });
 
-  /* ---------------- calendar ---------------- */
 
   await test('admin.calendar.sync · force sync (slow)', async () => {
     const res = await ctx.fetch('/api/admin/calendar/sync', {
@@ -376,7 +337,6 @@ export async function run(ctx) {
     ctx.expect(Array.isArray(res.body.entries), 'entries not array');
   });
 
-  /* ---------------- GEX ---------------- */
 
   await test('admin.gex.list · metadata', async () => {
     const res = await ctx.fetch('/api/admin/gex', { token: admin });
@@ -385,8 +345,7 @@ export async function run(ctx) {
   });
 
   await test('admin.gex.upsert + delete · round-trip', async () => {
-    const date = '2099-12-31';   // safely outside any real usage
-    // Ensure the date is clean first.
+    const date = '2099-12-31';
     await ctx.fetch(`/api/admin/gex/${date}?overwrite=true`, {
       method: 'DELETE',
       token: admin,
@@ -423,7 +382,6 @@ export async function run(ctx) {
     ctx.assertStatus(del, 200);
   });
 
-  /* ---------------- settings ---------------- */
 
   await test('admin.settings.read · returns all keys', async () => {
     const res = await ctx.fetch('/api/admin/settings', { token: admin });
@@ -437,7 +395,6 @@ export async function run(ctx) {
       ctx.skip('admin.settings.update', 'no settings snapshot');
       return;
     }
-    // Write back the exact same values — a no-op write.
     const same = {
       signupsEnabled: ids.originalSettings.signupsEnabled,
       requireEmailVerification: ids.originalSettings.requireEmailVerification,
@@ -455,7 +412,6 @@ export async function run(ctx) {
     ctx.assertStatus(res, 200);
   });
 
-  /* ---------------- account / trade / user admin delete ---------------- */
 
   await test('admin.trades.deleteByAccount · wipes user A trades on Backtest', async () => {
     if (!ids.accountBacktest) { ctx.skip('admin.trades.deleteByAccount', 'no account'); return; }
@@ -477,7 +433,6 @@ export async function run(ctx) {
   });
 
   await test('admin.users.delete · hard-delete a fresh throwaway user', async () => {
-    // Create a throwaway user via signup, then hard-delete via admin.
     const email = `healthcheck-${Date.now()}-throwaway@test.local`;
     const signup = await ctx.fetch('/api/auth/signup', {
       method: 'POST',

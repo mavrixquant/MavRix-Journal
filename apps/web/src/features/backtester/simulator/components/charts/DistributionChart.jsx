@@ -1,4 +1,3 @@
-// apps/web/src/features/simulator/components/charts/DistributionChart.jsx
 import { useMemo, useRef } from 'react';
 import { Bar } from 'react-chartjs-2';
 import { buildHistogram } from '@/shared/trading/monteCarlo';
@@ -17,13 +16,6 @@ export default function DistributionChart({
   const chartRef = useRef(null);
   const colors = useChartColors();
 
-  // Resolve the accent prop. Callers may pass:
-  //   'var(--accent)'     -> resolve to the live accent hex
-  //   chartColors.amber   -> same, but the legacy pinned default
-  //   '#ef4444' / '#22c55e' -> semantic colors, pass through unchanged
-  //
-  // Canvas 2D cannot resolve var() or color-mix(), so any CSS-var string
-  // would be silently rejected and the previous fillStyle retained.
   const resolvedColor = useMemo(() => {
     if (color === 'var(--accent)' || color === chartColors.amber) {
       return colors.accent;

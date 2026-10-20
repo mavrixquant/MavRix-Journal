@@ -1,4 +1,3 @@
-// apps/web/src/features/personal/chats/components/ScrollToBottom.jsx
 import { ArrowDown } from 'lucide-react';
 
 export default function ScrollToBottom({ visible, unread = 0, onClick }) {

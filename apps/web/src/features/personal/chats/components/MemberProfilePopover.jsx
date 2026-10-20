@@ -1,17 +1,3 @@
-// apps/web/src/features/personal/chats/components/MemberProfilePopover.jsx
-//
-// Small profile card shown when a member row in GroupSettingsModal is
-// clicked. Displays the member's identity + friendship state and offers
-// the same actions as the DM profile sidebar:
-//
-//   Message         — opens / resumes a DM (via onOpenThread)
-//   Add friend      — sends a request
-//   Remove friend   — if already friends
-//   Block           — opens BlockConfirmModal
-//
-// Uses Radix Popover (not HoverCard) so the same code works on mobile
-// (tap to open) and desktop (tap to open; optional hover-open handled by
-// the parent if desired).
 
 import { useState } from 'react';
 import {
@@ -149,7 +135,7 @@ export default function MemberProfilePopover({
           className="mpp-content"
           onClick={(e) => e.stopPropagation()}
         >
-          {/* ---------- Header ---------- */}
+          {}
           <div className="mpp-head">
             <span className="mpp-avatar">
               {peer.photoUrl ? (
@@ -173,7 +159,7 @@ export default function MemberProfilePopover({
             )}
           </div>
 
-          {/* ---------- Status ---------- */}
+          {}
           {!isSelf && (
             <div className="mpp-status">
               {statusLoading && (
@@ -204,7 +190,7 @@ export default function MemberProfilePopover({
             </div>
           )}
 
-          {/* ---------- Actions ---------- */}
+          {}
           {!isSelf && (
             <div className="mpp-actions">
               <button

@@ -1,27 +1,5 @@
-// apps/web/src/shared/format/datetime.js
-//
-// Timezone-aware date/time formatters shared by every timestamp-rendering
-// surface (chat today, calendar later). Pure functions — no React, no
-// settings context. The caller passes the timezone preference in.
-//
-// `timezone` is either an IANA identifier ('Asia/Kolkata') or 'auto' /
-// null / '' — in which case the browser timezone is used.
-//
-// SAFETY CONTRACT:
-//   Every formatter in this file calls `resolveTimezone()` internally, so a
-//   caller can safely pass the raw user preference (which is often the
-//   string 'auto'). `resolveTimezone()` also validates arbitrary IANA
-//   identifiers against Intl — anything invalid falls back to the browser
-//   zone, then to 'UTC'. This guarantees `Intl.DateTimeFormat` is never
-//   handed a string it will reject.
 
-/* ------------------------------------------------------------------ */
-/*  Timezone resolution                                                */
-/* ------------------------------------------------------------------ */
 
-// Memoize resolution so per-message-per-render calls are cheap. Key is the
-// raw input string (e.g. "auto" or "Asia/Kolkata"); value is a validated,
-// usable IANA identifier.
 const TZ_CACHE = new Map();
 
 function browserTimezone() {
@@ -42,8 +20,6 @@ export function resolveTimezone(tz) {
   if (!tz || tz === 'auto') {
     resolved = browserTimezone();
   } else {
-    // Validate the identifier before trusting it. A bad string here would
-    // otherwise crash Intl.DateTimeFormat deeper in a formatter call.
     try {
       new Intl.DateTimeFormat('en-US', { timeZone: tz }).format();
       resolved = tz;
@@ -56,22 +32,11 @@ export function resolveTimezone(tz) {
   return resolved;
 }
 
-/**
- * "Asia/Kolkata" for display next to the Auto option.
- * Returns 'UTC' if Intl is unavailable.
- */
 export function browserTimezoneLabel() {
   return browserTimezone();
 }
 
-/* ------------------------------------------------------------------ */
-/*  Formatters                                                         */
-/* ------------------------------------------------------------------ */
 
-/**
- * "2:35 PM" (12h) or "14:35" (24h).
- * Falls back to the browser timezone if the requested one is invalid.
- */
 export function formatTime(iso, timeFormat = '12h', timezone) {
   if (!iso) return '';
   const d = new Date(iso);
@@ -92,13 +57,6 @@ export function formatTime(iso, timeFormat = '12h', timezone) {
   }
 }
 
-/**
- * Calendar-day key in the target timezone: "YYYY-MM-DD".
- * Used internally for day-boundary comparisons.
- *
- * Calls `resolveTimezone(tz)` internally — passing 'auto' (the value
- * stored in user preferences) is safe and resolves to the browser zone.
- */
 export function dayKey(iso, tz) {
   const d = new Date(iso);
   const safeTz = resolveTimezone(tz);
@@ -114,7 +72,6 @@ export function dayKey(iso, tz) {
   return `${y}-${m}-${dd}`;
 }
 
-/** Whole-day diff between two YYYY-MM-DD strings (b - a). */
 function daysBetween(a, b) {
   const [ay, am, ad] = a.split('-').map(Number);
   const [by, bm, bd] = b.split('-').map(Number);
@@ -123,10 +80,6 @@ function daysBetween(a, b) {
   );
 }
 
-/**
- * "Today" / "Yesterday" / "Wednesday" / "October 13, 2026"
- * Uses the target timezone to decide which calendar day "now" is in.
- */
 export function formatDayLabel(iso, timezone) {
   if (!iso) return '';
   const d = new Date(iso);
@@ -162,10 +115,6 @@ export function formatDayLabel(iso, timezone) {
   }
 }
 
-/**
- * Compact relative timestamp for conversation lists.
- * Today → "2:35 PM" · Yesterday → "Yesterday" · <7d → "Wed" · else "Oct 13"
- */
 export function formatRelative(iso, timeFormat = '12h', timezone) {
   if (!iso) return '';
   const d = new Date(iso);
@@ -199,18 +148,6 @@ export function formatRelative(iso, timeFormat = '12h', timezone) {
   }
 }
 
-/* ------------------------------------------------------------------ */
-/*  Dynamic IANA timezone catalog                                      */
-/*                                                                     */
-/*  Uses Intl.supportedValuesOf('timeZone') — available in Chrome 99+, */
-/*  Safari 15.4+, Firefox 93+. Falls back to a small curated list on   */
-/*  ancient browsers so the dropdown never renders empty.              */
-/*                                                                     */
-/*  Each entry:                                                        */
-/*    { value, city, region, offset, offsetMinutes }                   */
-/*                                                                     */
-/*  `offset` reflects the CURRENT DST rules — shown as "UTC+05:30".    */
-/* ------------------------------------------------------------------ */
 
 const FALLBACK_TIMEZONES = [
   'UTC',
@@ -239,10 +176,6 @@ function normalizeRegion(region) {
   return map[region] || region || 'Other';
 }
 
-/**
- * "UTC+05:30" / "UTC-08:00" / "UTC+00:00" for the given IANA zone.
- * Uses the CURRENT offset (DST-aware).
- */
 export function getTimezoneOffsetString(tz) {
   if (!tz) return 'UTC';
   try {
@@ -258,10 +191,6 @@ export function getTimezoneOffsetString(tz) {
   }
 }
 
-/**
- * Offset in minutes for the given zone (positive = east of UTC).
- * Used to sort zones within a region.
- */
 function getTimezoneOffsetMinutes(tz) {
   try {
     const now = new Date();
@@ -273,9 +202,6 @@ function getTimezoneOffsetMinutes(tz) {
   }
 }
 
-/**
- * Full IANA list, decorated + sorted by region then offset then city.
- */
 export function getAllTimezones() {
   let raw = [];
   if (
@@ -293,7 +219,6 @@ export function getAllTimezones() {
   }
 
   const out = raw.map((tz) => {
-    // "America/Argentina/Buenos_Aires" → region="Americas", city="Argentina / Buenos Aires"
     const slash = tz.indexOf('/');
     const regionKey = slash === -1 ? 'Etc' : tz.slice(0, slash);
     const cityRaw = slash === -1 ? tz : tz.slice(slash + 1);
@@ -307,8 +232,6 @@ export function getAllTimezones() {
     };
   });
 
-  // Flat ordering: negative offsets first (UTC-12), then 0, then positive
-  // (UTC+14). Within the same offset, sort alphabetically by city.
   out.sort((a, b) => {
     if (a.offsetMinutes !== b.offsetMinutes) {
       return a.offsetMinutes - b.offsetMinutes;
@@ -319,10 +242,6 @@ export function getAllTimezones() {
   return out;
 }
 
-/**
- * Groups the output of getAllTimezones() into an ordered array:
- *   [['Africa', [zone, ...]], ['Americas', [...]], ...]
- */
 export function groupTimezonesByRegion(zones) {
   const preferredOrder = [
     'UTC', 'Africa', 'Americas', 'Antarctica', 'Arctic',

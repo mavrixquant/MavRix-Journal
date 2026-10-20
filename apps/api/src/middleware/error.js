@@ -10,7 +10,6 @@ export const notFound = (req, res) => {
   res.status(404).json({ error: 'Not found', path: req.originalUrl });
 };
 
-// eslint-disable-next-line no-unused-vars
 export const errorHandler = (err, req, res, _next) => {
   if (err?.name === 'ZodError') {
     return res.status(400).json({

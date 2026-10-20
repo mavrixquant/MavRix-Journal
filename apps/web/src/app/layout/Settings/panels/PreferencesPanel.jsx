@@ -1,4 +1,3 @@
-// apps/web/src/app/layout/Settings/panels/PreferencesPanel.jsx
 
 import { useMemo, useState } from 'react';
 import { Check, ChevronDown, Globe, Search } from 'lucide-react';
@@ -33,9 +32,6 @@ const DATE_FORMAT = [
   { value: 'eu',  label: 'EU'   },
 ];
 
-/* ------------------------------------------------------------------ */
-/*  Segmented control                                                  */
-/* ------------------------------------------------------------------ */
 
 function Segmented({ value, options, onChange }) {
   return (
@@ -55,9 +51,6 @@ function Segmented({ value, options, onChange }) {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Toggle                                                             */
-/* ------------------------------------------------------------------ */
 
 function Toggle({ on, onChange, label }) {
   return (
@@ -72,15 +65,10 @@ function Toggle({ on, onChange, label }) {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Timezone picker — custom Radix Popover + cmdk                      */
-/* ------------------------------------------------------------------ */
 
 function TimezonePicker({ value, onChange }) {
   const [open, setOpen] = useState(false);
 
-  // Zones are computed once on mount. `Intl.supportedValuesOf` is a
-  // synchronous, cheap call — no need to memoize across renders.
   const zones = useMemo(() => getAllTimezones(), []);
   const browserTz = browserTimezoneLabel();
   const isAuto = !value || value === 'auto';
@@ -126,7 +114,7 @@ function TimezonePicker({ value, onChange }) {
               No timezones match.
             </Command.Empty>
 
-            {/* ---- Auto ---- */}
+            {}
             <Command.Item
               value={`auto browser ${browserTz} ${getTimezoneOffsetString(browserTz)}`}
               onSelect={() => { onChange('auto'); setOpen(false); }}
@@ -166,9 +154,6 @@ function TimezonePicker({ value, onChange }) {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Panel                                                              */
-/* ------------------------------------------------------------------ */
 
 export default function PreferencesPanel() {
   const { settings, update } = useSettings();
@@ -207,7 +192,7 @@ export default function PreferencesPanel() {
           Display formats and timezone for timestamps across the app.
         </p>
 
-        {/* ---- Time zone (above Time format) ---- */}
+        {}
         <div className="settings-options-row">
           <div className="settings-options-text">
             <span className="settings-options-label">Time zone</span>

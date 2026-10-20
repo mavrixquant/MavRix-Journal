@@ -1,7 +1,3 @@
-// apps/web/src/shared/components/ComingSoon.jsx
-//
-// Placeholder page used by in-progress routes.
-// Matches the app-wide glass-panel design language.
 
 import { FaTools } from 'react-icons/fa';
 

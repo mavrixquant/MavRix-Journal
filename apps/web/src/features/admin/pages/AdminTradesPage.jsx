@@ -1,13 +1,3 @@
-// apps/web/src/features/admin/pages/AdminTradesPage.jsx
-//
-// Cross-user trades. Filters: search (symbol/notes/tradeId), account, user, date range.
-// Row actions: Delete single.
-//
-// PHASE 6 CHANGE (EmptyState migration)
-// -------------------------------------
-//   • The "No trades match" filter-empty state now uses the shared
-//     <EmptyState> component (@/shared/components/EmptyState).
-//   • Dead `.atp-empty` rule removed; `.atp-loading` retained.
 
 import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';

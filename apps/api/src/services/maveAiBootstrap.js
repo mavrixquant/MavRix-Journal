@@ -1,13 +1,3 @@
-// apps/api/src/services/maveAiBootstrap.js
-//
-// Boot script. Runs once at startup. Ensures:
-//   1. The Mave AI sentinel user exists.
-//   2. Every non-AI user has a DM conversation with Mave AI.
-//   3. Caches the AI's ID in memory for fast lookup.
-//
-// `ensureAiDmForUser()` is also exported so it can be called lazily from
-// listConversations() (covers users who signed up after boot) and eagerly
-// from auth.service.js signup / login paths.
 
 import { prisma } from '../lib/prisma.js';
 import {
@@ -18,21 +8,10 @@ import {
 
 let _cachedAiId = null;
 
-/** Fast lookup for the Mave AI user ID. */
 export function getMaveAiId() {
   return _cachedAiId;
 }
 
-/**
- * Idempotently ensure a DM conversation exists between `userId` and the
- * Mave AI sentinel user.
- *
- * Safe to call concurrently — the unique `dmKey` constraint guarantees
- * only one row exists per pair; a P2002 is caught and treated as success.
- *
- * Returns the conversation ID on success, or null if the AI user hasn't
- * bootstrapped yet (or `userId` is invalid).
- */
 export async function ensureAiDmForUser(userId) {
   if (!userId || !_cachedAiId) return null;
   if (userId === _cachedAiId) return null;
@@ -72,7 +51,6 @@ export async function ensureAiDmForUser(userId) {
 export async function ensureMaveAi() {
   console.log('[mave-ai] checking bootstrap...');
 
-  // 1. Ensure AI user exists
   let aiUser = await prisma.user.findFirst({ where: { isAi: true } });
 
   if (!aiUser) {
@@ -91,7 +69,6 @@ export async function ensureMaveAi() {
 
   _cachedAiId = aiUser.id;
 
-  // 2. Find all human users
   const users = await prisma.user.findMany({
     where: { isAi: false },
     select: { id: true },
@@ -102,8 +79,6 @@ export async function ensureMaveAi() {
     return;
   }
 
-  // 3. Ensure every human user has a DM with the AI.
-  //    Chunked to avoid overloading the DB connection pool.
   const chunkSize = 50;
   let ensured = 0;
   let failed = 0;

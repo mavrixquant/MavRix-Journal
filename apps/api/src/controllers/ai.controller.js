@@ -1,23 +1,3 @@
-// apps/api/src/controllers/ai.controller.js
-//
-// BYOK credential management for Mave AI.
-//
-// One credential per (userId, provider). The router walks them in LRU order
-// at chat time; the UI shows one card per saved provider.
-//
-// Test Key design:
-//   Tests validate the API key via the provider's /models endpoint. We
-//   NEVER call /chat/completions with a specific model from this endpoint,
-//   because providers deprecate, promote to paid, or rename models without
-//   warning — a model pin would make the test falsely fail on a perfectly
-//   good key. If /models returns 200, the key is valid.
-//
-// Save Key design:
-//   Discovery runs at save time.
-//     - 401 / 403 → REJECT save (bad key)
-//     - other failures → save with fallbackModels[provider] so the key is
-//       at least available if the discovery endpoint recovers later
-//     - success → save the discovered list
 
 import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
@@ -29,7 +9,6 @@ import { AI_PROVIDERS, getProviderMeta, fallbackModels } from '@mavrix/shared';
 const credentialSchema = z.object({
   provider: z.enum(['openrouter', 'openai', 'anthropic', 'gemini', 'groq', 'deepseek']),
   apiKey: z.string().trim().min(10).max(500),
-  // Retained for backward-compat callers; ignored by testKey since 20261023.
   model: z.string().trim().max(100).optional().nullable(),
 });
 
@@ -46,17 +25,11 @@ const serialize = (cred) => ({
   hasKey: true,
 });
 
-/* ------------------------------------------------------------------ */
-/*  Providers                                                          */
-/* ------------------------------------------------------------------ */
 
 export async function listProviders(_req, res) {
   res.json({ providers: AI_PROVIDERS });
 }
 
-/* ------------------------------------------------------------------ */
-/*  Settings — read                                                    */
-/* ------------------------------------------------------------------ */
 
 export async function getSettings(req, res, next) {
   try {
@@ -70,9 +43,6 @@ export async function getSettings(req, res, next) {
   }
 }
 
-/* ------------------------------------------------------------------ */
-/*  Settings — upsert                                                  */
-/* ------------------------------------------------------------------ */
 
 export async function saveSettings(req, res, next) {
   try {
@@ -80,11 +50,6 @@ export async function saveSettings(req, res, next) {
 
     const { encryptedKey, keyIv, keyTag } = encryptKey(payload.apiKey);
 
-    // ---- Discover models from the provider ----
-    // This doubles as the key validity check. Auth failures (401/403) are
-    // REJECTED — the user must fix their key. Transient failures (network,
-    // 5xx, rate limit) fall back to the curated list so the key isn't
-    // blocked by a temporary outage of the discovery endpoint.
     const discovery = await discoverModels(payload.provider, payload.apiKey);
 
     if (!discovery.ok && (discovery.status === 401 || discovery.status === 403)) {
@@ -136,9 +101,6 @@ export async function saveSettings(req, res, next) {
   }
 }
 
-/* ------------------------------------------------------------------ */
-/*  Settings — patch model list (reorder / toggle)                     */
-/* ------------------------------------------------------------------ */
 
 export async function updateModels(req, res, next) {
   try {
@@ -165,9 +127,6 @@ export async function updateModels(req, res, next) {
   }
 }
 
-/* ------------------------------------------------------------------ */
-/*  Settings — delete one provider                                     */
-/* ------------------------------------------------------------------ */
 
 export async function deleteSettings(req, res, next) {
   try {
@@ -184,9 +143,6 @@ export async function deleteSettings(req, res, next) {
   }
 }
 
-/* ------------------------------------------------------------------ */
-/*  Test key — verifies the key via /models, NEVER via chat           */
-/* ------------------------------------------------------------------ */
 
 export async function testKey(req, res, next) {
   try {
@@ -206,8 +162,6 @@ export async function testKey(req, res, next) {
       });
     }
 
-    // Map the provider's status code to a friendly message. The raw
-    // error text from the provider is preserved when nothing better exists.
     let msg = result.error || 'Invalid key or provider error.';
     if (result.status === 401) {
       msg = '401 Unauthorized: The API key was rejected by the provider. Check that you copied it correctly.';

@@ -1,22 +1,6 @@
-/* apps/web/src/features/dashboard/dashboardShell.css
- *
- * Shared shell for BOTH dashboards:
- *   - features/journal/dashboard/DashboardPage.jsx
- *   - features/backtester/dashboard/BacktesterDashboardPage.jsx
- *
- * Single source of truth for .dash-* selectors + react-grid-layout overrides.
- * Previously duplicated inline in each DashboardPage (250+ lines each).
- *
- * ── Phase 1 fixes baked in ──────────────────────────────────────────────
- *   • .dash-panel      → min-width:0; min-height:0  (flex children shrink)
- *   • .react-grid-item → overflow: visible          (handles + badges unclipped)
- *   • .dash-section-title → margin normalized to 24/12
- * ────────────────────────────────────────────────────────────────────────
- */
 
-/* ==================================================================
-   ROOT
-   ================================================================== */
+
+
 .dash-root {
   --ink-1: #F3F4F6;
   --ink-2: rgba(255,255,255,.62);
@@ -39,14 +23,11 @@
   -webkit-font-smoothing: antialiased;
 }
 
-/* ==================================================================
-   REACT-GRID-LAYOUT overrides
-   ================================================================== */
+
 .dash-grid .react-grid-item {
   transition: all 200ms cubic-bezier(.2,.8,.25,1);
   transition-property: left, top;
-  /* Phase 1: allow editor badges + resize handles to render outside the
-     item's box without being clipped by react-grid-layout. */
+
   overflow: visible;
 }
 
@@ -61,15 +42,12 @@
   opacity: 1;
 }
 
-/* ==================================================================
-   PANEL — the shell every dashboard widget renders inside
-   ================================================================== */
+
 .dash-panel {
   padding: 6px;
   width: 100%;
   height: 100%;
-  /* Phase 1: flex/grid children default to content size. These two zeroes
-     let a deeply nested table or chart shrink below its intrinsic width. */
+
   min-width: 0;
   min-height: 0;
   border-radius: 18px;
@@ -108,9 +86,7 @@
   filter: grayscale(.7);
 }
 
-/* ==================================================================
-   EDIT-MODE OVERLAY (drag badge + visibility toggle)
-   ================================================================== */
+
 .dash-editor-overlay {
   position: absolute;
   top: 10px;
@@ -174,9 +150,7 @@
   color: #545E6E;
 }
 
-/* ==================================================================
-   RESIZE HANDLE
-   ================================================================== */
+
 .dash-grid .react-grid-item > .react-resizable-handle {
   width: 22px;
   height: 22px;
@@ -205,14 +179,12 @@
   height: 15px;
 }
 
-/* Hide resize handle entirely outside edit mode */
+
 .dash-grid:not(.dash-editing) .react-grid-item > .react-resizable-handle {
   display: none !important;
 }
 
-/* ==================================================================
-   EDIT TOOLBAR (top of grid, only in edit mode)
-   ================================================================== */
+
 .dash-edit-toolbar {
   position: sticky;
   top: 12px;
@@ -348,9 +320,7 @@
   padding: 0 6px;
 }
 
-/* ==================================================================
-   TOOLBAR BUTTONS
-   ================================================================== */
+
 .dash-tb-btn {
   display: inline-flex;
   align-items: center;
@@ -391,11 +361,9 @@
   transform: translateY(-2px);
 }
 
-/* ==================================================================
-   SECTION TITLE (above the Trade Log)
-   ================================================================== */
+
 .dash-section-title {
-  /* Phase 1: was 36/16, looked floating. Now aligns with grid gap rhythm. */
+
   margin: 24px 0 12px;
   display: flex;
   align-items: center;
@@ -423,9 +391,7 @@
   );
 }
 
-/* ==================================================================
-   TRADE LOG SHELL (below the grid)
-   ================================================================== */
+
 .dash-tradelog {
   background: linear-gradient(180deg, var(--glass-1), var(--glass-2));
   border: 1px solid var(--line);
@@ -435,9 +401,7 @@
   overflow-x: auto;
 }
 
-/* ==================================================================
-   EMPTY STATE (no trades at all)
-   ================================================================== */
+
 .dash-empty-wrap {
   min-height: calc(100vh - 120px);
   align-items: center;
@@ -492,9 +456,7 @@
   max-width: 380px;
 }
 
-/* ==================================================================
-   "ALL PANELS HIDDEN" NOTICE
-   ================================================================== */
+
 .dash-allhidden {
   padding: 70px 20px;
   text-align: center;
@@ -509,9 +471,7 @@
   color: var(--accent);
 }
 
-/* ==================================================================
-   ANIMATIONS + REDUCED MOTION
-   ================================================================== */
+
 @keyframes dashGrad {
   0%   { background-position: 0% 50%; }
   100% { background-position: 200% 50%; }
@@ -523,19 +483,15 @@
   }
 }
 
-/* ==================================================================
-   PHASE 3 — Customize Mode Alignment Overrides
-   Appended after Phase 1 base rules. Same specificity, later source
-   order wins. Do not reorder without re-checking.
-   ================================================================== */
 
-/* ---------- 1. Editor overlay aligns with panel padding (6px) ---------- */
+
+
 .dash-editor-overlay {
   top: 6px;
   right: 6px;
 }
 
-/* ---------- 2. Badge + toggle baseline-align at 28px ---------- */
+
 .dash-editor-badge {
   height: 28px;
   padding: 0 11px;
@@ -545,7 +501,7 @@
   cursor: grabbing;
 }
 
-/* ---------- 3. Edit toolbar — single row on wide, wraps on narrow ---------- */
+
 .dash-edit-toolbar {
   flex-wrap: nowrap;
   overflow-x: auto;
@@ -568,7 +524,7 @@
   }
 }
 
-/* ---------- 4. Layout tabs shrinkable + scrollable when tight ---------- */
+
 .dash-layout-tabs {
   min-width: 0;
   flex-shrink: 1;
@@ -586,7 +542,7 @@
   flex-shrink: 0;
 }
 
-/* ---------- 5. Toolbar buttons — unified 40px height ---------- */
+
 .dash-tb-btn,
 .dash-tb-primary {
   height: 40px;
@@ -599,13 +555,13 @@
   padding: 0 20px;
 }
 
-/* ---------- 6. Resize handle — bigger hit area ---------- */
+
 .dash-grid .react-grid-item > .react-resizable-handle {
   width: 26px;
   height: 26px;
 }
 
-/* ---------- 7. Hidden panels — clearer "off" state ---------- */
+
 .dash-panel.dash-hidden {
   opacity: .35;
   filter: grayscale(.85);
@@ -614,13 +570,9 @@
 }
 
 
-/* ==================================================================
-   PHASE 4 — Per-Panel Content Fit
-   Overrides scoped to .dash-panel descendants. Higher specificity than
-   any component's inline <style> block, so no !important needed.
-   ================================================================== */
 
-/* ---------- 1. Calendar grid — no fixed min-width inside panels ---------- */
+
+
 .dash-panel .cal-grid {
   min-width: 0;
 }
@@ -629,7 +581,7 @@
   overflow-x: auto;
 }
 
-/* ---------- 2. Weekly chart chips — flex naturally inside panels ---------- */
+
 .dash-panel .week-chip {
   min-width: 0;
   flex: 1 1 130px;
@@ -639,19 +591,19 @@
   gap: 8px;
 }
 
-/* ---------- 3. Hero chart-box — fill its container, no fixed 220px ---------- */
+
 .dash-panel .chart-box {
   height: 100%;
   min-height: 0;
 }
 
-/* ---------- 4. Duration widget — verdict pill may compress ---------- */
+
 .dash-panel .duration-verdict-pill {
   min-height: 0;
   padding: 6px 10px;
 }
 
-/* ---------- 5. KPI grids — small-height fallback ---------- */
+
 @container kpi (max-height: 200px) {
   .kpi-card { min-height: 36px; padding: 4px 8px; }
   .kpi-value { font-size: 12px; }
@@ -662,7 +614,7 @@
   .adv-kpi-value { font-size: 13px; }
 }
 
-/* ---------- 6. Generic tables-inside-panels — the DataTable scrolls itself ---------- */
+
 .dash-panel .dt-root {
   height: 100%;
   min-height: 0;
@@ -672,7 +624,7 @@
   max-height: 100% !important;
 }
 
-/* ---------- 7. Reduce panel header padding at small heights ---------- */
+
 @container (max-height: 120px) {
   .dash-panel-header-compact {
     padding: 6px 12px;
@@ -680,11 +632,9 @@
 }
 
 
-/* ==================================================================
-   PHASE 6 — Chart container chain + sidebar-toggle perf kill
-   ================================================================== */
 
-/* ---------- A. Hero (Equity) chart — proper height chain ---------- */
+
+
 .dash-panel .hero {
   height: 100%;
   min-height: 0;
@@ -709,17 +659,12 @@
 }
 
 
-/* ==================================================================
-   PHASE 7 — Hero / Equity chart bulletproof flex chain
-   The .hero grid (2fr 1fr) doesn't propagate definite heights to grid
-   items reliably. Switch to flex; explicit flex-basis percentages
-   replace the grid-template-columns.
-   ================================================================== */
+
 
 .dash-panel .hero {
   height: 100%;
   min-height: 0;
-  display: flex;                 /* was: grid */
+  display: flex;
   flex-direction: row;
   align-items: stretch;
   gap: 24px;
@@ -728,7 +673,7 @@
 }
 
 .dash-panel .hero-left {
-  flex: 2 1 0;                   /* was: grid col 1 (2fr) */
+  flex: 2 1 0;
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -736,7 +681,7 @@
 }
 
 .dash-panel .hero-right {
-  flex: 1 1 0;                   /* was: grid col 2 (1fr) */
+  flex: 1 1 0;
   min-height: 0;
   min-width: 0;
 }
@@ -747,13 +692,13 @@
 
 .dash-panel .hero-left .chart-box {
   flex: 1 1 auto;
-  min-height: 140px;             /* safety floor if flex math fails */
+  min-height: 140px;
   height: auto;
   width: 100%;
   position: relative;
 }
 
-/* At narrow widths, stack the hero */
+
 @media (max-width: 1100px) {
   .dash-panel .hero {
     flex-direction: column;

@@ -1,11 +1,3 @@
-// apps/api/src/services/healthCheck/phases/friends.js
-//
-// Friends phase — 11 tests.
-//
-// Uses healthcheck users A and B. Full happy path (send → list → status →
-// accept → list → remove) plus decline, cancel, and block flows.
-// A second pair of send-requests is created in-test using C (a third user)
-// where needed — but we reuse A↔B pairs since C isn't guaranteed.
 
 export async function run(ctx) {
   const { test, tokens, ids } = ctx;
@@ -15,7 +7,6 @@ export async function run(ctx) {
     return;
   }
 
-  /* ---------------- initial list ---------------- */
 
   await test('friends.list · A has no friends', async () => {
     const res = await ctx.fetch('/api/friends', { token: tokens.a });
@@ -31,7 +22,6 @@ export async function run(ctx) {
     ctx.expect(res.body.status.isFriend === false, 'should not be friend');
   });
 
-  /* ---------------- send request ---------------- */
 
   await test('friends.requests.send · A → B', async () => {
     const res = await ctx.fetch('/api/friends/requests', {
@@ -60,7 +50,6 @@ export async function run(ctx) {
     ctx.expect(res.body.incoming.length === 1, `expected 1 incoming, got ${res.body.incoming.length}`);
   });
 
-  /* ---------------- accept ---------------- */
 
   await test('friends.requests.accept · B accepts', async () => {
     const res = await ctx.fetch(
@@ -77,7 +66,6 @@ export async function run(ctx) {
     ctx.expect(res.body.friends.length === 1, `expected 1 friend, got ${res.body.friends.length}`);
   });
 
-  /* ---------------- remove friend ---------------- */
 
   await test('friends.remove · A removes B', async () => {
     const res = await ctx.fetch(`/api/friends/${ids.userB}`, {
@@ -87,7 +75,6 @@ export async function run(ctx) {
     ctx.assertStatus(res, 200);
   });
 
-  /* ---------------- decline flow ---------------- */
 
   await test('friends.requests.send · A → B again', async () => {
     const res = await ctx.fetch('/api/friends/requests', {
@@ -107,7 +94,6 @@ export async function run(ctx) {
     ctx.assertStatus(res, 200);
   });
 
-  /* ---------------- cancel flow ---------------- */
 
   await test('friends.requests.cancel · A sends then cancels', async () => {
     const send = await ctx.fetch('/api/friends/requests', {
@@ -124,7 +110,6 @@ export async function run(ctx) {
     ctx.assertStatus(cancel, 200);
   });
 
-  /* ---------------- block / unblock ---------------- */
 
   await test('friends.block · A blocks B', async () => {
     const res = await ctx.fetch('/api/friends/blocks', {

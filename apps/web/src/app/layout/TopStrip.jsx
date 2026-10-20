@@ -1,4 +1,3 @@
-// apps/web/src/app/layout/TopStrip.jsx
 import './TopStrip.css';
 
 export default function TopStrip() {

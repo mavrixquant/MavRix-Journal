@@ -1,7 +1,3 @@
-// apps/api/src/controllers/admin.controller.js
-//
-// Thin HTTP layer. Attaches `req.userId`, `req.userEmail`, `req.userRole`
-// from requireAuth, and delegates everything to admin.service.js.
 
 import { prisma } from '../lib/prisma.js';
 import * as adminService from '../services/admin.service.js';
@@ -9,11 +5,7 @@ import { getSettings, updateSettings } from '../lib/settings.js';
 import { writeAudit } from '../lib/audit.js';
 import { getClientCount } from '../lib/broadcaster.js';
 
-/* ------------------------------------------------------------------ */
-/*  Helper — build the actor object the service expects                */
-/* ------------------------------------------------------------------ */
 async function buildActor(req) {
-  // Resolve email once. requireAuth gives us userId + role, but not email.
   const u = await prisma.user.findUnique({
     where: { id: req.userId },
     select: { email: true },
@@ -26,9 +18,6 @@ async function buildActor(req) {
   };
 }
 
-/* ------------------------------------------------------------------ */
-/*  Me                                                                 */
-/* ------------------------------------------------------------------ */
 export async function me(req, res, next) {
   try {
     const data = await adminService.getAdminMe(req.userId);
@@ -36,9 +25,6 @@ export async function me(req, res, next) {
   } catch (e) { next(e); }
 }
 
-/* ------------------------------------------------------------------ */
-/*  Stats / Health                                                     */
-/* ------------------------------------------------------------------ */
 export async function stats(_req, res, next) {
   try {
     const data = await adminService.getGlobalStats();
@@ -53,9 +39,6 @@ export async function health(_req, res, next) {
   } catch (e) { next(e); }
 }
 
-/* ------------------------------------------------------------------ */
-/*  Users                                                              */
-/* ------------------------------------------------------------------ */
 export async function listUsers(req, res, next) {
   try {
     const data = await adminService.listUsers({
@@ -141,9 +124,6 @@ export async function removeUser(req, res, next) {
   } catch (e) { next(e); }
 }
 
-/* ------------------------------------------------------------------ */
-/*  Sessions                                                           */
-/* ------------------------------------------------------------------ */
 export async function sessions(_req, res, next) {
   try {
     const data = await adminService.getActiveSessions();
@@ -158,9 +138,6 @@ export async function userSessions(req, res, next) {
   } catch (e) { next(e); }
 }
 
-/* ------------------------------------------------------------------ */
-/*  Settings (read is admin; write is superadmin — enforced in route)  */
-/* ------------------------------------------------------------------ */
 export async function getSettingsCtrl(_req, res, next) {
   try {
     const data = await getSettings();

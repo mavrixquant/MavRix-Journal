@@ -1,4 +1,3 @@
-// apps/api/src/controllers/strategies.controller.js
 import * as svc from '../services/strategies.service.js';
 
 export async function list(req, res, next) {

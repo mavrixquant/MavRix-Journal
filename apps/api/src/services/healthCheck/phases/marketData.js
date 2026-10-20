@@ -1,7 +1,3 @@
-// apps/api/src/services/healthCheck/phases/marketData.js
-//
-// Market Data phase — 4 tests.
-// Hits Biquote (forex) and Yahoo (futures) over the network.
 
 export async function run(ctx) {
   const { test, tokens } = ctx;

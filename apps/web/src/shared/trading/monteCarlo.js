@@ -1,23 +1,3 @@
-// apps/web/src/shared/trading/monteCarlo.js
-// ---------------------------------------------------------------------------
-// Monte Carlo engine for trade sequences.
-//
-// Three methods, each mathematically distinct:
-//   permutation — reshuffle the same N trades. Total invariant.
-//   bootstrap   — sample N trades with replacement.
-//   block       — sliding-window block bootstrap.
-//
-// All units in `scores` are either:
-//   - R multiples, when using R-mode, or
-//   - account currency, when using money-mode.
-//
-// IMPORTANT:
-// This engine's cumulative curve is currently additive:
-//   curve[i] = curve[i - 1] + tradeResult
-//
-// Therefore R-mode is a fixed-R cumulative model.
-// It is NOT a compounded percentage-of-equity account model.
-// ---------------------------------------------------------------------------
 
 function mulberry32(seed) {
   let s = seed >>> 0;
@@ -31,8 +11,6 @@ function mulberry32(seed) {
 }
 
 
-// Two-pass: find worst DD (peak->trough), then find first recovery of that peak.
-// Returns drawdown DURATION (peak index -> recovery index). -1 if never recovered.
 function analyzeRecovery(curve) {
   const n = curve.length - 1;
   let peak = 0, peakIdx = 0;
@@ -64,7 +42,6 @@ function analyzeRecovery(curve) {
   return recoveryIdx - ddPeakIdx;
 }
 
-// --- Sequence generators ---------------------------------------------------
 
 function generatePermutation(base, n, randInt, out) {
   for (let i = 0; i < n; i++) out[i] = base[i];
@@ -106,7 +83,6 @@ function percentile(sortedAsc, p) {
   return sortedAsc[lo] + (sortedAsc[hi] - sortedAsc[lo]) * (idx - lo);
 }
 
-// --- Main entry point ------------------------------------------------------
 export function runMonteCarlo(scores, options = {}) {
   const {
     method = 'permutation',
@@ -117,11 +93,10 @@ export function runMonteCarlo(scores, options = {}) {
     initialCapital = 0,
     blockSize = 5,
     dollarsPerR = 0,
-    onProgress = null,      // (pct, current, total) => void
-    shouldCancel = null,    // () => boolean
+    onProgress = null,
+    shouldCancel = null,
   } = options;
 
-  // Validate input trades.
   if (!Array.isArray(scores) && !ArrayBuffer.isView(scores)) return null;
   if (scores.length < 2) return null;
 
@@ -133,7 +108,6 @@ export function runMonteCarlo(scores, options = {}) {
 
   const n = cleanScores.length;
 
-  // Validate simulation parameters.
   if (!Number.isInteger(runs) || runs < 1) {
     throw new Error('Monte Carlo runs must be an integer >= 1.');
   }
@@ -218,33 +192,22 @@ export function runMonteCarlo(scores, options = {}) {
   let infinitePfCount = 0;
   let finalValueSum = 0;
 
-  // Convert-mode: how to translate maxDD into a % of capital.
-  // - $ mode: maxDD is already in currency; divide by capital.
-  // - R mode with dollarsPerR > 0: convert R -> $ first.
-  // - R mode without conversion: no % is meaningful; store 0.
   const ddToCapitalPct = (maxDD) => {
     if (initialCapital <= 0) return 0;
 
-    // Money mode:
-    // maxDD is already expressed in account currency.
     if (dollarsPerR === 0) {
       return (maxDD / initialCapital) * 100;
     }
 
-    // R mode:
-    // Convert R -> account currency before calculating percentage.
     return (maxDD * dollarsPerR / initialCapital) * 100;
   };
 
-  // Progress reporting + cancellation.
-  // Fire the progress callback roughly 100 times over the whole run,
-  // and check the cancel flag on the same cadence.
   const progressChunk = Math.max(100, Math.floor(runs / 100));
 
   for (let r = 0; r < runs; r++) {
     if (r > 0 && r % progressChunk === 0) {
       if (shouldCancel && shouldCancel()) {
-        return null;   // caller treats null as "cancelled"
+        return null;
       }
       if (onProgress) {
         onProgress((r / runs) * 100, r, runs);
@@ -392,8 +355,6 @@ export function runMonteCarlo(scores, options = {}) {
     curves[r] = curve;
   }
 
-  // Percentile bands.
-  // Sort once per trade position, then derive all five percentiles.
   const buildBands = () => {
     const out = {
       p5:  new Float64Array(n + 1),
@@ -437,8 +398,6 @@ export function runMonteCarlo(scores, options = {}) {
   } = buildBands();
 
 
-  // Drawdown percentile bands.
-  // Reconstruct each run's drawdown and sort once per trade position.
   const buildDrawdownBands = () => {
     const out = {
       p5:  new Float64Array(n + 1),
@@ -487,7 +446,6 @@ export function runMonteCarlo(scores, options = {}) {
     p95: ddP95,
   } = buildDrawdownBands();
 
-  // Evenly-spaced sampling for FanChart (fixes the "first 300 only" bug).
   const SAMPLE_COUNT = 300;
   const count = Math.min(runs, SAMPLE_COUNT);
   const sampledCurves = [];
@@ -525,7 +483,6 @@ export function runMonteCarlo(scores, options = {}) {
     }
   }
 
-  // Time-to-target.
   let timeToTarget = [];
 
   if (uniqueTargets.length > 0) {
@@ -539,8 +496,6 @@ export function runMonteCarlo(scores, options = {}) {
       const c = curves[r];
       const finalValue = c[n];
 
-      // Targets are sorted ascending.
-      // Walk each run once and advance through targets as they are hit.
       let nextTarget = 0;
 
       for (let i = 1; i <= n && nextTarget < targetCount; i++) {
@@ -556,8 +511,6 @@ export function runMonteCarlo(scores, options = {}) {
         }
       }
 
-      // Find how many configured targets are <= final value.
-      // Binary search avoids scanning all targets for every run.
       let lo = 0;
       let hi = targetCount;
 
@@ -592,7 +545,6 @@ export function runMonteCarlo(scores, options = {}) {
     });
   }
 
-  // Sorted copies (excluding infinite PF for finite stats)
   const finitePfs = [];
   for (let r = 0; r < runs; r++) if (!pfInfinite[r]) finitePfs.push(pfs[r]);
   finitePfs.sort((a, b) => a - b);
@@ -604,7 +556,7 @@ export function runMonteCarlo(scores, options = {}) {
     sharpe:     Array.from(sharpes).sort((a, b) => a - b),
     sortino:    Array.from(sortinos).sort((a, b) => a - b),
     expectancy: Array.from(expectancies).sort((a, b) => a - b),
-    winRate:    Array.from(winRates).sort((a, b) => a - b), // fraction 0..1
+    winRate:    Array.from(winRates).sort((a, b) => a - b),
     winStreak:  Array.from(longestWins).sort((a, b) => a - b),
     lossStreak: Array.from(longestLosses).sort((a, b) => a - b),
   };
@@ -617,10 +569,8 @@ export function runMonteCarlo(scores, options = {}) {
     n,
     seed,
 
-    // Drawdown threshold terminology.
     ddThreshold: numericThreshold,
 
-    // Backward-compatible alias for the current UI.
     ruinThreshold: numericThreshold,
 
     initialCapital,
@@ -640,7 +590,6 @@ export function runMonteCarlo(scores, options = {}) {
     sortinos:       Array.from(sortinos),
     profitFactors:  finitePfs,
 
-    // Per-run metrics for raw run-level export.
     runProfitFactors: Array.from(pfs),
     runProfitFactorInfinite: Array.from(pfInfinite),
 
@@ -652,7 +601,6 @@ export function runMonteCarlo(scores, options = {}) {
     recoveryTrades: Array.from(recoveryTrades),
     ddBreachTrades: Array.from(ruinTrades),
 
-    // Backward-compatible alias.
     ruinTrades: Array.from(ruinTrades),
 
     percentiles: { p5, p25, p50, p75, p95 },
@@ -666,11 +614,9 @@ export function runMonteCarlo(scores, options = {}) {
     },
 
     profitCount, profitPct: (profitCount / runs) * 100,
-    // Drawdown-threshold breach statistics.
     ddBreachCount: ruinCount,
     ddBreachPct:   (ruinCount / runs) * 100,
 
-    // Backward-compatible aliases for the current UI.
     ruinCount,
     ruinPct: (ruinCount / runs) * 100,
     medianFinal: percentile(sorted.final, 0.50),
@@ -684,7 +630,6 @@ export function runMonteCarlo(scores, options = {}) {
   };
 }
 
-// --- Distribution histogram -----------------------------------------------
 export function buildHistogram(values, bucketCount = 12) {
   if (!values || values.length === 0) return null;
   let min = Infinity, max = -Infinity;
@@ -720,7 +665,6 @@ export function pct(arr, p) {
   return percentile(s, p);
 }
 
-// --- Summarize for panels --------------------------------------------------
 export function summarizeMC(result) {
   if (!result) return null;
   const s = result._sorted;
@@ -744,15 +688,10 @@ export function summarizeMC(result) {
     maxDD_p75:   percentile(s.maxDD, 0.75),
     maxDD_p95:   percentile(s.maxDD, 0.95),
 
-    // maxDDPct is signed, matching maxDD.
-    // Therefore p5 = deeper/worse drawdown,
-    // p50 = median drawdown,
-    // p95 = shallower drawdown.
     maxDDPct_p5:  percentile(s.maxDDPct, 0.05),
     maxDDPct_p50: percentile(s.maxDDPct, 0.50),
     maxDDPct_p95: percentile(s.maxDDPct, 0.95),
 
-    // Trade Sharpe (unannualized) — renamed in UI
     sharpe_p5:   percentile(s.sharpe, 0.05),
     sharpe_p50:  percentile(s.sharpe, 0.50),
     sharpe_p95:  percentile(s.sharpe, 0.95),
@@ -763,7 +702,6 @@ export function summarizeMC(result) {
 
     exp_p50: percentile(s.expectancy, 0.50),
 
-    // Convert fraction to percent (0..1 -> 0..100)
     win_p50: percentile(s.winRate, 0.50) * 100,
 
     winStreak_p50:  percentile(s.winStreak, 0.50),
@@ -774,7 +712,6 @@ export function summarizeMC(result) {
     profitPct: result.profitPct,
     profitCount: result.profitCount,
 
-    // Drawdown-threshold breach statistics.
     ddBreachPct: result.ddBreachPct,
     ddBreachCount: result.ddBreachCount,
   };

@@ -1,4 +1,3 @@
-// apps/web/src/features/auth/components/AuthField.jsx
 import { forwardRef, useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 
@@ -43,11 +42,6 @@ const S = {
   },
 };
 
-/**
- * Text/email/password input for auth forms.
- * Renders an optional leading icon, an optional password-visibility toggle,
- * and an error message when `error` is truthy.
- */
 const AuthField = forwardRef(function AuthField(
   {
     icon: Icon,

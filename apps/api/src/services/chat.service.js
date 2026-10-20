@@ -1,30 +1,3 @@
-// apps/api/src/services/chat.service.js
-//
-// All chat business logic. Every read/write goes through the access-control
-// helper first — that is the ONLY check for chat, and it is the guarantee
-// that no admin route can ever see these conversations.
-//
-// Phase 4 additions:
-//   - Mave AI trigger (triggers when peer is AI)
-//   - Archive protection (blocks archiving an AI conversation)
-//
-// Phase 2-Clear addition:
-//   - clearChat() endpoint. AI conversations hard-delete messages (resets
-//     buildContext() memory). Human DM/Group clears only for the caller.
-//
-// Phase 5 additions:
-//   - listConversations() computes a PER-USER "last visible message" so
-//     that after a user clears a human DM / group, their sidebar preview
-//     no longer shows the peer's copy. Uses a single indexed DISTINCT ON
-//     query across the messages table.
-//   - serializeConversation() exposes lastMessageText / lastMessageById
-//     from that per-user view, plus a clearedByMe flag.
-//
-// Mave AI fix:
-//   - PUBLIC_USER_SELECT now includes `isAi` so AI messages loaded from
-//     the DB keep the sparkle avatar after page refresh.
-//   - listConversations() calls ensureAiDmForUser() first — covers users
-//     whose AI DM was never created (signed up after boot, etc).
 
 import { prisma } from '../lib/prisma.js';
 import { HttpError } from '../middleware/error.js';
@@ -57,9 +30,6 @@ const PUBLIC_USER_SELECT = {
   isAi: true,
 };
 
-/* ------------------------------------------------------------------ */
-/*  Serializers                                                        */
-/* ------------------------------------------------------------------ */
 
 function serializePublicUser(u) {
   if (!u) return null;
@@ -147,9 +117,6 @@ function serializeConversation(c, userId, participantRow, extras = {}) {
   return base;
 }
 
-/* ------------------------------------------------------------------ */
-/*  Guards                                                             */
-/* ------------------------------------------------------------------ */
 
 async function assertParticipant(userId, conversationId) {
   const row = await prisma.conversationParticipant.findUnique({
@@ -197,9 +164,6 @@ async function getParticipantIds(conversationId) {
   return rows.map((r) => r.userId);
 }
 
-/* ------------------------------------------------------------------ */
-/*  User search — FRIENDS ONLY                                         */
-/* ------------------------------------------------------------------ */
 
 export async function searchUsers(userId, q) {
   const query = String(q || '').trim();
@@ -217,9 +181,6 @@ export async function searchUsers(userId, q) {
     .slice(0, 20);
 }
 
-/* ------------------------------------------------------------------ */
-/*  DMs                                                                */
-/* ------------------------------------------------------------------ */
 
 function dmKeyFor(a, b) {
   return [a, b].sort().join(':');
@@ -292,14 +253,8 @@ export async function getOrCreateDm(userId, peerId) {
   });
 }
 
-/* ------------------------------------------------------------------ */
-/*  Conversations                                                      */
-/* ------------------------------------------------------------------ */
 
 export async function listConversations(userId) {
-  // Ensure a DM with Mave AI exists for this user. Covers users whose
-  // AI DM was never created — new signups after boot, or edge cases
-  // where the initial bootstrap failed.
   try {
     await ensureAiDmForUser(userId);
   } catch (err) {
@@ -492,9 +447,6 @@ export async function updateConversation(userId, conversationId, patch) {
   return { ok: true };
 }
 
-/* ------------------------------------------------------------------ */
-/*  Clear chat                                                         */
-/* ------------------------------------------------------------------ */
 
 export async function clearChat(userId, conversationId) {
   await assertAccessibleConversation(userId, conversationId);
@@ -551,9 +503,6 @@ export async function clearChat(userId, conversationId) {
   return { ok: true, scope: 'me' };
 }
 
-/* ------------------------------------------------------------------ */
-/*  Messages                                                           */
-/* ------------------------------------------------------------------ */
 
 export async function listMessages(userId, conversationId, { before, limit } = {}) {
   await assertAccessibleConversation(userId, conversationId);
@@ -822,9 +771,6 @@ export async function deleteMessage(userId, messageId, scope) {
   return { ok: true, scope: 'all' };
 }
 
-/* ------------------------------------------------------------------ */
-/*  Delivery + Read receipts                                           */
-/* ------------------------------------------------------------------ */
 
 export async function markDelivered(userId, messageId) {
   const msg = await prisma.message.findUnique({
@@ -914,9 +860,6 @@ export async function markRead(userId, conversationId) {
   return { ok: true, readAt: now };
 }
 
-/* ------------------------------------------------------------------ */
-/*  Typing                                                             */
-/* ------------------------------------------------------------------ */
 
 export async function broadcastTyping(userId, conversationId, isTyping) {
   await assertAccessibleConversation(userId, conversationId);
@@ -933,9 +876,6 @@ export async function broadcastTyping(userId, conversationId, isTyping) {
   return { ok: true };
 }
 
-/* ------------------------------------------------------------------ */
-/*  Groups — user-facing surface                                       */
-/* ------------------------------------------------------------------ */
 
 export async function listDiscoverablePublicGroups(
   userId,

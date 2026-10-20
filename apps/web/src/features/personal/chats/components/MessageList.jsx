@@ -1,20 +1,3 @@
-// apps/web/src/features/personal/chats/components/MessageList.jsx
-//
-// PHASE 6 — a11y pass:
-//   • The scroll container is a `role="log"` with `aria-live="polite"` and
-//     `aria-label="Message thread"`, so new inbound messages are announced
-//     to screen readers without stealing focus.
-//   • Day separators are rendered as `<time>` elements with a machine
-//     `dateTime` attribute.
-//   • The "load earlier" button now has an explicit aria-label.
-//
-// BUGFIX — clicking the reply-quote scrolls to the referenced message.
-// The parent `.msg-row` carries `data-msg-id`, so we can query it inside
-// the scroll container and animate it into view with a brief highlight.
-//
-// MAVE AI — the "thinking" indicator is now rendered INSIDE the scroll
-// container so it aligns with the message bubbles instead of sitting flush
-// against the pane edges. Driven by the `waitingForAi` prop.
 
 import { useMemo, useRef, useEffect, useCallback } from 'react';
 import { MessageSquare } from 'lucide-react';
@@ -285,8 +268,7 @@ export default function MessageList({
         );
       })}
 
-      {/* Mave AI "thinking" indicator — INSIDE the scroll container so it
-          aligns with the message bubbles. */}
+      {}
       {waitingForAi && <MaveAiTyping />}
 
       {typingUserIds.length > 0 && showTypingInThread && (

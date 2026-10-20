@@ -1,4 +1,3 @@
-// apps/web/src/app/shell/AccountSelect.jsx
 import { Select as SelectPrimitive } from 'radix-ui';
 import { Wallet, ChevronDown, Check } from 'lucide-react';
 

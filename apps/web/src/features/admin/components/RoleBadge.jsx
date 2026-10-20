@@ -1,4 +1,3 @@
-// apps/web/src/features/admin/components/RoleBadge.jsx
 export default function RoleBadge({ role }) {
   const cls =
     role === 'superadmin' ? 'rb-super'

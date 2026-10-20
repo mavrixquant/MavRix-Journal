@@ -98,7 +98,6 @@ export async function deleteLayout(userId, layoutId) {
 
   await prisma.userLayout.delete({ where: { id: layoutId } });
 
-  // If we deleted the active layout, promote the most recent remaining one.
   if (existing.isActive) {
     const next = await prisma.userLayout.findFirst({
       where: { userId },

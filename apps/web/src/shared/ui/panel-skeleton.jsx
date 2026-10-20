@@ -1,8 +1,3 @@
-// apps/web/src/components/ui/panel-skeleton.jsx
-//
-// Shimmer placeholder shown while dashboard panels are loading.
-// Matches the visual style of the panels they replace so the transition
-// from skeleton → content is smooth.
 
 export function PanelSkeleton({ rows = 3, showChart = false }) {
   return (
@@ -16,7 +11,7 @@ export function PanelSkeleton({ rows = 3, showChart = false }) {
         padding: '14px 16px',
       }}
     >
-      {/* Title bar */}
+      {}
       <div
         style={{
           display: 'flex',
@@ -30,7 +25,7 @@ export function PanelSkeleton({ rows = 3, showChart = false }) {
         <Shimmer width={60} height={10} />
       </div>
 
-      {/* Content rows */}
+      {}
       {showChart ? (
         <Shimmer width="100%" height="100%" radius={12} />
       ) : (
@@ -68,7 +63,6 @@ function Shimmer({ width = '100%', height = 12, radius = 6, flex }) {
   );
 }
 
-// Inject the keyframe once. Safe to do multiple times — CSS dedupes identical rules.
 if (typeof document !== 'undefined') {
   const STYLE_ID = 'panel-skeleton-keyframes';
   if (!document.getElementById(STYLE_ID)) {

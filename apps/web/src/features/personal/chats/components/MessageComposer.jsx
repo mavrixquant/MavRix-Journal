@@ -1,17 +1,3 @@
-// apps/web/src/features/personal/chats/components/MessageComposer.jsx
-//
-// PHASE 3 — professional chat composer.
-//
-// Responsibilities:
-//   • Auto-grow textarea (1 → 8 rows, capped at 160px, then internal scroll)
-//   • Char countdown only shown near the limit (>= NEAR_LIMIT chars)
-//   • Send button: enabled state, spinner while isSending, proper focus ring
-//   • Enter / Shift+Enter / Ctrl+Enter handling per settings.chats.enterToSend
-//   • Typing signal: throttled start, 3s idle stop, and IMMEDIATE stop when
-//     the textarea is cleared back to empty
-//   • Locked state (non-friend 3-message cap) — polished banner
-//   • Archived state — polished banner with Unarchive CTA
-//   • Auto-focus on conversation change (only in normal mode)
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import {
@@ -48,13 +34,11 @@ export default function MessageComposer({
   disabled = false,
   isSending = false,
 
-  // Locked (non-friend 3-message cap)
   isLocked = false,
   peer = null,
   friendRequestPending = false,
   onAddFriend,
 
-  // Archived
   isArchived = false,
   onUnarchive,
   unarchiving = false,
@@ -67,7 +51,6 @@ export default function MessageComposer({
   const lastTypingSentRef = useRef(0);
   const idleTimerRef = useRef(null);
 
-  /* ---------------- Reset on conversation / mode change ---------------- */
 
   useEffect(() => {
     setText('');
@@ -76,15 +59,11 @@ export default function MessageComposer({
       clearTimeout(idleTimerRef.current);
       idleTimerRef.current = null;
     }
-    // Reset textarea height. Inline styles from grow() otherwise
-    // persist across threads (the component instance survives a
-    // conversationId change).
     const el = textareaRef.current;
     if (el) {
       el.style.height = 'auto';
     }
 
-    // Focus the input when entering a normal thread
     if (!isLocked && !isArchived) {
       requestAnimationFrame(() => {
         textareaRef.current?.focus();
@@ -92,7 +71,6 @@ export default function MessageComposer({
     }
   }, [conversationId, isLocked, isArchived]);
 
-  /* ---------------- Cleanup on unmount ---------------- */
 
   useEffect(() => {
     return () => {
@@ -100,21 +78,13 @@ export default function MessageComposer({
     };
   }, []);
 
-  /* ---------------- Auto-grow ---------------- */
 
   const grow = useCallback(() => {
   const el = textareaRef.current;
   if (!el) return;
 
-  // Reset to auto so scrollHeight reflects the CURRENT content, not the
-  // previous (possibly larger) height.
   el.style.height = 'auto';
 
-  // scrollHeight EXCLUDES the border; with box-sizing: border-box the
-  // CSS height INCLUDES it. Adding borderY prevents a permanent ~2px
-  // overflow that would make a scrollbar appear on every keystroke.
-  // Math.ceil guards against sub-pixel rounding (browsers report
-  // fractional scrollHeight at fractional device-pixel ratios).
   const borderY = el.offsetHeight - el.clientHeight;
   const next = Math.min(
     Math.ceil(el.scrollHeight + borderY),
@@ -122,12 +92,8 @@ export default function MessageComposer({
   );
   el.style.height = next + 'px';
 
-  // NO overflow toggle. CSS keeps overflow-y:auto. Fitting content has
-  // an exact pixel height (no scrollbar); content past the cap stays at
-  // the cap and the CSS scrollbar appears naturally.
 }, []);
 
-  /* ---------------- Typing signal ---------------- */
 
   const signalTyping = useCallback(() => {
     if (!onTyping) return;
@@ -155,7 +121,6 @@ export default function MessageComposer({
     }
   }, [onTyping]);
 
-  /* ---------------- Input handling ---------------- */
 
   const handleChange = (e) => {
     const next = e.target.value.slice(0, MAX_LEN);
@@ -167,7 +132,6 @@ export default function MessageComposer({
     if (next.trim().length > 0) {
       signalTyping();
     } else if (wasNonEmpty) {
-      // User cleared the field → stop typing immediately
       stopTypingNow();
     }
   };
@@ -207,7 +171,6 @@ export default function MessageComposer({
     submit();
   };
 
-  /* ---------------- Locked banner ---------------- */
 
   if (isLocked) {
     return (
@@ -244,7 +207,6 @@ export default function MessageComposer({
     );
   }
 
-  /* ---------------- Archived banner ---------------- */
 
   if (isArchived) {
     return (
@@ -275,7 +237,6 @@ export default function MessageComposer({
     );
   }
 
-  /* ---------------- Normal composer ---------------- */
 
   const canSend = text.trim().length > 0 && !disabled && !isSending;
 

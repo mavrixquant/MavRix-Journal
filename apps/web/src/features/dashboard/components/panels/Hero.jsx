@@ -1,4 +1,3 @@
-// src/components/dashboard/sections/Hero.jsx
 import { useMemo } from 'react';
 import { useStats } from '@/features/dashboard/hooks/useStats';
 import { computeStats } from '@/shared/trading/stats';

@@ -1,4 +1,3 @@
-// apps/api/src/controllers/adminOps.controller.js
 import { prisma } from '../lib/prisma.js';
 import * as svc from '../services/adminOps.service.js';
 
@@ -10,7 +9,6 @@ async function buildActor(req) {
   return { id: req.userId, email: u?.email || '', role: req.userRole, req };
 }
 
-/* ---------------- Audit ---------------- */
 export async function audit(req, res, next) {
   try {
     const data = await svc.listAuditLog({
@@ -29,7 +27,6 @@ export async function audit(req, res, next) {
   } catch (e) { next(e); }
 }
 
-/* ---------------- Sessions ---------------- */
 export async function sessions(_req, res, next) {
   try {
     res.json(await svc.getActiveSessions());
@@ -43,7 +40,6 @@ export async function kickSession(req, res, next) {
   } catch (e) { next(e); }
 }
 
-/* ---------------- Broadcast ---------------- */
 export async function broadcast(req, res, next) {
   try {
     const actor = await buildActor(req);
@@ -56,7 +52,6 @@ export async function broadcast(req, res, next) {
   } catch (e) { next(e); }
 }
 
-/* ---------------- Calendar ---------------- */
 export async function calendarSync(req, res, next) {
   try {
     const actor = await buildActor(req);

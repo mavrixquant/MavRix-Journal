@@ -1,7 +1,3 @@
-// apps/web/src/features/journal/economic-calendar/components/CalendarFilters.jsx
-//
-// Selected currencies: soft amber wash — light, calm, unmistakable.
-// Uses data-checked (cmdk owns data-selected for keyboard highlight).
 
 import { useEffect, useMemo, useState } from 'react';
 import { RefreshCw, ChevronDown, Search, Check, List, CalendarDays } from 'lucide-react';
@@ -167,9 +163,6 @@ const CSS = `
 
 const IMPACT_LABELS = { high: 'High', medium: 'Medium', low: 'Low' };
 
-/* ============================================================
-   SOFT SELECTED STYLES — light, calm, no glare
-   ============================================================ */
 
 const SELECTED_ITEM_STYLE = {
   background: 'color-mix(in srgb, var(--accent) 10%, transparent)',

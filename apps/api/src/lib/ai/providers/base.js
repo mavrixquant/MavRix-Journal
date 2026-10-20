@@ -1,4 +1,3 @@
-// apps/api/src/lib/ai/providers/base.js
 export class ProviderError extends Error {
   constructor(message, { status, isRateLimit = false } = {}) {
     super(message);
@@ -32,16 +31,13 @@ export async function safeFetch(url, fetchOptions, timeoutMs, providerName) {
   }
 
   if (!res.ok) {
-    // Extract the exact error body from the provider (OpenAI, Gemini, etc.)
     const text = await res.text().catch(() => '');
     let errorMsg = text;
     
-    // Try to parse JSON to get a cleaner error message
     try {
       const parsed = JSON.parse(text);
       errorMsg = parsed?.error?.message || parsed?.error?.status || parsed?.message || text;
     } catch {
-      // Ignore parsing error, use raw text
     }
 
     throw new ProviderError(

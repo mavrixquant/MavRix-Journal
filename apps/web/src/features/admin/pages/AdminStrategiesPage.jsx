@@ -1,13 +1,3 @@
-// apps/web/src/features/admin/pages/AdminStrategiesPage.jsx
-//
-// Cross-user strategies list. Filters: search by name, status segment.
-// Row actions: View user (link), Delete (superadmin only).
-//
-// PHASE 6 CHANGE (EmptyState migration)
-// -------------------------------------
-//   • The "No strategies match" filter-empty state now uses the shared
-//     <EmptyState> component (@/shared/components/EmptyState).
-//   • Dead `.asp-empty` rule removed; `.asp-loading` retained.
 
 import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
@@ -157,7 +147,7 @@ export default function AdminStrategiesPage() {
   const isSuper = me?.role === 'superadmin';
 
   const [q, setQ] = useState('');
-  const [status, setStatus] = useState(''); // '' | 'active' | 'paused' | 'archived'
+  const [status, setStatus] = useState('');
   const [page, setPage] = useState(1);
 
   const [deleteTarget, setDeleteTarget] = useState(null);

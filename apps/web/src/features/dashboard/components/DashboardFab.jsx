@@ -1,12 +1,3 @@
-// apps/web/src/features/dashboard/components/DashboardFab.jsx
-//
-// Floating action button used on BOTH dashboard routes:
-//   /journal/*     — Live + Demo accounts
-//   /backtester/*  — Backtest accounts
-//
-// The main button shows a MENU icon when closed and an X (close) icon when
-// open. The two icons cross-fade + rotate as the FAB opens/closes — no
-// shared single icon, no 135° rotate trick.
 
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -17,9 +8,6 @@ import {
   TrendingUp,
 } from 'lucide-react';
 
-/* ------------------------------------------------------------------ */
-/*  Styles                                                            */
-/* ------------------------------------------------------------------ */
 const CSS = `
   /* ---------- Root ---------- */
   .fab-root {
@@ -298,9 +286,6 @@ const CSS = `
   }
 `;
 
-/* ------------------------------------------------------------------ */
-/*  Component                                                         */
-/* ------------------------------------------------------------------ */
 
 export default function DashboardFab({
   onCustomize,
@@ -311,7 +296,6 @@ export default function DashboardFab({
   const [open, setOpen] = useState(false);
   const rootRef = useRef(null);
 
-  /* -------- Close on outside click + Escape -------- */
   useEffect(() => {
     if (!open) return undefined;
 
@@ -332,7 +316,6 @@ export default function DashboardFab({
     };
   }, [open]);
 
-  /* -------- Handlers -------- */
   const handleToggle = () => setOpen((v) => !v);
 
   const handleAddTrade = () => {
@@ -345,7 +328,6 @@ export default function DashboardFab({
     if (hasData && typeof onCustomize === 'function') onCustomize();
   };
 
-  /* -------- Render -------- */
   return (
     <>
       <style>{CSS}</style>

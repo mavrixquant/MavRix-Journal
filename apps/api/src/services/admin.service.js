@@ -1,7 +1,3 @@
-// apps/api/src/services/admin.service.js
-//
-// All admin-panel business logic. Controllers stay thin; this file owns
-// every rule (self-protection, last-superadmin guard, cascade shape).
 
 import { prisma } from '../lib/prisma.js';
 import { HttpError } from '../middleware/error.js';
@@ -20,9 +16,6 @@ import {
   sendPasswordResetEmail,
 } from '../lib/mailer.js';
 
-/* ------------------------------------------------------------------ */
-/*  Public user shape                                                  */
-/* ------------------------------------------------------------------ */
 const adminUserShape = (u) => ({
   id: u.id,
   email: u.email,
@@ -42,9 +35,6 @@ const adminUserShape = (u) => ({
   _count: u._count || undefined,
 });
 
-/* ------------------------------------------------------------------ */
-/*  Self-protection helpers                                            */
-/* ------------------------------------------------------------------ */
 function assertNotSelf(actorId, targetId, verb) {
   if (actorId === targetId) {
     throw new HttpError(400, `You cannot ${verb} your own account.`);
@@ -65,9 +55,6 @@ async function assertNotLastSuperadmin(targetId, verb) {
   }
 }
 
-/* ------------------------------------------------------------------ */
-/*  /me  — capabilities                                                */
-/* ------------------------------------------------------------------ */
 export async function getAdminMe(userId) {
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) throw new HttpError(404, 'User not found');
@@ -90,9 +77,6 @@ export async function getAdminMe(userId) {
   };
 }
 
-/* ------------------------------------------------------------------ */
-/*  /stats  — global counters + 30d signup series                      */
-/* ------------------------------------------------------------------ */
 export async function getGlobalStats() {
   const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
@@ -134,9 +118,6 @@ export async function getGlobalStats() {
   };
 }
 
-/* ------------------------------------------------------------------ */
-/*  /health — process + infra state                                    */
-/* ------------------------------------------------------------------ */
 export async function getSystemHealth() {
   const startedAt = process.uptime();
   let dbOk = true;
@@ -166,9 +147,6 @@ export async function getSystemHealth() {
   };
 }
 
-/* ------------------------------------------------------------------ */
-/*  Users — list / detail                                              */
-/* ------------------------------------------------------------------ */
 export async function listUsers({
   q = '',
   role,
@@ -273,9 +251,6 @@ export async function getUserDetail(userId) {
   return shaped;
 }
 
-/* ------------------------------------------------------------------ */
-/*  Users — mutations                                                  */
-/* ------------------------------------------------------------------ */
 export async function updateUser(actor, targetId, patch) {
   const target = await prisma.user.findUnique({ where: { id: targetId } });
   if (!target) throw new HttpError(404, 'User not found');
@@ -307,12 +282,10 @@ export async function updateUser(actor, targetId, patch) {
       throw new HttpError(400, 'Invalid role');
     }
     if (next !== target.role) {
-      // If demoting the last superadmin, refuse.
       if (target.role === 'superadmin' && next !== 'superadmin') {
         await assertNotLastSuperadmin(targetId, 'demote');
       }
       data.role = next;
-      // Role change kills all sessions — refresh tokens die too.
       data.tokenVersion = { increment: 1 };
     }
   }
@@ -324,7 +297,6 @@ export async function updateUser(actor, targetId, patch) {
   await prisma.user.update({ where: { id: targetId }, data });
   invalidateSvCache(targetId);
 
-  // If email changed, send a fresh verification email.
   if (data.email) {
     const fresh = await prisma.user.findUnique({ where: { id: targetId } });
     await sendVerificationEmail({
@@ -423,7 +395,7 @@ export async function banUser(actor, targetId, reason) {
 
   const target = await prisma.user.findUnique({ where: { id: targetId } });
   if (!target) throw new HttpError(404, 'User not found');
-  if (target.isBanned) return getUserDetail(targetId); // idempotent
+  if (target.isBanned) return getUserDetail(targetId);
 
   await prisma.user.update({
     where: { id: targetId },
@@ -453,7 +425,7 @@ export async function banUser(actor, targetId, reason) {
 export async function unbanUser(actor, targetId) {
   const target = await prisma.user.findUnique({ where: { id: targetId } });
   if (!target) throw new HttpError(404, 'User not found');
-  if (!target.isBanned) return getUserDetail(targetId); // idempotent
+  if (!target.isBanned) return getUserDetail(targetId);
 
   await prisma.user.update({
     where: { id: targetId },
@@ -525,9 +497,6 @@ export async function deleteUser(actor, targetId) {
   return { ok: true };
 }
 
-/* ------------------------------------------------------------------ */
-/*  Sessions (SSE)                                                     */
-/* ------------------------------------------------------------------ */
 export async function getActiveSessions() {
   return {
     totalClients: getTotalClientCount(),

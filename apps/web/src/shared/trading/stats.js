@@ -1,4 +1,3 @@
-// apps/web/src/shared/trading/stats.js
 import { outcomeFor } from './filters.js';
 import { getMetricMode } from './sl.js';
 
@@ -31,12 +30,10 @@ export function computeStats(trades, R, accountOrSL) {
   const avgWin = wins.length ? winSum / wins.length : 0;
   const avgLoss = losses.length ? lossSum / losses.length : 0;
 
-  // --- Volatility & ratio metrics ---
   const mean = expectancy;
   const variance = n ? outcomes.reduce((s, o) => s + (o.score - mean) ** 2, 0) / n : 0;
   const stdR = Math.sqrt(variance);
 
-  // Downside deviation: sqrt(mean(min(0, score)^2))
   const downsideVar = n
     ? outcomes.reduce((s, o) => {
         const d = Math.min(0, o.score);
@@ -48,7 +45,6 @@ export function computeStats(trades, R, accountOrSL) {
   const sharpe = stdR > 0 ? mean / stdR : 0;
   const sortino = downsideStd > 0 ? mean / downsideStd : 0;
 
-  // --- Drawdown metrics ---
   let cum = 0, peak = 0, maxDD = 0;
   let ddSum = 0, ddCount = 0;
   const equity = [];
@@ -61,22 +57,19 @@ export function computeStats(trades, R, accountOrSL) {
     equity.push({ x: o.date, y: +cum.toFixed(2) });
   });
 
-  const avgDD = ddCount > 0 ? ddSum / ddCount : 0;      // negative or 0
+  const avgDD = ddCount > 0 ? ddSum / ddCount : 0;
   const absMaxDD = Math.abs(maxDD);
   const absAvgDD = Math.abs(avgDD);
 
   const calmar = absMaxDD > 0 ? total / absMaxDD : 0;
-  const mar = calmar;                                    // alias
+  const mar = calmar;
   const sterling = absAvgDD > 0 ? total / absAvgDD : 0;
 
-  // --- Kelly % ---
-  // f* = W − (1 − W) / (avgWin / |avgLoss|)
   const W = n ? wins.length / n : 0;
   const payoffRatio = Math.abs(avgLoss) > 0 ? avgWin / Math.abs(avgLoss) : 0;
   const kellyRaw = payoffRatio > 0 ? W - (1 - W) / payoffRatio : -1;
   const kelly = Math.max(0, Math.min(1, kellyRaw));
 
-  // --- Streaks ---
   let curStreak = 0, curType = null;
   let bestWinStreak = 0, worstLossStreak = 0;
   outcomes.forEach(o => {
@@ -91,21 +84,19 @@ export function computeStats(trades, R, accountOrSL) {
     }
   });
 
-  // --- Best / worst trade ---
   let bestTrade = null, worstTrade = null;
   outcomes.forEach(o => {
     if (!bestTrade || o.score > bestTrade.score) bestTrade = o;
     if (!worstTrade || o.score < worstTrade.score) worstTrade = o;
   });
 
-  // --- Duration metrics ---
   const winDurs = wins.map(o => Number(o.durationMinutes) || 0);
   const lossDurs = losses.map(o => Number(o.durationMinutes) || 0);
   const allDurs = outcomes.map(o => Number(o.durationMinutes) || 0);
   const avgWinDuration = winDurs.length ? winDurs.reduce((a, b) => a + b, 0) / winDurs.length : 0;
   const avgLossDuration = lossDurs.length ? lossDurs.reduce((a, b) => a + b, 0) / lossDurs.length : 0;
   const avgDuration = allDurs.length ? allDurs.reduce((a, b) => a + b, 0) / allDurs.length : 0;
-  const durationDelta = avgWinDuration - avgLossDuration;  // > 0 means hold winners longer
+  const durationDelta = avgWinDuration - avgLossDuration;
 
   return {
     metric,
@@ -126,12 +117,10 @@ export function computeStats(trades, R, accountOrSL) {
     worstLossStreak,
     bestTrade,
     worstTrade,
-    // Score aggregates
     winSum,
     lossSum,
     avgWin,
     avgLoss,
-    // Volatility & ratios
     stdR,
     downsideStd,
     sharpe,
@@ -141,12 +130,10 @@ export function computeStats(trades, R, accountOrSL) {
     sterling,
     kelly,
     kellyRaw,
-    // Durations
     avgWinDuration,
     avgLossDuration,
     avgDuration,
     durationDelta,
-    // Legacy aliases (existing UI depends on these)
     totalWin$: winSum,
     totalLoss$: lossSum,
     avgWin$: avgWin,

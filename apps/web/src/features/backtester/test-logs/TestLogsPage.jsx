@@ -1,16 +1,8 @@
-// apps/web/src/features/backtester/test-logs/TestLogsPage.jsx
-//
-// Backtester Test Logs — Backtest accounts only.
-//
-// Publishes the page title + subtitle to the GLOBAL header bar; the
-// shared TradeLogsView is agnostic to title rendering.
 
 import TradeLogsView from '@/shared/trade-logs/TradeLogsView';
 import { useDashboardAccount } from '@/app/providers/useDashboardAccount';
 import { usePageHeader } from '@/app/layout/PageHeaderProvider';
 
-// Informational — used for the empty-state message only. Actual
-// type-based gating is performed by the HeaderBar.
 const ALLOWED_TYPES = Object.freeze(['Backtest']);
 
 export default function TestLogsPage() {

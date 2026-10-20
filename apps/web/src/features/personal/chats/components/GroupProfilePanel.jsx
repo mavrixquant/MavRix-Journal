@@ -1,11 +1,3 @@
-// apps/web/src/features/personal/chats/components/GroupProfilePanel.jsx
-//
-// Right-panel contents for a group. This is where member management lives.
-//
-//   Group card     → avatar + name + description + visibility badges
-//   Members list   → role chips + per-member actions (admin only) +
-//                    inline "Add member" search (admin only)
-//   Actions        → Group settings (admin only) · Leave group · Clear chat
 
 import { useState, useMemo, useEffect } from 'react';
 import {
@@ -112,7 +104,6 @@ export default function GroupProfilePanel({
     'member';
   const isLastOwner = myRole === 'owner' && ownerCount <= 1;
 
-  /* ---------------- Handlers ---------------- */
 
   const handleAdd = async (userId) => {
     try {
@@ -168,7 +159,6 @@ export default function GroupProfilePanel({
     }
   };
 
-  /* ---------------- Render ---------------- */
 
   const memberCount = members.length || conversation.memberCount || 0;
   const clearBusy = clearChatMutation.isPending;
@@ -189,7 +179,7 @@ export default function GroupProfilePanel({
         </div>
 
         <div className="chat-panel-body">
-          {/* ────────── Group card ────────── */}
+          {}
           <div className="panel-profile">
             <GroupAvatar group={conversation} size={72} />
             <div className="panel-name">
@@ -212,7 +202,7 @@ export default function GroupProfilePanel({
             </div>
           </div>
 
-          {/* ────────── Members ────────── */}
+          {}
           <div className="panel-section">
             <div className="panel-section-head">
               <span className="panel-section-label">
@@ -403,7 +393,7 @@ export default function GroupProfilePanel({
             </div>
           </div>
 
-          {/* ────────── Actions ────────── */}
+          {}
           <div className="panel-section">
             <div className="panel-section-label">Actions</div>
             <div className="panel-actions">

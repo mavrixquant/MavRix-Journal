@@ -1,9 +1,3 @@
-// apps/web/src/app/layout/Settings/panels/AccountPanel.jsx
-//
-// Body of the "Account" tab inside the Settings modal.
-// Migrated from the original account settings modal so behaviour and
-// visuals stay identical — profile card, verification badge, and the
-// Google link/unlink flow (with reload-on-success).
 
 import { useState } from 'react';
 import { Link, X, CheckCircle2 } from 'lucide-react';
@@ -62,7 +56,6 @@ export default function AccountPanel() {
     try {
       const accessToken = await google.signIn();
       await authService.linkGoogle(accessToken);
-      // Force a fresh user from the server so providerData updates.
       window.location.reload();
     } catch (err) {
       setError(err?.message || 'Could not link Google account');
@@ -87,7 +80,7 @@ export default function AccountPanel() {
 
   return (
     <div className="settings-account">
-      {/* ---------- Profile header ---------- */}
+      {}
       <div className="settings-account-head">
         {user.photoURL ? (
           <img
@@ -104,7 +97,7 @@ export default function AccountPanel() {
         </div>
       </div>
 
-      {/* ---------- Profile ---------- */}
+      {}
       <section className="settings-section">
         <h4 className="settings-section-title">Profile</h4>
 
@@ -132,7 +125,7 @@ export default function AccountPanel() {
         </div>
       </section>
 
-      {/* ---------- Connected accounts ---------- */}
+      {}
       <section className="settings-section">
         <h4 className="settings-section-title">Connected Accounts</h4>
 
@@ -179,7 +172,7 @@ export default function AccountPanel() {
         {error && <div className="settings-error">{error}</div>}
       </section>
 
-      {/* ---------- Unlink confirm ---------- */}
+      {}
       {showUnlinkAlert && (
         <Alert
           isOpen={showUnlinkAlert}

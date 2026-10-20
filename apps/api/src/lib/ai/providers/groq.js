@@ -1,4 +1,3 @@
-// apps/api/src/lib/ai/providers/groq.js
 import { safeFetch, ProviderError } from './base.js';
 
 export async function chat(messages, { apiKey, model, maxTokens, timeoutMs }) {

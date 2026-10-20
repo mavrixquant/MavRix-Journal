@@ -1,39 +1,3 @@
-﻿// apps/web/src/features/journal/dashboard/DashboardPage.jsx
-//
-// Journal dashboard — Live & Demo accounts only.
-//
-// PHASE B CHANGES
-// ---------------
-//   • Single boot gate. One <PageSkeleton /> covers the entire bootstrap
-//     chain (auth → accounts list → account auto-select → trades fetch →
-//     AppProvider sync → layout hydration). The grid first mounts with
-//     real data already in place — no intermediate empty-state flash, no
-//     "all panels hidden" flash.
-//
-//   • Layout hydration + persistence extracted into useUserLayouts().
-//     This is the same hook the backtester dashboard uses.
-//
-//   • Trades sync state pulled from useEnrichedTrades().isSynced so the
-//     gate can wait for AppProvider to actually contain the enriched
-//     trades — closing the one-render gap between React Query resolving
-//     and the reducer committing.
-//
-// PHASE E CHANGE
-// --------------
-//   • Uses <MeasuredGrid> (local wrapper) instead of RGL's WidthProvider.
-//
-// PHASE F CHANGE
-// --------------
-//   • Boot gate is now TYPE-AWARE. The gate only blocks on "account not
-//     selected" when there is at least one account of the type this
-//     dashboard renders (Live/Demo for Journal, Backtest for Backtester).
-//
-// PHASE 3 CHANGE (EmptyState migration)
-// -------------------------------------
-//   • The "No Trading Data Available" empty state now uses the shared
-//     <EmptyState> component (@/shared/components/EmptyState) for a
-//     consistent look across the whole app. Gains a "Manage accounts"
-//     primary CTA so users can resolve the empty condition in one click.
 
 import { useState, useEffect, useMemo } from 'react';
 
@@ -87,19 +51,13 @@ import '@/features/dashboard/dashboardShell.css';
 const MAX_NAME_LEN = 24;
 const DEFAULT_NAME_PATTERN = /^Layout \d+$/;
 
-/* ------------------------------------------------------------------ */
-/*  Main                                                               */
-/* ------------------------------------------------------------------ */
 export default function DashboardPage() {
   const { user } = useAuth();
   const { accountId, allowedTypes } = useDashboardAccount();
 
-  // ---- Accounts list (drives the auto-select gate) ----
   const { data: accountsData, isLoading: accountsLoading } = useAccounts();
   const accounts = useMemo(() => accountsData ?? [], [accountsData]);
 
-  // Accounts matching the current dashboard's allowed types.
-  // Journal: Live + Demo. Backtester: Backtest only.
   const compatibleAccounts = useMemo(
     () =>
       !allowedTypes
@@ -108,19 +66,16 @@ export default function DashboardPage() {
     [accounts, allowedTypes]
   );
 
-  // ---- Trades pipeline (enriched + AppProvider sync) ----
   const enriched = useEnrichedTrades(accountId);
 
   const { stats } = useStats();
 
-  // ---- Edit-mode state (drives useUserLayouts.suppressRemotePush) ----
   const [editMode, setEditMode] = useState(false);
   const [draftLayouts, setDraftLayouts] = useState(null);
   const [draftActiveId, setDraftActiveId] = useState(null);
   const [renamingId, setRenamingId] = useState(null);
   const [renameValue, setRenameValue] = useState('');
 
-  // ---- Layouts (hydration tracked via layoutsReady) ----
   const {
     layouts,
     setLayouts,
@@ -132,7 +87,6 @@ export default function DashboardPage() {
     suppressRemotePush: editMode,
   });
 
-  // ---- Breakpoint tracking ----
   const [isMobile, setIsMobile] = useState(
     () => typeof window !== 'undefined' && window.innerWidth < 768
   );
@@ -152,14 +106,12 @@ export default function DashboardPage() {
   );
   const badgeVariant = selectedAccount?.type === 'Demo' ? 'is-demo' : 'is-live';
 
-  // Publish title + account badge to the global header bar.
   usePageHeader({
     title: 'Dashboard',
     badge: selectedAccount?.type,
     badgeVariant,
   });
 
-  // ---- Layout selectors (hooks — must run unconditionally) ----
   const committedActive = useMemo(
     () => layouts.find((l) => l.id === activeId) || null,
     [layouts, activeId]
@@ -191,7 +143,6 @@ export default function DashboardPage() {
     [displayItems]
   );
 
-  // ---- Edit lifecycle ----
   const enterEdit = () => {
     if (!layouts.length) return;
     const clone = layouts.map((l) => ({
@@ -342,9 +293,6 @@ export default function DashboardPage() {
     );
   };
 
-  /* ---------------------------------------------------------------- */
-  /*  Boot gate — wait for the full bootstrap sequence to complete.    */
-  /* ---------------------------------------------------------------- */
   const accountIdValid =
     accountId != null && compatibleAccounts.some((a) => a.id === accountId);
 

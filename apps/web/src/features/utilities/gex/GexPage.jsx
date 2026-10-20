@@ -1,22 +1,3 @@
-﻿// apps/web/src/features/utilities/gex/GexPage.jsx
-//
-// /utilities/gex — user-facing GEX level viewer.
-//
-// Title + dynamic subtitle (days uploaded / total levels) are published to
-// the GLOBAL header bar via usePageHeader().
-//
-// Layout:
-//   ┌──────────────┬──────────────────────────────────────┐
-//   │              │  Converted string (TOP)              │
-//   │  Date list   │  ─────────────────────────────       │
-//   │  (sticky,    │  Price ladder chart (BELOW)          │
-//   │   scrollable)│                                      │
-//   └──────────────┴──────────────────────────────────────┘
-//
-// PHASE 4 CHANGE (EmptyState migration)
-// -------------------------------------
-//   • "No GEX levels available" empty state now uses the shared
-//     <EmptyState> component (@/shared/components/EmptyState).
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Layers, Clipboard, ClipboardCheck, CalendarDays } from 'lucide-react';
@@ -28,9 +9,6 @@ import { PageSkeleton } from '@/shared/ui/page-skeleton';
 import EmptyState from '@/shared/components/EmptyState';
 import GexLevelChart from './components/GexLevelChart';
 
-/* ------------------------------------------------------------------ */
-/*  Helpers                                                            */
-/* ------------------------------------------------------------------ */
 
 function formatDateLong(isoDate) {
   if (!isoDate) return '';
@@ -53,9 +31,6 @@ function formatDateShort(isoDate) {
   });
 }
 
-/* ------------------------------------------------------------------ */
-/*  Scoped CSS                                                         */
-/* ------------------------------------------------------------------ */
 
 const CSS = `
   .gxp-root {
@@ -348,16 +323,12 @@ const CSS = `
   }
 `;
 
-/* ------------------------------------------------------------------ */
-/*  Page                                                               */
-/* ------------------------------------------------------------------ */
 
 export default function GexPage() {
   const { data: days = [], isLoading: daysLoading } = useGexDays();
   const [selectedDate, setSelectedDate] = useState(null);
   const [copied, setCopied] = useState(false);
 
-  // Auto-select the newest day; recover if the current one is deleted.
   useEffect(() => {
     if (days.length === 0) {
       if (selectedDate !== null) setSelectedDate(null);
@@ -386,7 +357,6 @@ export default function GexPage() {
     [days]
   );
 
-  // Publish title + dynamic subtitle to the global header bar.
   const subText = days.length === 0
     ? 'No GEX data uploaded yet'
     : `${days.length} ${days.length === 1 ? 'day' : 'days'} uploaded · ${totalLevels} levels total`;
@@ -396,7 +366,6 @@ export default function GexPage() {
     subtitle: subText,
   });
 
-  /* ----------------------------- Render ----------------------------- */
 
   if (daysLoading) return <PageSkeleton />;
 
@@ -405,7 +374,7 @@ export default function GexPage() {
       <style>{CSS}</style>
       <div className="gxp-root">
 
-        {/* ---------- Empty state ---------- */}
+        {}
         {days.length === 0 && (
           <EmptyState
             size="lg"
@@ -416,11 +385,11 @@ export default function GexPage() {
           />
         )}
 
-        {/* ---------- Two-column body ---------- */}
+        {}
         {days.length > 0 && (
           <div className="gxp-body">
 
-            {/* -------- Sidebar: date list -------- */}
+            {}
             <aside className="gxp-sidebar">
               <div className="gxp-sidebar-head">
                 <span className="gxp-sidebar-title">Uploaded Days</span>
@@ -452,13 +421,13 @@ export default function GexPage() {
               </div>
             </aside>
 
-            {/* -------- Main column -------- */}
+            {}
             <main className="gxp-main">
               {dayLoading || !day ? (
                 <div className="gxp-loading">Loading day…</div>
               ) : (
                 <>
-                  {/* ───────── 1. Converted string (TOP) ───────── */}
+                  {}
                   <div className="gxp-card">
                     <div className="gxp-card-head">
                       <span className="gxp-card-title">TradingView String</span>
@@ -486,7 +455,7 @@ export default function GexPage() {
                     </div>
                   </div>
 
-                  {/* ───────── 2. Price ladder (BELOW) ───────── */}
+                  {}
                   <div className="gxp-card">
                     <div className="gxp-card-head">
                       <Layers size={14} style={{ color: 'var(--accent)' }} />

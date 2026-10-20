@@ -1,4 +1,3 @@
-// apps/api/src/controllers/adminTrades.controller.js
 import { prisma } from '../lib/prisma.js';
 import * as svc from '../services/adminTrades.service.js';
 

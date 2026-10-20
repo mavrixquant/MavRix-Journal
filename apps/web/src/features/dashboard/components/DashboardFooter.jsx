@@ -1,4 +1,3 @@
-// src/components/dashboard/DashboardFooter.jsx
 import { useAppContext } from '@/app/providers/AppProvider';
 import { useDashboardAccount } from '@/app/providers/useDashboardAccount';
 
@@ -52,7 +51,6 @@ export default function DashboardFooter() {
   const { state } = useAppContext();
   const { accountId } = useDashboardAccount();
 
-  // Route-aware: follows the CURRENT dashboard's account slot.
   const account = state.accounts.find((a) => a.id === accountId) || null;
   const isBacktest = account?.type === 'Backtest';
 

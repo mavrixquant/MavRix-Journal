@@ -1,19 +1,3 @@
-﻿// apps/web/src/features/backtester/dashboard/BacktesterDashboardPage.jsx
-//
-// Backtester dashboard — Backtest accounts only.
-//
-// The `useEnrichedTrades(accountId)` call lives HERE, at the page level,
-// mirroring the Journal dashboard. Previously it lived in the header,
-// which meant `state.trades` wasn't reliably populated before this page
-// evaluated `hasData` — the header mounts one level deep, and the
-// resulting render cycle left the page stuck on the "No Backtest Data"
-// empty state even when trades existed.
-//
-// PHASE 3 CHANGE (EmptyState migration)
-// -------------------------------------
-//   • The "No Backtest Data Available" empty state now uses the shared
-//     <EmptyState> component (@/shared/components/EmptyState). Gains a
-//     "Manage accounts" primary CTA.
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Responsive, WidthProvider } from 'react-grid-layout/legacy';
@@ -69,16 +53,10 @@ const ResponsiveGridLayout = WidthProvider(Responsive);
 const MAX_NAME_LEN = 24;
 const DEFAULT_NAME_PATTERN = /^Layout \d+$/;
 
-/* ------------------------------------------------------------------ */
-/*  Main                                                               */
-/* ------------------------------------------------------------------ */
 export default function BacktesterDashboardPage() {
   const { user } = useAuth();
   const { accountId } = useDashboardAccount();
 
-  // Enrich + dispatch trades for this Backtest account into AppProvider.
-  // MUST be called before `useStats()` — the stats hook reads
-  // `state.trades`, which this effect populates.
   const enriched = useEnrichedTrades(accountId);
   void enriched;
 
@@ -107,7 +85,6 @@ export default function BacktesterDashboardPage() {
 
   const [currentBreakpoint, setCurrentBreakpoint] = useState('lg');
 
-  // ---- Cloud sync ----
   useEffect(() => {
     if (!user?.uid) return;
     const unsub = subscribeToUserLayouts(user.uid, (remote) => {
@@ -137,7 +114,6 @@ export default function BacktesterDashboardPage() {
       }
     });
     return () => unsub();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.uid]);
 
   const hasData = stats && stats.n > 0;

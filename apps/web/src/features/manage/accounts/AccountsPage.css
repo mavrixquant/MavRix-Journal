@@ -1,11 +1,6 @@
-/* apps/web/src/features/manage/accounts/AccountsPage.css
-   Page-level styles for the Portfolio Accounts page.
 
-   Title now lives in the global HeaderBar. This file only styles the
-   content: the toolbar, KPI strip, accounts grid, cards, buttons, and
-   the empty state. */
 
-/* ---------- Root ---------- */
+
 .acc-root {
   --line: rgba(255,255,255,.085);
   --line-soft: rgba(255,255,255,.05);
@@ -29,7 +24,7 @@
   -webkit-font-smoothing: antialiased;
 }
 
-/* ---------- Toolbar (above KPI strip) ---------- */
+
 .acc-toolbar {
   display: flex;
   align-items: center;
@@ -40,7 +35,7 @@
 }
 .acc-toolbar-spacer { flex: 1; min-width: 8px; }
 
-/* ---------- Type tabs (segmented filter) ---------- */
+
 .acc-type-tabs {
   display: inline-flex;
   align-items: center;
@@ -90,7 +85,7 @@
   box-shadow: 0 8px 20px -10px color-mix(in srgb, var(--accent) 60%, transparent), inset 0 1px 0 rgba(255,255,255,.4);
 }
 
-/* ---------- Generic glass card ---------- */
+
 .acc-card {
   position: relative;
   border-radius: 18px;
@@ -104,7 +99,7 @@
   overflow: hidden;
 }
 
-/* ---------- Buttons ---------- */
+
 .acc-btn {
   display: inline-flex;
   align-items: center;
@@ -198,7 +193,7 @@
   border-color: rgba(239,68,68,.4);
 }
 
-/* ---------- KPI summary bar ---------- */
+
 .acc-kpi-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
@@ -275,14 +270,14 @@
 .acc-kpi-value.neg { color: var(--loss); }
 .acc-kpi-value.zero { color: var(--ink-1); }
 
-/* ---------- Accounts grid ---------- */
+
 .acc-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 18px;
 }
 
-/* ---------- Account card ---------- */
+
 .acc-account {
   padding: 18px 20px 16px;
   display: flex;

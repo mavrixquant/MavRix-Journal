@@ -1,13 +1,3 @@
-// packages/shared/src/ai.js
-//
-// Provider registry shared by the API (router, discovery, controllers) and
-// the web client (Settings → Mave AI panel, BYOK form).
-//
-// ORDER MATTERS:
-//   • AI_PROVIDERS[] order drives the Settings dropdown AND the default
-//     admin provider chain (env.ai.providerPriority).
-//   • Adding a provider here immediately makes it selectable in the UI.
-//     The API needs a matching adapter in apps/api/src/lib/ai/providers/.
 
 export const AI_PROVIDERS = [
   {
@@ -16,7 +6,6 @@ export const AI_PROVIDERS = [
     freeTier: true,
     keyPrefix: 'sk-or-v1-',
     keyDocsUrl: 'https://openrouter.ai/keys',
-    // Admin-fallback default only. BYOK uses the discovered model list.
     defaultModel: 'meta-llama/llama-3.1-8b-instruct:free',
   },
   {
@@ -67,24 +56,6 @@ export function getProviderMeta(id) {
   return PROVIDER_MAP[id] || null;
 }
 
-// ---------------------------------------------------------------------------
-// Curated fallback model lists.
-//
-// Used ONLY when live discovery fails at save time AND the failure was NOT
-// an auth error (401/403). Auth failures reject the save — the user must
-// fix their key. Transient failures (network, timeout, 5xx, 429) fall back
-// to this list so the credential isn't blocked by a discovery outage.
-//
-// STALENESS WARNING:
-//   Providers — especially OpenRouter — rotate their free tier constantly.
-//   If any model in this list returns "unavailable" or "now paid", the
-//   router fails over to the next entry (up to the last one). If every
-//   entry in a provider's list is stale, the user re-saves their key to
-//   trigger fresh discovery.
-//
-//   Keep these lists SHORT and CHOOSE THE STABLEST AVAILABLE MODELS. Two
-//   entries is plenty — the router handles failover within the list.
-// ---------------------------------------------------------------------------
 
 export const fallbackModels = {
   openrouter: [
@@ -110,10 +81,6 @@ export const fallbackModels = {
   ],
 };
 
-// ---------------------------------------------------------------------------
-// Chat-model filter — drops embedding / TTS / image / moderation models
-// that some providers return alongside chat models.
-// ---------------------------------------------------------------------------
 
 const OPENAI_EXCLUDE_PREFIXES = [
   'text-embedding-', 'text-moderation-', 'whisper-', 'tts-',
@@ -138,19 +105,6 @@ export function filterChatModels(provider, ids) {
   return unique;
 }
 
-// ---------------------------------------------------------------------------
-// Built-in Mave AI sentinel identity.
-//
-// Used by apps/api/src/services/maveAiBootstrap.js when CREATING the AI user
-// on a fresh database. On databases where the AI user already exists (the
-// normal case), these values are never applied — the bootstrap does
-// `findFirst({ where: { isAi: true } })` first and short-circuits.
-//
-// If you want to match your EXISTING AI user's email exactly (check with
-// `npx prisma studio` → users → filter isAi=true), update MAVE_AI_EMAIL to
-// the value you see there. Otherwise the defaults below are fine for a
-// future fresh deploy.
-// ---------------------------------------------------------------------------
 
 export const MAVE_AI_EMAIL      = 'mave-ai@mavrix.local';
 export const MAVE_AI_FIRST_NAME = 'Mave';

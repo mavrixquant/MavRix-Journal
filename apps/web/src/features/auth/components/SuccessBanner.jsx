@@ -1,4 +1,3 @@
-// apps/web/src/features/auth/components/SuccessBanner.jsx
 export function SuccessBanner({ message }) {
   return (
     <div

@@ -94,20 +94,12 @@ export default function MessageThread({ conversationId, onBack, onConversationCl
     return all;
   }, [data]);
 
-  /* -------- Timer state — drives both editability and AI-waiting -------- */
-  // Seeded with Date.now() at mount so both checks work on the FIRST render.
-  // Refreshed every 30s. Uses useState initializer to avoid impure render.
   const [nowTs, setNowTs] = useState(() => Date.now());
   useEffect(() => {
     const iv = setInterval(() => setNowTs(Date.now()), 30_000);
     return () => clearInterval(iv);
   }, []);
 
-  /* -------- Waiting on Mave AI? -------- */
-  // True when:
-  //   • conversation is with the AI
-  //   • last message is from the current user (not yet answered)
-  //   • last message is younger than AI_WAITING_WINDOW_MS
   const waitingForAi = useMemo(() => {
     if (!isAi) return false;
     if (!currentUserId) return false;
@@ -145,7 +137,6 @@ export default function MessageThread({ conversationId, onBack, onConversationCl
     if (el) requestAnimationFrame(() => { el.scrollTop = el.scrollHeight; });
   }, [conversationId]);
 
-  // Scroll to bottom when a new message arrives OR while waiting on AI.
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;

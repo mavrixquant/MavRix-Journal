@@ -1,4 +1,3 @@
-// apps/web/src/app/layout/HeaderBar/HeaderBar.jsx
 import { useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import {
@@ -22,13 +21,6 @@ import './HeaderBar.css';
 
 export const HEADER_HEIGHT = 68;
 
-/* ------------------------------------------------------------------ */
-/*  Page title block — driven by PageHeaderContext                     */
-/*                                                                    */
-/*  Renders the current route's title (published via usePageHeader),   */
-/*  with an optional status badge and an optional subtitle line.       */
-/*  Falls back to "MavRix Journal" when no page has published one.     */
-/* ------------------------------------------------------------------ */
 function PageTitleBlock() {
   const { config } = usePageHeaderContext();
 

@@ -1,32 +1,3 @@
-// apps/api/src/lib/ai/router.js
-//
-// The decision engine. Decides which provider/model to use, decrypts BYOK
-// keys if present, and falls back through the admin provider chain on
-// failure.
-//
-// Chain construction (in order of preference):
-//
-//   1. Every BYOK credential the user owns, ordered by `lastUsedAt` ASC
-//      with NULLs FIRST. Every model in each credential's `models[]` is
-//      expanded into its own attempt, so a single key with 5 models
-//      contributes 5 attempts.
-//
-//   2. Admin env providers in `env.ai.providerPriority` order. One model
-//      each (the provider's defaultModel) — admin chain stays single-model
-//      so a single shared key doesn't get rate-limited trying 5 models.
-//
-// Rate limiting:
-//   The admin rate-limit bucket is reserved LAZILY — only when we are
-//   actually about to try an admin provider. This means a user whose
-//   BYOK key succeeds never touches the admin budget, no matter how
-//   many admin providers are configured. When we do reach admin, the
-//   slot is reserved ONCE per request (not once per attempt), so an
-//   N-attempt chain doesn't drain N slots from a 20/hr budget.
-//
-// lastUsedAt write-back:
-//   On success, we UPDATE the winning credential's lastUsedAt
-//   (fire-and-forget). That bumps it to the back of the LRU queue for
-//   the next message, giving round-robin behaviour across credentials.
 
 import { prisma } from '../prisma.js';
 import { env } from '../../config/env.js';
@@ -35,15 +6,9 @@ import { getProviderAdapter } from './registry.js';
 import { getProviderMeta } from '@mavrix/shared';
 import { checkRateLimit } from './limiter.js';
 
-/**
- * Resolves the ordered list of provider attempts to try.
- */
 async function getProviderChain(userId) {
   const chain = [];
 
-  // ---------------------------------------------------------------------
-  // 1. BYOK credentials (LRU order, nulls first)
-  // ---------------------------------------------------------------------
   const creds = await prisma.aiCredential.findMany({
     where: { userId },
     orderBy: [
@@ -83,9 +48,6 @@ async function getProviderChain(userId) {
     }
   }
 
-  // ---------------------------------------------------------------------
-  // 2. Admin env providers (fallback), one model each
-  // ---------------------------------------------------------------------
   for (const providerId of env.ai.providerPriority) {
     const apiKey = env.ai.keys[providerId];
     if (apiKey) {
@@ -102,18 +64,6 @@ async function getProviderChain(userId) {
   return chain;
 }
 
-/**
- * Executes a chat completion.
- *
- * @param {string} userId
- * @param {Array<{role: string, content: string}>} messages
- * @returns {Promise<{
- *   text: string,
- *   provider: string,
- *   model: string,
- *   switchedFrom?: string,
- * }>}
- */
 export async function executeChat(userId, messages) {
   const chain = await getProviderChain(userId);
 
@@ -123,14 +73,11 @@ export async function executeChat(userId, messages) {
     );
   }
 
-  // Rate limit is checked lazily — only when we're about to try an admin
-  // provider. Users whose BYOK key succeeds never touch this bucket.
   let rateLimitReserved = false;
 
   let previousLabel = null;
 
   for (const attempt of chain) {
-    // --- Lazy rate-limit gate ---
     if (!attempt.isByok && !rateLimitReserved) {
       const limitCheck = checkRateLimit(userId);
       if (!limitCheck.allowed) {
@@ -155,8 +102,6 @@ export async function executeChat(userId, messages) {
         timeoutMs: env.ai.requestTimeoutMs,
       });
 
-      // Bump lastUsedAt on success so this credential slides to the back
-      // of the LRU queue for the next request.
       if (attempt.isByok && attempt.credentialId) {
         prisma.aiCredential
           .update({
@@ -181,12 +126,6 @@ export async function executeChat(userId, messages) {
       );
       previousLabel = `${label} · ${attempt.model}`;
 
-      // Fallback on:
-      // - 429 rate limit
-      // - 401 invalid key
-      // - 404 model not found (deprecated)
-      // - 5xx server errors
-      // - 504 timeout
       if (
         err.isRateLimit ||
         err.status === 401 ||
@@ -195,10 +134,9 @@ export async function executeChat(userId, messages) {
         (err.status >= 500 && err.status <= 599) ||
         err.status === 504
       ) {
-        continue; // try next attempt
+        continue;
       }
 
-      // Hard failure (bad request, content policy) — don't retry.
       throw err;
     }
   }

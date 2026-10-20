@@ -1,4 +1,4 @@
-/* apps/web/src/app/layout/HeaderBar/HeaderBar.css */
+
 
 .hb-root {
   --line: rgba(255,255,255,.085);
@@ -26,7 +26,7 @@
   -webkit-font-smoothing: antialiased;
 }
 
-/* ---------- Mobile hamburger ---------- */
+
 .hb-mobile-menu {
   display: inline-flex;
   align-items: center;
@@ -51,7 +51,7 @@
   .hb-mobile-menu { display: none; }
 }
 
-/* ---------- Page title block (driven by PageHeaderContext) ---------- */
+
 .hb-page-title-block {
   position: relative;
   display: flex;
@@ -111,7 +111,7 @@
   text-overflow: ellipsis;
 }
 
-/* Status badge — mirrors .ph-badge variants from page-header.css */
+
 .hb-page-badge {
   display: inline-flex;
   align-items: center;
@@ -148,7 +148,7 @@
   border-color: rgba(255,255,255,.12);
 }
 
-/* ---------- Account selector (Radix Select) ---------- */
+
 .hb-account-root {
   position: relative;
   min-width: 240px;
@@ -249,10 +249,10 @@
   transform: translateY(-50%) rotate(180deg);
 }
 
-/* ---------- Spacer ---------- */
+
 .hb-spacer { flex: 1; min-width: 8px; }
 
-/* ---------- Right cluster ---------- */
+
 .hb-right {
   display: flex;
   align-items: center;
@@ -260,7 +260,7 @@
   flex-shrink: 0;
 }
 
-/* ---------- Modern icon button ---------- */
+
 .hb-icon-btn {
   display: inline-flex;
   align-items: center;
@@ -323,7 +323,7 @@
   box-shadow: 0 0 0 3px rgba(239,68,68,.18);
 }
 
-/* ---------- Separator ---------- */
+
 .hb-divider {
   display: inline-block;
   width: 1px;
@@ -333,7 +333,7 @@
   flex-shrink: 0;
 }
 
-/* ---------- User pill ---------- */
+
 .hb-user-pill {
   display: inline-flex;
   align-items: center;
@@ -389,7 +389,7 @@
   max-width: 140px;
 }
 
-/* ---------- Custom tooltip ---------- */
+
 .hb-tip {
   z-index: 9999;
   padding: 6px 10px;
@@ -414,7 +414,7 @@
   to   { opacity: 1; transform: translateY(0)   scale(1); }
 }
 
-/* ---------- Custom Select dropdown panel ---------- */
+
 .hb-select-content {
   z-index: 9999;
   min-width: var(--radix-select-trigger-width);
@@ -598,7 +598,7 @@
   opacity: 1;
 }
 
-/* Empty state */
+
 .hb-select-empty {
   padding: 24px 16px;
   text-align: center;
@@ -608,7 +608,7 @@
   letter-spacing: .02em;
 }
 
-/* ---------- Animations / reduced motion ---------- */
+
 @media (prefers-reduced-motion: reduce) {
   .hb-mobile-menu, .hb-account-trigger, .hb-account-chevron,
   .hb-icon-btn, .hb-icon-btn svg,
@@ -616,7 +616,7 @@
   .hb-tip, .hb-select-content { animation: none !important; }
 }
 
-/* ---------- Mobile ---------- */
+
 @media (max-width: 640px) {
   .hb-root { padding: 0 12px; gap: 10px; }
 

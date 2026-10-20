@@ -1,11 +1,3 @@
-// apps/api/scripts/restore-gex-days.mjs
-//
-// Restore gex_days rows from a backup JSON produced by backup-gex-days.mjs.
-// Uses upsert, so it's safe to re-run — existing dates get overwritten,
-// new dates get inserted.
-//
-// Usage (from apps/api):
-//   node --env-file=.env scripts/restore-gex-days.mjs backups/gex-days-2026-10-05T22-15-30.json
 
 import { PrismaClient } from '@prisma/client';
 import fs from 'node:fs/promises';
@@ -25,7 +17,6 @@ async function main() {
   const raw = await fs.readFile(path.resolve(inputPath), 'utf8');
   const payload = JSON.parse(raw);
 
-  // Support both { rows: [...] } (our format) and a bare array
   const rows = Array.isArray(payload) ? payload : payload.rows;
   if (!Array.isArray(rows)) {
     throw new Error('Backup file does not contain a rows array.');

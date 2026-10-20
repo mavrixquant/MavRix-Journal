@@ -1,22 +1,3 @@
-// apps/web/src/shared/symbols/SymbolIcon.jsx
-//
-// Renders the icon spec produced by symbolIcons.getIconSpec().
-//
-// Public API (unchanged from the old features/charts/components/SymbolIcon.jsx):
-//   <SymbolIcon symbol="NQ" size={16} />
-//   <SymbolIcon symbol="EURUSD" size={22} className="..." />
-//
-// Returns null when the symbol has no icon mapping — callers should treat
-// the icon as purely decorative and always render the symbol CODE as text
-// alongside it.
-//
-// Visual language:
-//   single (CME / crypto)  → rounded square image
-//   dual   (forex)         → two CIRCULAR flags arranged on a LEFT-leaning
-//                            diagonal (top-left → bottom-right):
-//                              · base currency flag (first)  at TOP-LEFT, IN FRONT
-//                              · quote currency flag (second) at BOTTOM-RIGHT, BEHIND
-//   badge  (spot metals)   → circular colored chip with 2-letter label
 
 import { getIconSpec } from './symbolIcons';
 
@@ -38,7 +19,6 @@ export default function SymbolIcon({
   const label = alt ?? spec.alt ?? symbol;
   const titleAttr = title ?? undefined;
 
-  /* ---------------- single ---------------- */
   if (spec.kind === 'single') {
     return (
       <img
@@ -63,19 +43,6 @@ export default function SymbolIcon({
     );
   }
 
-  /* ---------------- dual (forex flags, left diagonal) ---------------- */
-  //
-  // Layout (square footprint, s + overlap on each axis):
-  //
-  //     ┌──────────────┐
-  //     │[BASE]        │   ← top-left, IN FRONT
-  //     │        ╲     │
-  //     │         [QUOTE]│  ← bottom-right, BEHIND
-  //     └──────────────┘
-  //
-  // Both flags are rendered as CIRCLES (borderRadius: 50%). Render order
-  // determines stacking: the QUOTE flag is drawn first (behind); the BASE
-  // flag is drawn second so it sits on top.
   if (spec.kind === 'dual') {
     const overlap = Math.round(s * DUAL_OVERLAP_RATIO);
     const total = s + overlap;
@@ -95,7 +62,7 @@ export default function SymbolIcon({
           lineHeight: 0,
         }}
       >
-        {/* Quote currency — bottom-right, BEHIND */}
+        {}
         <img
           src={spec.right}
           alt=""
@@ -115,7 +82,7 @@ export default function SymbolIcon({
             userSelect: 'none',
           }}
         />
-        {/* Base currency — top-left, IN FRONT */}
+        {}
         <img
           src={spec.left}
           alt=""
@@ -139,7 +106,6 @@ export default function SymbolIcon({
     );
   }
 
-  /* ---------------- badge (spot metals) ---------------- */
   if (spec.kind === 'badge') {
     return (
       <span

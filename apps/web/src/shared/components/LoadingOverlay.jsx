@@ -1,4 +1,3 @@
-// src/components/common/LoadingOverlay.jsx
 import Portal from './Portal';
 
 export default function LoadingOverlay({ message = 'Uploading trades...' }) {

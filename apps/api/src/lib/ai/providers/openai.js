@@ -1,7 +1,3 @@
-// apps/api/src/lib/ai/providers/openai.js
-//
-// OpenAI adapter.
-// Docs: https://platform.openai.com/docs/api-reference/chat/create
 
 import { safeFetch, ProviderError } from './base.js';
 

@@ -1,20 +1,3 @@
-﻿// apps/web/src/features/journal/economic-calendar/components/EventList.jsx
-//
-// Grouped list view: one section per calendar day, sticky date headers.
-//
-// Auto-scroll behaviour:
-//   • Fires on mount, on filter changes (new events array), on target
-//     event id change (30s clock rollover), AND on slow data arrival
-//     (retries if the row isn't in the DOM yet).
-//   • No "already scrolled" guard — react-query structural sharing keeps
-//     `events` reference-stable across identical responses, so background
-//     refetches don't cause spurious scrolls.
-//
-// PHASE 4 CHANGE (EmptyState migration)
-// -------------------------------------
-//   • "No economic events match" now uses the shared <EmptyState>
-//     component (@/shared/components/EmptyState). The old `.el-empty`
-//     CSS rule was removed.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Search } from 'lucide-react';
@@ -30,9 +13,6 @@ const CLOCK_TICK_MS = 30_000;
 const SCROLL_RETRY_MS = 150;
 const SCROLL_MAX_ATTEMPTS = 10;
 
-/* ------------------------------------------------------------------ */
-/*  Scoped CSS                                                         */
-/* ------------------------------------------------------------------ */
 
 const CSS = `
   .el-root {
@@ -287,9 +267,6 @@ const CSS = `
   }
 `;
 
-/* ------------------------------------------------------------------ */
-/*  Helpers                                                            */
-/* ------------------------------------------------------------------ */
 
 function formatDayTitle(isoDate) {
   if (!isoDate) return '';
@@ -311,9 +288,6 @@ function isPending(e) {
   return a === null || a === undefined || a === '';
 }
 
-/* ------------------------------------------------------------------ */
-/*  Component                                                          */
-/* ------------------------------------------------------------------ */
 
 export default function EventList({ events = [], onEventClick }) {
   const { settings } = useSettings();
@@ -322,7 +296,6 @@ export default function EventList({ events = [], onEventClick }) {
 
   const tz = useMemo(() => resolveTimezone(timezone), [timezone]);
 
-  /* -------- Live clock -------- */
 
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
@@ -333,7 +306,6 @@ export default function EventList({ events = [], onEventClick }) {
   const nowIso = useMemo(() => new Date(now).toISOString(), [now]);
   const todayKey = useMemo(() => dayKey(nowIso, tz), [nowIso, tz]);
 
-  /* -------- Group events by day in the user's tz -------- */
 
   const grouped = useMemo(() => {
     const map = new Map();
@@ -346,7 +318,6 @@ export default function EventList({ events = [], onEventClick }) {
     return [...map.entries()].sort(([a], [b]) => a.localeCompare(b));
   }, [events, tz]);
 
-  /* -------- Current pending (recomputes as clock ticks) -------- */
 
   const currentPendingId = useMemo(() => {
     const todayEntry = grouped.find(([k]) => k === todayKey);
@@ -367,7 +338,6 @@ export default function EventList({ events = [], onEventClick }) {
     return (next || sorted[sorted.length - 1]).id;
   }, [grouped, todayKey, now]);
 
-  /* -------- Auto-scroll with retries -------- */
 
   const containerRef = useRef(null);
 
@@ -414,7 +384,6 @@ export default function EventList({ events = [], onEventClick }) {
     };
   }, [currentPendingId, events]);
 
-  /* -------- Empty state -------- */
 
   if (grouped.length === 0) {
     return (
@@ -435,7 +404,6 @@ export default function EventList({ events = [], onEventClick }) {
     );
   }
 
-  /* -------- Render -------- */
 
   return (
     <>

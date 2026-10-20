@@ -1,4 +1,3 @@
-// apps/web/src/app/layout/Settings/panels/AppearancePanel.jsx
 
 import { Check } from 'lucide-react';
 import { useSettings } from '../SettingsProvider';

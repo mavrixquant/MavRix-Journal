@@ -1,14 +1,9 @@
-// apps/web/src/features/simulator/components/charts/FanChart.jsx
 import { useMemo, useRef } from 'react';
 import { Line } from 'react-chartjs-2';
 import { chartColors } from '@/shared/charts/theme';
 import { useChartColors } from '@/shared/charts';
 import { ChartExportButton } from '@/shared/ui/chart-export';
 
-// Semantic + surface colors — static, never accent-dependent.
-// Accent-derived colors (median, band fills, sample strokes) are built
-// inside the component via useChartColors() so they follow the user's
-// chosen accent. See `COLORS` below.
 const BASE_COLORS = {
   actual: chartColors.blue,
   zero: chartColors.zeroLine,
@@ -51,9 +46,6 @@ const fmtAxis = (v, isMoney) => {
   return `${rounded > 0 ? '+' : ''}${rounded}R`;
 };
 
-/* ------------------------------------------------------------------ */
-/* R-mode axis bounds                                                 */
-/* ------------------------------------------------------------------ */
 
 function computeRAxisBounds(percentiles, isDrawdown = false) {
   if (!percentiles) {
@@ -89,7 +81,6 @@ function computeRAxisBounds(percentiles, isDrawdown = false) {
   const pad = STEP * 0.25;
 
   if (isDrawdown) {
-    // DD is always <= 0. Keep zero at the top of the chart.
     lo -= pad;
     hi = 0;
   } else {
@@ -105,9 +96,6 @@ function computeRAxisBounds(percentiles, isDrawdown = false) {
   return { min, max };
 }
 
-/* ------------------------------------------------------------------ */
-/* Convert a cumulative equity curve into drawdown                    */
-/* ------------------------------------------------------------------ */
 
 function toDrawdownCurve(curve) {
   if (!curve || curve.length === 0) return [];
@@ -136,14 +124,11 @@ export default function FanChart({
   actualCurve,
   isMoney,
 
-  // "equity" = cumulative equity fan chart
-  // "drawdown" = peak-to-current drawdown chart
   chartType = 'equity',
 
   showActual = true,
   showZeroLine = true,
 
-  // Only meaningful for drawdown mode.
   showThresholdLine = true,
 
   showSampled = true,
@@ -188,9 +173,6 @@ export default function FanChart({
 
     const datasets = [];
 
-    /* -------------------------------------------------------------- */
-    /* Individual sampled paths                                       */
-    /* -------------------------------------------------------------- */
 
     if (showSampled) {
       const sourceSamples = isDrawdown
@@ -216,9 +198,6 @@ export default function FanChart({
       }
     }
 
-    /* -------------------------------------------------------------- */
-    /* Outer 5–95% band                                               */
-    /* -------------------------------------------------------------- */
 
     datasets.push({
       label: 'p5',
@@ -242,9 +221,6 @@ export default function FanChart({
       order: 9,
     });
 
-    /* -------------------------------------------------------------- */
-    /* Inner 25–75% band                                              */
-    /* -------------------------------------------------------------- */
 
     datasets.push({
       label: 'p25',
@@ -268,9 +244,6 @@ export default function FanChart({
       order: 7,
     });
 
-    /* -------------------------------------------------------------- */
-    /* Median                                                         */
-    /* -------------------------------------------------------------- */
 
     datasets.push({
       label: 'Median',
@@ -284,9 +257,6 @@ export default function FanChart({
       order: 5,
     });
 
-    /* -------------------------------------------------------------- */
-    /* Actual path                                                    */
-    /* -------------------------------------------------------------- */
 
     if (showActual && actualCurve && actualCurve.length === n + 1) {
       const actualData = isDrawdown
@@ -307,9 +277,6 @@ export default function FanChart({
       });
     }
 
-    /* -------------------------------------------------------------- */
-    /* Zero / recovery line                                           */
-    /* -------------------------------------------------------------- */
 
     if (showZeroLine) {
       datasets.push({
@@ -326,10 +293,6 @@ export default function FanChart({
       });
     }
 
-    /* -------------------------------------------------------------- */
-    /* DD threshold                                                    */
-    /* IMPORTANT: only shown on the actual drawdown chart.           */
-    /* -------------------------------------------------------------- */
 
     if (
       isDrawdown &&

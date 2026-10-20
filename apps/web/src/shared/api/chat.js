@@ -1,26 +1,3 @@
-// apps/web/src/shared/api/chat.js
-//
-// React Query hooks + fetchers for the chat feature (DMs + groups).
-//
-// Cache keys:
-//   ['chat', 'conversations']                - my conversation list
-//   ['chat', 'conversation', conversationId] - one conversation's metadata
-//   ['chat', 'messages', conversationId]     - infinite message history
-//   ['chat', 'users', 'search', q]           - user search (caller debounces)
-//   ['chat', 'groups', 'discover', filterKey] - public groups I'm not in
-//   ['chat', 'groups', 'members', groupId]   - members of a group I'm in
-//
-// Group *administration* hooks (create / update / delete / member mgmt) are
-// ALSO in this file — they target /api/admin/groups/* on the backend, but
-// they operate on chat-domain objects. Keeping them here (rather than in
-// features/admin/api.js) lets the chat feature call them without violating
-// the feature-boundary ESLint rule.
-//
-// Pagination model: useInfiniteQuery where pages[0] holds the NEWEST page.
-// Within each page, messages are ascending (oldest -> newest).
-//
-// SSE integration: shared/api/sse.js mutates the messages cache directly
-// on chat:message:new / :edited / :deleted / :delivered / chat:read.
 
 import {
   useQuery,
@@ -37,9 +14,6 @@ import {
   getTypingConversationIds,
 } from '@/shared/chat/chatStream.js';
 
-/* ------------------------------------------------------------------ */
-/*  Query keys                                                         */
-/* ------------------------------------------------------------------ */
 
 export const chatKeys = {
   all: ['chat'],
@@ -51,9 +25,6 @@ export const chatKeys = {
   groupMembers: (groupId) => ['chat', 'groups', 'members', groupId],
 };
 
-/* ------------------------------------------------------------------ */
-/*  Raw fetchers — conversations                                       */
-/* ------------------------------------------------------------------ */
 
 export async function fetchConversations() {
   const data = await apiJson('/api/chat/conversations');
@@ -87,9 +58,6 @@ export async function clearChat(conversationId) {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Raw fetchers — messages                                            */
-/* ------------------------------------------------------------------ */
 
 export async function fetchMessages(id, { before, limit = 50 } = {}) {
   const params = new URLSearchParams();
@@ -158,9 +126,6 @@ export async function searchUsers(q) {
   return data.users;
 }
 
-/* ------------------------------------------------------------------ */
-/*  Raw fetchers — groups (user-facing)                                */
-/* ------------------------------------------------------------------ */
 
 export async function fetchDiscoverableGroups({ q, limit } = {}) {
   const params = new URLSearchParams();
@@ -193,12 +158,6 @@ export async function fetchGroupMembers(groupId) {
   return data.members;
 }
 
-/* ------------------------------------------------------------------ */
-/*  Raw fetchers — groups (admin-scoped)                               */
-/*                                                                     */
-/*  These hit /api/admin/groups/* — the caller must have admin or      */
-/*  superadmin role. Backend re-verifies.                              */
-/* ------------------------------------------------------------------ */
 
 export async function fetchAdminGroups(filters = {}) {
   const params = new URLSearchParams();
@@ -264,9 +223,6 @@ export async function setGroupMemberRole(groupId, userId, role) {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Hooks - reads                                                      */
-/* ------------------------------------------------------------------ */
 
 export function useChatConversations() {
   const sseFallback = useSSEFallback();
@@ -379,9 +335,6 @@ export function useTypingConversations(excludeUserId) {
   return set;
 }
 
-/* ------------------------------------------------------------------ */
-/*  Hooks - mutations (conversations + messages)                       */
-/* ------------------------------------------------------------------ */
 
 export function useCreateConversation() {
   const qc = useQueryClient();
@@ -588,9 +541,6 @@ export function useDeleteMessage() {
   });
 }
 
-/* ------------------------------------------------------------------ */
-/*  Hooks - group membership (user-facing)                             */
-/* ------------------------------------------------------------------ */
 
 export function useJoinGroup() {
   const qc = useQueryClient();
@@ -627,9 +577,6 @@ export function useLeaveGroup() {
   });
 }
 
-/* ------------------------------------------------------------------ */
-/*  Hooks - group administration                                       */
-/* ------------------------------------------------------------------ */
 
 function useInvalidateAdminGroup() {
   const qc = useQueryClient();
@@ -712,9 +659,6 @@ export function useSetGroupMemberRole() {
   });
 }
 
-/* ------------------------------------------------------------------ */
-/*  Read + delivery + typing - fire-and-forget                         */
-/* ------------------------------------------------------------------ */
 
 export function useMarkRead() {
   const qc = useQueryClient();

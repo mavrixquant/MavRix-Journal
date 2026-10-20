@@ -1,4 +1,3 @@
-// apps/api/src/services/friends.service.js
 import { prisma } from '../lib/prisma.js';
 import { HttpError } from '../middleware/error.js';
 import { broadcastToUser } from '../lib/broadcaster.js';
@@ -98,7 +97,6 @@ export async function listFriends(userId) {
     };
   });
 
-  // Inject Mave AI at the top of the friends list
   const aiId = getMaveAiId();
   if (aiId) {
     const aiUser = await prisma.user.findUnique({ where: { id: aiId }, select: PUBLIC_USER_SELECT });

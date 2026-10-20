@@ -1,21 +1,3 @@
-// apps/api/src/services/adminGroups.service.js
-//
-// Cross-cutting group administration. Sits behind the admin panel — this is
-// the ONLY place group creation and full group management is exposed.
-//
-// Permission model (enforced by assertGroupAdminPermission):
-//
-//   admin      — can see + manage PUBLIC groups
-//              — can see + manage PRIVATE groups they created
-//              — cannot see PRIVATE groups they don't own
-//
-//   superadmin — can see + manage EVERY group, public or private
-//
-// Every mutation writes an AdminAuditLog row (group.create, group.update,
-// group.delete, group.member.add, group.member.remove, group.member.role).
-//
-// Groups are stored in the same Conversation/Message tables as DMs. The
-// only difference is `type = 'group'` and the extra metadata columns.
 
 import { prisma } from '../lib/prisma.js';
 import { HttpError } from '../middleware/error.js';
@@ -25,9 +7,6 @@ import { broadcastToUser } from '../lib/broadcaster.js';
 const PAGE_DEFAULT = 25;
 const PAGE_MAX = 100;
 
-/* ------------------------------------------------------------------ */
-/*  Serializers                                                        */
-/* ------------------------------------------------------------------ */
 
 function serializePublicUser(u) {
   if (!u) return null;
@@ -69,20 +48,7 @@ const serializeGroupDetail = (c) => ({
   })),
 });
 
-/* ------------------------------------------------------------------ */
-/*  Permission guard                                                   */
-/* ------------------------------------------------------------------ */
 
-/**
- * Fetches a group and asserts the actor has admin-level access to it.
- *
- * Returns the full conversation (with participants + creator) so callers
- * don't need a second round-trip.
- *
- * Throws:
- *   404 — group id doesn't exist or isn't a group (DMs are invisible here)
- *   403 — admin tries to touch a private group they don't own
- */
 async function assertGroupAdminPermission(actor, groupId) {
   const group = await prisma.conversation.findUnique({
     where: { id: groupId },
@@ -121,20 +87,7 @@ async function assertGroupAdminPermission(actor, groupId) {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  List                                                               */
-/* ------------------------------------------------------------------ */
 
-/**
- * Paginated list of groups visible to the actor.
- *
- * Filters:
- *   q            — substring on `name`
- *   visibility   — 'public' | 'private'
- *   createdById  — filter by owner
- *
- * Admin's visibility is narrowed to public groups + their own.
- */
 export async function listGroups(actor, {
   q = '',
   visibility,
@@ -151,7 +104,6 @@ export async function listGroups(actor, {
   if (visibility) where.visibility = visibility;
   if (createdById) where.createdById = createdById;
 
-  // Admins see only public groups + their own private ones.
   if (actor.role !== 'superadmin') {
     where.OR = [
       { visibility: 'public' },
@@ -185,28 +137,13 @@ export async function listGroups(actor, {
   };
 }
 
-/* ------------------------------------------------------------------ */
-/*  Detail                                                             */
-/* ------------------------------------------------------------------ */
 
 export async function getGroup(actor, groupId) {
   const group = await assertGroupAdminPermission(actor, groupId);
   return serializeGroupDetail(group);
 }
 
-/* ------------------------------------------------------------------ */
-/*  Create                                                             */
-/* ------------------------------------------------------------------ */
 
-/**
- * Create a group.
- *
- * Admin      → visibility is forced to 'public' (403 on 'private').
- * Superadmin → may pick either.
- *
- * The creator becomes the group's `owner` and is included in memberCount.
- * `initialMemberIds` are added as 'member' in the same transaction.
- */
 export async function createGroup(actor, payload) {
   const {
     name,
@@ -221,7 +158,6 @@ export async function createGroup(actor, payload) {
     throw new HttpError(403, 'Admins can only create public groups.');
   }
 
-  // Deduplicate + drop the creator's own id (they're already added as owner).
   const uniqueMemberIds = [
     ...new Set((initialMemberIds || []).filter((id) => id && id !== actor.id)),
   ];
@@ -302,14 +238,10 @@ export async function createGroup(actor, payload) {
   return serializeGroupDetail(created);
 }
 
-/* ------------------------------------------------------------------ */
-/*  Update                                                             */
-/* ------------------------------------------------------------------ */
 
 export async function updateGroup(actor, groupId, patch) {
   const group = await assertGroupAdminPermission(actor, groupId);
 
-  // Admin cannot flip a public group to private (they'd lose control of it).
   if (
     patch.visibility === 'private' &&
     actor.role !== 'superadmin'
@@ -376,15 +308,7 @@ export async function updateGroup(actor, groupId, patch) {
   return serializeGroupDetail(updated);
 }
 
-/* ------------------------------------------------------------------ */
-/*  Delete                                                             */
-/* ------------------------------------------------------------------ */
 
-/**
- * Hard-delete a group. Cascades to participants and messages via FK.
- * The count of cascaded messages is logged in the audit metadata so an
- * operator can see the blast radius after the fact.
- */
 export async function deleteGroup(actor, groupId) {
   const group = await assertGroupAdminPermission(actor, groupId);
 
@@ -413,14 +337,7 @@ export async function deleteGroup(actor, groupId) {
   return { ok: true, cascadedMessages: messageCount, cascadedMembers: memberCount };
 }
 
-/* ------------------------------------------------------------------ */
-/*  Member management                                                  */
-/* ------------------------------------------------------------------ */
 
-/**
- * Add a member to a group. Idempotent — adding an existing member returns
- * `{ ok: true, alreadyMember: true }` without touching memberCount.
- */
 export async function addGroupMember(actor, groupId, userId) {
   const group = await assertGroupAdminPermission(actor, groupId);
 
@@ -453,7 +370,6 @@ export async function addGroupMember(actor, groupId, userId) {
     });
   });
 
-  // Notify the new member so their chat list refreshes live.
   broadcastToUser(userId, 'invalidate', { keys: [['chat', 'conversations']] });
 
   await writeAudit({
@@ -469,13 +385,6 @@ export async function addGroupMember(actor, groupId, userId) {
   return { ok: true };
 }
 
-/**
- * Remove a member from a group.
- *
- * Guards:
- *   • Cannot remove the last owner.
- *   • Idempotent — removing a non-member returns ok without touching counts.
- */
 export async function removeGroupMember(actor, groupId, userId) {
   const group = await assertGroupAdminPermission(actor, groupId);
 
@@ -531,17 +440,6 @@ export async function removeGroupMember(actor, groupId, userId) {
   return { ok: true };
 }
 
-/**
- * Change a member's role.
- *
- * Owner semantics: exactly one owner per group.
- *   • Promoting userId to 'owner' DEMOTES the current owner to 'member'
- *     inside the same transaction.
- *   • Demoting the only owner is rejected.
- *
- * Idempotent — setting a member's role to its current value returns
- * `{ ok: true, unchanged: true }`.
- */
 export async function setGroupMemberRole(actor, groupId, userId, newRole) {
   const group = await assertGroupAdminPermission(actor, groupId);
 
@@ -560,7 +458,6 @@ export async function setGroupMemberRole(actor, groupId, userId, newRole) {
   const previousRole = target.role;
 
   await prisma.$transaction(async (tx) => {
-    // Guard: demoting the last owner is not allowed.
     if (previousRole === 'owner' && newRole !== 'owner') {
       const otherOwners = await tx.conversationParticipant.count({
         where: {
@@ -577,7 +474,6 @@ export async function setGroupMemberRole(actor, groupId, userId, newRole) {
       }
     }
 
-    // Promote: demote the existing owner(s) first.
     if (newRole === 'owner') {
       await tx.conversationParticipant.updateMany({
         where: {

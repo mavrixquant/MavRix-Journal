@@ -1,4 +1,3 @@
-// src/features/simulator/components/SimulatorPanels.jsx
 import {
   FaInfoCircle, FaCheckCircle, FaExclamationTriangle, FaShieldAlt,
   FaBalanceScale, FaArrowDown, FaArrowUp, FaPercent,
@@ -336,9 +335,6 @@ function KPI({ icon, label, value, sub, cls, iconCls }) {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Overview                                                           */
-/* ------------------------------------------------------------------ */
 function OverviewPanel({ result, summary, isMoney, initialCapital, dollarsPerR }) {
   const meta = METHOD_META[result.method] || METHOD_META.permutation;
   const showProfit = meta.profitMetricMeaningful;
@@ -348,7 +344,6 @@ function OverviewPanel({ result, summary, isMoney, initialCapital, dollarsPerR }
   const ddThreshold = result.ddThreshold;
   const hasDdPct = initialCapital > 0 && (isMoney || dollarsPerR > 0);
 
-  // Verdict: fact-based wording, no "statistically robust" claims.
   const verdict = (() => {
     if (showProfit) {
       if (profitPct >= 90) return { text: 'Most samples profitable',           cls: 'pos',  icon: <FaCheckCircle /> };
@@ -660,9 +655,6 @@ function OverviewPanel({ result, summary, isMoney, initialCapital, dollarsPerR }
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Bands                                                              */
-/* ------------------------------------------------------------------ */
 function BandsPanel({ result, actualCurve, isMoney, resultIsStale }) {
   const sampledShown = result.sampledShown ?? 0;
   const noteText = sampledShown > 0 && sampledShown < result.runs
@@ -704,9 +696,6 @@ function BandsPanel({ result, actualCurve, isMoney, resultIsStale }) {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Drawdown                                                           */
-/* ------------------------------------------------------------------ */
 function DrawdownPanel({
   result,
   summary,
@@ -841,9 +830,6 @@ function DrawdownPanel({
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Ratios                                                             */
-/* ------------------------------------------------------------------ */
 function RatiosPanel({ result }) {
   if (result.method === 'permutation') {
     return (
@@ -898,9 +884,6 @@ function RatiosPanel({ result }) {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Streaks                                                            */
-/* ------------------------------------------------------------------ */
 function StreaksPanel({ result, summary }) {
   return (
     <div className="sim-grid-2">
@@ -926,9 +909,6 @@ function StreaksPanel({ result, summary }) {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Targets                                                            */
-/* ------------------------------------------------------------------ */
 function TargetsPanel({ result, isMoney }) {
   if (!result.timeToTarget || result.timeToTarget.length === 0) {
     return (
@@ -986,9 +966,6 @@ function TargetsPanel({ result, isMoney }) {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Main                                                               */
-/* ------------------------------------------------------------------ */
 export default function SimulatorPanels({
   result,
   summary,

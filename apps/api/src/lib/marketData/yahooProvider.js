@@ -1,23 +1,16 @@
-// apps/api/src/lib/marketData/yahooProvider.js
-//
-// Fetches OHLCV bars + quotes from Yahoo Finance's v8 chart endpoint.
-// 4h bars are aggregated from 1h server-side (Yahoo has no native 4h).
 
 import { env } from '../../config/env.js';
 import { HttpError } from '../../middleware/error.js';
 import { enqueue } from './queue.js';
 import { get as cacheGet, set as cacheSet } from './cache.js';
 
-/* ------------------------------------------------------------------ */
-/*  Interval / range mapping                                          */
-/* ------------------------------------------------------------------ */
 
 const YAHOO_INTERVAL_MAP = {
   '1m':  '1m',
   '5m':  '5m',
   '15m': '15m',
   '1h':  '1h',
-  '4h':  '1h',   // aggregate → 4h buckets
+  '4h':  '1h',
   '1d':  '1d',
 };
 
@@ -30,9 +23,6 @@ const DEFAULT_RANGE = {
   '1d':  '1y',
 };
 
-/* ------------------------------------------------------------------ */
-/*  Outbound fetch                                                    */
-/* ------------------------------------------------------------------ */
 
 const UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ' +
@@ -85,9 +75,6 @@ async function fetchYahooChart(yahooSymbol, yahooInterval, range) {
   }
 }
 
-/* ------------------------------------------------------------------ */
-/*  Bar normalization                                                 */
-/* ------------------------------------------------------------------ */
 
 function normalizeBars(raw, isDaily) {
   const result = raw.chart.result[0];
@@ -112,9 +99,6 @@ function normalizeBars(raw, isDaily) {
   return bars;
 }
 
-/* ------------------------------------------------------------------ */
-/*  4h aggregation from 1h bars                                       */
-/* ------------------------------------------------------------------ */
 
 function mergeBucket(bucket) {
   let high = -Infinity, low = Infinity, volume = 0;
@@ -151,9 +135,6 @@ function aggregateTo4h(bars1h) {
   return out;
 }
 
-/* ------------------------------------------------------------------ */
-/*  Public — bars                                                     */
-/* ------------------------------------------------------------------ */
 
 export async function getBars(yahooSymbol, interval, rangeOverride) {
   const yahooInterval = YAHOO_INTERVAL_MAP[interval];
@@ -190,9 +171,6 @@ export async function getBars(yahooSymbol, interval, rangeOverride) {
   return bars;
 }
 
-/* ------------------------------------------------------------------ */
-/*  Public — quote                                                    */
-/* ------------------------------------------------------------------ */
 
 const QUOTE_TTL_MS = 30_000;
 

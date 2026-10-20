@@ -1,4 +1,3 @@
-// apps/api/src/services/auth.service.js
 import { prisma } from '../lib/prisma.js';
 import { hashPassword, verifyPassword } from '../lib/password.js';
 import {
@@ -29,10 +28,6 @@ const publicUser = (u) => ({
   isBanned: !!u.isBanned,
 });
 
-// Tokens carry three role-aware claims:
-//   sub  — user id (unchanged)
-//   role — 'user' | 'admin' | 'superadmin' (read by requireAdmin)
-//   sv   — snapshot of user.tokenVersion (checked by requireAuth against DB)
 const issueTokens = (user) => {
   const payload = {
     sub: user.id,
@@ -53,11 +48,6 @@ function assertNotBanned(user) {
   }
 }
 
-/**
- * Fire-and-forget DM creation for Mave AI. Never blocks signup / login.
- * Handles the case where bootstrap hasn't run yet (ensureAiDmForUser
- * returns null silently) — listConversations has a fallback.
- */
 function scheduleAiDmForUser(userId) {
   ensureAiDmForUser(userId).catch((err) => {
     console.warn(
@@ -67,9 +57,6 @@ function scheduleAiDmForUser(userId) {
   });
 }
 
-// ---------------------------------------------------------------------------
-// Signup / login / refresh / me
-// ---------------------------------------------------------------------------
 
 export async function signup({ email, password, firstName, lastName }) {
   const existing = await prisma.user.findUnique({ where: { email } });
@@ -92,8 +79,6 @@ export async function signup({ email, password, firstName, lastName }) {
 
   await sendVerificationEmail({ to: user.email, token: verifyToken });
 
-  // Ensure Mave AI DM exists so it appears in chats immediately after
-  // the user verifies their email.
   scheduleAiDmForUser(user.id);
 
   return { user: publicUser(user), ...issueTokens(user) };
@@ -115,7 +100,6 @@ export async function login({ email, password }) {
     data: { lastLoginAt: new Date() },
   });
 
-  // Defensive — covers users whose DM was somehow never created.
   scheduleAiDmForUser(updated.id);
 
   return { user: publicUser(updated), ...issueTokens(updated) };
@@ -182,14 +166,10 @@ export async function refresh(refreshToken) {
   return { user: publicUser(user), ...issueTokens(user) };
 }
 
-// ---------------------------------------------------------------------------
-// Google
-// ---------------------------------------------------------------------------
 
 export async function loginWithGoogle(accessToken) {
   const g = await verifyGoogleAccessToken(accessToken);
 
-  // Case 1: existing user with this googleId
   const byGoogle = await prisma.user.findUnique({
     where: { googleId: g.googleId },
   });
@@ -203,7 +183,6 @@ export async function loginWithGoogle(accessToken) {
     return { user: publicUser(updated), ...issueTokens(updated) };
   }
 
-  // Case 2: existing user with this email (created via password signup)
   const byEmail = await prisma.user.findUnique({ where: { email: g.email } });
   if (byEmail) {
     assertNotBanned(byEmail);
@@ -225,7 +204,6 @@ export async function loginWithGoogle(accessToken) {
     return { user: publicUser(linked), ...issueTokens(linked) };
   }
 
-  // Case 3: brand new user, Google-verified email
   const created = await prisma.user.create({
     data: {
       email: g.email,
@@ -251,7 +229,7 @@ export async function linkGoogleAccount(userId, accessToken) {
   if (!me) throw new HttpError(404, 'User not found');
 
   if (me.googleId === g.googleId) {
-    return publicUser(me); // idempotent
+    return publicUser(me);
   }
 
   const clash = await prisma.user.findUnique({
@@ -275,7 +253,7 @@ export async function unlinkGoogleAccount(userId) {
   const me = await prisma.user.findUnique({ where: { id: userId } });
   if (!me) throw new HttpError(404, 'User not found');
 
-  if (!me.googleId) return publicUser(me); // idempotent
+  if (!me.googleId) return publicUser(me);
 
   if (!me.passwordHash) {
     throw new HttpError(
@@ -291,9 +269,6 @@ export async function unlinkGoogleAccount(userId) {
   return publicUser(updated);
 }
 
-// ---------------------------------------------------------------------------
-// Password reset
-// ---------------------------------------------------------------------------
 
 export async function requestPasswordReset(email) {
   const user = await prisma.user.findUnique({ where: { email } });

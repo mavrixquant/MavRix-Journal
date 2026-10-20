@@ -1,4 +1,3 @@
-// apps/web/src/app/shell/CollapsedGroupTile.jsx
 import { NavLink } from 'react-router-dom';
 import { HoverCard as HoverCardPrimitive } from 'radix-ui';
 import { groupHasActive } from './nav.config';

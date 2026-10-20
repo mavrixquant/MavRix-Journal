@@ -1,19 +1,3 @@
-// apps/api/scripts/check-orphans.mjs
-//
-// Post-run orphan verifier for the Health Checkup feature.
-//
-// Queries the database for ANY artifact created by a health-check run:
-// users prefixed `healthcheck-`, their accounts, trades, strategies,
-// layouts, conversations, messages, friends, requests, blocks, and any
-// admin audit rows written during a recent run.
-//
-// Exit codes:
-//   0  — clean (no orphans found)
-//   1  — orphans found (prints a detailed report)
-//   2  — the verifier itself crashed
-//
-// Usage (from apps/api):
-//   node --env-file=.env scripts/check-orphans.mjs
 
 import { PrismaClient } from '@prisma/client';
 
@@ -28,7 +12,6 @@ function pad(s, n) {
 async function main() {
   console.log('[orphan-check] scanning database for healthcheck-* artifacts…\n');
 
-  /* ---------------- 1. Users ---------------- */
 
   const users = await prisma.user.findMany({
     where: { email: { startsWith: PREFIX } },
@@ -37,7 +20,6 @@ async function main() {
   const userIds = users.map((u) => u.id);
   const userIdsOr = userIds.length ? userIds : ['__none__'];
 
-  /* ---------------- 2. Directly-owned rows ---------------- */
 
   const [
     accounts,
@@ -98,7 +80,6 @@ async function main() {
     }),
   ]);
 
-  /* ---------------- 3. Trades on those accounts ---------------- */
 
   const trades = accounts.length
     ? await prisma.trade.findMany({
@@ -107,28 +88,24 @@ async function main() {
       })
     : [];
 
-  /* ---------------- 4. Group participants ---------------- */
 
   const participants = await prisma.conversationParticipant.findMany({
     where: { userId: { in: userIdsOr } },
     select: { id: true },
   });
 
-  /* ---------------- 5. Audit rows for healthcheck actors ---------------- */
 
   const audit = await prisma.adminAuditLog.findMany({
     where: { actorId: { in: userIdsOr } },
     select: { id: true },
   });
 
-  /* ---------------- 6. GEX test rows ---------------- */
 
   const gex = await prisma.gexDay.findMany({
     where: { uploadedBy: { in: userIdsOr } },
     select: { date: true },
   });
 
-  /* ---------------- Report ---------------- */
 
   const rows = [
     ['users (prefix "healthcheck-")', users.length],

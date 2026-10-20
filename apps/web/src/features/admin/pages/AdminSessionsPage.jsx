@@ -1,12 +1,3 @@
-// apps/web/src/features/admin/pages/AdminSessionsPage.jsx
-//
-// Live SSE session panel. Shows total open streams; allows kicking a
-// specific user's streams by ID.
-//
-// Note: this page shows aggregate counts only — we deliberately do NOT
-// enumerate per-user SSE lists here, because the API's getActiveSessions()
-// returns only the total. Future enhancement: extend the API to return
-// a userId → count map.
 
 import { useState } from 'react';
 import { Radio, Power, RefreshCw } from 'lucide-react';
@@ -176,7 +167,7 @@ export default function AdminSessionsPage() {
           </div>
         </div>
 
-        {/* ---------- Aggregate stat ---------- */}
+        {}
         <div className="asp-stat">
           <div className="asp-stat-icon">
             <Radio size={20} />
@@ -192,7 +183,7 @@ export default function AdminSessionsPage() {
           </div>
         </div>
 
-        {/* ---------- Disconnect panel ---------- */}
+        {}
         <div className="asp-card">
           <div className="asp-card-head">
             <Power size={14} style={{ color: '#ef4444' }} />

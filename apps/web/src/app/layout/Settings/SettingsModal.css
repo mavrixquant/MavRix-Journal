@@ -1,16 +1,8 @@
-/* apps/web/src/app/layout/Settings/SettingsModal.css
-   Global settings modal — shell, navigation, panel primitives, and every
-   panel's shared controls. Namespaced under `.settings-*` so nothing
-   leaks elsewhere.
 
-   Accent variables are INHERITED from :root so the user-selected accent
-   (set by SettingsProvider) flows through this modal automatically. */
 
-/* ============================================================
-   Overlay + modal shell
-   ============================================================ */
+
 .settings-overlay {
-  /* Non-themed tokens remain scoped to the overlay. */
+
   --line: rgba(255,255,255,.085);
   --line-soft: rgba(255,255,255,.05);
   --ink-1: #E7E9EE;
@@ -63,9 +55,7 @@
   z-index: 3;
 }
 
-/* ============================================================
-   Left rail
-   ============================================================ */
+
 .settings-rail {
   display: flex;
   flex-direction: column;
@@ -168,9 +158,7 @@
   filter: drop-shadow(0 0 6px var(--accent-soft2));
 }
 
-/* ============================================================
-   Right pane
-   ============================================================ */
+
 .settings-pane {
   display: flex;
   flex-direction: column;
@@ -258,9 +246,7 @@
   background: var(--accent-soft2);
 }
 
-/* ============================================================
-   Reusable section primitives
-   ============================================================ */
+
 .settings-section {
   padding: 16px 18px;
   border-radius: 14px;
@@ -293,7 +279,7 @@
   letter-spacing: .01em;
 }
 
-/* ---------- Read-only field rows (Account panel) ---------- */
+
 .settings-field-row {
   display: flex;
   align-items: center;
@@ -326,7 +312,7 @@
   min-width: 0;
 }
 
-/* ---------- Interactive option rows ---------- */
+
 .settings-options-row {
   display: flex;
   align-items: center;
@@ -363,11 +349,9 @@
   letter-spacing: .01em;
 }
 
-/* ============================================================
-   Controls
-   ============================================================ */
 
-/* ---------- Toggle switch ---------- */
+
+
 .settings-switch {
   position: relative;
   width: 42px;
@@ -406,7 +390,7 @@
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
-/* ---------- Segmented control ---------- */
+
 .settings-segmented {
   display: inline-flex;
   padding: 3px;
@@ -445,7 +429,7 @@
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
-/* ---------- Accent swatches ---------- */
+
 .settings-colors {
   display: flex;
   flex-wrap: wrap;
@@ -480,9 +464,7 @@
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
-/* ============================================================
-   Buttons
-   ============================================================ */
+
 .settings-btn {
   display: inline-flex;
   align-items: center;
@@ -545,9 +527,7 @@
   box-shadow: 0 0 20px -6px rgba(239,68,68,.5);
 }
 
-/* ============================================================
-   Key/value grid (About panel)
-   ============================================================ */
+
 .settings-kv {
   display: grid;
   grid-template-columns: 160px 1fr;
@@ -573,9 +553,7 @@
   word-break: break-all;
 }
 
-/* ============================================================
-   Danger zone
-   ============================================================ */
+
 .settings-danger-zone {
   border-color: rgba(239,68,68,.28) !important;
   background: rgba(239,68,68,.03) !important;
@@ -584,9 +562,7 @@
   color: #f87171;
 }
 
-/* ============================================================
-   Error banner
-   ============================================================ */
+
 .settings-error {
   margin-top: 10px;
   padding: 10px 12px;
@@ -600,17 +576,13 @@
   letter-spacing: .01em;
 }
 
-/* ============================================================
-   Spinner
-   ============================================================ */
+
 .settings-spin {
   animation: settingsSpin .9s linear infinite;
 }
 @keyframes settingsSpin { to { transform: rotate(360deg); } }
 
-/* ============================================================
-   Account panel
-   ============================================================ */
+
 .settings-account-head {
   display: flex;
   align-items: center;
@@ -686,7 +658,7 @@
   border-color: rgba(239,68,68,.28);
 }
 
-/* ---------- Provider card (Google) ---------- */
+
 .settings-provider-card {
   padding: 16px;
   border-radius: 12px;
@@ -737,9 +709,7 @@
   letter-spacing: .01em;
 }
 
-/* ============================================================
-   Placeholder (kept for future tabs)
-   ============================================================ */
+
 .settings-placeholder {
   display: flex;
   flex-direction: column;
@@ -785,9 +755,7 @@
   letter-spacing: .01em;
 }
 
-/* ============================================================
-   Animations
-   ============================================================ */
+
 @keyframes settingsFade {
   from { opacity: 0; }
   to   { opacity: 1; }
@@ -814,9 +782,7 @@
   .settings-spin { animation: none !important; }
 }
 
-/* ============================================================
-   Mobile
-   ============================================================ */
+
 @media (max-width: 720px) {
   .settings-modal {
     grid-template-columns: 1fr;
@@ -873,10 +839,7 @@
   }
   .settings-kv dt { margin-top: 6px; }
 }
-/* ============================================================
-   Native <select> — used by the Time zone preference.
-   Matches the segmented / switch aesthetic.
-   ============================================================ */
+
 .settings-select {
   padding: 8px 32px 8px 12px;
   border-radius: 9px;
@@ -923,7 +886,7 @@
   padding: 6px 10px;
 }
 
-/* Mobile — allow the select to fill the row when stacked */
+
 @media (max-width: 720px) {
   .settings-options-row > .settings-select {
     align-self: stretch;
@@ -933,11 +896,9 @@
 }
 
 
-/* ============================================================
-   Timezone picker — custom searchable dropdown.
-   ============================================================ */
 
-/* ---------- Trigger (replaces the native <select>) ---------- */
+
+
 .settings-tz-trigger {
   display: inline-flex;
   align-items: center;
@@ -1003,7 +964,7 @@
   transform: rotate(180deg);
 }
 
-/* ---------- Popover panel ---------- */
+
 .settings-tz-pop {
   width: 400px !important;
   max-width: calc(100vw - 32px);
@@ -1018,7 +979,7 @@
   z-index: 3000 !important;
 }
 
-/* ---------- cmdk shell ---------- */
+
 .settings-tz-cmd {
   display: flex;
   flex-direction: column;
@@ -1026,7 +987,7 @@
   width: 100%;
 }
 
-/* ---------- Search row ---------- */
+
 .settings-tz-search {
   display: flex;
   align-items: center;
@@ -1048,7 +1009,7 @@
 }
 .settings-tz-input::placeholder { color: var(--ink-3); }
 
-/* ---------- List ---------- */
+
 .settings-tz-list {
   max-height: 360px;
   overflow-y: auto;
@@ -1069,7 +1030,7 @@
 }
 
 
-/* ---------- Item ---------- */
+
 .settings-tz-item {
   display: flex;
   align-items: center;
@@ -1155,7 +1116,7 @@
   color: var(--accent);
 }
 
-/* ---------- Mobile ---------- */
+
 @media (max-width: 720px) {
   .settings-options-row > .settings-tz-trigger {
     align-self: stretch;

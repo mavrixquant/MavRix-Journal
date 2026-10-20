@@ -1,4 +1,3 @@
-// apps/web/src/features/admin/nav.config.js
 import {
   LayoutDashboard, Users, Wallet, TrendingUp,
   Calendar, Radio, MessageSquare, Layers, Brain,

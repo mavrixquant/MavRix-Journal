@@ -1,25 +1,3 @@
-﻿// apps/web/src/features/journal/analyse/AnalysePage.jsx
-//
-// The Analyse route — a full analytical report for the currently selected
-// Journal account (Live or Demo).
-//
-// Title + badge + dynamic subtitle are published to the GLOBAL header bar
-// via usePageHeader().
-//
-// Sections:
-//   01  Snapshot            — Hero equity + KPI grids
-//   02  Equity & Drawdown   — underwater curve + daily P&L / R:R
-//   03  Monthly             — month bars + calendar heatmap + weekly chips
-//   04  Timing              — time-of-day chart + rolling expectancy
-//   05  Breakdowns          — session / day-of-week / direction + strategy
-//   06  Symbols & Duration  — symbol table + holding-time widget
-//   07  Trade Log           — full filterable table
-//
-// PHASE 4 CHANGE (EmptyState migration)
-// -------------------------------------
-//   • The local EmptyState() and NoMatchesState() helpers were deleted.
-//     Both call sites now use the shared <EmptyState> component
-//     (@/shared/components/EmptyState) with the equivalent icon/copy.
 
 import { useAuth } from '@/app/providers/AuthProvider';
 import { useAppContext } from '@/app/providers/AppProvider';
@@ -36,7 +14,6 @@ import { FaChartBar, FaSearch } from 'react-icons/fa';
 import AnalyseFilters from './AnalyseFilters';
 import { AnalyseSection, AnalysePanel } from './AnalyseSection';
 
-// ---- Dashboard panels (allowed: journal → dashboard) ----
 import Hero from '@/features/dashboard/components/panels/Hero';
 import KPIGrid from '@/features/dashboard/components/panels/KPIGrid';
 import AdvancedKPIGrid from '@/features/dashboard/components/panels/AdvancedKPIGrid';
@@ -47,7 +24,6 @@ import Calendar from '@/features/dashboard/components/panels/Calendar';
 import WeeklyChart from '@/features/dashboard/components/panels/WeeklyChart';
 import TradeTable from '@/features/dashboard/components/panels/TradeTable';
 
-// ---- Dashboard charts ----
 import MonthlyChart from '@/features/dashboard/components/charts/MonthlyChart';
 import RollingExpectancyChart from '@/features/dashboard/components/charts/RollingExpectancyChart';
 import UnderwaterChart from '@/features/dashboard/components/charts/UnderwaterChart';
@@ -55,9 +31,6 @@ import TimeChart from '@/features/dashboard/components/charts/TimeChart';
 import RRCompareChart from '@/features/dashboard/components/charts/RRCompareChart';
 import CategoryBarChart from '@/features/dashboard/components/charts/CategoryBarChart';
 
-/* ------------------------------------------------------------------ */
-/*  Page CSS — unchanged from the previous version.                    */
-/* ------------------------------------------------------------------ */
 const CSS = `
   .analyse-root {
     --line: rgba(255,255,255,.085);
@@ -365,9 +338,6 @@ const CSS = `
   }
 `;
 
-/* ------------------------------------------------------------------ */
-/*  Local breakdown wrappers                                           */
-/* ------------------------------------------------------------------ */
 const SESSION_ORDER = [
   'Asia', 'London', 'NY Pre-Market', 'NY AM',
   'NY Lunch', 'NY PM', 'After Hours',
@@ -392,9 +362,6 @@ function DirectionBreakdown() {
   return <CategoryBarChart data={data} horizontal={false} />;
 }
 
-/* ------------------------------------------------------------------ */
-/*  Page                                                               */
-/* ------------------------------------------------------------------ */
 export default function AnalysePage() {
   const { user } = useAuth();
   const { state } = useAppContext();
@@ -411,8 +378,6 @@ export default function AnalysePage() {
 
   const isHydrating = totalCount > 0 && state.trades.length === 0;
 
-  // Compute the dynamic subtitle BEFORE the early return so the hook is
-  // always called in the same order across renders.
   const isFiltered = totalCount > 0 && filteredCount !== totalCount;
   let subText;
   if (totalCount === 0) {
@@ -430,7 +395,6 @@ export default function AnalysePage() {
         ? 'is-backtest'
         : 'is-live';
 
-  // Publish title + badge + dynamic subtitle to the global header bar.
   usePageHeader({
     title: 'Analyse',
     badge: account?.type,
@@ -473,7 +437,7 @@ export default function AnalysePage() {
         />
       ) : (
         <>
-          {/* ───────────────────────── 01 Snapshot ───────────────────────── */}
+          {}
           <AnalyseSection
             num="01"
             title="Snapshot"
@@ -484,7 +448,7 @@ export default function AnalysePage() {
             <AdvancedKPIGrid />
           </AnalyseSection>
 
-          {/* ───────────────────── 02 Equity & Drawdown ──────────────────── */}
+          {}
           <AnalyseSection num="02" title="Equity & Drawdown">
             <div className="analyse-panels cols-2">
               <AnalysePanel
@@ -507,7 +471,7 @@ export default function AnalysePage() {
             </div>
           </AnalyseSection>
 
-          {/* ────────────────────── 03 Monthly Performance ───────────────── */}
+          {}
           <AnalyseSection num="03" title="Monthly Performance">
             <div className="analyse-panels cols-1">
               <AnalysePanel title="Monthly Breakdown" height={300}>
@@ -523,7 +487,7 @@ export default function AnalysePage() {
             </div>
           </AnalyseSection>
 
-          {/* ──────────────────────── 04 Timing ───────────────────────────── */}
+          {}
           <AnalyseSection num="04" title="Timing & Momentum">
             <div className="analyse-panels cols-2">
               <AnalysePanel title="Time of Day" height={320}>
@@ -535,7 +499,7 @@ export default function AnalysePage() {
             </div>
           </AnalyseSection>
 
-          {/* ─────────────────────── 05 Breakdowns ────────────────────────── */}
+          {}
           <AnalyseSection num="05" title="Breakdowns">
             <div className="analyse-panels cols-3">
               <AnalysePanel title="By Session" height={300}>
@@ -559,7 +523,7 @@ export default function AnalysePage() {
             </div>
           </AnalyseSection>
 
-          {/* ───────────────────── 06 Symbols & Duration ─────────────────── */}
+          {}
           <AnalyseSection num="06" title="Symbols & Duration">
             <div className="analyse-panels cols-2">
               <AnalysePanel title="Symbol Breakdown" height="auto">
@@ -571,7 +535,7 @@ export default function AnalysePage() {
             </div>
           </AnalyseSection>
 
-          {/* ─────────────────────── 07 Trade Log ─────────────────────────── */}
+          {}
           <AnalyseSection
             num="07"
             title="Trade Log"

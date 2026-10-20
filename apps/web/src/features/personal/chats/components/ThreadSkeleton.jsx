@@ -1,10 +1,3 @@
-﻿// apps/web/src/features/personal/chats/components/ThreadSkeleton.jsx
-//
-// Shimmering placeholder bubbles shown while a thread is loading.
-// Class names are `.thread-skel-*` (declared in ChatsShell.css).
-//
-// Phase 6 polish: alternating own/peer alignment is preserved, but bubble
-// widths alternate slightly so the shape feels like a real conversation.
 
 const OWN_WIDTHS    = ['40%', '52%', '36%', '58%'];
 const PEER_WIDTHS   = ['55%', '42%', '60%', '48%'];

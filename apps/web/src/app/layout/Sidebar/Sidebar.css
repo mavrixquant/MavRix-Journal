@@ -1,4 +1,4 @@
-/* apps/web/src/app/shell/Sidebar.css */
+
 
 .sb-root {
   --line: rgba(255,255,255,.085);
@@ -23,7 +23,7 @@
 }
 .sb-root.is-open { box-shadow: 12px 0 40px -20px rgba(0,0,0,.75); }
 
-/* ---------- Header (absolute, pinned top) ---------- */
+
 .sb-head {
   position: absolute;
   top: 0;
@@ -70,7 +70,7 @@
   padding: 0;
 }
 
-/* ---------- Brand ---------- */
+
 .sb-brand {
   position: relative;
   display: flex;
@@ -110,7 +110,7 @@
   filter: drop-shadow(0 2px 18px color-mix(in srgb, var(--accent) 46%, transparent));
 }
 
-/* ---------- Collapse / expand toggle ---------- */
+
 .sb-toggle {
   position: relative;
   display: flex;
@@ -171,7 +171,7 @@
 }
 .sb-toggle.is-expand:hover svg { transform: scale(1.12); }
 
-/* ---------- Nav (absolute, pinned below header) ---------- */
+
 .sb-nav {
   position: absolute;
   top: 72px;
@@ -202,7 +202,7 @@
   align-items: center;
 }
 
-/* ---------- Group ---------- */
+
 .sb-group { display: flex; flex-direction: column; flex-shrink: 0; }
 .sb-group + .sb-group {
   margin-top: 8px;
@@ -243,7 +243,7 @@
   padding: 2px 0 2px;
 }
 
-/* ---------- Item ---------- */
+
 .sb-item {
   position: relative;
   display: flex;
@@ -324,7 +324,7 @@
   white-space: nowrap;
 }
 
-/* ---------- Collapsed: group tile ---------- */
+
 .sb-root.is-collapsed .sb-group-tile {
   justify-content: center;
   padding: 0;
@@ -361,7 +361,7 @@
   filter: drop-shadow(0 0 10px color-mix(in srgb, var(--accent) 90%, transparent));
 }
 
-/* ---------- Collapsed: hover flyout ---------- */
+
 .sb-flyout {
   --line: rgba(255,255,255,.085);
   --line-soft: rgba(255,255,255,.05);
@@ -437,7 +437,7 @@
 }
 .sb-flyout-item .sb-icon { width: 14px; }
 
-/* ---------- Animations ---------- */
+
 @keyframes sbFlyoutIn {
   from { opacity: 0; transform: translateX(-6px) scale(.98); }
   to   { opacity: 1; transform: none; }

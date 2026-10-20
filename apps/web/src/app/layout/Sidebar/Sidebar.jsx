@@ -1,4 +1,3 @@
-// apps/web/src/app/shell/Sidebar.jsx
 import { useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { FaBars, FaTimes } from 'react-icons/fa';
@@ -13,9 +12,6 @@ import './Sidebar.css';
 export const SIDEBAR_WIDTH = 240;
 export const SIDEBAR_COLLAPSED_WIDTH = 68;
 
-/* ------------------------------------------------------------------ */
-/*  SidebarContent                                                     */
-/* ------------------------------------------------------------------ */
 export function SidebarContent({
   collapsed = false,
   showCollapseButton = true,
@@ -80,9 +76,6 @@ export function SidebarContent({
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Desktop aside — closes on outside click                            */
-/* ------------------------------------------------------------------ */
 export default function Sidebar({ collapsed, onCollapseToggle, onClose }) {
   const asideRef = useRef(null);
 

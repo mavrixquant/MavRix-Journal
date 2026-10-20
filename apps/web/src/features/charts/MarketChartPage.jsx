@@ -1,10 +1,3 @@
-// apps/web/src/features/charts/MarketChartPage.jsx
-//
-// /backtester/chart — full-page market chart with watchlist, quote header,
-// indicators, and drawing tools.
-//
-// Title + current symbol+interval subtitle are published to the GLOBAL
-// header bar via usePageHeader().
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
@@ -293,9 +286,6 @@ const CSS = `
   }
 `;
 
-/* ------------------------------------------------------------------ */
-/*  Page                                                              */
-/* ------------------------------------------------------------------ */
 
 export default function MarketChartPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -315,7 +305,6 @@ export default function MarketChartPage() {
     setSearchParams(sp, { replace: true });
   }, [searchParams, setSearchParams]);
 
-  /* ---------------- Data ---------------- */
 
   const { data: catalog, isLoading: catalogLoading } = useMarketCatalog();
 
@@ -334,7 +323,6 @@ export default function MarketChartPage() {
     [symbols, symbol]
   );
 
-  /* ---------------- Indicators ---------------- */
 
   const [indicators, setIndicators] = useState({
     ema20: false,
@@ -352,7 +340,6 @@ export default function MarketChartPage() {
     [bars, indicators]
   );
 
-  /* ---------------- Drawings ---------------- */
 
   const [drawings, setDrawings] = useState([]);
   const [drawingMode, setDrawingMode] = useState(DRAWING_MODES.NONE);
@@ -420,7 +407,6 @@ export default function MarketChartPage() {
     setPendingPoint(null);
   }, []);
 
-  /* ---------------- Fullscreen ---------------- */
 
   const shellRef = useRef(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -442,14 +428,12 @@ export default function MarketChartPage() {
     }
   }, []);
 
-  /* ---------------- Publish title to global header ---------------- */
 
   usePageHeader({
     title: 'Chart',
     subtitle: `${symbol} · ${interval.toUpperCase()}`,
   });
 
-  /* ---------------- Render ---------------- */
 
   if (catalogLoading) return <PageSkeleton />;
 

@@ -1,24 +1,3 @@
-// apps/web/src/app/layout/Settings/SettingsProvider.jsx
-//
-// Global user preferences, persisted to BOTH localStorage and the server.
-//
-// Behavior:
-//   - Mounts once per user (keyed by user.id via RootProviders).
-//   - On mount, reads the per-user localStorage cache immediately (no flash).
-//   - Fires GET /api/users/preferences in the background. On success, merges
-//     the server response with DEFAULT_SETTINGS and replaces local state.
-//     "Server wins" — a change made offline that never reached the server is
-//     lost on next hydrate. Documented trade-off for cross-device sync.
-//   - Every update() writes to state immediately, caches to localStorage,
-//     and schedules a debounced (600 ms) PUT. Rapid toggles coalesce.
-//   - On unmount, flushes any pending PUT (fire-and-forget) so a fast close
-//     doesn't lose the last change.
-//   - Logged-out (userId = null) skips all server I/O.
-//
-// Side effects on <html> / <head>:
-//   - --accent, --accent-2, --accent-soft, --accent-soft2  (accent color)
-//   - injected <style> that collapses animations when reduceMotion === 'on'
-//   - body[data-density] and body[data-font-size] for future CSS consumption
 
 import {
   createContext,
@@ -36,9 +15,6 @@ const STORAGE_PREFIX = 'mavrix:settings';
 const LEGACY_STORAGE_KEY = 'mavrix:settings';
 const WRITE_DEBOUNCE_MS = 600;
 
-/* ------------------------------------------------------------------ */
-/*  Defaults                                                           */
-/* ------------------------------------------------------------------ */
 
 export const DEFAULT_SETTINGS = Object.freeze({
   appearance: {
@@ -67,19 +43,11 @@ export const DEFAULT_SETTINGS = Object.freeze({
   },
 });
 
-/* ------------------------------------------------------------------ */
-/*  Storage helpers                                                    */
-/* ------------------------------------------------------------------ */
 
 function storageKey(userId) {
   return userId ? `${STORAGE_PREFIX}:${userId}` : `${STORAGE_PREFIX}:anon`;
 }
 
-/**
- * One-time migration: if the old pre-Phase-4 key exists and the new
- * per-user key doesn't, copy it over and delete the old one. Runs on
- * first mount for a logged-in user only.
- */
 function migrateLegacyKey(userId) {
   if (typeof window === 'undefined' || !userId) return;
   try {
@@ -91,7 +59,6 @@ function migrateLegacyKey(userId) {
     }
     window.localStorage.removeItem(LEGACY_STORAGE_KEY);
   } catch {
-    // localStorage disabled — ignore
   }
 }
 
@@ -112,14 +79,9 @@ function saveToStorage(userId, settings) {
   try {
     window.localStorage.setItem(storageKey(userId), JSON.stringify(settings));
   } catch {
-    // quota or disabled — ignore
   }
 }
 
-/**
- * Shallow-per-section merge of stored/server data onto the defaults.
- * Any missing section or key is filled from DEFAULT_SETTINGS.
- */
 function mergeWithDefaults(raw) {
   if (!raw || typeof raw !== 'object') return DEFAULT_SETTINGS;
   const merged = {};
@@ -132,9 +94,6 @@ function mergeWithDefaults(raw) {
   return merged;
 }
 
-/* ------------------------------------------------------------------ */
-/*  Color helpers                                                      */
-/* ------------------------------------------------------------------ */
 
 function hexToRgb(hex) {
   const h = String(hex || '').replace('#', '');
@@ -162,9 +121,6 @@ function lighten(hex, amount = 60) {
   return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
 }
 
-/* ------------------------------------------------------------------ */
-/*  Context                                                            */
-/* ------------------------------------------------------------------ */
 
 const SettingsContext = createContext(null);
 
@@ -174,28 +130,20 @@ export function SettingsProvider({ children, userId = null }) {
     return loadFromStorage(userId);
   });
 
-  // Track the current userId in a ref for effects whose deps we don't want
-  // to include (e.g. the unmount flush).
   const userIdRef = useRef(userId);
   useEffect(() => { userIdRef.current = userId; }, [userId]);
 
-  // Hydration gate: prevents a PUT before the initial GET completes.
   const hydratedRef = useRef(false);
-  // If the user touched a setting before hydration, local wins — we skip
-  // applying the server response so the user's just-made change isn't lost.
   const dirtyBeforeHydrationRef = useRef(false);
 
-  // Debounced server write.
   const writeTimerRef = useRef(null);
   const pendingWriteRef = useRef(null);
 
-  /* ---------------- Persist to localStorage on every change ---------------- */
 
   useEffect(() => {
     saveToStorage(userId, settings);
   }, [settings, userId]);
 
-  /* ---------------- Server hydration ---------------- */
 
   useEffect(() => {
     if (!userId) {
@@ -210,15 +158,11 @@ export function SettingsProvider({ children, userId = null }) {
         const { preferences } = await apiJson('/api/users/preferences');
         if (cancelled) return;
 
-        // Only apply the server response if the user hasn't already
-        // modified a preference locally in this session.
         if (!dirtyBeforeHydrationRef.current) {
           const merged = mergeWithDefaults(preferences);
           setSettings(merged);
         }
       } catch {
-        // 401 (session expired) or network error — stay on local cache.
-        // The next successful PUT will reconcile if the session recovers.
       } finally {
         if (!cancelled) hydratedRef.current = true;
       }
@@ -227,7 +171,6 @@ export function SettingsProvider({ children, userId = null }) {
     return () => { cancelled = true; };
   }, [userId]);
 
-  /* ---------------- Debounced server write ---------------- */
 
   const scheduleServerWrite = useCallback((next) => {
     pendingWriteRef.current = next;
@@ -249,12 +192,10 @@ export function SettingsProvider({ children, userId = null }) {
           body: JSON.stringify({ preferences: payload }),
         });
       } catch {
-        // Silent — the next update retries with the full state.
       }
     }, WRITE_DEBOUNCE_MS);
   }, []);
 
-  /* ---------------- Flush pending write on unmount ---------------- */
 
   useEffect(() => {
     return () => {
@@ -266,7 +207,6 @@ export function SettingsProvider({ children, userId = null }) {
       pendingWriteRef.current = null;
       const uid = userIdRef.current;
       if (!payload || !uid) return;
-      // Fire-and-forget; page is going away.
       apiJson('/api/users/preferences', {
         method: 'PUT',
         body: JSON.stringify({ preferences: payload }),
@@ -274,7 +214,6 @@ export function SettingsProvider({ children, userId = null }) {
     };
   }, []);
 
-  /* ---------------- Public API ---------------- */
 
   const update = useCallback((section, patch) => {
     setSettings((prev) => {
@@ -292,7 +231,6 @@ export function SettingsProvider({ children, userId = null }) {
     scheduleServerWrite(DEFAULT_SETTINGS);
   }, [scheduleServerWrite]);
 
-  /* ---------------- Accent color side effects ---------------- */
 
   useEffect(() => {
     const root = document.documentElement;
@@ -304,7 +242,6 @@ export function SettingsProvider({ children, userId = null }) {
     root.style.setProperty('--accent-soft2', hexA(accent, 0.28));
   }, [settings.appearance.accentColor]);
 
-  /* ---------------- Reduce-motion side effect ---------------- */
 
   useEffect(() => {
     const STYLE_ID = 'mavrix-reduce-motion';
@@ -329,7 +266,6 @@ export function SettingsProvider({ children, userId = null }) {
     }
   }, [settings.appearance.reduceMotion]);
 
-  /* ---------------- Body data-* attributes ---------------- */
 
   useEffect(() => {
     document.body.dataset.density = settings.appearance.density;
@@ -348,9 +284,6 @@ export function SettingsProvider({ children, userId = null }) {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Hook                                                               */
-/* ------------------------------------------------------------------ */
 
 export function useSettings() {
   const ctx = useContext(SettingsContext);

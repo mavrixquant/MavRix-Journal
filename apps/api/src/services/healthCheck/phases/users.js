@@ -1,13 +1,7 @@
-// apps/api/src/services/healthCheck/phases/users.js
-//
-// Layouts & Preferences phase — 7 tests.
-// Every endpoint here operates on the CALLING user, so we exercise them
-// with tokens.a (healthcheck user A).
 
 export async function run(ctx) {
   const { test, tokens, ids } = ctx;
 
-  /* ---------------- layouts ---------------- */
 
   await test('users.layouts.list · fresh user has 0', async () => {
     const res = await ctx.fetch('/api/users/layouts', { token: tokens.a });
@@ -61,7 +55,6 @@ export async function run(ctx) {
     ctx.expect(res.body.ok === true, 'ok not true');
   });
 
-  /* ---------------- preferences ---------------- */
 
   await test('users.preferences.get · returns object', async () => {
     const res = await ctx.fetch('/api/users/preferences', { token: tokens.a });

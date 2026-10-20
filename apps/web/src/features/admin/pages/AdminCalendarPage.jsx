@@ -1,7 +1,3 @@
-// apps/web/src/features/admin/pages/AdminCalendarPage.jsx
-//
-// Calendar cache panel: force sync, wipe cache (superadmin only), view
-// recent manual sync logs.
 
 import { useState } from 'react';
 import { RefreshCw, Trash2, Calendar } from 'lucide-react';
@@ -160,7 +156,7 @@ export default function AdminCalendarPage() {
           </div>
         </div>
 
-        {/* ---------- Actions ---------- */}
+        {}
         <div className="acal-actions">
           <button
             type="button"
@@ -185,7 +181,7 @@ export default function AdminCalendarPage() {
           )}
         </div>
 
-        {/* ---------- Recent sync logs ---------- */}
+        {}
         <div className="acal-card">
           <div className="acal-card-head">
             <Calendar size={14} style={{ color: 'var(--accent)' }} />

@@ -1,6 +1,3 @@
-// apps/web/src/features/charts/components/DrawingToolbar.jsx
-//
-// Drawing tool selector. When a tool is active, chart clicks create drawings.
 
 import { MousePointer2, Minus, TrendingUp, Trash2 } from 'lucide-react';
 

@@ -1,8 +1,3 @@
-// apps/web/src/features/admin/pages/AdminUserDetailPage.jsx
-//
-// Full user administration. Every mutating action is confirmed via modal
-// when destructive, and every call invalidates the query cache so the page
-// reflects the new state immediately.
 
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
@@ -184,7 +179,6 @@ export default function AdminUserDetailPage() {
   const { data, isLoading, isError, error } = useAdminUser(id);
   const user = data?.user;
 
-  // Local edit state — synced when server data changes
   const [form, setForm] = useState({
     firstName: '', lastName: '', email: '', role: 'user',
   });
@@ -278,7 +272,7 @@ export default function AdminUserDetailPage() {
         </div>
 
         <div className="aud-grid">
-          {/* ---------- Column 1: profile + meta ---------- */}
+          {}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             <div className="aud-card">
               <div className="aud-card-head">
@@ -400,7 +394,7 @@ export default function AdminUserDetailPage() {
             )}
           </div>
 
-          {/* ---------- Column 2: actions ---------- */}
+          {}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             <div className="aud-card">
               <div className="aud-card-head">
@@ -484,7 +478,7 @@ export default function AdminUserDetailPage() {
               </div>
             </div>
 
-            {/* ---------- Danger zone ---------- */}
+            {}
             <div className="aud-card aud-danger-zone">
               <div className="aud-card-head">
                 <Trash2 size={14} />
@@ -519,7 +513,7 @@ export default function AdminUserDetailPage() {
         </div>
       </div>
 
-      {/* ---------- Modals ---------- */}
+      {}
       <BanUserModal
         isOpen={showBanModal}
         user={user}

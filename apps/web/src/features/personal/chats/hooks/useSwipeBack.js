@@ -1,18 +1,3 @@
-﻿// apps/web/src/features/personal/chats/hooks/useSwipeBack.js
-//
-// Detects a rightward horizontal swipe that starts within `edgeWidth` px of
-// the container's left edge and travels at least `threshold` px. Used on
-// mobile to reproduce the WhatsApp/Telegram "swipe-right to go back from
-// thread" gesture.
-//
-// Ignored gestures:
-//   • Any gesture that is more vertical than horizontal (scrolling)
-//   • Any gesture that takes longer than `maxDurationMs` (long-press then
-//     drag)
-//   • Any gesture that does NOT start within the left-edge zone
-//
-// Attaches to the returned ref's element. When `enabled` is false, no
-// listeners are attached — safe to keep the hook mounted on desktop.
 
 import { useEffect, useRef } from 'react';
 
@@ -58,7 +43,6 @@ export function useSwipeBack({
       const dx = t.clientX - startX;
       const dy = t.clientY - startY;
 
-      // Bail if the user is scrolling vertically
       if (Math.abs(dy) > Math.abs(dx) * 1.2) {
         tracking = false;
       }

@@ -1,10 +1,6 @@
-// apps/api/src/controllers/friends.controller.js
-//
-// Thin HTTP layer. `req.userId` is set by requireAuth (see friends.routes.js).
 
 import * as svc from '../services/friends.service.js';
 
-/* ---------------- Friends ---------------- */
 
 export async function listFriends(req, res, next) {
   try {
@@ -20,7 +16,6 @@ export async function removeFriend(req, res, next) {
   } catch (e) { next(e); }
 }
 
-/* ---------------- Requests ---------------- */
 
 export async function listRequests(req, res, next) {
   try {
@@ -60,7 +55,6 @@ export async function cancelRequest(req, res, next) {
   } catch (e) { next(e); }
 }
 
-/* ---------------- Blocks ---------------- */
 
 export async function listBlocks(req, res, next) {
   try {
@@ -83,7 +77,6 @@ export async function unblockUser(req, res, next) {
   } catch (e) { next(e); }
 }
 
-/* ---------------- Status ---------------- */
 
 export async function getStatus(req, res, next) {
   try {

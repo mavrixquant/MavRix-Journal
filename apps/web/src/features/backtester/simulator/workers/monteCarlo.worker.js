@@ -1,26 +1,12 @@
-// apps/web/src/features/simulator/workers/monteCarlo.worker.js
-//
-// Web Worker that runs Monte Carlo simulations off the main thread.
-//
-// Protocol:
-//   → { type: 'run', runId, scores: number[], options: object }
-//   → { type: 'cancel', runId }
-//
-//   ← { type: 'progress', runId, pct: number }
-//   ← { type: 'result', runId, result: object }
-//   ← { type: 'cancelled', runId }
-//   ← { type: 'error', runId, error: string }
 
 import { runMonteCarlo } from '@/shared/trading/monteCarlo';
 
-// Track the current run so cancel messages know what to abort.
 let activeRunId = null;
 let cancelRequested = false;
 
 self.onmessage = (e) => {
   const msg = e.data;
 
-  /* ---------- Cancel ---------- */
   if (msg.type === 'cancel') {
     if (msg.runId === activeRunId) {
       cancelRequested = true;
@@ -28,7 +14,6 @@ self.onmessage = (e) => {
     return;
   }
 
-  /* ---------- Run ---------- */
   if (msg.type === 'run') {
     const { runId, scores, options } = msg;
 

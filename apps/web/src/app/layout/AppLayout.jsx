@@ -1,4 +1,3 @@
-// apps/web/src/app/layout/AppLayout.jsx
 import { useState, useEffect, Suspense } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 
@@ -49,7 +48,6 @@ export default function AppLayout() {
       try {
         localStorage.setItem(LAST_PATH_KEY, path);
       } catch {
-        // localStorage disabled — ignore
       }
     }
   }, [location.pathname, user]);

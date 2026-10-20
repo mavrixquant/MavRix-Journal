@@ -1,23 +1,15 @@
-// apps/api/src/lib/ai/limiter.js
-//
-// In-memory sliding-window rate limiter for Mave AI.
-// Prevents users from spamming the admin API keys.
-//
-// Single-process only (resets on server restart). If you scale to multiple
-// API instances, swap this for a Redis store.
 
 import { env } from '../../config/env.js';
 
-const buckets = new Map(); // userId -> [timestamps]
+const buckets = new Map();
 
 export function checkRateLimit(userId) {
   const now = Date.now();
-  const windowMs = 60 * 60 * 1000; // 1 hour
+  const windowMs = 60 * 60 * 1000;
   const max = env.ai.userRatePerHour;
 
   const arr = buckets.get(userId) || [];
   
-  // Drop entries outside the 1-hour window
   const recent = arr.filter((t) => now - t < windowMs);
 
   if (recent.length >= max) {
@@ -37,7 +29,6 @@ export function checkRateLimit(userId) {
   return { allowed: true, limit: max, current: recent.length };
 }
 
-// Periodic prune to prevent unbounded memory growth.
 setInterval(() => {
   const now = Date.now();
   const windowMs = 60 * 60 * 1000;

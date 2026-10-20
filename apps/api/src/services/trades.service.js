@@ -1,14 +1,8 @@
-// apps/api/src/services/trades.service.js
 import { prisma } from '../lib/prisma.js';
 import { HttpError } from '../middleware/error.js';
 import { generateTradeId, normalizeColumnConfigs } from '@mavrix/shared';
 import { broadcastToUser } from '../lib/broadcaster.js';
 
-// Every column that lives in a dedicated Trade column — NOT in `dynamic`.
-// A single source of truth for both `splitTradePayload` and `sanitizeDynamic`.
-//
-// `strategyId` is a dedicated FK column, so it is reserved here. That keeps
-// it out of `dynamic` and out of the client's arbitrary payload passthrough.
 const RESERVED = new Set([
   'date',
   'entryTime',
@@ -17,17 +11,14 @@ const RESERVED = new Set([
   'symbol',
   'strategyId',
 
-  // Backtester-only
   'mae',
   'mfe',
   'slPoints',
 
-  // Journal-only
   'entryPrice',
   'takeProfit',
   'stopLoss',
 
-  // Common
   'pnl',
   'quantity',
   'notes',
@@ -43,9 +34,6 @@ function splitTradePayload(payload) {
   return { reserved, dynamic };
 }
 
-// Strip any reserved keys that leaked into a dynamic JSON blob
-// (e.g. from historical data written before the frontend excluded `notes`).
-// Returns a fresh object — never mutates its input.
 function sanitizeDynamic(dynamic) {
   if (!dynamic || typeof dynamic !== 'object') return {};
   const out = {};
@@ -121,16 +109,6 @@ async function assertStrategyOwnership(userId, strategyId) {
   if (!strategy) throw new HttpError(404, 'Strategy not found');
 }
 
-/**
- * Fetch trades for the current user.
- *
- * Filters:
- *   - accountId  → all trades belonging to that account
- *   - strategyId → all trades (across every account of the user) tagged with
- *                  that strategy. Powers the strategy detail page.
- *
- * Exactly one filter must be supplied.
- */
 export async function listTrades(userId, { accountId, strategyId } = {}) {
   if (!accountId && !strategyId) {
     throw new HttpError(400, 'accountId or strategyId query param required');
@@ -183,7 +161,6 @@ export async function createTrade(userId, payload) {
 export async function bulkCreateTrades(userId, { accountId, trades, columnConfigs }) {
   await assertAccountOwnership(userId, accountId);
 
-  // Validate all referenced strategies in ONE query instead of N.
   const strategyIds = [
     ...new Set(trades.map((t) => t.strategyId).filter(Boolean)),
   ];
@@ -233,7 +210,6 @@ export async function bulkCreateTrades(userId, { accountId, trades, columnConfig
     }
   });
 
-  // Trade list changed AND the account's columnConfigs may have changed.
   notify(userId, [['trades', accountId], ['accounts'], ['strategies']]);
   return { created: prepared.length };
 }
@@ -290,7 +266,6 @@ export async function deleteTradesByAccount(userId, accountId) {
   return { deleted: res.count };
 }
 
-// ---------- Dynamic column operations ----------
 
 export async function addCustomColumn(userId, accountId, columnName) {
   await assertAccountOwnership(userId, accountId);
@@ -367,22 +342,7 @@ export async function renameCustomColumn(userId, accountId, oldName, newName) {
   return { updated: trades.length };
 }
 
-// ---------- Value-level operations on a custom column ----------
-//
-// These mutate the *content* of a single dynamic column across every trade
-// in the account. They also keep `columnConfigs[columnName].options` in
-// sync when the column is a dropdown.
 
-/**
- * Rename every occurrence of `oldValue` → `newValue` in `dynamic[columnName]`.
- *
- * If the column is a dropdown and `oldValue` was listed in its options, the
- * options list is rewritten in the same transaction (with dedupe, in case
- * `newValue` was already an option — the frontend confirms merges before
- * calling this, but the backend stays idempotent).
- *
- * Returns { tradesUpdated, optionsUpdated }.
- */
 export async function renameColumnValue(
   userId,
   accountId,
@@ -407,7 +367,6 @@ export async function renameColumnValue(
     return { tradesUpdated: 0, optionsUpdated: false };
   }
 
-  // Fetch trades + account config in parallel — one round trip each.
   const [trades, account] = await Promise.all([
     prisma.trade.findMany({
       where: { accountId },
@@ -419,7 +378,6 @@ export async function renameColumnValue(
     }),
   ]);
 
-  // Build the update batch. Only touch trades whose value matches exactly.
   const updates = [];
   for (const t of trades) {
     const dyn = sanitizeDynamic(t.dynamic);
@@ -434,7 +392,6 @@ export async function renameColumnValue(
     }
   }
 
-  // Keep dropdown options in sync.
   const configs = normalizeColumnConfigs(account?.columnConfigs || {});
   let optionsUpdated = false;
   const cfg = configs[columnName];
@@ -442,7 +399,6 @@ export async function renameColumnValue(
     const opts = Array.isArray(cfg.options) ? cfg.options : [];
     if (opts.includes(oldValue)) {
       const nextOpts = opts.map((o) => (o === oldValue ? newValue : o));
-      // De-dupe, preserving first-seen order.
       const seen = new Set();
       const deduped = [];
       for (const o of nextOpts) {
@@ -467,7 +423,6 @@ export async function renameColumnValue(
   }
 
   if (ops.length > 0) {
-    // Neon can be slow on large batches — 30 s timeout.
     await prisma.$transaction(ops, { timeout: 30000 });
   }
 
@@ -475,14 +430,6 @@ export async function renameColumnValue(
   return { tradesUpdated: updates.length, optionsUpdated };
 }
 
-/**
- * Clear every occurrence of `value` in `dynamic[columnName]` (sets to `''`).
- *
- * If the column is a dropdown and `value` was listed in its options, the
- * option is removed in the same transaction.
- *
- * Returns { tradesUpdated, optionsUpdated }.
- */
 export async function clearColumnValue(
   userId,
   accountId,

@@ -1,4 +1,3 @@
-// apps/web/src/app/layout/Settings/panels/NotificationsPanel.jsx
 
 import { useSettings } from '../SettingsProvider';
 

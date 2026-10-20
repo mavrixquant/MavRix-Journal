@@ -1,18 +1,3 @@
-﻿// apps/web/src/features/manage/strategies/StrategiesPage.jsx
-//
-// /manage/strategies — the list page.
-//
-// Title + subtitle are published to the GLOBAL header bar via usePageHeader().
-//
-// Toolbar (above the KPI strip): status tabs left, New Strategy right.
-// Below: KPI strip, then a grid of strategy tiles. Click a tile → detail page.
-// Tiles have inline Edit + Delete actions.
-//
-// PHASE 3 CHANGE (EmptyState migration)
-// -------------------------------------
-//   • The "No strategies yet" / "No {filter} strategies" empty state now
-//     uses the shared <EmptyState> component. The Create Strategy CTA is
-//     preserved (only shown when the user has zero strategies).
 
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -100,7 +85,6 @@ export default function StrategiesPage() {
     }
   };
 
-  // Publish title + subtitle to the global header bar.
   usePageHeader({
     title: 'Strategies',
     subtitle: 'Define playbooks, tag trades, and track per-strategy edge',
@@ -114,7 +98,7 @@ export default function StrategiesPage() {
     <>
       <div className="strat-root">
 
-        {/* ---------- Toolbar: Status tabs left, New Strategy right ---------- */}
+        {}
         <div className="strat-toolbar">
           <div className="strat-tabs">
             {FILTERS.map((f) => {
@@ -145,7 +129,7 @@ export default function StrategiesPage() {
           </button>
         </div>
 
-        {/* ---------- KPI strip ---------- */}
+        {}
         <div className="strat-kpi-grid">
           <div className="strat-kpi">
             <div className="strat-kpi-icon is-amber"><FaBrain /></div>
@@ -184,7 +168,7 @@ export default function StrategiesPage() {
           </div>
         </div>
 
-        {/* ---------- Grid ---------- */}
+        {}
         {visible.length === 0 ? (
           <EmptyState
             icon={FaBrain}
@@ -300,7 +284,7 @@ export default function StrategiesPage() {
           </div>
         )}
 
-        {/* ---------- Modals ---------- */}
+        {}
         <StrategyFormModal
           isOpen={modalState.open}
           onClose={() => setModalState({ open: false, strategy: null })}

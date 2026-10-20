@@ -1,4 +1,3 @@
-// apps/web/src/features/auth/components/AuthButton.jsx
 const S = {
   base: {
     position: 'relative',

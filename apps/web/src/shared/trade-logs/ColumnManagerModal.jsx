@@ -1,16 +1,3 @@
-// apps/web/src/shared/trade-logs/ColumnManagerModal.jsx
-//
-// Column manager modal — full CRUD on an account's custom columns.
-//
-// A "custom column" is any column name that appears in a trade's `dynamic`
-// JSON blob, or in the account's `columnConfigs`. This modal lets the user
-// add / rename / delete columns, edit the type, edit dropdown options, and
-// rename or clear individual VALUES across every trade in the account.
-//
-// RESERVED set mirrors apps/web/src/shared/trading/enrich.js and
-// apps/api/src/services/trades.service.js. Keep all three in sync.
-// In particular: `strategyId` and `strategy` are dedicated fields on the
-// trade (FK + joined snapshot) and must never appear here.
 
 import { useEffect, useMemo, useState } from 'react';
 import {
@@ -51,9 +38,6 @@ const RESERVED = new Set([
   'pnl', 'quantity', 'notes',
 ]);
 
-/* ------------------------------------------------------------------ */
-/*  Helpers                                                            */
-/* ------------------------------------------------------------------ */
 
 function isNumericValue(v) {
   if (v === '' || v === null || v === undefined) return true;
@@ -123,9 +107,6 @@ function countTradesWithValue(trades, columnName, value) {
   return n;
 }
 
-/* ------------------------------------------------------------------ */
-/*  Local spinner                                                      */
-/* ------------------------------------------------------------------ */
 function Spinner({ size = 12, variant = 'dark' }) {
   return (
     <span
@@ -136,9 +117,6 @@ function Spinner({ size = 12, variant = 'dark' }) {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Scoped CSS                                                         */
-/* ------------------------------------------------------------------ */
 const CSS = `
   .cm-overlay {
     position: fixed; inset: 0;
@@ -724,9 +702,6 @@ const CSS = `
   }
 `;
 
-/* ------------------------------------------------------------------ */
-/*  Column row component                                              */
-/* ------------------------------------------------------------------ */
 
 function ColumnRow({
   name,
@@ -1023,9 +998,6 @@ function ColumnRow({
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Rename-value modal                                                 */
-/* ------------------------------------------------------------------ */
 
 function RenameValueModal({
   isOpen,
@@ -1205,9 +1177,6 @@ function RenameValueModal({
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Main modal                                                        */
-/* ------------------------------------------------------------------ */
 
 export default function ColumnManagerModal({ isOpen, onClose, account, trades = [] }) {
   const [newName, setNewName] = useState('');

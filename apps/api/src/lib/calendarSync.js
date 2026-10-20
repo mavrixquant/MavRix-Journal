@@ -1,30 +1,7 @@
-// apps/api/src/lib/calendarSync.js
-//
-// Background polling service that syncs the Biquote economic calendar
-// into the local Prisma cache.
-//
-// Design:
-//   - Fetches in weekly chunks. Biquote caps a single request at 500 events,
-//     so a monolithic 75-day request only ever returns the first 500 rows and
-//     silently ignores the rest. Chunking guarantees full coverage.
-//   - Batched upsert: one query to find existing externalIds, one createMany
-//     for new rows, one transaction only for rows whose actual/forecast/previous
-//     actually changed. Drops ~1,000 queries per cycle to ~3.
-//   - Recursive setTimeout scheduling: next sync fires *after* the current one
-//     finishes, so a slow cycle cannot cause overlaps.
-//   - Per-request AbortController timeout so a hung Biquote response cannot
-//     stall the loop.
-//   - Broadcasts a global SSE `invalidate` with [['calendar']] after a sync
-//     that changed at least one row. The calendar is not user-scoped, so we
-//     use broadcastToAll() — every connected client refreshes.
-//   - Prunes rows older than `backwardDays` on each successful sync.
 
 import { prisma } from './prisma.js';
 import { broadcastToAll } from './broadcaster.js';
 
-/* ------------------------------------------------------------------ */
-/*  Config                                                             */
-/* ------------------------------------------------------------------ */
 
 function getConfig() {
   return {
@@ -38,9 +15,6 @@ function getConfig() {
   };
 }
 
-/* ------------------------------------------------------------------ */
-/*  Date helpers                                                       */
-/* ------------------------------------------------------------------ */
 
 function isoDate(d) {
   return d.toISOString().slice(0, 10);
@@ -77,9 +51,6 @@ function nullIfEmpty(v) {
   return s === '' ? null : s;
 }
 
-/* ------------------------------------------------------------------ */
-/*  Biquote fetch                                                      */
-/* ------------------------------------------------------------------ */
 
 async function fetchCalendarRange(fromIso, toIso, baseUrl, timeoutMs) {
   const url =
@@ -125,10 +96,6 @@ async function fetchCalendarRange(fromIso, toIso, baseUrl, timeoutMs) {
   return data;
 }
 
-/**
- * Walk the full [from, to] range in `chunkDays`-sized slices.
- * Dedupes by `id` in case chunk boundaries overlap.
- */
 async function fetchAllChunks(fromDate, toDate, cfg) {
   const allRows = [];
   const seen = new Set();
@@ -162,9 +129,6 @@ async function fetchAllChunks(fromDate, toDate, cfg) {
   return { rows: allRows, chunks: chunkIndex };
 }
 
-/* ------------------------------------------------------------------ */
-/*  Row mapping                                                        */
-/* ------------------------------------------------------------------ */
 
 function mapBiquoteRow(row) {
   const externalId = nullIfEmpty(row.id);
@@ -200,9 +164,6 @@ function mapBiquoteRow(row) {
   };
 }
 
-/* ------------------------------------------------------------------ */
-/*  Batched upsert                                                     */
-/* ------------------------------------------------------------------ */
 
 async function upsertEventsBatched(rows) {
   if (rows.length === 0) return { created: 0, updated: 0 };
@@ -281,9 +242,6 @@ async function pruneOldEvents(backwardDays) {
   return result.count;
 }
 
-/* ------------------------------------------------------------------ */
-/*  Single sync cycle                                                  */
-/* ------------------------------------------------------------------ */
 
 let syncInFlight = false;
 
@@ -304,8 +262,6 @@ export async function runCalendarSyncOnce() {
     const { created, updated } = await upsertEventsBatched(rows);
     const pruned = await pruneOldEvents(cfg.backwardDays);
 
-    // The calendar is global (not user-scoped), so this broadcast goes to
-    // every connected client. Only fires when actual/forecast/previous moved.
     if (created > 0 || updated > 0) {
       broadcastToAll('invalidate', { keys: [['calendar']] });
     }
@@ -336,9 +292,6 @@ export async function runCalendarSyncOnce() {
   }
 }
 
-/* ------------------------------------------------------------------ */
-/*  Recursive scheduling                                               */
-/* ------------------------------------------------------------------ */
 
 let running = false;
 let currentTimeoutHandle = null;

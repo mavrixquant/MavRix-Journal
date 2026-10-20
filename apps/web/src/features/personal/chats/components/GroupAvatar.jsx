@@ -1,18 +1,3 @@
-// apps/web/src/features/personal/chats/components/GroupAvatar.jsx
-//
-// Circular avatar for a chat group.
-//
-// Renders one of three things inside the circle, in priority order:
-//   1. The group's `iconEmoji` if one is set
-//   2. A lock glyph (🔒 in unicode) for private groups
-//   3. A `#` hashtag glyph for public groups
-//
-// The circle itself is tinted with the group's `color`, following the same
-// visual language as the DM avatar (soft gradient fill + colored border).
-//
-// Public API:
-//   <GroupAvatar group={{ color, iconEmoji, visibility }} size={40} />
-//   <GroupAvatar group={group} size={36} badge />
 
 export default function GroupAvatar({ group, size = 40, badge = false }) {
   const color = group?.color || '#F59E0B';
@@ -83,9 +68,6 @@ export default function GroupAvatar({ group, size = 40, badge = false }) {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Tiny hex → rgba helper (local so GroupAvatar has zero deps)        */
-/* ------------------------------------------------------------------ */
 function hexA(hex, alpha) {
   const h = String(hex).replace('#', '');
   if (h.length !== 6) return `rgba(245,158,11,${alpha})`;

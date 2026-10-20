@@ -1,14 +1,3 @@
-// apps/web/src/features/personal/chats/ChatsPage.jsx
-//
-// PHASE 6 — mobile polish:
-//   • Thread pane gets a swipe-to-back gesture (right swipe from the left
-//     edge returns to the sidebar on mobile).
-//   • `.chat-shell` classes unchanged, but `.is-mobile-sidebar` /
-//     `.is-mobile-thread` now drive an animated slide transition (see
-//     ChatsShell.css Phase 6 block).
-//
-// BUGFIX — avatar click in ChatRail now opens Account Settings.
-// Previously `onOpenProfile` was never passed, so the button was a no-op.
 
 import { useState, useMemo, useEffect } from 'react';
 import { MessageSquare } from 'lucide-react';

@@ -1,10 +1,3 @@
-// apps/web/src/features/charts/lib/drawingTools.js
-//
-// Drawing shapes + per-symbol localStorage persistence.
-//
-// NOTE: lightweight-charts requires LineSeries points to be ascending by
-// time. Trendline points are normalized on load AND at creation time, so
-// drawings made in any click order round-trip correctly.
 
 export const DRAWING_MODES = Object.freeze({
   NONE: 'none',
@@ -28,20 +21,12 @@ export function makeDrawingId() {
   return `d-${Date.now().toString(36)}-${idCounter}`;
 }
 
-/* ------------------------------------------------------------------ */
-/*  Time comparison — works for both numeric (intraday) and           */
-/*  string "YYYY-MM-DD" (daily) chart times.                          */
-/* ------------------------------------------------------------------ */
 
 function compareTime(a, b) {
   if (a === b) return 0;
   return a < b ? -1 : 1;
 }
 
-/**
- * Normalize a trendline's two points into ascending time order.
- * Returns null if the two points share the same time (degenerate).
- */
 export function normalizeTrendlinePoints(p1, p2) {
   if (!p1 || !p2) return null;
   const cmp = compareTime(p1.time, p2.time);
@@ -49,9 +34,6 @@ export function normalizeTrendlinePoints(p1, p2) {
   return cmp < 0 ? [p1, p2] : [p2, p1];
 }
 
-/* ------------------------------------------------------------------ */
-/*  Persistence — one key per symbol                                  */
-/* ------------------------------------------------------------------ */
 
 const STORAGE_PREFIX = 'mavrix:chart:drawings:';
 
@@ -81,7 +63,6 @@ export function saveDrawings(symbol, drawings) {
       window.localStorage.setItem(storageKey(symbol), JSON.stringify(drawings));
     }
   } catch {
-    // localStorage disabled / quota — silent
   }
 }
 
@@ -90,18 +71,10 @@ export function clearDrawings(symbol) {
   try {
     window.localStorage.removeItem(storageKey(symbol));
   } catch {
-    // ignore
   }
 }
 
-/* ------------------------------------------------------------------ */
-/*  Validation + normalization                                        */
-/* ------------------------------------------------------------------ */
 
-/**
- * Returns a normalized copy of `d` (points sorted, metadata verified)
- * or `null` if the drawing is malformed / unsalvageable.
- */
 export function normalizeDrawing(d) {
   if (!d || typeof d !== 'object') return null;
   if (!d.id || !d.mode) return null;
@@ -121,7 +94,7 @@ export function normalizeDrawing(d) {
   if (d.mode === DRAWING_MODES.TRENDLINE) {
     if (d.points.length < 2) return null;
     const sorted = normalizeTrendlinePoints(d.points[0], d.points[1]);
-    if (!sorted) return null; // degenerate (same time)
+    if (!sorted) return null;
     return {
       id: d.id,
       mode: d.mode,

@@ -1,7 +1,3 @@
-// apps/api/src/routes/ai.routes.js
-//
-// BYOK routes mounted at /api/ai.
-// All routes require authentication.
 
 import { Router } from 'express';
 import { requireAuth } from '../middleware/auth.js';
@@ -12,7 +8,6 @@ export const aiRoutes = Router();
 
 aiRoutes.use(requireAuth);
 
-// Limit key-testing to prevent abuse (5 tests per minute)
 const testLimiter = rateLimit({
   windowMs: 60_000,
   max: 5,

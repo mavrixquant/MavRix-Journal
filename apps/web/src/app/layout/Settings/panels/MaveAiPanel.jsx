@@ -1,25 +1,3 @@
-// apps/web/src/app/layout/Settings/panels/MaveAiPanel.jsx
-//
-// BYOK configuration panel for Mave AI.
-//
-// Multi-provider layout:
-//   1. Hero blurb explaining what BYOK buys you.
-//   2. Saved credentials list — one card per provider. Each card shows
-//      the models in rotation and lets the user toggle individual models
-//      on/off (PATCH /settings/:provider/models).
-//   3. Add / edit form — provider dropdown (all 6, ordered per
-//      AI_PROVIDERS), API key, optional primary model override, Test, Save.
-//
-// Test Key behaviour (since 20261023):
-//   The server verifies the key against the provider's /models endpoint.
-//   NO chat call is made, and NO model is sent. This means a stale or
-//   deprecated model can never cause the test to falsely fail — the test
-//   only asserts that the KEY is valid.
-//
-// Save Key behaviour:
-//   Server rejects 401/403 (bad key). Falls back to curated models on
-//   transient failure. Response's `discovered` flag reflects which path
-//   was taken.
 
 import { useState, useEffect, useMemo } from 'react';
 import {
@@ -44,9 +22,6 @@ import {
 } from '@/shared/api/ai';
 import Alert from '@/shared/components/Alert';
 
-/* ------------------------------------------------------------------ */
-/*  Local CSS                                                          */
-/* ------------------------------------------------------------------ */
 const CSS = `
   .mave-panel {
     display: flex;
@@ -238,9 +213,6 @@ const CSS = `
   }
 `;
 
-/* ------------------------------------------------------------------ */
-/*  Saved-credential card                                              */
-/* ------------------------------------------------------------------ */
 
 function SavedCredentialCard({ cred, onRequestDelete, onToggleModel, updating }) {
   const [expanded, setExpanded] = useState(false);
@@ -302,9 +274,6 @@ function SavedCredentialCard({ cred, onRequestDelete, onToggleModel, updating })
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Main                                                               */
-/* ------------------------------------------------------------------ */
 
 export default function MaveAiPanel() {
   const { data: credentials = [], isLoading: loadingSettings } = useAiSettings();
@@ -354,9 +323,6 @@ export default function MaveAiPanel() {
   const selectedMeta = getProviderMeta(provider);
   const isProviderSaved = savedProviders.has(provider);
 
-  // Test Key — sends ONLY provider + apiKey. The server validates via the
-  // provider's /models endpoint. No chat model is involved, so this can
-  // never falsely fail on a deprecated or paid-only model.
   const handleTest = async () => {
     setErrorMsg('');
     if (!apiKey.trim()) {
@@ -452,7 +418,7 @@ export default function MaveAiPanel() {
       <style>{CSS}</style>
       <div className="mave-panel">
 
-        {/* Hero */}
+        {}
         <div className="mave-hero">
           <div className="mave-hero-icon">
             <Sparkles size={20} />
@@ -468,7 +434,7 @@ export default function MaveAiPanel() {
           </div>
         </div>
 
-        {/* Saved credentials */}
+        {}
         {credentials.length > 0 && (
           <div className="settings-section">
             <h4 className="settings-section-title">
@@ -492,7 +458,7 @@ export default function MaveAiPanel() {
           </div>
         )}
 
-        {/* Add / edit form */}
+        {}
         <div className="settings-section">
           <h4 className="settings-section-title">
             {isProviderSaved

@@ -1,12 +1,3 @@
-// apps/web/src/features/personal/chats/components/FriendRequestsPanel.jsx
-//
-// PHASE 6 — presented as a MODAL DIALOG (matching AddFriendModal's visual
-// language) instead of the previous inline side-pane. Called from
-// FriendsTab via <FriendRequestsPanel isOpen onClose onOpenAddFriend />.
-//
-// All request-accept / decline / cancel logic is unchanged from the
-// previous version. Only the wrapper (Portal + overlay + modal chrome)
-// is new.
 
 import { X, Check, Inbox } from 'lucide-react';
 import { toast } from 'sonner';
@@ -234,7 +225,7 @@ export default function FriendRequestsPanel({
           aria-label="Friend requests"
           ref={trapRef}
         >
-          {/* ---------- Header ---------- */}
+          {}
           <div className="frm2-head">
             <div className="frm2-head-icon">
               <Inbox size={18} />
@@ -259,7 +250,7 @@ export default function FriendRequestsPanel({
             </div>
           </div>
 
-          {/* ---------- Body ---------- */}
+          {}
           <div className="frm2-body">
             {isLoading && (
               <div className="side-pane-loading">Loading requests…</div>
@@ -372,7 +363,7 @@ export default function FriendRequestsPanel({
             )}
           </div>
 
-          {/* ---------- Footer ---------- */}
+          {}
           <div className="frm2-foot">
             <span className="frm2-count">
               {incoming.length} incoming · {outgoing.length} sent

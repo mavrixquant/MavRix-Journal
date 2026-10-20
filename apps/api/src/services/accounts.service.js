@@ -1,4 +1,3 @@
-﻿// apps/api/src/services/accounts.service.js
 import { prisma } from '../lib/prisma.js';
 import { HttpError } from '../middleware/error.js';
 import { broadcastToUser } from '../lib/broadcaster.js';
@@ -78,7 +77,6 @@ export async function deleteAccount(userId, accountId) {
   });
   if (!existing) throw new HttpError(404, 'Account not found');
   await prisma.account.delete({ where: { id: accountId } });
-  // Deleting an account cascades to its trades.
   notify(userId, [['accounts'], ['trades', accountId]]);
   return { ok: true };
 }

@@ -1,4 +1,3 @@
-// apps/web/src/features/accounts/components/AccountFormModal.jsx
 import { useState, useEffect } from 'react';
 import { FaTimes } from 'react-icons/fa';
 
@@ -32,15 +31,6 @@ const EMPTY_FORM = {
   type: 'Backtest',
 };
 
-/**
- * Create/edit modal for a trading account.
- *
- * Props:
- *   isOpen    — boolean. When true, the modal renders.
- *   account   — existing account object (edit mode) or null (create mode).
- *   onClose   — called when the modal should close (backdrop click, X,
- *               cancel button, successful save).
- */
 export default function AccountFormModal({ isOpen, account, onClose }) {
   const { user } = useAuth();
   const editingId = account?.id ?? null;
@@ -56,7 +46,6 @@ export default function AccountFormModal({ isOpen, account, onClose }) {
   const [commissionMode, setCommissionMode] = useState('none');
   const [commissionValue, setCommissionValue] = useState('');
 
-  // Hydrate form whenever the modal opens with a different target.
   useEffect(() => {
     if (!isOpen) return;
 
@@ -138,7 +127,6 @@ export default function AccountFormModal({ isOpen, account, onClose }) {
       } else {
         await createAccount(user.uid, accountData);
       }
-      // Force the accounts query to refetch immediately:
       queryClient.invalidateQueries({ queryKey: ['accounts'] });
       onClose();
     } catch (error) {
@@ -183,7 +171,7 @@ export default function AccountFormModal({ isOpen, account, onClose }) {
           >
             <div className="acc-modal-body">
 
-              {/* Name */}
+              {}
               <div>
                 <label className="acc-label">Account Name</label>
                 <input
@@ -197,7 +185,7 @@ export default function AccountFormModal({ isOpen, account, onClose }) {
                 />
               </div>
 
-              {/* Balance / Currency / Type */}
+              {}
               <div className="acc-grid-3">
                 <div>
                   <label className="acc-label">Balance</label>
@@ -241,7 +229,7 @@ export default function AccountFormModal({ isOpen, account, onClose }) {
                 </div>
               </div>
 
-              {/* Risk */}
+              {}
               <div className="acc-field-group">
                 <span className="acc-field-group-title">Risk Strategy</span>
 
@@ -298,7 +286,7 @@ export default function AccountFormModal({ isOpen, account, onClose }) {
                 )}
               </div>
 
-              {/* Stop Loss (Backtest only) */}
+              {}
               {formData.type === 'Backtest' && (
                 <div className="acc-field-group">
                   <span className="acc-field-group-title">Stop Loss Settings</span>
@@ -338,7 +326,7 @@ export default function AccountFormModal({ isOpen, account, onClose }) {
                 </div>
               )}
 
-              {/* Commission */}
+              {}
               <div className="acc-field-group">
                 <span className="acc-field-group-title">Commission</span>
 

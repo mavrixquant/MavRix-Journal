@@ -1,12 +1,8 @@
-// apps/web/src/features/dashboard/components/panels/TradeTable.jsx
 import { useMemo } from 'react';
 import { useAppContext } from '@/app/providers/AppProvider';
 import { useStats } from '@/features/dashboard/hooks/useStats';
 import DataTable from '@/shared/ui/data-table';
 
-/* ------------------------------------------------------------------ */
-/*  Helpers                                                            */
-/* ------------------------------------------------------------------ */
 function formatTimeWithAMPM(timeStr) {
   if (!timeStr) return 'Ã¢â‚¬â€';
   if (/^\d{2}:\d{2}/.test(timeStr)) {
@@ -25,9 +21,6 @@ function formatMoney(v) {
   return `${sign}$${Math.abs(n).toFixed(2)}`;
 }
 
-/* ------------------------------------------------------------------ */
-/*  Cell renderers (pure)                                              */
-/* ------------------------------------------------------------------ */
 function ResultTag({ value }) {
   if (!value) return 'Ã¢â‚¬â€';
   const cls =
@@ -41,9 +34,6 @@ function DirText({ value }) {
   return <span style={{ color, fontWeight: 600 }}>{value}</span>;
 }
 
-/* ------------------------------------------------------------------ */
-/*  Build columns dynamically (base + dynamic keys)                    */
-/* ------------------------------------------------------------------ */
 function buildColumns(dynamicKeys, isMoney) {
   const base = [
     {
@@ -139,7 +129,6 @@ function buildColumns(dynamicKeys, isMoney) {
     cell: (ctx) => <ResultTag value={ctx.getValue()} />,
   });
 
-  // Append dynamic (user-defined) columns
   const dynamicCols = dynamicKeys.map((key) => ({
     id: key,
     accessorFn: (row) => row.dynamic?.[key] ?? 'Ã¢â‚¬â€',
@@ -152,9 +141,6 @@ function buildColumns(dynamicKeys, isMoney) {
   return [...base, ...dynamicCols];
 }
 
-/* ------------------------------------------------------------------ */
-/*  Component                                                          */
-/* ------------------------------------------------------------------ */
 export default function TradeTable() {
   const { state } = useAppContext();
   const { stats, metric } = useStats();
@@ -168,7 +154,6 @@ export default function TradeTable() {
     [dynamicKeys, isMoney]
   );
 
-  // Search should scan all base fields + dynamic fields
   const searchableIds = useMemo(() => {
     const base = ['date', 'entry', 'exit', 'dir', 'mae', 'mfe', 'result'];
     if (isMoney) base.push('score');

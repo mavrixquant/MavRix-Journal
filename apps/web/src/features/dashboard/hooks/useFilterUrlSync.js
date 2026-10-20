@@ -1,25 +1,7 @@
-// apps/web/src/features/dashboard/hooks/useFilterUrlSync.js
 import { useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAppContext, actions } from '@/app/providers/AppProvider';
 
-/* ------------------------------------------------------------------ */
-/*  Serialization helpers                                              */
-/*                                                                    */
-/*  Delimiters:                                                       */
-/*    · '|' separates array items                                     */
-/*    · ':' separates key from value                                  */
-/*    · ',' separates multiple values for a single key                */
-/*                                                                    */
-/*  Example URL:                                                      */
-/*    ?fs=setup:Breakout,ORB|factors:VWAP                             */
-/*    &stm=session                                                    */
-/*    &ss=NY%20AM|NY%20PM                                             */
-/*    &stb=09:30|10:00                                                */
-/*    &aft=day                                                        */
-/*    &fp=sessionLimit:2|dayLimit:3|winLimit:2|lossLimit:1            */
-/*    &strat=cuid1,cuid2                                              */
-/* ------------------------------------------------------------------ */
 
 const DYN_KEY = 'fs';
 const ST_MODE_KEY = 'stm';
@@ -78,15 +60,11 @@ function deserializeParams(str) {
   return result;
 }
 
-/* ------------------------------------------------------------------ */
-/*  The sync hook                                                      */
-/* ------------------------------------------------------------------ */
 export function useFilterUrlSync() {
   const { state, dispatch } = useAppContext();
   const [searchParams, setSearchParams] = useSearchParams();
   const hydratedRef = useRef(false);
 
-  /* -------- URL → Reducer (once, on mount) -------- */
   useEffect(() => {
     if (hydratedRef.current) return;
     hydratedRef.current = true;
@@ -99,7 +77,6 @@ export function useFilterUrlSync() {
     const fp = searchParams.get(FILTER_PARAMS_KEY);
     const strat = searchParams.get(STRATEGY_KEY);
 
-    // Nothing in the URL — leave defaults untouched.
     if (!fs && !stm && !ss && !stb && !aft && !fp && !strat) return;
 
     if (fs) {
@@ -138,10 +115,8 @@ export function useFilterUrlSync() {
         dispatch({ type: actions.SET_FILTER_PARAMS, payload: parsed });
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  /* -------- Reducer → URL (on every filter state change) -------- */
   useEffect(() => {
     const next = new URLSearchParams(searchParams);
 
@@ -160,7 +135,6 @@ export function useFilterUrlSync() {
       state.activeFilterType === 'none' ? '' : state.activeFilterType
     );
 
-    // Only serialize filterParams that differ from defaults.
     const defaults = {
       sessionLimit: 2,
       dayLimit: 2,
@@ -173,13 +147,11 @@ export function useFilterUrlSync() {
     }
     setOrDelete(FILTER_PARAMS_KEY, serializeParams(dirtyParams));
 
-    // Only push if the URL actually changed.
     const nextStr = next.toString();
     const currentStr = searchParams.toString();
     if (nextStr !== currentStr) {
       setSearchParams(next, { replace: true });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     state.filterSelections,
     state.strategyIds,
