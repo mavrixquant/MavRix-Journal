@@ -2,6 +2,7 @@ import { Pencil, MoreHorizontal, CornerUpLeft, Check, CheckCheck, Clock } from '
 import { formatTime } from '@/shared/format/datetime';
 import MaveAiAvatar from './MaveAiAvatar';
 import SystemMessage from './SystemMessage';
+import MessageBody from './MessageBody';
 
 function initialsOf(user) {
   if (!user) return '?';
@@ -104,7 +105,7 @@ export default function MessageBubble({
         ) : (
           <div className="msg-bubble-wrap">
             <div className={`msg-bubble${isDeleted ? ' is-deleted' : ''}`}>
-              {isDeleted ? '[message deleted]' : (message.body || '')}
+              {isDeleted ? '[message deleted]' : <MessageBody body={message.body || ''} />}
             </div>
             {showHover && (
               <div className="msg-hover-actions">
