@@ -1,12 +1,11 @@
-﻿// apps/web/src/features/personal/chats/components/GroupProfilePanel.jsx
+// apps/web/src/features/personal/chats/components/GroupProfilePanel.jsx
 //
-// Right-panel contents for a group. This is where member management now
-// lives (previously in GroupSettingsModal's Members tab).
+// Right-panel contents for a group. This is where member management lives.
 //
 //   Group card     → avatar + name + description + visibility badges
 //   Members list   → role chips + per-member actions (admin only) +
 //                    inline "Add member" search (admin only)
-//   Actions        → Group settings (admin only) · Leave group
+//   Actions        → Group settings (admin only) · Leave group · Clear chat
 
 import { useState, useMemo, useEffect } from 'react';
 import {
@@ -20,6 +19,7 @@ import {
   Settings as SettingsIcon,
   LogOut,
   Loader2,
+  Eraser,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -30,6 +30,7 @@ import {
   useSetGroupMemberRole,
   useLeaveGroup,
   useChatUserSearch,
+  useClearChat,
 } from '@/shared/api/chat';
 import Alert from '@/shared/components/Alert';
 import GroupAvatar from './GroupAvatar';
@@ -78,6 +79,7 @@ export default function GroupProfilePanel({
   const removeMember = useRemoveGroupMember();
   const setRole = useSetGroupMemberRole();
   const leaveGroup = useLeaveGroup();
+  const clearChatMutation = useClearChat();
 
   const [addMode, setAddMode] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -87,6 +89,7 @@ export default function GroupProfilePanel({
 
   const [pendingRemove, setPendingRemove] = useState(null);
   const [pendingLeave, setPendingLeave] = useState(false);
+  const [pendingClear, setPendingClear] = useState(false);
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedTerm(searchTerm.trim()), 300);
@@ -155,9 +158,20 @@ export default function GroupProfilePanel({
     }
   };
 
+  const handleConfirmClear = async () => {
+    setPendingClear(false);
+    try {
+      await clearChatMutation.mutateAsync(groupId);
+      toast.success('Chat cleared from your view.');
+    } catch (err) {
+      toast.error(err?.message || 'Could not clear chat');
+    }
+  };
+
   /* ---------------- Render ---------------- */
 
   const memberCount = members.length || conversation.memberCount || 0;
+  const clearBusy = clearChatMutation.isPending;
 
   return (
     <>
@@ -403,6 +417,17 @@ export default function GroupProfilePanel({
                   <span>Group settings</span>
                 </button>
               )}
+
+              <button
+                type="button"
+                className="panel-action"
+                onClick={() => setPendingClear(true)}
+                disabled={clearBusy}
+              >
+                <Eraser size={14} />
+                <span>Clear chat</span>
+              </button>
+
               {!isLastOwner && (
                 <button
                   type="button"
@@ -428,6 +453,17 @@ export default function GroupProfilePanel({
         cancelText="Cancel"
         onConfirm={handleLeave}
         onCancel={() => setPendingLeave(false)}
+      />
+
+      <Alert
+        isOpen={pendingClear}
+        type="confirm"
+        title="Clear this chat?"
+        message={`Clear all messages from "${conversation.name}" in your view? Other members will still see their own copy. This cannot be undone.`}
+        confirmText="Clear chat"
+        cancelText="Cancel"
+        onConfirm={handleConfirmClear}
+        onCancel={() => setPendingClear(false)}
       />
 
       <Alert

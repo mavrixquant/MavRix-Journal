@@ -14,6 +14,7 @@
 //   - search:       30 / min / user
 //   - delivered:    600 / min / user (one per inbound message, high ceiling)
 //   - group actions: 30 / min / user (discovery, join, leave, member-list)
+//   - clear chat:   5 / min / user (expensive — one is enough)
 
 import { Router } from 'express';
 import {
@@ -70,6 +71,12 @@ const groupActionLimiter = rateLimit({
   message: 'Too many group actions. Slow down.',
 });
 
+const clearLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 5,
+  message: 'Too many clear requests. Slow down.',
+});
+
 /* ---------------- Users ---------------- */
 
 chatRoutes.get(
@@ -119,6 +126,13 @@ chatRoutes.patch(
   validate(updateConversationSchema),
   ctrl.updateConversation
 );
+
+/* ---------------- Clear chat ---------------- */
+//
+// Mounted BEFORE the messages/:messageId routes so `:id` here matches
+// the conversation id, not a message id.
+
+chatRoutes.post('/conversations/:id/clear', clearLimiter, ctrl.clearChat);
 
 /* ---------------- Messages ---------------- */
 

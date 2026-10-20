@@ -80,6 +80,13 @@ export async function updateConversation(id, patch) {
   });
 }
 
+export async function clearChat(conversationId) {
+  return apiJson(
+    `/api/chat/conversations/${encodeURIComponent(conversationId)}/clear`,
+    { method: 'POST' }
+  );
+}
+
 /* ------------------------------------------------------------------ */
 /*  Raw fetchers — messages                                            */
 /* ------------------------------------------------------------------ */
@@ -402,6 +409,18 @@ export function useUpdateConversation() {
   });
 }
 
+export function useClearChat() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (conversationId) => clearChat(conversationId),
+    onSuccess: (_r, conversationId) => {
+      qc.invalidateQueries({ queryKey: chatKeys.messages(conversationId) });
+      qc.invalidateQueries({ queryKey: chatKeys.conversations() });
+      qc.invalidateQueries({ queryKey: chatKeys.conversation(conversationId) });
+    },
+  });
+}
+
 let __tempCounter = 0;
 function nextTempId() {
   __tempCounter += 1;
@@ -610,10 +629,6 @@ export function useLeaveGroup() {
 
 /* ------------------------------------------------------------------ */
 /*  Hooks - group administration                                       */
-/*                                                                     */
-/*  These call /api/admin/groups/* — backend requires admin role.      */
-/*  Centralizing them here lets the chat feature call them without     */
-/*  violating the feature-boundary ESLint rule.                        */
 /* ------------------------------------------------------------------ */
 
 function useInvalidateAdminGroup() {
@@ -622,7 +637,6 @@ function useInvalidateAdminGroup() {
     qc.invalidateQueries({ queryKey: ['admin', 'groups'] });
     qc.invalidateQueries({ queryKey: ['admin', 'audit'] });
     if (groupId) qc.invalidateQueries({ queryKey: ['admin', 'group', groupId] });
-    // The user-side chat list also changes when membership changes.
     qc.invalidateQueries({ queryKey: chatKeys.conversations() });
     qc.invalidateQueries({ queryKey: ['chat', 'groups', 'discover'] });
     if (groupId) qc.invalidateQueries({ queryKey: chatKeys.groupMembers(groupId) });

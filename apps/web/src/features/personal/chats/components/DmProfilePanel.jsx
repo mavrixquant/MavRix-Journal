@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import {
   X, Mail, UserRoundPlus, UserMinus, ShieldOff, Bell, BellOff, Pin, PinOff,
-  Archive, ArchiveRestore, Check, Loader2, Sparkles,
+  Archive, ArchiveRestore, Check, Loader2, Sparkles, Eraser,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useFriendStatus, useSendFriendRequest, useRemoveFriend } from '@/shared/api/friends';
-import { useUpdateConversation } from '@/shared/api/chat';
+import { useUpdateConversation, useClearChat } from '@/shared/api/chat';
 import Alert from '@/shared/components/Alert';
 import BlockConfirmModal from './BlockConfirmModal';
 import MaveAiAvatar from './MaveAiAvatar';
@@ -35,15 +35,18 @@ export default function DmProfilePanel({ peer, conversation, onClose }) {
   const sendRequest = useSendFriendRequest();
   const removeFriend = useRemoveFriend();
   const updateConvo = useUpdateConversation();
+  const clearChatMutation = useClearChat();
 
   const [pendingRemoveFriend, setPendingRemoveFriend] = useState(false);
   const [pendingBlock, setPendingBlock] = useState(false);
+  const [pendingClear, setPendingClear] = useState(false);
 
   const isFriend = isAi ? true : !!status?.isFriend;
   const hasOutgoing = !!status?.hasOutgoingRequest;
   const hasIncoming = !!status?.hasIncomingRequest;
 
-  const busy = statusLoading || sendRequest.isPending || removeFriend.isPending || updateConvo.isPending;
+  const busy = statusLoading || sendRequest.isPending || removeFriend.isPending ||
+    updateConvo.isPending || clearChatMutation.isPending;
 
   const handleAddFriend = async () => {
     try { await sendRequest.mutateAsync({ toUserId: peerId }); toast.success(`Friend request sent to ${displayNameOf(peer)}`); }
@@ -56,11 +59,29 @@ export default function DmProfilePanel({ peer, conversation, onClose }) {
     catch (err) { toast.error(err?.message || 'Could not remove friend'); }
   };
 
+  const handleConfirmClear = async () => {
+    setPendingClear(false);
+    try {
+      const result = await clearChatMutation.mutateAsync(conversation.id);
+      toast.success(
+        result?.scope === 'all'
+          ? 'Conversation cleared — Mave AI memory reset.'
+          : 'Chat cleared from your view.'
+      );
+    } catch (err) {
+      toast.error(err?.message || 'Could not clear chat');
+    }
+  };
+
   const toggleFlag = (key) => {
     updateConvo.mutate({ conversationId: conversation.id, patch: { [key]: !conversation[key] } });
   };
 
   if (!peer) return null;
+
+  const clearMessage = isAi
+    ? `Clear all messages with Mave AI? This resets the AI's memory of this conversation — the next reply starts fresh. This cannot be undone.`
+    : `Clear all messages from your view? ${displayNameOf(peer)} will still see the messages on their side. This cannot be undone.`;
 
   return (
     <>
@@ -124,13 +145,18 @@ export default function DmProfilePanel({ peer, conversation, onClose }) {
                 {conversation.isPinned ? <PinOff size={14} /> : <Pin size={14} />}
                 <span>{conversation.isPinned ? 'Unpin' : 'Pin'}</span>
               </button>
-              
+
               {!isAi && (
                 <button type="button" className="panel-action" onClick={() => toggleFlag('isArchived')} disabled={busy}>
                   {conversation.isArchived ? <ArchiveRestore size={14} /> : <Archive size={14} />}
                   <span>{conversation.isArchived ? 'Unarchive' : 'Archive'}</span>
                 </button>
               )}
+
+              <button type="button" className="panel-action" onClick={() => setPendingClear(true)} disabled={busy}>
+                <Eraser size={14} />
+                <span>{isAi ? 'Clear & reset memory' : 'Clear chat'}</span>
+              </button>
             </div>
           </div>
 
@@ -150,6 +176,14 @@ export default function DmProfilePanel({ peer, conversation, onClose }) {
       <Alert isOpen={pendingRemoveFriend} type="confirm" title="Remove friend?"
         message={`Remove ${displayNameOf(peer)} from your friends? You can always send a new request later.`}
         confirmText="Remove" cancelText="Cancel" onConfirm={handleRemoveFriend} onCancel={() => setPendingRemoveFriend(false)} />
+
+      <Alert isOpen={pendingClear} type="confirm"
+        title={isAi ? 'Clear & reset Mave AI?' : 'Clear this chat?'}
+        message={clearMessage}
+        confirmText={isAi ? 'Clear & reset' : 'Clear chat'}
+        cancelText="Cancel"
+        onConfirm={handleConfirmClear}
+        onCancel={() => setPendingClear(false)} />
 
       <BlockConfirmModal isOpen={pendingBlock} user={peer} onClose={() => setPendingBlock(false)} />
     </>

@@ -50,6 +50,17 @@ export async function updateConversation(req, res, next) {
 }
 
 /* ------------------------------------------------------------------ */
+/*  Clear chat                                                         */
+/* ------------------------------------------------------------------ */
+
+export async function clearChat(req, res, next) {
+  try {
+    const result = await svc.clearChat(req.userId, req.params.id);
+    res.json(result);
+  } catch (e) { next(e); }
+}
+
+/* ------------------------------------------------------------------ */
 /*  Messages                                                           */
 /* ------------------------------------------------------------------ */
 

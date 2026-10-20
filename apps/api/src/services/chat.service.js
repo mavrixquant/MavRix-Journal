@@ -7,6 +7,10 @@
 // Phase 4 additions:
 //   - Mave AI trigger (triggers when peer is AI)
 //   - Archive protection (blocks archiving an AI conversation)
+//
+// Phase 2-Clear addition:
+//   - clearChat() endpoint. AI conversations hard-delete messages (resets
+//     buildContext() memory). Human DM/Group clears only for the caller.
 
 import { prisma } from '../lib/prisma.js';
 import { HttpError } from '../middleware/error.js';
@@ -129,7 +133,7 @@ function serializeConversation(c, userId, participantRow, extras = {}) {
 
   if (!isGroup) {
     base.isFriend = !!extras.isFriend;
-    base.isAi = !!extras.isAi; // NEW: flag for Mave AI
+    base.isAi = !!extras.isAi; // flag for Mave AI
     if (!extras.isFriend && !extras.isAi && typeof extras.messagesRemaining === 'number') {
       base.messagesRemaining = extras.messagesRemaining;
     }
@@ -421,7 +425,7 @@ export async function getConversation(userId, conversationId) {
     if (peerId) {
       const isAi = peerId === aiId;
       extras.isAi = isAi;
-      
+
       if (!isAi) {
         const friend = await areFriends(userId, peerId);
         extras.isFriend = friend;
@@ -445,11 +449,11 @@ export async function updateConversation(userId, conversationId, patch) {
 
   const aiId = getMaveAiId();
 
-  // NEW: Prevent archiving the Mave AI conversation
+  // Prevent archiving the Mave AI conversation
   if (patch.isArchived === true && aiId) {
     const conv = await prisma.conversation.findUnique({
       where: { id: conversationId },
-      select: { type: true, participants: { select: { userId: true } } }
+      select: { type: true, participants: { select: { userId: true } } },
     });
     if (conv?.type === 'dm' && conv.participants.some((p) => p.userId === aiId)) {
       throw new HttpError(403, 'Mave AI conversations cannot be archived.');
@@ -467,6 +471,84 @@ export async function updateConversation(userId, conversationId, patch) {
     data,
   });
   return { ok: true };
+}
+
+/* ------------------------------------------------------------------ */
+/*  Clear chat                                                         */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Clear all messages in a conversation from the CALLER's view.
+ *
+ * Two behaviours:
+ *   • AI conversation (peer === Mave AI)
+ *       Hard-delete every message. This resets buildContext()'s memory
+ *       because those rows no longer exist.
+ *   • Human DM or group
+ *       Soft-clear for THIS user only. Messages stay in the DB; we append
+ *       userId to Message.deletedForIds so every read path hides them.
+ *
+ * Idempotent — a second call is a no-op.
+ *
+ * Known limitation: if the user clears an AI conversation WHILE a reply
+ * is being generated, the reply still lands after the clear (the AI
+ * pipeline doesn't abort mid-flight). Acceptable for v1.
+ */
+export async function clearChat(userId, conversationId) {
+  await assertAccessibleConversation(userId, conversationId);
+
+  const conv = await prisma.conversation.findUnique({
+    where: { id: conversationId },
+    select: {
+      type: true,
+      participants: { select: { userId: true } },
+    },
+  });
+  if (!conv) throw new HttpError(404, 'Conversation not found');
+
+  const aiId = getMaveAiId();
+  const isAiConversation =
+    conv.type === 'dm' &&
+    aiId &&
+    conv.participants.some((p) => p.userId === aiId);
+
+  if (isAiConversation) {
+    // Hard delete — resets Mave AI's memory of this thread.
+    await prisma.$transaction([
+      prisma.message.deleteMany({ where: { conversationId } }),
+      prisma.conversation.update({
+        where: { id: conversationId },
+        data: {
+          lastMessageText: null,
+          lastMessageById: null,
+          lastMessageAt: new Date(),
+        },
+      }),
+      prisma.conversationParticipant.update({
+        where: { conversationId_userId: { conversationId, userId } },
+        data: { unreadCount: 0, lastReadAt: new Date(), lastReadMsgId: null },
+      }),
+    ]);
+
+    broadcastToUser(userId, 'chat:cleared', { conversationId, scope: 'all' });
+    return { ok: true, scope: 'all' };
+  }
+
+  // Human DM or group — soft-clear for THIS user only.
+  await prisma.$executeRaw`
+    UPDATE "messages"
+    SET "deletedForIds" = array_append("deletedForIds", ${userId})
+    WHERE "conversationId" = ${conversationId}
+      AND NOT (${userId} = ANY("deletedForIds"))
+  `;
+
+  await prisma.conversationParticipant.update({
+    where: { conversationId_userId: { conversationId, userId } },
+    data: { unreadCount: 0, lastReadAt: new Date(), lastReadMsgId: null },
+  });
+
+  broadcastToUser(userId, 'chat:cleared', { conversationId, scope: 'me' });
+  return { ok: true, scope: 'me' };
 }
 
 /* ------------------------------------------------------------------ */
@@ -520,11 +602,9 @@ export async function sendMessage(userId, conversationId, { body, replyToId }) {
 
   const aiId = getMaveAiId();
 
-  // ------------------------------------------------------------------
   // Non-friend DM cap. Only applies to DMs (groups have their own
   // membership rules). Admins, friends, and group members are unlimited.
   // Also bypass the cap for Mave AI.
-  // ------------------------------------------------------------------
   const conv = await prisma.conversation.findUnique({
     where: { id: conversationId },
     select: {
@@ -612,7 +692,7 @@ export async function sendMessage(userId, conversationId, { body, replyToId }) {
     broadcastToUser(pid, 'chat:message:new', payload);
   }
 
-  // NEW: Trigger Mave AI if this is a DM with the AI
+  // Trigger Mave AI if this is a DM with the AI
   if (conv?.type === 'dm' && aiId) {
     const peerId = conv.participants.find((p) => p.userId !== userId)?.userId;
     if (peerId === aiId) {
