@@ -1,11 +1,9 @@
 // ============================================================================
 // Chat service — DMs, groups, friends-aware, Mave AI (Guide / Trainer / Chat).
 //
-// Multi-persona Mave AI:
-//   - Three sentinel users (isAi = true) — Guide, Trainer, Chat.
-//   - Each human has one DM with each persona.
-//   - Checks use isAnyMaveAiId() instead of a single aiId.
-//   - Serialized conversations include `aiPersona` so the UI can group.
+// Mave AI is REACHABLE here (via the dedicated sidebar), but AI users are
+// NOT friends. `extras.isFriend` is set to false for AI DMs. Messaging still
+// works because sendMessage() explicitly bypasses friend checks for AI.
 // ============================================================================
 
 import { prisma } from '../lib/prisma.js';
@@ -231,7 +229,7 @@ export async function getOrCreateDm(userId, peerId) {
 
   if (existing) {
     const myRow = await assertParticipant(userId, existing.id);
-    const friend = peer.isAi ? true : await areFriends(userId, peerId);
+    const friend = peer.isAi ? false : await areFriends(userId, peerId);
     const extras = {
       isFriend: friend,
       isAi: peer.isAi,
@@ -262,7 +260,7 @@ export async function getOrCreateDm(userId, peerId) {
   });
 
   const myRow = await assertParticipant(userId, created.id);
-  const friend = peer.isAi ? true : await areFriends(userId, peerId);
+  const friend = peer.isAi ? false : await areFriends(userId, peerId);
 
   return serializeConversation(created, userId, myRow, {
     isFriend: friend,
@@ -385,7 +383,7 @@ export async function listConversations(userId) {
 
       if (isAi) {
         extras.aiPersona = getPersonaForAiId(peerId);
-        extras.isFriend = true;
+        extras.isFriend = false;
       } else {
         const fs = friendStatus[peerId];
         extras.isFriend = !!fs?.isFriend;
@@ -423,7 +421,7 @@ export async function getConversation(userId, conversationId) {
 
       if (isAi) {
         extras.aiPersona = getPersonaForAiId(peerId);
-        extras.isFriend = true;
+        extras.isFriend = false;
       } else {
         const friend = await areFriends(userId, peerId);
         extras.isFriend = friend;

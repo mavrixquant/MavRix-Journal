@@ -4,7 +4,6 @@ import {
   Archive,
   MessageSquare,
   Users,
-  Sparkles,
 } from 'lucide-react';
 
 import { useTypingConversations } from '@/shared/api/chat';
@@ -16,7 +15,6 @@ import SidebarTabs from './SidebarTabs';
 import SidebarSkeleton from './SidebarSkeleton';
 import ConversationRow from './ConversationRow';
 import SidebarFab from './SidebarFab';
-import MaveAiAvatar from './MaveAiAvatar';
 
 const SEARCH_DEBOUNCE_MS = 200;
 
@@ -29,112 +27,8 @@ function sortConversations(arr) {
   });
 }
 
-function formatRelativeShort(iso) {
-  if (!iso) return '';
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '';
-  const now = new Date();
-  const sameDay = d.toDateString() === now.toDateString();
-  if (sameDay) {
-    return d.toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-    });
-  }
-  return d.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-  });
-}
-
-const BADGE_STYLE = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  gap: 4,
-  padding: '2px 7px',
-  borderRadius: 99,
-  border: '1px solid var(--accent-soft2)',
-  background: 'color-mix(in srgb, var(--accent) 8%, transparent)',
-  color: 'var(--accent)',
-  fontFamily: "'IBM Plex Mono', monospace",
-  fontSize: 9.5,
-  fontWeight: 700,
-  letterSpacing: '.06em',
-  lineHeight: 1,
-  whiteSpace: 'nowrap',
-  flexShrink: 0,
-};
-
-function AiHubRow({ hub, onClick, selected }) {
-  const { unreadCount, lastMessageText, lastMessageAt, conversations } = hub;
-
-  const personaCount = conversations.length;
-  const previewLabel =
-    lastMessageText ||
-    (personaCount > 0 ? 'Guide · Trainer · Chat' : 'Tap to start chatting');
-
-  return (
-    <button
-      type="button"
-      className={`conv-row conv-row--ai-hub${selected ? ' is-active' : ''}`}
-      onClick={onClick}
-      data-conv-row=""
-      aria-label={`Mave AI (${personaCount} personas)`}
-    >
-      <span
-        style={{
-          flexShrink: 0,
-          width: 40,
-          height: 40,
-          display: 'inline-flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <MaveAiAvatar size={40} />
-      </span>
-
-      <span className="conv-body">
-        <span
-          className="conv-row-top"
-          style={{ alignItems: 'center', display: 'flex', justifyContent: 'space-between' }}
-        >
-          <span
-            className="conv-name"
-            style={{ display: 'flex', alignItems: 'center', gap: 8, overflow: 'hidden' }}
-          >
-            <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              Mave AI
-            </span>
-            <span style={BADGE_STYLE}>
-              <Sparkles size={9} strokeWidth={2.5} style={{ display: 'block', flexShrink: 0 }} />
-              3 personas
-            </span>
-          </span>
-          <span className="conv-time" style={{ flexShrink: 0 }}>
-            {lastMessageAt
-              ? formatRelativeShort(new Date(lastMessageAt).toISOString())
-              : ''}
-          </span>
-        </span>
-
-        <span className="conv-row-bottom">
-          <span className="conv-preview">{previewLabel}</span>
-          {unreadCount > 0 && (
-            <span className="conv-badge">
-              {unreadCount > 99 ? '99+' : unreadCount}
-            </span>
-          )}
-        </span>
-      </span>
-    </button>
-  );
-}
-
 export default function ConversationList({
   conversations,
-  aiHub = null,
-  onSelectAiHub,
   selectedId,
   currentUserId,
   onSelect,
@@ -240,12 +134,7 @@ export default function ConversationList({
       ? 'Groups'
       : 'Messages';
 
-  const headerCount = archivedMode
-    ? archived.length
-    : filtered.length + (aiHub && !search ? 1 : 0);
-
-  const showAiHub =
-    !archivedMode && activeTab === 'dms' && aiHub && !search;
+  const headerCount = archivedMode ? archived.length : filtered.length;
 
   const emptyTitle = archivedMode
     ? 'No archived chats'
@@ -301,14 +190,6 @@ export default function ConversationList({
         role="list"
         aria-label={headerTitle}
       >
-        {showAiHub && (
-          <AiHubRow
-            hub={aiHub}
-            selected={aiHub.selected}
-            onClick={onSelectAiHub}
-          />
-        )}
-
         {!archivedMode && archived.length > 0 && (
           <button
             type="button"
@@ -324,7 +205,7 @@ export default function ConversationList({
 
         {isLoading ? (
           <SidebarSkeleton />
-        ) : visible.length === 0 && !showAiHub ? (
+        ) : visible.length === 0 ? (
           <div className="chat-sidebar-empty">
             <EmptyState
               size="sm"

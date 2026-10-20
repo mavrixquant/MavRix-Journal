@@ -1,3 +1,9 @@
+// ============================================================================
+// Admin group service.
+//
+// AI users (isAi = true) are NEVER group members. Both the create-time batch
+// validation and addGroupMember() reject them explicitly.
+// ============================================================================
 
 import { prisma } from '../lib/prisma.js';
 import { HttpError } from '../middleware/error.js';
@@ -6,7 +12,6 @@ import { broadcastToUser } from '../lib/broadcaster.js';
 
 const PAGE_DEFAULT = 25;
 const PAGE_MAX = 100;
-
 
 function serializePublicUser(u) {
   if (!u) return null;
@@ -48,7 +53,6 @@ const serializeGroupDetail = (c) => ({
   })),
 });
 
-
 async function assertGroupAdminPermission(actor, groupId) {
   const group = await prisma.conversation.findUnique({
     where: { id: groupId },
@@ -86,7 +90,6 @@ async function assertGroupAdminPermission(actor, groupId) {
     'You do not have permission to manage this group.'
   );
 }
-
 
 export async function listGroups(actor, {
   q = '',
@@ -137,12 +140,10 @@ export async function listGroups(actor, {
   };
 }
 
-
 export async function getGroup(actor, groupId) {
   const group = await assertGroupAdminPermission(actor, groupId);
   return serializeGroupDetail(group);
 }
-
 
 export async function createGroup(actor, payload) {
   const {
@@ -168,6 +169,7 @@ export async function createGroup(actor, payload) {
         id: { in: uniqueMemberIds },
         isBanned: false,
         emailVerified: true,
+        isAi: false,
       },
       select: { id: true },
     });
@@ -178,7 +180,7 @@ export async function createGroup(actor, payload) {
       const suffix = invalid.length > 3 ? ` and ${invalid.length - 3} more` : '';
       throw new HttpError(
         400,
-        `Some users are invalid, banned, or unverified: ${sample}${suffix}`
+        `Some users are invalid, banned, unverified, or AI: ${sample}${suffix}`
       );
     }
   }
@@ -237,7 +239,6 @@ export async function createGroup(actor, payload) {
 
   return serializeGroupDetail(created);
 }
-
 
 export async function updateGroup(actor, groupId, patch) {
   const group = await assertGroupAdminPermission(actor, groupId);
@@ -308,7 +309,6 @@ export async function updateGroup(actor, groupId, patch) {
   return serializeGroupDetail(updated);
 }
 
-
 export async function deleteGroup(actor, groupId) {
   const group = await assertGroupAdminPermission(actor, groupId);
 
@@ -337,16 +337,18 @@ export async function deleteGroup(actor, groupId) {
   return { ok: true, cascadedMessages: messageCount, cascadedMembers: memberCount };
 }
 
-
 export async function addGroupMember(actor, groupId, userId) {
   const group = await assertGroupAdminPermission(actor, groupId);
 
   const targetUser = await prisma.user.findUnique({
     where: { id: userId },
-    select: { id: true, isBanned: true, emailVerified: true, email: true },
+    select: { id: true, isBanned: true, emailVerified: true, email: true, isAi: true },
   });
   if (!targetUser || targetUser.isBanned) {
     throw new HttpError(404, 'User not found or is banned');
+  }
+  if (targetUser.isAi) {
+    throw new HttpError(403, 'AI users cannot be added to groups.');
   }
   if (!targetUser.emailVerified) {
     throw new HttpError(403, 'Cannot add a user whose email is not verified');

@@ -9,7 +9,6 @@ import {
   Archive,
   ArchiveRestore,
   Search,
-  Sparkles,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -23,7 +22,6 @@ import Alert from '@/shared/components/Alert';
 import EmptyState from '@/shared/components/EmptyState';
 import BlockConfirmModal from './BlockConfirmModal';
 import FriendRequestsPanel from './FriendRequestsPanel';
-import MaveAiAvatar from './MaveAiAvatar';
 
 function initialsOf(u) {
   if (!u) return '?';
@@ -73,69 +71,9 @@ function CountBadge({ count }) {
   );
 }
 
-const BADGE_STYLE = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  gap: 4,
-  padding: '2px 7px',
-  borderRadius: 99,
-  border: '1px solid var(--accent-soft2)',
-  background: 'color-mix(in srgb, var(--accent) 8%, transparent)',
-  color: 'var(--accent)',
-  fontFamily: "'IBM Plex Mono', monospace",
-  fontSize: 9.5,
-  fontWeight: 700,
-  letterSpacing: '.06em',
-  lineHeight: 1,
-  whiteSpace: 'nowrap',
-  flexShrink: 0,
-};
-
-function MaveAiHubRow({ onClick }) {
-  return (
-    <div
-      className="pane-row"
-      onClick={onClick}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          onClick();
-        }
-      }}
-      style={{ cursor: 'pointer' }}
-      aria-label="Open Mave AI"
-    >
-      <span
-        className="pane-row-avatar"
-        style={{ background: 'transparent', border: 'none' }}
-      >
-        <MaveAiAvatar size={40} />
-      </span>
-      <div className="pane-row-body">
-        <div
-          className="pane-row-name"
-          style={{ display: 'flex', alignItems: 'center', gap: 8, overflow: 'hidden' }}
-        >
-          <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            Mave AI
-          </span>
-          <span style={BADGE_STYLE}>
-            <Sparkles size={9} strokeWidth={2.5} style={{ display: 'block', flexShrink: 0 }} />
-            3 personas
-          </span>
-        </div>
-        <div className="pane-row-sub">Guide · Trainer · Chat</div>
-      </div>
-    </div>
-  );
-}
-
 export default function FriendsTab({
   onOpenAddFriend,
   onOpenThread,
-  onOpenAiHub,
 }) {
   const [requestsOpen, setRequestsOpen] = useState(false);
 
@@ -152,11 +90,7 @@ export default function FriendsTab({
 
   const pendingIncoming = (requests?.incoming || []).length;
 
-  const hasAi = useMemo(
-    () => friends.some((f) => f.isAi),
-    [friends]
-  );
-
+  // No AI rows in the friends tab — AI lives in its own sidebar.
   const sortedFriends = useMemo(
     () =>
       friends
@@ -227,11 +161,7 @@ export default function FriendsTab({
     );
   };
 
-  const handleOpenAiHub = () => {
-    if (typeof onOpenAiHub === 'function') onOpenAiHub();
-  };
-
-  const showEmptyNoFriends = !isLoading && !hasAi && sortedFriends.length === 0;
+  const showEmptyNoFriends = !isLoading && sortedFriends.length === 0;
   const showEmptySearch =
     !isLoading && sortedFriends.length > 0 && visible.length === 0;
 
@@ -288,13 +218,6 @@ export default function FriendsTab({
 
         <div className="side-pane-body">
           {isLoading && <div className="side-pane-loading">Loading friends…</div>}
-
-          {!isLoading && hasAi && !isSearching && (
-            <>
-              <div className="pane-section-label">AI Assistants</div>
-              <MaveAiHubRow onClick={handleOpenAiHub} />
-            </>
-          )}
 
           {!isLoading && sortedFriends.length > 0 && (
             <div className="pane-section-label">

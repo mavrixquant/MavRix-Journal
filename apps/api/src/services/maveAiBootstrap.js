@@ -2,6 +2,12 @@
 // Bootstrap three Mave AI sentinel users (Guide / Trainer / Chat), cache
 // their IDs, and ensure every human user has one DM with each persona.
 //
+// Role model:
+//   • AI users are the ONLY accounts with role = 'ai'.
+//   • isAi remains the fast boolean shortcut used throughout the app.
+//   • Both are kept in sync on every bootstrap (this file).
+//   • Admins cannot promote anyone to 'ai' — enforced in admin.service.js.
+//
 // `ensureAiDmForUser(userId)` with no persona → ensures all 3 (backward
 // compatible with legacy callers like auth.service.js).
 // ============================================================================
@@ -64,8 +70,8 @@ async function ensureOnePersona(meta) {
         firstName: meta.firstName,
         lastName: meta.lastName,
         isAi: true,
+        role: 'ai',
         emailVerified: true,
-        role: 'user',
       },
     });
     return user;
@@ -73,6 +79,7 @@ async function ensureOnePersona(meta) {
 
   const patch = {};
   if (!user.isAi) patch.isAi = true;
+  if (user.role !== 'ai') patch.role = 'ai';
   if (!user.emailVerified) patch.emailVerified = true;
   if (user.firstName !== meta.firstName) patch.firstName = meta.firstName;
   if (user.lastName !== meta.lastName) patch.lastName = meta.lastName;
@@ -180,7 +187,7 @@ export async function ensureMaveAi() {
     const user = await ensureOnePersona(meta);
     cachePersona(meta.id, user);
     console.log(
-      `[mave-ai] persona "${meta.id}" → ${user.id} (${user.email})`
+      `[mave-ai] persona "${meta.id}" → ${user.id} (${user.email}, role=${user.role})`
     );
   }
 

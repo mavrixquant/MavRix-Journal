@@ -48,6 +48,12 @@ function assertNotBanned(user) {
   }
 }
 
+function assertNotAi(user) {
+  if (user.isAi || user.role === 'ai') {
+    throw new HttpError(403, 'This account is reserved.');
+  }
+}
+
 function scheduleAiDmForUser(userId) {
   ensureAiDmForUser(userId).catch((err) => {
     console.warn(
@@ -56,7 +62,6 @@ function scheduleAiDmForUser(userId) {
     );
   });
 }
-
 
 export async function signup({ email, password, firstName, lastName }) {
   const existing = await prisma.user.findUnique({ where: { email } });
@@ -91,6 +96,7 @@ export async function login({ email, password }) {
   }
 
   assertNotBanned(user);
+  assertNotAi(user);
 
   const ok = await verifyPassword(password, user.passwordHash);
   if (!ok) throw new HttpError(401, 'Invalid email or password');
@@ -157,6 +163,7 @@ export async function refresh(refreshToken) {
   if (!user) throw new HttpError(401, 'User no longer exists');
 
   assertNotBanned(user);
+  assertNotAi(user);
 
   const tokenSv = Number.isFinite(payload.sv) ? payload.sv : 0;
   if (tokenSv !== user.tokenVersion) {
@@ -166,7 +173,6 @@ export async function refresh(refreshToken) {
   return { user: publicUser(user), ...issueTokens(user) };
 }
 
-
 export async function loginWithGoogle(accessToken) {
   const g = await verifyGoogleAccessToken(accessToken);
 
@@ -174,6 +180,7 @@ export async function loginWithGoogle(accessToken) {
     where: { googleId: g.googleId },
   });
   if (byGoogle) {
+    assertNotAi(byGoogle);
     assertNotBanned(byGoogle);
     const updated = await prisma.user.update({
       where: { id: byGoogle.id },
@@ -185,6 +192,7 @@ export async function loginWithGoogle(accessToken) {
 
   const byEmail = await prisma.user.findUnique({ where: { email: g.email } });
   if (byEmail) {
+    assertNotAi(byEmail);
     assertNotBanned(byEmail);
     if (!byEmail.emailVerified) {
       throw new HttpError(
@@ -269,11 +277,11 @@ export async function unlinkGoogleAccount(userId) {
   return publicUser(updated);
 }
 
-
 export async function requestPasswordReset(email) {
   const user = await prisma.user.findUnique({ where: { email } });
 
   if (!user) return { ok: true };
+  if (user.isAi) return { ok: true };
 
   const resetToken = generateSecureToken();
   const resetTokenExpiry = new Date(Date.now() + RESET_TTL_MS);
@@ -297,6 +305,7 @@ export async function resetPassword(token, newPassword) {
 
   const user = await prisma.user.findUnique({ where: { resetToken: token } });
   if (!user) throw new HttpError(400, 'Invalid reset token');
+  if (user.isAi) throw new HttpError(400, 'Invalid reset token');
   if (user.resetTokenExpiry && user.resetTokenExpiry < new Date()) {
     throw new HttpError(400, 'Reset token expired');
   }

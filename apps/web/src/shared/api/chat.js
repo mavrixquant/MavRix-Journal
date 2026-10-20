@@ -1,4 +1,3 @@
-
 import {
   useQuery,
   useInfiniteQuery,
@@ -14,7 +13,6 @@ import {
   getTypingConversationIds,
 } from '@/shared/chat/chatStream.js';
 
-
 export const chatKeys = {
   all: ['chat'],
   conversations: () => ['chat', 'conversations'],
@@ -24,7 +22,6 @@ export const chatKeys = {
   discoverGroups: (filterKey) => ['chat', 'groups', 'discover', filterKey],
   groupMembers: (groupId) => ['chat', 'groups', 'members', groupId],
 };
-
 
 export async function fetchConversations() {
   const data = await apiJson('/api/chat/conversations');
@@ -57,7 +54,6 @@ export async function clearChat(conversationId) {
     { method: 'POST' }
   );
 }
-
 
 export async function fetchMessages(id, { before, limit = 50 } = {}) {
   const params = new URLSearchParams();
@@ -126,7 +122,6 @@ export async function searchUsers(q) {
   return data.users;
 }
 
-
 export async function fetchDiscoverableGroups({ q, limit } = {}) {
   const params = new URLSearchParams();
   if (q) params.set('q', q);
@@ -157,7 +152,6 @@ export async function fetchGroupMembers(groupId) {
   );
   return data.members;
 }
-
 
 export async function fetchAdminGroups(filters = {}) {
   const params = new URLSearchParams();
@@ -223,14 +217,21 @@ export async function setGroupMemberRole(groupId, userId, role) {
   );
 }
 
-
-export function useChatConversations() {
+/**
+ * List the caller's conversations.
+ *
+ * @param {{ enabled?: boolean }} [options] — pass `enabled: false` to skip
+ *   the fetch until a consumer actually needs the list (e.g. the Mave AI
+ *   sidebar only fetches when it is open).
+ */
+export function useChatConversations({ enabled = true } = {}) {
   const sseFallback = useSSEFallback();
   return useQuery({
     queryKey: chatKeys.conversations(),
     queryFn: fetchConversations,
     staleTime: 15_000,
     refetchInterval: sseFallback ? 20_000 : false,
+    enabled,
   });
 }
 
@@ -334,7 +335,6 @@ export function useTypingConversations(excludeUserId) {
 
   return set;
 }
-
 
 export function useCreateConversation() {
   const qc = useQueryClient();
@@ -541,7 +541,6 @@ export function useDeleteMessage() {
   });
 }
 
-
 export function useJoinGroup() {
   const qc = useQueryClient();
   return useMutation({
@@ -576,7 +575,6 @@ export function useLeaveGroup() {
     },
   });
 }
-
 
 function useInvalidateAdminGroup() {
   const qc = useQueryClient();
@@ -658,7 +656,6 @@ export function useSetGroupMemberRole() {
     onSuccess: (_r, vars) => invalidate(vars.groupId),
   });
 }
-
 
 export function useMarkRead() {
   const qc = useQueryClient();

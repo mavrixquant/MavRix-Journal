@@ -1,4 +1,3 @@
-
 import { prisma } from '../lib/prisma.js';
 import { HttpError } from '../middleware/error.js';
 import { hashPassword } from '../lib/password.js';
@@ -38,6 +37,16 @@ const adminUserShape = (u) => ({
 function assertNotSelf(actorId, targetId, verb) {
   if (actorId === targetId) {
     throw new HttpError(400, `You cannot ${verb} your own account.`);
+  }
+}
+
+function assertNotAiTarget(target, verb) {
+  if (!target) return;
+  if (target.isAi || target.role === 'ai') {
+    throw new HttpError(
+      403,
+      `AI users are reserved system accounts. You cannot ${verb} them.`
+    );
   }
 }
 
@@ -82,15 +91,15 @@ export async function getGlobalStats() {
 
   const [totalUsers, verifiedUsers, bannedUsers, totalAccounts, totalTrades] =
     await Promise.all([
-      prisma.user.count(),
-      prisma.user.count({ where: { emailVerified: true } }),
-      prisma.user.count({ where: { isBanned: true } }),
+      prisma.user.count({ where: { isAi: false } }),
+      prisma.user.count({ where: { emailVerified: true, isAi: false } }),
+      prisma.user.count({ where: { isBanned: true, isAi: false } }),
       prisma.account.count(),
       prisma.trade.count(),
     ]);
 
   const recentUsers = await prisma.user.findMany({
-    where: { createdAt: { gte: since } },
+    where: { createdAt: { gte: since }, isAi: false },
     select: { createdAt: true },
     orderBy: { createdAt: 'asc' },
   });
@@ -158,7 +167,8 @@ export async function listUsers({
   const take = Math.min(Math.max(1, Number(limit)), 100);
   const skip = (Math.max(1, Number(page)) - 1) * take;
 
-  const where = {};
+  const where = { isAi: false };
+
   if (q) {
     where.OR = [
       { email: { contains: q, mode: 'insensitive' } },
@@ -169,10 +179,8 @@ export async function listUsers({
   if (role) where.role = role;
   if (banned === 'true' || banned === true) where.isBanned = true;
   if (banned === 'false' || banned === false) where.isBanned = false;
-  if (emailVerified === 'true' || emailVerified === true)
-    where.emailVerified = true;
-  if (emailVerified === 'false' || emailVerified === false)
-    where.emailVerified = false;
+  if (emailVerified === 'true' || emailVerified === true) where.emailVerified = true;
+  if (emailVerified === 'false' || emailVerified === false) where.emailVerified = false;
 
   const [rows, total] = await Promise.all([
     prisma.user.findMany({
@@ -254,6 +262,7 @@ export async function getUserDetail(userId) {
 export async function updateUser(actor, targetId, patch) {
   const target = await prisma.user.findUnique({ where: { id: targetId } });
   if (!target) throw new HttpError(404, 'User not found');
+  assertNotAiTarget(target, 'update');
 
   const data = {};
 
@@ -321,6 +330,7 @@ export async function updateUser(actor, targetId, patch) {
 export async function verifyUserEmail(actor, targetId) {
   const target = await prisma.user.findUnique({ where: { id: targetId } });
   if (!target) throw new HttpError(404, 'User not found');
+  assertNotAiTarget(target, 'verify');
 
   await prisma.user.update({
     where: { id: targetId },
@@ -342,6 +352,7 @@ export async function verifyUserEmail(actor, targetId) {
 export async function unverifyUserEmail(actor, targetId) {
   const target = await prisma.user.findUnique({ where: { id: targetId } });
   if (!target) throw new HttpError(404, 'User not found');
+  assertNotAiTarget(target, 'unverify');
 
   const verifyToken = generateSecureToken();
   const verifyTokenExpiry = new Date(Date.now() + VERIFY_TTL_MS);
@@ -366,6 +377,7 @@ export async function unverifyUserEmail(actor, targetId) {
 export async function triggerUserPasswordReset(actor, targetId) {
   const target = await prisma.user.findUnique({ where: { id: targetId } });
   if (!target) throw new HttpError(404, 'User not found');
+  assertNotAiTarget(target, 'reset the password of');
 
   const resetToken = generateSecureToken();
   const resetTokenExpiry = new Date(Date.now() + RESET_TTL_MS);
@@ -395,6 +407,7 @@ export async function banUser(actor, targetId, reason) {
 
   const target = await prisma.user.findUnique({ where: { id: targetId } });
   if (!target) throw new HttpError(404, 'User not found');
+  assertNotAiTarget(target, 'ban');
   if (target.isBanned) return getUserDetail(targetId);
 
   await prisma.user.update({
@@ -425,6 +438,7 @@ export async function banUser(actor, targetId, reason) {
 export async function unbanUser(actor, targetId) {
   const target = await prisma.user.findUnique({ where: { id: targetId } });
   if (!target) throw new HttpError(404, 'User not found');
+  assertNotAiTarget(target, 'unban');
   if (!target.isBanned) return getUserDetail(targetId);
 
   await prisma.user.update({
@@ -452,6 +466,7 @@ export async function unbanUser(actor, targetId) {
 export async function forceLogoutUser(actor, targetId) {
   const target = await prisma.user.findUnique({ where: { id: targetId } });
   if (!target) throw new HttpError(404, 'User not found');
+  assertNotAiTarget(target, 'log out');
 
   await prisma.user.update({
     where: { id: targetId },
@@ -480,6 +495,7 @@ export async function deleteUser(actor, targetId) {
 
   const target = await prisma.user.findUnique({ where: { id: targetId } });
   if (!target) throw new HttpError(404, 'User not found');
+  assertNotAiTarget(target, 'delete');
 
   await prisma.user.delete({ where: { id: targetId } });
   invalidateSvCache(targetId);
@@ -498,9 +514,7 @@ export async function deleteUser(actor, targetId) {
 }
 
 export async function getActiveSessions() {
-  return {
-    totalClients: getTotalClientCount(),
-  };
+  return { totalClients: getTotalClientCount() };
 }
 
 export async function getUserSessionCount(userId) {

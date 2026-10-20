@@ -7,6 +7,7 @@ import {
   Settings,
   FileText,
   Shield,
+  Sparkles,
 } from 'lucide-react';
 
 import { useAuth } from '@/app/providers/AuthProvider';
@@ -55,6 +56,7 @@ export default function HeaderBar({
   onAccountClick,
   onSettingsClick,
   onThemeClick,
+  onMaveAiClick,
   onLogout,
 }) {
   const { dispatch } = useAppContext();
@@ -159,6 +161,13 @@ export default function HeaderBar({
             </Link>
           </HBTooltip>
         )}
+
+        <IconButton
+          icon={<Sparkles size={16} />}
+          label="Mave AI"
+          variant="accent"
+          onClick={onMaveAiClick}
+        />
 
         <IconButton
           icon={<Palette size={16} />}

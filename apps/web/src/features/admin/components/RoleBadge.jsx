@@ -2,6 +2,7 @@ export default function RoleBadge({ role }) {
   const cls =
     role === 'superadmin' ? 'rb-super'
     : role === 'admin'    ? 'rb-admin'
+    : role === 'ai'       ? 'rb-ai'
     : 'rb-user';
 
   return (
@@ -35,6 +36,11 @@ const CSS = `
     color: #60a5fa;
     background: rgba(96,165,250,.10);
     border-color: rgba(96,165,250,.30);
+  }
+  .rb-ai {
+    color: #c084fc;
+    background: rgba(192,132,252,.10);
+    border-color: rgba(192,132,252,.30);
   }
   .rb-user {
     color: #8892A3;

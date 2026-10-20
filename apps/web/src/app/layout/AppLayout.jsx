@@ -13,6 +13,7 @@ import { Sheet, SheetContent, SheetTitle } from '@/shared/ui/sheet';
 import { useHotkey } from '@/shared/hooks/useHotkey';
 import { useSSEBridge } from '@/shared/api/sse';
 import { PageHeaderProvider } from './PageHeaderProvider';
+import MaveAiSidebar from '@/features/mave-ai/MaveAiSidebar';
 
 const STORAGE_KEY = 'mavrix:sidebar:collapsed';
 const LAST_PATH_KEY = 'mavrix:lastPath';
@@ -36,6 +37,7 @@ export default function AppLayout() {
 
   const [mobileOpen, setMobileOpen] = useState(false);
   const [settings, setSettings] = useState({ open: false, tab: 'account' });
+  const [maveAiOpen, setMaveAiOpen] = useState(false);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, collapsed ? '1' : '0');
@@ -61,6 +63,9 @@ export default function AppLayout() {
 
   const closeSettings = () =>
     setSettings((s) => ({ ...s, open: false }));
+
+  const openMaveAi = () => setMaveAiOpen(true);
+  const closeMaveAi = () => setMaveAiOpen(false);
 
   const handleLogout = async () => {
     await logout();
@@ -102,6 +107,7 @@ export default function AppLayout() {
               onAccountClick={() => openSettings('account')}
               onSettingsClick={() => openSettings('preferences')}
               onThemeClick={() => openSettings('appearance')}
+              onMaveAiClick={openMaveAi}
               onLogout={handleLogout}
             />
 
@@ -117,6 +123,8 @@ export default function AppLayout() {
             initialTab={settings.tab}
             onClose={closeSettings}
           />
+
+          <MaveAiSidebar isOpen={maveAiOpen} onClose={closeMaveAi} />
         </PageHeaderProvider>
       </SettingsModalProvider>
     </TooltipProvider>

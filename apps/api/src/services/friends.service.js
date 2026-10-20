@@ -1,19 +1,15 @@
 // ============================================================================
 // Friends service.
 //
-// Mave AI's 3 personas (Guide, Trainer, Chat) are auto-friends — the user
-// cannot remove or block them, and areFriends() returns true for all three.
-// ----------------------------------------------------------------------------
+// Mave AI's 3 personas are NOT friends. They are reachable only via the
+// dedicated Mave AI sidebar, not through the friends / chat-DM system.
+// `areFriends(user, ai)` returns false. Blocking AI is rejected defensively.
+// ============================================================================
 
 import { prisma } from '../lib/prisma.js';
 import { HttpError } from '../middleware/error.js';
 import { broadcastToUser } from '../lib/broadcaster.js';
-import {
-  getAllMaveAiIds,
-  getPersonaForAiId,
-  isAnyMaveAiId,
-} from './maveAiBootstrap.js';
-import { MAVE_AI_PERSONAS } from '@mavrix/shared';
+import { isAnyMaveAiId } from './maveAiBootstrap.js';
 
 const PUBLIC_USER_SELECT = {
   id: true,
@@ -59,7 +55,7 @@ function dmKeyFor(a, b) {
 
 export async function areFriends(a, b) {
   if (!a || !b || a === b) return false;
-  if (isAnyMaveAiId(a) || isAnyMaveAiId(b)) return true;
+  if (isAnyMaveAiId(a) || isAnyMaveAiId(b)) return false;
   const [userAId, userBId] = canonicalPair(a, b);
   const row = await prisma.friendship.findUnique({
     where: { userAId_userBId: { userAId, userBId } },
@@ -125,7 +121,9 @@ export async function listFriends(userId) {
     }
   }
 
-  const normalFriends = visibleRows.map(({ friendship, peer }) => {
+  // Mave AI personas are NOT included in the friends list anymore — they
+  // live in the dedicated Mave AI sidebar, not the Friends tab.
+  return visibleRows.map(({ friendship, peer }) => {
     const dm = dmMap.get(peer.id);
     return {
       ...serializePublicUser(peer),
@@ -137,55 +135,6 @@ export async function listFriends(userId) {
       isArchived: dm?.isArchived ?? false,
     };
   });
-
-  // Mave AI personas — prepended, one entry per persona
-  const aiIds = getAllMaveAiIds();
-  if (aiIds.length > 0) {
-    const aiUsers = await prisma.user.findMany({
-      where: { id: { in: aiIds } },
-      select: PUBLIC_USER_SELECT,
-    });
-
-    const aiDmKeys = aiUsers.map((u) => dmKeyFor(userId, u.id));
-    const aiConvs = await prisma.conversation.findMany({
-      where: { dmKey: { in: aiDmKeys } },
-      select: {
-        id: true,
-        dmKey: true,
-        participants: { where: { userId }, select: { isArchived: true } },
-      },
-    });
-
-    const aiDmByKey = new Map();
-    for (const c of aiConvs) {
-      aiDmByKey.set(c.dmKey, {
-        conversationId: c.id,
-        isArchived: c.participants[0]?.isArchived ?? false,
-      });
-    }
-
-    // Preserve persona order (Guide → Trainer → Chat)
-    const aiFriends = MAVE_AI_PERSONAS
-      .map((meta) => {
-        const u = aiUsers.find((x) => getPersonaForAiId(x.id) === meta.id);
-        if (!u) return null;
-        const dm = aiDmByKey.get(dmKeyFor(userId, u.id));
-        return {
-          ...serializePublicUser(u),
-          isAi: true,
-          aiPersona: meta.id,
-          friendshipId: `mave-ai-${meta.id}`,
-          friendsSince: new Date().toISOString(),
-          conversationId: dm?.conversationId ?? null,
-          isArchived: dm?.isArchived ?? false,
-        };
-      })
-      .filter(Boolean);
-
-    normalFriends.unshift(...aiFriends);
-  }
-
-  return normalFriends;
 }
 
 export async function listIncomingRequests(userId) {
@@ -278,9 +227,8 @@ export async function getFriendStatusBatch(userId, otherIds) {
   for (const id of unique) {
     const bm = blockedByMe.has(id);
     const bme = blockedMe.has(id);
-    const isAi = isAnyMaveAiId(id);
     out[id] = {
-      isFriend: isAi || friendSet.has(id),
+      isFriend: friendSet.has(id),
       hasOutgoingRequest: outgoing.has(id),
       hasIncomingRequest: incoming.has(id),
       blockedByMe: bm,
