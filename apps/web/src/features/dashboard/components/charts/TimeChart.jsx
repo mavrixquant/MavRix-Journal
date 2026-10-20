@@ -1,6 +1,3 @@
-// apps/web/src/features/dashboard/components/charts/TimeChart.jsx
-//
-// Phase 2: removed minHeight: 220 from wrapper + empty state.
 
 import { useMemo, useRef, useState, useEffect } from 'react';
 import { Bar } from 'react-chartjs-2';

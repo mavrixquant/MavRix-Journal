@@ -1,6 +1,3 @@
-// apps/web/src/features/dashboard/components/charts/UnderwaterChart.jsx
-//
-// Phase 2: removed minHeight: 160 from wrapper + empty state.
 
 import { useMemo, useRef } from 'react';
 import { Line } from 'react-chartjs-2';

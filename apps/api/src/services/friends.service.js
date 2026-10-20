@@ -1,24 +1,15 @@
-// apps/api/src/services/friends.service.js
+// ============================================================================
+// Friends service.
 //
-// Friendships, friend requests, and user blocking.
-//
-// Canonical friendship form: (userAId, userBId) with userAId < userBId
-// lexicographically. The composite unique key + the sort invariant make
-// "one friendship per pair" a DB guarantee, not a service-layer rule.
-//
-// Blocking is destructive by design:
-//   - inserts UserBlock
-//   - deletes any Friendship between the pair
-//   - cancels any pending FriendRequest in either direction
-// Unblock does NOT restore friendship; the pair must re-request.
-//
-// This module is fully private to the two users involved. No admin route
-// reads from it. SSE events are broadcast so the other side's client
-// updates without a manual refetch.
+// Mave AI's 3 personas are NOT friends. They are reachable only via the
+// dedicated Mave AI sidebar, not through the friends / chat-DM system.
+// `areFriends(user, ai)` returns false. Blocking AI is rejected defensively.
+// ============================================================================
 
 import { prisma } from '../lib/prisma.js';
 import { HttpError } from '../middleware/error.js';
 import { broadcastToUser } from '../lib/broadcaster.js';
+import { isAnyMaveAiId } from './maveAiBootstrap.js';
 
 const PUBLIC_USER_SELECT = {
   id: true,
@@ -58,21 +49,13 @@ function canonicalPair(a, b) {
   return a < b ? [a, b] : [b, a];
 }
 
-/**
- * Build the sorted "aId:bId" key used by Conversation.dmKey.
- * Identical canonicalization to chat.service.js — kept local so the two
- * services don't have to import each other's internals.
- */
 function dmKeyFor(a, b) {
   return [a, b].sort().join(':');
 }
-/* ------------------------------------------------------------------ */
-/*  Public helpers (used by chat.service + others)                     */
-/* ------------------------------------------------------------------ */
 
-/** True iff the two users are friends. Safe for identical / falsy ids. */
 export async function areFriends(a, b) {
   if (!a || !b || a === b) return false;
+  if (isAnyMaveAiId(a) || isAnyMaveAiId(b)) return false;
   const [userAId, userBId] = canonicalPair(a, b);
   const row = await prisma.friendship.findUnique({
     where: { userAId_userBId: { userAId, userBId } },
@@ -81,68 +64,43 @@ export async function areFriends(a, b) {
   return !!row;
 }
 
-/** True if EITHER direction has a block row. */
 export async function isBlockedEither(a, b) {
   if (!a || !b || a === b) return false;
+  if (isAnyMaveAiId(a) || isAnyMaveAiId(b)) return false;
   const row = await prisma.userBlock.findFirst({
-    where: {
-      OR: [
-        { blockerId: a, blockedId: b },
-        { blockerId: b, blockedId: a },
-      ],
-    },
+    where: { OR: [{ blockerId: a, blockedId: b }, { blockerId: b, blockedId: a }] },
     select: { id: true },
   });
   return !!row;
 }
 
-/** Every user id blocked in EITHER direction relative to `userId`. */
 export async function getBlockedUserIds(userId) {
   const rows = await prisma.userBlock.findMany({
     where: { OR: [{ blockerId: userId }, { blockedId: userId }] },
     select: { blockerId: true, blockedId: true },
   });
   const set = new Set();
-  for (const r of rows) {
-    set.add(r.blockerId === userId ? r.blockedId : r.blockerId);
-  }
+  for (const r of rows) set.add(r.blockerId === userId ? r.blockedId : r.blockerId);
   return [...set];
 }
-
-/* ------------------------------------------------------------------ */
-/*  Reads                                                              */
-/* ------------------------------------------------------------------ */
 
 export async function listFriends(userId) {
   const rows = await prisma.friendship.findMany({
     where: { OR: [{ userAId: userId }, { userBId: userId }] },
-    include: {
-      userA: { select: PUBLIC_USER_SELECT },
-      userB: { select: PUBLIC_USER_SELECT },
-    },
+    include: { userA: { select: PUBLIC_USER_SELECT }, userB: { select: PUBLIC_USER_SELECT } },
     orderBy: { createdAt: 'desc' },
   });
 
-  // Belt-and-braces: if the pair is blocked, hide them even if a stale
-  // friendship row survived a partial failure.
   const blocked = new Set(await getBlockedUserIds(userId));
-
-  // Collect visible peer ids so we can batch-fetch DM metadata in one go.
-  const visibleRows = rows
-    .map((f) => {
-      const peer = f.userAId === userId ? f.userB : f.userA;
-      if (!peer || blocked.has(peer.id)) return null;
-      return { friendship: f, peer };
-    })
-    .filter(Boolean);
+  const visibleRows = rows.map((f) => {
+    const peer = f.userAId === userId ? f.userB : f.userA;
+    if (!peer || blocked.has(peer.id)) return null;
+    return { friendship: f, peer };
+  }).filter(Boolean);
 
   const peerIds = visibleRows.map((r) => r.peer.id);
+  const dmMap = new Map();
 
-  // One query for every DM between the caller and their visible peers.
-  // dmKey is the canonical sorted "aId:bId" string. Because friendships
-  // are also canonical (userAId < userBId), we can construct each key
-  // directly.
-  const dmMap = new Map(); // peerId -> { conversationId, isArchived }
   if (peerIds.length > 0) {
     const dmKeys = peerIds.map((pid) => dmKeyFor(userId, pid));
     const conversations = await prisma.conversation.findMany({
@@ -150,33 +108,27 @@ export async function listFriends(userId) {
       select: {
         id: true,
         dmKey: true,
-        participants: {
-          where: { userId },
-          select: { isArchived: true },
-        },
+        participants: { where: { userId }, select: { isArchived: true } },
       },
     });
 
-    // Map each conversation back to its peer via the dmKey suffix.
     const peerByKey = new Map();
-    for (const pid of peerIds) {
-      peerByKey.set(dmKeyFor(userId, pid), pid);
-    }
-
+    for (const pid of peerIds) peerByKey.set(dmKeyFor(userId, pid), pid);
     for (const c of conversations) {
       const pid = peerByKey.get(c.dmKey);
       if (!pid) continue;
-      dmMap.set(pid, {
-        conversationId: c.id,
-        isArchived: c.participants[0]?.isArchived ?? false,
-      });
+      dmMap.set(pid, { conversationId: c.id, isArchived: c.participants[0]?.isArchived ?? false });
     }
   }
 
+  // Mave AI personas are NOT included in the friends list anymore — they
+  // live in the dedicated Mave AI sidebar, not the Friends tab.
   return visibleRows.map(({ friendship, peer }) => {
     const dm = dmMap.get(peer.id);
     return {
       ...serializePublicUser(peer),
+      isAi: false,
+      aiPersona: null,
       friendshipId: friendship.id,
       friendsSince: friendship.createdAt,
       conversationId: dm?.conversationId ?? null,
@@ -217,11 +169,6 @@ export async function listBlocks(userId) {
   }));
 }
 
-/**
- * Batched status lookup for a list of peer ids. Three queries total,
- * regardless of list size. Use this from group member lists; use
- * getFriendStatus() for a single id.
- */
 export async function getFriendStatusBatch(userId, otherIds) {
   const unique = [...new Set((otherIds || []).filter((id) => id && id !== userId))];
   if (unique.length === 0) return {};
@@ -307,71 +254,44 @@ export async function getFriendStatus(userId, otherId) {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Writes                                                             */
-/* ------------------------------------------------------------------ */
-
-/**
- * Send a friend request.
- *
- * Special case: if the target has a PENDING request to the caller,
- * sending one back auto-accepts theirs (Discord behavior).
- */
 export async function sendFriendRequest(userId, { toUserId, email, message }) {
   let targetId = toUserId || null;
-
   if (!targetId && email) {
     const byEmail = await prisma.user.findUnique({
       where: { email: String(email).trim().toLowerCase() },
       select: { id: true },
     });
-    if (!byEmail) {
-      throw new HttpError(404, 'No user found with that email address');
-    }
+    if (!byEmail) throw new HttpError(404, 'No user found with that email address');
     targetId = byEmail.id;
   }
-
   if (!targetId) throw new HttpError(400, 'toUserId or email is required');
-  if (targetId === userId) {
-    throw new HttpError(400, 'You cannot send a friend request to yourself');
-  }
+  if (targetId === userId) throw new HttpError(400, 'You cannot send a friend request to yourself');
 
   const target = await prisma.user.findUnique({
     where: { id: targetId },
-    select: { id: true, isBanned: true, emailVerified: true },
+    select: { id: true, isBanned: true, emailVerified: true, isAi: true },
   });
-  if (!target || target.isBanned) {
-    throw new HttpError(404, 'User not found');
-  }
-  if (!target.emailVerified) {
-    throw new HttpError(403, 'This user has not verified their email yet');
-  }
+  if (!target || target.isBanned || target.isAi) throw new HttpError(404, 'User not found');
+  if (!target.emailVerified) throw new HttpError(403, 'This user has not verified their email yet');
 
   if (await isBlockedEither(userId, targetId)) {
-    // Intentionally vague — do not leak that a block exists.
     throw new HttpError(403, 'Cannot send a friend request to this user');
   }
-
   if (await areFriends(userId, targetId)) {
     throw new HttpError(409, 'You are already friends');
   }
 
-  // They already requested me → accept theirs (auto-mutual).
   const reverse = await prisma.friendRequest.findFirst({
     where: { fromUserId: targetId, toUserId: userId, status: 'pending' },
     select: { id: true },
   });
-  if (reverse) {
-    return acceptFriendRequest(userId, reverse.id);
-  }
+  if (reverse) return acceptFriendRequest(userId, reverse.id);
 
   const same = await prisma.friendRequest.findFirst({
     where: { fromUserId: userId, toUserId: targetId, status: 'pending' },
     select: { id: true },
   });
-  if (same) {
-    throw new HttpError(409, 'You already have a pending request to this user');
-  }
+  if (same) throw new HttpError(409, 'You already have a pending request to this user');
 
   const created = await prisma.friendRequest.create({
     data: {
@@ -383,13 +303,10 @@ export async function sendFriendRequest(userId, { toUserId, email, message }) {
   });
 
   const serialized = serializeRequest(created);
-
   broadcastToUser(targetId, 'friend:request:new', { request: serialized });
-
   return serialized;
 }
 
-/** Recipient accepts. Creates the Friendship row in the same transaction. */
 export async function acceptFriendRequest(userId, requestId) {
   const result = await prisma.$transaction(async (tx) => {
     const req = await tx.friendRequest.findUnique({
@@ -400,12 +317,8 @@ export async function acceptFriendRequest(userId, requestId) {
       },
     });
     if (!req) throw new HttpError(404, 'Friend request not found');
-    if (req.toUserId !== userId) {
-      throw new HttpError(403, 'This request is not addressed to you');
-    }
-    if (req.status !== 'pending') {
-      throw new HttpError(400, `Request is already ${req.status}`);
-    }
+    if (req.toUserId !== userId) throw new HttpError(403, 'This request is not addressed to you');
+    if (req.status !== 'pending') throw new HttpError(400, `Request is already ${req.status}`);
 
     const updated = await tx.friendRequest.update({
       where: { id: requestId },
@@ -417,13 +330,11 @@ export async function acceptFriendRequest(userId, requestId) {
     });
 
     const [userAId, userBId] = canonicalPair(req.fromUserId, req.toUserId);
-
     await tx.friendship.upsert({
       where: { userAId_userBId: { userAId, userBId } },
       create: { userAId, userBId },
       update: {},
     });
-
     return updated;
   });
 
@@ -431,7 +342,6 @@ export async function acceptFriendRequest(userId, requestId) {
   const accepter = serializePublicUser(result.toUser);
   const requester = serializePublicUser(result.fromUser);
 
-  // Both sides get the event so any open tab updates without a refetch.
   broadcastToUser(result.fromUserId, 'friend:request:accepted', {
     peer: accepter,
     request: serialized,
@@ -440,58 +350,44 @@ export async function acceptFriendRequest(userId, requestId) {
     peer: requester,
     request: serialized,
   });
-
   return serialized;
 }
 
 export async function declineFriendRequest(userId, requestId) {
   const req = await prisma.friendRequest.findUnique({ where: { id: requestId } });
   if (!req) throw new HttpError(404, 'Friend request not found');
-  if (req.toUserId !== userId) {
-    throw new HttpError(403, 'This request is not addressed to you');
-  }
-  if (req.status !== 'pending') {
-    throw new HttpError(400, `Request is already ${req.status}`);
-  }
+  if (req.toUserId !== userId) throw new HttpError(403, 'This request is not addressed to you');
+  if (req.status !== 'pending') throw new HttpError(400, `Request is already ${req.status}`);
 
   await prisma.friendRequest.update({
     where: { id: requestId },
     data: { status: 'declined', respondedAt: new Date() },
   });
-
-  broadcastToUser(req.fromUserId, 'friend:request:declined', {
-    requestId: req.id,
-  });
-
+  broadcastToUser(req.fromUserId, 'friend:request:declined', { requestId: req.id });
   return { ok: true };
 }
 
-/** Sender withdraws. */
 export async function cancelFriendRequest(userId, requestId) {
   const req = await prisma.friendRequest.findUnique({ where: { id: requestId } });
   if (!req) throw new HttpError(404, 'Friend request not found');
-  if (req.fromUserId !== userId) {
-    throw new HttpError(403, 'You can only cancel requests you sent');
-  }
-  if (req.status !== 'pending') {
-    throw new HttpError(400, `Request is already ${req.status}`);
-  }
+  if (req.fromUserId !== userId) throw new HttpError(403, 'You can only cancel requests you sent');
+  if (req.status !== 'pending') throw new HttpError(400, `Request is already ${req.status}`);
 
   await prisma.friendRequest.update({
     where: { id: requestId },
     data: { status: 'cancelled', respondedAt: new Date() },
   });
-
-  broadcastToUser(req.toUserId, 'friend:request:cancelled', {
-    requestId: req.id,
-  });
-
+  broadcastToUser(req.toUserId, 'friend:request:cancelled', { requestId: req.id });
   return { ok: true };
 }
 
 export async function removeFriend(userId, friendId) {
   if (!friendId) throw new HttpError(400, 'friendId is required');
   if (friendId === userId) throw new HttpError(400, 'Cannot remove yourself');
+
+  if (isAnyMaveAiId(friendId)) {
+    throw new HttpError(403, 'Mave AI cannot be removed from your friends list.');
+  }
 
   const [userAId, userBId] = canonicalPair(userId, friendId);
   const existing = await prisma.friendship.findUnique({
@@ -502,31 +398,20 @@ export async function removeFriend(userId, friendId) {
   await prisma.friendship.delete({
     where: { userAId_userBId: { userAId, userBId } },
   });
-
   broadcastToUser(friendId, 'friend:removed', { peerId: userId });
   broadcastToUser(userId, 'friend:removed', { peerId: friendId });
-
   return { ok: true };
 }
 
-/**
- * Block a user.
- *
- * Single transaction:
- *   1. Upsert the UserBlock row.
- *   2. Delete the Friendship row (if any) between the pair.
- *   3. Cancel any pending FriendRequest in either direction.
- *
- * Unblock does NOT restore the friendship.
- */
 export async function blockUser(userId, targetId, reason) {
   if (!targetId) throw new HttpError(400, 'userId is required');
   if (targetId === userId) throw new HttpError(400, 'Cannot block yourself');
 
-  const target = await prisma.user.findUnique({
-    where: { id: targetId },
-    select: { id: true },
-  });
+  if (isAnyMaveAiId(targetId)) {
+    throw new HttpError(403, 'Mave AI cannot be blocked.');
+  }
+
+  const target = await prisma.user.findUnique({ where: { id: targetId }, select: { id: true } });
   if (!target) throw new HttpError(404, 'User not found');
 
   const [userAId, userBId] = canonicalPair(userId, targetId);
@@ -538,9 +423,7 @@ export async function blockUser(userId, targetId, reason) {
       create: { blockerId: userId, blockedId: targetId, reason: reasonClean },
       update: { reason: reasonClean },
     });
-
     await tx.friendship.deleteMany({ where: { userAId, userBId } });
-
     await tx.friendRequest.updateMany({
       where: {
         status: 'pending',
@@ -555,13 +438,11 @@ export async function blockUser(userId, targetId, reason) {
 
   broadcastToUser(targetId, 'block:new', { blockerId: userId });
   broadcastToUser(userId, 'block:new', { blockedId: targetId });
-
   return { ok: true };
 }
 
 export async function unblockUser(userId, targetId) {
   if (!targetId) throw new HttpError(400, 'userId is required');
-
   const existing = await prisma.userBlock.findUnique({
     where: { blockerId_blockedId: { blockerId: userId, blockedId: targetId } },
   });
@@ -570,9 +451,7 @@ export async function unblockUser(userId, targetId) {
   await prisma.userBlock.delete({
     where: { blockerId_blockedId: { blockerId: userId, blockedId: targetId } },
   });
-
   broadcastToUser(targetId, 'block:removed', { blockerId: userId });
   broadcastToUser(userId, 'block:removed', { blockedId: targetId });
-
   return { ok: true };
 }

@@ -1,10 +1,3 @@
-// apps/api/src/services/adminOps.service.js
-//
-// Admin operations that aren't user/account/trade CRUD:
-//   - audit log read
-//   - broadcast (SSE to all, optional email)
-//   - active sessions + kick
-//   - calendar force-sync / cache wipe / log read
 
 import { prisma } from '../lib/prisma.js';
 import { HttpError } from '../middleware/error.js';
@@ -14,9 +7,6 @@ import { runCalendarSyncOnce } from '../lib/calendarSync.js';
 import { pushSyncLog, getSyncLogs, clearSyncLogs } from '../lib/syncLog.js';
 import { sendBroadcastEmail } from '../lib/mailer.js';
 
-/* ------------------------------------------------------------------ */
-/*  Audit log read                                                     */
-/* ------------------------------------------------------------------ */
 export async function listAuditLog({
   actorId,
   action,
@@ -64,9 +54,6 @@ export async function listAuditLog({
   };
 }
 
-/* ------------------------------------------------------------------ */
-/*  Sessions                                                           */
-/* ------------------------------------------------------------------ */
 export async function getActiveSessions() {
   return { totalClients: getTotalClientCount() };
 }
@@ -90,9 +77,6 @@ export async function disconnectUserSessions(actor, userId) {
   return { ok: true, closedSockets: closed };
 }
 
-/* ------------------------------------------------------------------ */
-/*  Broadcast                                                          */
-/* ------------------------------------------------------------------ */
 export async function broadcast(actor, { message, level = 'info', sendEmail = false }) {
   if (!message || !message.trim()) {
     throw new HttpError(400, 'message is required');
@@ -100,7 +84,6 @@ export async function broadcast(actor, { message, level = 'info', sendEmail = fa
   const clean = String(message).trim().slice(0, 2000);
   const cleanLevel = ['info', 'warning', 'critical'].includes(level) ? level : 'info';
 
-  // 1. SSE to every connected client.
   const sseSent = broadcastToAll('broadcast', {
     message: clean,
     level: cleanLevel,
@@ -108,7 +91,6 @@ export async function broadcast(actor, { message, level = 'info', sendEmail = fa
     sentBy: actor.email,
   });
 
-  // 2. Optional email to every non-banned verified user.
   let emailsSent = 0;
   let emailsFailed = 0;
   if (sendEmail) {
@@ -139,9 +121,6 @@ export async function broadcast(actor, { message, level = 'info', sendEmail = fa
   return { ok: true, sseSent, emailsSent, emailsFailed };
 }
 
-/* ------------------------------------------------------------------ */
-/*  Calendar                                                           */
-/* ------------------------------------------------------------------ */
 export async function forceCalendarSync(actor) {
   const startedAt = Date.now();
   let result = null;

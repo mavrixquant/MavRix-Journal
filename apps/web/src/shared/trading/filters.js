@@ -1,11 +1,5 @@
-// apps/web/src/shared/trading/filters.js
 import { getTradeSL, getTradeNetPnl, getMetricMode } from './sl.js';
 
-// Outcome evaluation for a single trade.
-// Returns { result, score, r, rAchieved }.
-//   R mode: score = R multiple (win → R, loss → -1)
-//   $ mode: score = netPnl in account currency
-// `r` is kept as a legacy alias for `score`.
 export function outcomeFor(trade, R, accountOrSL) {
   const metric = getMetricMode(accountOrSL);
 
@@ -15,7 +9,6 @@ export function outcomeFor(trade, R, accountOrSL) {
     return { result, score: netPnl, r: netPnl, rAchieved: null };
   }
 
-  // R mode (Backtest)
   const SL = getTradeSL(trade, accountOrSL);
   const target = SL * R;
   const slHit = trade.mae >= SL;
@@ -39,13 +32,6 @@ export function applyDynamicFilters(trades, filterSelections, dynamicKeys) {
   });
 }
 
-/**
- * Filter trades by strategy id.
- *
- *   strategyIds = []       → no filter (all strategies)
- *   strategyIds = [id, …]  → only trades whose strategyId is in the list
- *   trade.strategyId = null → excluded when strategyIds is non-empty
- */
 export function applyStrategyFilter(trades, strategyIds) {
   if (!trades || trades.length === 0) return trades;
   if (!Array.isArray(strategyIds) || strategyIds.length === 0) return trades;
@@ -65,10 +51,6 @@ export function applySessionTimeFilter(trades, stMode, selectedSessions, selecte
   });
 }
 
-// Limits: day-count, session-count, and outcome-based (rrLimit).
-//   - R mode: cum accumulates R multiples; stop when cum >= winLimit or <= -lossLimit
-//   - $ mode: cum accumulates netPnl; limits interpreted as $ amounts
-// Both branches use the same filterParams { winLimit, lossLimit }.
 export function applyLimitsFilter(trades, activeFilterType, filterParams, currentR, accountOrSL) {
   if (!trades || trades.length === 0) return trades;
   if (activeFilterType === 'none') return trades;

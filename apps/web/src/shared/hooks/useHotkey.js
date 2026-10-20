@@ -1,13 +1,5 @@
-// apps/web/src/shared/hooks/useHotkey.js
 import { useEffect } from 'react';
 
-/**
- * Global keyboard shortcut.
- * Use "mod" for Cmd on Mac / Ctrl elsewhere.
- *
- * @param {string} combo - e.g. "mod+b", "shift+enter"
- * @param {(e: KeyboardEvent) => void} handler
- */
 export function useHotkey(combo, handler) {
   useEffect(() => {
     const isMac =

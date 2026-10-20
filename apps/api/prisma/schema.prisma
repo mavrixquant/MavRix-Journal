@@ -36,6 +36,10 @@ model User {
 
   preferences Json @default("{}")
 
+  // Mave AI sentinel. Exactly one user has isAi = true (the built-in
+  // assistant). Enforced at the service layer — see maveAiBootstrap.js.
+  isAi Boolean @default(false)
+
   accounts      Account[]
   layouts       UserLayout[]
   strategies    Strategy[]
@@ -70,8 +74,14 @@ model User {
   blocksInitiated    UserBlock[]     @relation("UserBlockBlocker")
   blocksReceived     UserBlock[]     @relation("UserBlockBlocked")
 
+  // Per-user BYOK credentials for Mave AI. One row per (userId, provider).
+  // The router rotates across all of a user's credentials using lastUsedAt
+  // as the LRU driver.
+  aiCredentials AiCredential[]
+
   @@index([role])
   @@index([isBanned])
+  @@index([isAi])
   @@map("users")
 }
 
@@ -214,9 +224,17 @@ model SiteSetting {
   @@map("site_settings")
 }
 
+// ---------------------------------------------------------------------------
+// GEX days — per-symbol gamma exposure levels.
+//
+// One row per (date, symbol). `symbol` is a plain string ('NQ' | 'ES' today,
+// extensible later). Queries always target a specific symbol; the composite
+// unique key guarantees at most one row per (date, symbol).
+// ---------------------------------------------------------------------------
 model GexDay {
   id        String @id @default(cuid())
-  date      String @unique
+  date      String
+  symbol    String @default("NQ")
   levels    Json   @default("[]")
   converted String @default("")
 
@@ -231,7 +249,8 @@ model GexDay {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([date])
+  @@unique([date, symbol])
+  @@index([symbol, date])
   @@map("gex_days")
 }
 
@@ -290,6 +309,9 @@ model Strategy {
 // Group-specific columns on ConversationParticipant:
 //   role         — 'owner' | 'moderator' | 'member'. Default 'member'.
 //                  DMs leave this at 'member'.
+//
+// Mave AI DMs are ordinary `type='dm'` rows. The only distinguishing feature
+// is that the peer (User.isAi === true) is the built-in assistant.
 // ---------------------------------------------------------------------------
 model Conversation {
   id              String   @id @default(cuid())
@@ -350,6 +372,13 @@ model Message {
   conversationId String
   senderId       String
   body           String
+
+  // 'user'      — normal message written by a human
+  // 'system'    — inline system notice (e.g. "Mave AI is cooling down")
+  // 'ai_switch' — inline notice explaining a provider switch
+  // All kinds render inside the thread; the UI treats them differently.
+  kind           String    @default("user")
+
   replyToId      String?
   createdAt      DateTime  @default(now())
   editedAt       DateTime?
@@ -365,8 +394,6 @@ model Message {
 
   @@index([conversationId, createdAt])
   @@index([senderId])
-  // Powers the "how many messages has user X sent in conversation Y?" query
-  // used by the friend-required 3-message cap on non-friend DMs.
   @@index([conversationId, senderId])
   @@map("messages")
 }
@@ -457,4 +484,41 @@ model UserBlock {
   @@index([blockerId])
   @@index([blockedId])
   @@map("user_blocks")
+}
+
+// ---------------------------------------------------------------------------
+// AiCredential — BYOK credentials for Mave AI.
+//
+// ONE ROW PER (userId, provider). The router lists every row for a user
+// ordered by `lastUsedAt` (nulls first) and tries each credential's
+// `models[]` in sequence until one succeeds.
+//
+// Encryption: AES-256-GCM with MAVE_AI_MASTER_KEY. The three hex columns
+// below must all be present to decrypt.
+//
+//   models[]    — ordered list of chat models for this credential. Populated
+//                 by discoverModels() at save time; falls back to the curated
+//                 list from @mavrix/shared on discovery failure.
+//   lastUsedAt  — LRU rotation driver. NULL means never used → first.
+//   model       — legacy "primary model" override. Still respected if
+//                 models[] is empty (backward compat for pre-migration rows).
+// ---------------------------------------------------------------------------
+model AiCredential {
+  id           String   @id @default(cuid())
+  userId       String
+  provider     String   // 'openrouter' | 'openai' | 'anthropic' | 'gemini' | 'groq' | 'deepseek'
+  encryptedKey String   // hex ciphertext
+  keyIv        String   // hex IV (12 bytes)
+  keyTag       String   // hex GCM tag (16 bytes)
+  model        String?  // legacy primary model override
+  models       Json     @default("[]")  // ordered list of chat models
+  lastUsedAt   DateTime?                // LRU rotation driver
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, provider])
+  @@index([userId])
+  @@map("ai_credentials")
 }

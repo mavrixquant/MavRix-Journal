@@ -1,4 +1,3 @@
-﻿// apps/web/src/features/personal/chats/components/SidebarSearch.jsx
 import { Search } from 'lucide-react';
 
 export default function SidebarSearch({

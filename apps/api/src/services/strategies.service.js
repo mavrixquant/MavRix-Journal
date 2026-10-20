@@ -1,13 +1,3 @@
-// apps/api/src/services/strategies.service.js
-//
-// User-side CRUD for strategies.
-//
-// Ownership: every mutation and read is scoped to the requesting userId.
-// Name uniqueness: @@unique([userId, name]) → P2002 mapped to a 409.
-//
-// SSE: any write broadcasts an `invalidate` payload carrying ['strategies']
-//      and ['trades'] so any client with a strategy-tagged trade list
-//      refreshes in one round trip.
 
 import { prisma } from '../lib/prisma.js';
 import { HttpError } from '../middleware/error.js';
@@ -33,9 +23,6 @@ const serialize = (s) => ({
   tradeCount: s._count?.trades ?? 0,
 });
 
-/* ------------------------------------------------------------------ */
-/*  Reads                                                              */
-/* ------------------------------------------------------------------ */
 
 export async function listStrategies(userId, { status } = {}) {
   const where = { userId };
@@ -43,7 +30,6 @@ export async function listStrategies(userId, { status } = {}) {
 
   const rows = await prisma.strategy.findMany({
     where,
-    // Archived goes last so the active ones come first regardless of name.
     orderBy: [{ status: 'asc' }, { name: 'asc' }],
     include: { _count: { select: { trades: true } } },
   });
@@ -60,9 +46,6 @@ export async function getStrategy(userId, id) {
   return serialize(s);
 }
 
-/* ------------------------------------------------------------------ */
-/*  Writes                                                             */
-/* ------------------------------------------------------------------ */
 
 export async function createStrategy(userId, data) {
   try {
@@ -125,11 +108,6 @@ export async function updateStrategy(userId, id, patch) {
   }
 }
 
-/**
- * Hard delete. Trades tagged with this strategy are DETACHED
- * (Trade.strategyId → null via FK onDelete: SetNull), not deleted.
- * Returns the number of detached trades so the UI can warn properly.
- */
 export async function deleteStrategy(userId, id) {
   const existing = await prisma.strategy.findFirst({
     where: { id, userId },
@@ -147,7 +125,6 @@ export async function deleteStrategy(userId, id) {
   return { ok: true, detachedTrades: existing._count.trades };
 }
 
-/** Soft-hide: sets status = 'archived' but keeps the row + tags intact. */
 export async function archiveStrategy(userId, id) {
   return updateStrategy(userId, id, { status: 'archived' });
 }

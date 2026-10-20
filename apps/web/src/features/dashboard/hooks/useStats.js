@@ -1,4 +1,3 @@
-// apps/web/src/features/dashboard/hooks/useStats.js
 import { useMemo } from 'react';
 import { useAppContext } from '@/app/providers/AppProvider';
 import { useDashboardAccount } from '@/app/providers/useDashboardAccount';
@@ -17,10 +16,6 @@ export function useStats() {
   const { getFilteredTrades } = useFilters();
   const { accountId } = useDashboardAccount();
 
-  // Route-aware: the account slot for the CURRENT dashboard, not the
-  // legacy mirror. When null, every downstream series collapses to
-  // empty — that's what prevents Journal from showing Backtest
-  // content when only a Backtest account exists.
   const selectedAccount = useMemo(
     () => state.accounts.find(a => a.id === accountId) || null,
     [state.accounts, accountId]
@@ -29,7 +24,6 @@ export function useStats() {
   const filteredTrades = useMemo(() => {
     if (!selectedAccount) return [];
     return getFilteredTrades();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     state.trades,
     state.filterSelections,
@@ -53,7 +47,6 @@ export function useStats() {
   const SL = resolveSL(selectedAccount);
   const metric = getMetricMode(selectedAccount);
 
-  // --- Series helpers (memoized on outcomes) ---
   const monthlySeries = useMemo(
     () => buildMonthlySeries(stats.outcomes),
     [stats.outcomes]
@@ -82,7 +75,6 @@ export function useStats() {
     SL,
     metric,
     account: selectedAccount,
-    // New series
     monthlySeries,
     rollingExpectancy,
     underwaterCurve,

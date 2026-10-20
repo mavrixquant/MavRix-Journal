@@ -1,4 +1,3 @@
-// apps/web/src/app/shell/ExpandedGroup.jsx
 import { NavLink } from 'react-router-dom';
 import { groupHasActive } from './nav.config';
 

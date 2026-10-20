@@ -1,34 +1,21 @@
-// apps/web/src/features/charts/lib/chartTheme.js
-//
-// Lightweight-charts color tokens. Deliberately mirrors
-// @/shared/charts/theme.js so the market chart looks like every other
-// chart in the app.
 
 export const chartTheme = {
-  // Canvas
   background: 'transparent',
 
-  // Text + chrome
   text: '#8892A3',
   textLight: '#E7E9EE',
   border: 'rgba(255,255,255,.085)',
   grid: 'rgba(255,255,255,.045)',
   crosshair: 'rgba(255,255,255,.28)',
 
-  // Candles
   up: '#35C4A1',
   down: '#FF5C5C',
   upWick: '#35C4A1',
   downWick: '#FF5C5C',
 
-  // Volume histogram (overlaid at bottom)
   volumeUp: 'rgba(53, 196, 161, 0.42)',
   volumeDown: 'rgba(255, 92, 92, 0.42)',
 
-  // Accent (labels on crosshair, price axis)
-  // Accent — resolved at call time from the live --accent CSS var.
-  // canvas fillStyle/strokeStyle cannot resolve var() or color-mix(),
-  // so the string returned here is always a concrete hex.
   get accent() {
     if (typeof window === 'undefined') return '#F59E0B';
     return (
@@ -39,7 +26,6 @@ export const chartTheme = {
   }
 };
 
-/** Chart-creation options shared by every instance. */
 export const baseChartOptions = {
   layout: {
     background: { type: 'solid', color: 'transparent' },
@@ -54,7 +40,6 @@ export const baseChartOptions = {
   },
   rightPriceScale: {
     borderColor: chartTheme.border,
-    // Leave room at the bottom for the volume histogram.
     scaleMargins: { top: 0.08, bottom: 0.24 },
   },
   timeScale: {
@@ -66,11 +51,11 @@ export const baseChartOptions = {
     minBarSpacing: 0.5,
   },
   crosshair: {
-    mode: 0, // Normal
+    mode: 0,
     vertLine: {
       color: chartTheme.crosshair,
       width: 1,
-      style: 2, // dashed
+      style: 2,
       labelBackgroundColor: chartTheme.accent,
     },
     horzLine: {

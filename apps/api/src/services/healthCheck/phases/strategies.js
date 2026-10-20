@@ -1,7 +1,3 @@
-// apps/api/src/services/healthCheck/phases/strategies.js
-//
-// Strategies phase — 6 tests.
-// Creates a strategy owned by user A, exercises CRUD + archive.
 
 export async function run(ctx) {
   const { test, tokens, ids } = ctx;
@@ -37,13 +33,11 @@ export async function run(ctx) {
       method: 'POST',
       token: tokens.a,
       body: {
-        name: `HealthCheck Strategy ${new Date().toISOString().slice(0, 10)}`, // different, so use same one
+        name: `HealthCheck Strategy ${new Date().toISOString().slice(0, 10)}`,
         status: 'active',
       },
       allowError: true,
     });
-    // The name won't collide with the previous dynamic one, so this will succeed.
-    // Instead, re-fetch and duplicate with the exact same name.
     const first = await ctx.fetch('/api/strategies', { token: tokens.a });
     const name = first.body.strategies[0]?.name;
     if (!name) { ctx.expect(false, 'no strategy to duplicate'); return; }

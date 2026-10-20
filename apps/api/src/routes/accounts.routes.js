@@ -1,4 +1,3 @@
-// apps/api/src/routes/accounts.routes.js
 import { Router } from 'express';
 import { z } from 'zod';
 import { accountSchema } from '@mavrix/shared/validators';
@@ -16,9 +15,6 @@ const validate = (schema) => (req, _res, next) => {
   } catch (e) { next(e); }
 };
 
-// Accept both the legacy string form and the v2 object form for each
-// entry of columnConfigs. Mirrors the shape accepted by accountSchema in
-// @mavrix/shared/validators.
 const columnTypeEnum = z.enum(['text', 'dropdown', 'number']);
 
 const columnConfigEntrySchema = z.union([

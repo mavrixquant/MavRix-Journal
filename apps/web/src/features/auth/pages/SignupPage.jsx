@@ -1,4 +1,3 @@
-// apps/web/src/features/auth/components/SignupPage.jsx
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
@@ -16,7 +15,6 @@ import PasswordStrength from '../components/PasswordStrength';
 import { ErrorBanner } from '../components/ErrorBanner';
 import { Divider } from '../components/Divider';
 
-// Extend the shared schema with a client-only confirmPassword field.
 const signupFormSchema = signupSchema
   .extend({
     confirmPassword: z.string().min(6).max(128),

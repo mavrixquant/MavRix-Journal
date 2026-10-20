@@ -1,22 +1,3 @@
-// apps/web/src/shared/charts/useChartColors.js
-//
-// Reads the live --accent* CSS custom properties off <html> and returns
-// concrete hex / rgba strings that Chart.js can paint onto a <canvas>.
-//
-// Why this hook exists:
-//   Chart.js does not understand CSS variables. The SettingsProvider writes
-//   --accent, --accent-2, --accent-soft, --accent-soft2 onto
-//   document.documentElement whenever the user changes the accent. This hook
-//   bridges that gap by exposing concrete values to chart components.
-//
-// Change detection:
-//   useSyncExternalStore + a single shared MutationObserver watching
-//   <html style="...">. The snapshot is a pipe-joined string of the four
-//   tokens, so React only re-renders when the accent actually changes.
-//
-// Fallback:
-//   If the tokens are missing (e.g. before SettingsProvider hydrates on the
-//   very first paint), we fall back to the app default amber (#F59E0B).
 
 import { useSyncExternalStore, useMemo } from 'react';
 
@@ -25,9 +6,6 @@ const DEFAULT_ACCENT_2 = '#FDE68A';
 const DEFAULT_SOFT = 'rgba(245,158,11,.10)';
 const DEFAULT_SOFT2 = 'rgba(245,158,11,.28)';
 
-/* ------------------------------------------------------------------ */
-/*  Shared subscription — ONE MutationObserver for the whole app      */
-/* ------------------------------------------------------------------ */
 
 const listeners = new Set();
 let observer = null;
@@ -37,7 +15,6 @@ function emit() {
     try {
       fn();
     } catch {
-      // Isolate listener errors so one bad subscriber can't break others.
     }
   }
 }
@@ -70,9 +47,6 @@ function subscribe(fn) {
   };
 }
 
-/* ------------------------------------------------------------------ */
-/*  Snapshot                                                          */
-/* ------------------------------------------------------------------ */
 
 function readToken(name, fallback) {
   if (typeof window === 'undefined') return fallback;
@@ -100,9 +74,6 @@ function getServerSnapshot() {
   ].join('|');
 }
 
-/* ------------------------------------------------------------------ */
-/*  Helpers                                                           */
-/* ------------------------------------------------------------------ */
 
 function hexToRgba(hex, alpha) {
   const h = String(hex || '').replace('#', '');
@@ -114,26 +85,7 @@ function hexToRgba(hex, alpha) {
   return `rgba(${r},${g},${b},${alpha})`;
 }
 
-/* ------------------------------------------------------------------ */
-/*  Public hook                                                       */
-/* ------------------------------------------------------------------ */
 
-/**
- * Returns concrete color values for Chart.js, derived from the live
- * --accent* CSS custom properties.
- *
- * @returns {{
- *   accent:     string,  // --accent
- *   accent2:    string,  // --accent-2
- *   soft:       string,  // --accent-soft   (rgba @ .10)
- *   soft2:      string,  // --accent-soft2  (rgba @ .28)
- *   amber:      string,  // alias of accent  (drop-in for chartColors.amber)
- *   amberHover: string,  // alias of accent2 (drop-in for chartColors.amberHover)
- *   amberSoft:  string,  // alias of soft    (drop-in for chartColors.amberSoft)
- *   amberSoft2: string,  // alias of soft2   (drop-in for chartColors.amberSoft2)
- *   amberFill:  string,  // rgba(accent, .28) — used by gradient fills
- * }}
- */
 export function useChartColors() {
   const snapshot = useSyncExternalStore(
     subscribe,
@@ -145,14 +97,11 @@ export function useChartColors() {
 
   return useMemo(
     () => ({
-      // Canonical
       accent,
       accent2,
       soft,
       soft2,
 
-      // Legacy aliases — keep chart callers drop-in compatible with
-      // the old chartColors.amber* API in shared/charts/theme.js.
       amber: accent,
       amberHover: accent2,
       amberSoft: soft,

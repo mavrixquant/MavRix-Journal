@@ -1,15 +1,3 @@
-// apps/web/src/features/personal/chats/ChatsPage.jsx
-//
-// PHASE 6 — mobile polish:
-//   • Thread pane gets a swipe-to-back gesture (right swipe from the left
-//     edge returns to the sidebar on mobile).
-//   • `.chat-shell` classes unchanged, but `.is-mobile-sidebar` /
-//     `.is-mobile-thread` now drive an animated slide transition (see
-//     ChatsShell.css Phase 6 block).
-//
-// BUGFIX — avatar click in ChatRail now opens Account Settings.
-// Previously `onOpenProfile` was never passed, so the button was a no-op.
-
 import { useState, useMemo, useEffect } from 'react';
 import { MessageSquare } from 'lucide-react';
 
@@ -47,10 +35,17 @@ export default function ChatsPage() {
   const [createGroupOpen, setCreateGroupOpen] = useState(false);
   const [addFriendOpen, setAddFriendOpen] = useState(false);
 
-  const { data: conversations = [], isLoading } = useChatConversations();
+  const { data: allConversations = [], isLoading } = useChatConversations();
   const { data: friendRequestsData } = useFriendRequests();
   const friendRequestCount = friendRequestsData?.incoming?.length ?? 0;
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
+
+  // Mave AI conversations are filtered out at the source — AI lives in the
+  // dedicated sidebar, not in Chats.
+  const conversations = useMemo(
+    () => allConversations.filter((c) => !c.isAi),
+    [allConversations]
+  );
 
   useEffect(() => {
     if (activeTab !== 'dms' && activeTab !== 'groups') {
@@ -117,7 +112,7 @@ export default function ChatsPage() {
 
   usePageHeader({
     title: 'Chats',
-    subtitle: 'Private DMs, groups, and friends · visible only to participants',
+    subtitle: 'Private DMs, groups, and friends',
   });
 
   if (isLoading) return <PageSkeleton />;

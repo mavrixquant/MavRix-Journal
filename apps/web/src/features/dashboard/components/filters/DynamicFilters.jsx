@@ -1,4 +1,3 @@
-// apps/web/src/features/dashboard/components/filters/DynamicFilters.jsx
 import { useMemo, useCallback, useEffect } from 'react';
 import { ChevronDown, Check } from 'lucide-react';
 import { Command } from 'cmdk';
@@ -11,9 +10,6 @@ import {
   PopoverTrigger,
 } from '@/shared/ui/popover';
 
-/* ------------------------------------------------------------------ */
-/*  Scoped styles for cmdk + popover                                  */
-/* ------------------------------------------------------------------ */
 const CSS = `
   .dyn-filter-bar {
     display: flex;
@@ -196,14 +192,10 @@ const CSS = `
   }
 `;
 
-/* ------------------------------------------------------------------ */
-/*  Main                                                                */
-/* ------------------------------------------------------------------ */
 export default function DynamicFilters() {
   const { state } = useAppContext();
   const { setFilterSelection } = useFilters();
 
-  // Compute options for a key
   const getOptions = useCallback(
     (key) => {
       const set = new Set();
@@ -216,7 +208,6 @@ export default function DynamicFilters() {
     [state.trades]
   );
 
-  // Eligible keys: 2 ≤ uniqueValues ≤ 9
   const eligibleKeys = useMemo(() => {
     return state.dynamicFilterKeys.filter((key) => {
       const set = new Set();
@@ -228,13 +219,11 @@ export default function DynamicFilters() {
     });
   }, [state.dynamicFilterKeys, state.trades]);
 
-  // Clear selections for keys that dropped out
   useEffect(() => {
     const invalidKeys = Object.keys(state.filterSelections).filter(
       (key) => !eligibleKeys.includes(key)
     );
     invalidKeys.forEach((key) => setFilterSelection(key, []));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eligibleKeys]);
 
   if (eligibleKeys.length === 0) return null;
@@ -257,9 +246,6 @@ export default function DynamicFilters() {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Single filter popover                                              */
-/* ------------------------------------------------------------------ */
 function FilterPopover({ filterKey, options, selected, onChange }) {
   const hasSelection = selected.length > 0;
 

@@ -1,8 +1,3 @@
-// apps/web/src/app/layout/Settings/panels/DataPanel.jsx
-//
-// Data & Storage controls. Everything here is locally-triggered — the
-// export hits existing API endpoints, the cache clear touches local
-// state, and the reset calls the settings provider.
 
 import { useState } from 'react';
 import { Download, Trash2, RotateCcw, Loader2 } from 'lucide-react';
@@ -59,7 +54,6 @@ async function collectAndDownload() {
 function clearLocalCache() {
   queryClient.clear();
 
-  // Preserve settings + sidebar state; clear everything else.
   const preserved = {
     [SETTINGS_KEY]: localStorage.getItem(SETTINGS_KEY),
     'mavrix:sidebar:collapsed': localStorage.getItem('mavrix:sidebar:collapsed'),
@@ -74,7 +68,6 @@ export default function DataPanel() {
   const { reset } = useSettings();
   const [exporting, setExporting] = useState(false);
   const [confirmAction, setConfirmAction] = useState(null);
-  // confirmAction: 'clear-cache' | 'reset-settings' | null
 
   const handleExport = async () => {
     setExporting(true);

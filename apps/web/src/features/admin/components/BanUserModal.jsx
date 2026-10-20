@@ -1,4 +1,3 @@
-// apps/web/src/features/admin/components/BanUserModal.jsx
 import { useState, useEffect } from 'react';
 import Portal from '@/shared/components/Portal';
 

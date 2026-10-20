@@ -1,4 +1,3 @@
-// apps/api/src/controllers/marketData.controller.js
 
 import * as svc from '../services/marketData.service.js';
 

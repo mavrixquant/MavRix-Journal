@@ -1,39 +1,15 @@
-// apps/api/src/services/healthCheck/runStore.js
-//
-// In-memory run registry for health-check executions.
-//
-// One Map<runId, Run>. Each Run owns an EventEmitter the SSE controller
-// subscribes to. Events are ALSO buffered on the Run so a client that
-// connects late (or reconnects) sees the full history replayed.
-//
-// Runs are pruned 5 minutes after they finish. While running, they're
-// kept indefinitely — a stuck run would otherwise leak memory, but the
-// orchestrator always terminates (finally block), so this is safe.
 
 import { EventEmitter } from 'node:events';
 
-const RUN_TTL_MS = 5 * 60 * 1000;      // 5 min after completion
-const PRUNE_INTERVAL_MS = 60 * 1000;   // sweep once a minute
+const RUN_TTL_MS = 5 * 60 * 1000;
+const PRUNE_INTERVAL_MS = 60 * 1000;
 
-/** @type {Map<string, Run>} */
 const runs = new Map();
 
 function makeId() {
   return `hc_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
-/**
- * @typedef {object} Run
- * @property {string}   id
- * @property {string[]} phases
- * @property {string}   requestedBy
- * @property {'running'|'completed'|'failed'} status
- * @property {number}   startedAt
- * @property {number|null} completedAt
- * @property {EventEmitter} emitter
- * @property {object[]} events
- * @property {object|null} summary
- */
 
 export function createRun({ phases, requestedBy }) {
   const id = makeId();
@@ -48,7 +24,6 @@ export function createRun({ phases, requestedBy }) {
     events: [],
     summary: null,
   };
-  // Multiple SSE subscribers are possible (multi-tab superadmins).
   run.emitter.setMaxListeners(50);
   runs.set(id, run);
   return run;
@@ -85,7 +60,6 @@ export function fail(run, error) {
   run.summary = { error: error?.message || String(error) };
 }
 
-// Periodic prune. `.unref()` keeps this timer from pinning the process.
 setInterval(() => {
   const now = Date.now();
   for (const [id, run] of runs) {

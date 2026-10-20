@@ -1,9 +1,3 @@
-// apps/web/src/features/manage/strategies/StrategyFormModal.jsx
-//
-// Create / edit modal for a strategy.
-//
-// If `strategy` prop is provided → edit mode (PATCH).
-// Otherwise → create mode (POST).
 
 import { useState, useEffect } from 'react';
 import { FaTimes, FaPlus, FaCheck } from 'react-icons/fa';
@@ -49,7 +43,6 @@ export default function StrategyFormModal({
   const updateMutation = useUpdateStrategy();
   const saving = createMutation.isPending || updateMutation.isPending;
 
-  // Hydrate / reset form whenever the modal opens or the target changes.
   useEffect(() => {
     if (!isOpen) return;
     if (strategy) {

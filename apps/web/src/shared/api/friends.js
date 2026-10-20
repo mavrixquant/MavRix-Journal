@@ -1,24 +1,3 @@
-// apps/web/src/shared/api/friends.js
-//
-// React Query hooks for the friend subsystem.
-//
-// Cache keys:
-//   ['friends','list']              — my friends
-//   ['friends','requests']          — { incoming, outgoing } pending
-//   ['friends','blocks']            — users I've blocked
-//   ['friends','status',userId]     — status of a single peer
-//
-// SSE integration: shared/api/sse.js invalidates these keys when the server
-// broadcasts friend:request:*, friend:removed, block:new, block:removed.
-//
-// Mutations are optimistic where it's safe:
-//   • sendRequest       → invalidates only (no optimistic list to update)
-//   • acceptRequest     → invalidates list + requests + conversations
-//   • declineRequest    → optimistic remove from incoming
-//   • cancelRequest     → optimistic remove from outgoing
-//   • removeFriend      → optimistic remove from list
-//   • blockUser         → invalidates broadly (affects many views)
-//   • unblockUser       → optimistic remove from blocks
 
 import {
   useQuery,
@@ -27,9 +6,6 @@ import {
 } from '@tanstack/react-query';
 import { apiJson } from './client.js';
 
-/* ------------------------------------------------------------------ */
-/*  Query keys                                                         */
-/* ------------------------------------------------------------------ */
 
 export const friendsKeys = {
   all: ['friends'],
@@ -39,9 +15,6 @@ export const friendsKeys = {
   status: (userId) => ['friends', 'status', userId],
 };
 
-/* ------------------------------------------------------------------ */
-/*  Raw fetchers                                                       */
-/* ------------------------------------------------------------------ */
 
 export async function fetchFriends() {
   const data = await apiJson('/api/friends');
@@ -113,9 +86,6 @@ export async function unblockUser(userId) {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Reads                                                              */
-/* ------------------------------------------------------------------ */
 
 export function useFriends({ enabled = true } = {}) {
   return useQuery({
@@ -153,9 +123,6 @@ export function useFriendStatus(userId, { enabled = true } = {}) {
   });
 }
 
-/* ------------------------------------------------------------------ */
-/*  Mutations                                                          */
-/* ------------------------------------------------------------------ */
 
 function useInvalidateFriends() {
   const qc = useQueryClient();
@@ -172,7 +139,6 @@ export function useSendFriendRequest() {
     mutationFn: sendFriendRequest,
     onSuccess: () => {
       invalidate(friendsKeys.requests());
-      // Peer cards across the app may now show "Pending".
       invalidate(['friends']);
     },
   });
@@ -276,8 +242,6 @@ export function useBlockUser() {
   return useMutation({
     mutationFn: blockUser,
     onSuccess: () => {
-      // Blocking affects many views — invalidate the whole friends + chat
-      // subtree in one shot. Rare operation, so a broad refetch is fine.
       qc.invalidateQueries({ queryKey: friendsKeys.all });
       qc.invalidateQueries({ queryKey: ['chat'] });
     },

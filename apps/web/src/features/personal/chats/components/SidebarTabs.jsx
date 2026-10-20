@@ -1,4 +1,3 @@
-﻿// apps/web/src/features/personal/chats/components/SidebarTabs.jsx
 const TABS = [
   { id: 'dms',    label: 'DMs' },
   { id: 'groups', label: 'Groups' },

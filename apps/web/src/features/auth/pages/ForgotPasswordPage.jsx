@@ -1,4 +1,3 @@
-// apps/web/src/features/auth/components/ForgotPasswordPage.jsx
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';

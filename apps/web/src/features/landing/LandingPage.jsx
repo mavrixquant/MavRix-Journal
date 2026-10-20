@@ -4,9 +4,6 @@ import {
 import { Link, useNavigate } from 'react-router-dom';
 import navLogo from '@/assets/navLOGO.png';
 
-/* ------------------------------------------------------------------ */
-/*  Helpers                                                            */
-/* ------------------------------------------------------------------ */
 const hexToRgba = (hex, a = 1) => {
   const h = hex.replace('#', '');
   const r = parseInt(h.slice(0, 2), 16);
@@ -24,9 +21,6 @@ const PALETTE = [
   { name: 'Lime',    hex: '#A3E635' },
 ];
 
-/* ------------------------------------------------------------------ */
-/*  CSS                                                                */
-/* ------------------------------------------------------------------ */
 const LD = `
   * { box-sizing: border-box; }
 
@@ -342,9 +336,6 @@ const LD = `
   }
 `;
 
-/* ------------------------------------------------------------------ */
-/*  Custom Cursor                                                      */
-/* ------------------------------------------------------------------ */
 function Cursor() {
   const dotRef = useRef(null);
   const ringRef = useRef(null);
@@ -380,9 +371,6 @@ function Cursor() {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Scroll Progress                                                    */
-/* ------------------------------------------------------------------ */
 function ScrollProgress() {
   const [p, setP] = useState(0);
   useEffect(() => {
@@ -402,9 +390,6 @@ function ScrollProgress() {
   return <div className="ld-progress" style={{ width: `${p}%` }} aria-hidden />;
 }
 
-/* ------------------------------------------------------------------ */
-/*  Magnetic                                                           */
-/* ------------------------------------------------------------------ */
 function Magnetic({ children, strength = 0.25, style = {} }) {
   const ref = useRef(null);
   const onMove = (e) => {
@@ -436,9 +421,6 @@ function Magnetic({ children, strength = 0.25, style = {} }) {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Command Palette                                                    */
-/* ------------------------------------------------------------------ */
 function CommandPalette({ open, onClose, items }) {
   const [query, setQuery] = useState('');
   const [idx, setIdx] = useState(0);
@@ -510,9 +492,6 @@ function CommandPalette({ open, onClose, items }) {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Accent Picker                                                      */
-/* ------------------------------------------------------------------ */
 function AccentPicker({ accent, onChange }) {
   const [open, setOpen] = useState(false);
   return (
@@ -546,9 +525,6 @@ function AccentPicker({ accent, onChange }) {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Particle Canvas                                                    */
-/* ------------------------------------------------------------------ */
 function ParticleCanvas({ accent }) {
   const ref = useRef(null);
   const accentRef = useRef(accent);
@@ -622,9 +598,6 @@ function ParticleCanvas({ accent }) {
   return <canvas ref={ref} className="ld-hero-canvas" />;
 }
 
-/* ------------------------------------------------------------------ */
-/*  Counter                                                            */
-/* ------------------------------------------------------------------ */
 function Counter({ end, suffix = '', decimals = 0, duration = 1600 }) {
   const ref = useRef(null);
   useEffect(() => {
@@ -654,9 +627,6 @@ function Counter({ end, suffix = '', decimals = 0, duration = 1600 }) {
   return <span ref={ref}>0{suffix}</span>;
 }
 
-/* ------------------------------------------------------------------ */
-/*  Rotating Word                                                      */
-/* ------------------------------------------------------------------ */
 function RotatingWord({ words = ['TRACK', 'ANALYZE', 'OPTIMIZE', 'SCALE'] }) {
   const [i, setI] = useState(0);
   useEffect(() => {
@@ -670,9 +640,6 @@ function RotatingWord({ words = ['TRACK', 'ANALYZE', 'OPTIMIZE', 'SCALE'] }) {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Reveal on scroll                                                   */
-/* ------------------------------------------------------------------ */
 function initReveal() {
   const els = Array.from(document.querySelectorAll('.ld-reveal:not(.ld-inited)'));
   if (!els.length) return;
@@ -684,9 +651,6 @@ function initReveal() {
   els.forEach((el) => io.observe(el));
 }
 
-/* ------------------------------------------------------------------ */
-/*  Tilt                                                               */
-/* ------------------------------------------------------------------ */
 function onTilt(e) {
   const el = e.currentTarget;
   const r = el.getBoundingClientRect();
@@ -698,9 +662,6 @@ function offTilt(e) {
   e.currentTarget.style.transform = '';
 }
 
-/* ------------------------------------------------------------------ */
-/*  Session Clock                                                      */
-/* ------------------------------------------------------------------ */
 function SessionClock() {
   const [now, setNow] = useState(new Date());
   useEffect(() => {
@@ -734,9 +695,6 @@ function SessionClock() {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Hero Dashboard                                                     */
-/* ------------------------------------------------------------------ */
 function HeroDashboard({ accent }) {
   const [m, setM] = useState(0);
   const [pnl, setPnl] = useState(4812);
@@ -765,7 +723,6 @@ function HeroDashboard({ accent }) {
     ['Drawdown', '-8.1%', '#ef4444', 'Peak-to-trough equity decline over the sample window.'],
   ];
 
-  // Interactive chart with hover tracking
   const W = 900, H = 300;
   const pts = useMemo(() => {
     const seed = [0, 196, 210, 160, 176, 120, 140, 92, 118, 64, 96, 40, 60];
@@ -778,7 +735,6 @@ function HeroDashboard({ accent }) {
     const svg = e.currentTarget;
     const rect = svg.getBoundingClientRect();
     const x = ((e.clientX - rect.left) / rect.width) * W;
-    // find nearest point
     let nearest = pts[0], best = Infinity;
     for (const p of pts) {
       const d = Math.abs(p.x - x);
@@ -801,7 +757,7 @@ function HeroDashboard({ accent }) {
         animation: 'ldFloat 7s ease-in-out infinite',
       }}
     >
-      {/* Top bar */}
+      {}
       <div style={{ display: 'flex', gap: 8, padding: '14px 18px', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,.05)' }}>
         {['#EF4444', '#F59E0B', '#10B981'].map((c) => (
           <span key={c} style={{ width: 10, height: 10, borderRadius: '50%', background: c, opacity: .85 }} />
@@ -821,7 +777,7 @@ function HeroDashboard({ accent }) {
         }} />
       </div>
 
-      {/* Metric tiles */}
+      {}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(96px, 1fr))', gap: 10, padding: '18px 18px 6px' }}>
         {metrics.map(([label, val, color, tip], i) => (
           <div
@@ -849,7 +805,7 @@ function HeroDashboard({ accent }) {
         ))}
       </div>
 
-      {/* Chart */}
+      {}
       <div style={{ padding: '10px 16px 20px', position: 'relative' }}>
         <svg
           viewBox={`0 0 ${W} ${H}`}
@@ -896,9 +852,6 @@ function HeroDashboard({ accent }) {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  R:R Simulator (star feature)                                       */
-/* ------------------------------------------------------------------ */
 function genEquity(winRate, rr, n, seed) {
   let s = seed * 9301 + 49297;
   const rand = () => {
@@ -968,7 +921,7 @@ function RrSimulator({ accent }) {
       }}
     >
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(280px, 360px) 1fr' }} className="ld-rrsim-grid">
-        {/* Controls */}
+        {}
         <div style={{ padding: '30px 28px', borderRight: '1px solid rgba(255,255,255,.06)' }}>
           <div className="ld-eyebrow" style={{ marginBottom: 10 }}>Live Simulator</div>
           <h3 style={{ fontSize: '1.4rem', fontWeight: 800, letterSpacing: '-.02em', marginBottom: 24, lineHeight: 1.2 }}>
@@ -1011,7 +964,7 @@ function RrSimulator({ accent }) {
           </button>
         </div>
 
-        {/* Results */}
+        {}
         <div style={{ padding: '30px 30px 24px' }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 16, marginBottom: 24 }}>
             <div>
@@ -1043,7 +996,7 @@ function RrSimulator({ accent }) {
             </div>
           </div>
 
-          {/* Equity curve */}
+          {}
           <div style={{ position: 'relative', marginTop: 4 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 }}>
               <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,.5)', fontFamily: 'ui-monospace, monospace', letterSpacing: '.05em' }}>SIMULATED EQUITY</div>
@@ -1082,9 +1035,6 @@ function RrSimulator({ accent }) {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Monte Carlo Runner                                                 */
-/* ------------------------------------------------------------------ */
 function MonteCarlo({ accent }) {
   const [runs, setRuns] = useState([]);
   const [running, setRunning] = useState(false);
@@ -1128,7 +1078,6 @@ function MonteCarlo({ accent }) {
         return `${i === 0 ? 'M' : 'L'} ${pt.x} ${pt.y}`;
       }).join(' ')
     );
-    // percentiles per index
     const p5Arr = [], p95Arr = [];
     for (let i = 0; i <= N; i++) {
       const col = runs.map((r) => r[i]).sort((a, b) => a - b);
@@ -1258,9 +1207,6 @@ function MonteCarlo({ accent }) {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Data                                                               */
-/* ------------------------------------------------------------------ */
 const FEATURES = [
   ['Live Dashboards', 'Equity curve, win rate, expectancy — recomputed live as your journal grows.', 'chart'],
   ['Deep Backtesting', 'Dial R:R targets, session times and confluence combos to statistically prove your edge.', 'bolt'],
@@ -1285,9 +1231,6 @@ const ICONS = {
   shield: <path d="M11 2 L4 5 v6 c0 5 3.5 8.2 7 9.5 3.5 -1.3 7 -4.5 7 -9.5 V5 z" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />,
 };
 
-/* ------------------------------------------------------------------ */
-/*  Main                                                               */
-/* ------------------------------------------------------------------ */
 export default function Landing() {
   const navigate = useNavigate();
   const [accent, setAccent] = useState(PALETTE[0].hex);
@@ -1299,7 +1242,6 @@ export default function Landing() {
   const accentSoft = useMemo(() => hexToRgba(accent, 0.10), [accent]);
   const accentSoft2 = useMemo(() => hexToRgba(accent, 0.30), [accent]);
   const accent2 = useMemo(() => {
-    // lighten accent for gradient partner
     const h = accent.replace('#', '');
     const r = Math.min(255, parseInt(h.slice(0, 2), 16) + 60);
     const g = Math.min(255, parseInt(h.slice(2, 4), 16) + 60);
@@ -1307,7 +1249,6 @@ export default function Landing() {
     return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
   }, [accent]);
 
-  /* scroll state */
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 30);
     window.addEventListener('scroll', onScroll, { passive: true });
@@ -1315,13 +1256,11 @@ export default function Landing() {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
-  /* testimonial rotate */
   useEffect(() => {
     const id = setInterval(() => setTesti((v) => (v + 1) % TESTS.length), 5600);
     return () => clearInterval(id);
   }, []);
 
-  /* command palette hotkey */
   useEffect(() => {
     const onKey = (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
@@ -1369,7 +1308,7 @@ export default function Landing() {
       <AccentPicker accent={accent} onChange={setAccent} />
       <CommandPalette open={cmdOpen} onClose={() => setCmdOpen(false)} items={cmdItems} />
 
-      {/* ============ NAV ============ */}
+      {}
       <header
         className={`ld-nav ${scrolled ? 'ld-scrolled' : ''}`}
         style={{
@@ -1400,7 +1339,7 @@ export default function Landing() {
         </div>
       </header>
 
-      {/* ============ HERO ============ */}
+      {}
       <section
         style={{
           position: 'relative',
@@ -1477,7 +1416,7 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* ============ STATS ============ */}
+      {}
       <section style={{ padding: '40px 6% 90px', maxWidth: 1560, margin: '0 auto', textAlign: 'center' }}>
         <h2 className="ld-reveal" style={{
           fontSize: 'clamp(1.9rem, 3.4vw, 2.6rem)', fontWeight: 800,
@@ -1523,7 +1462,7 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* ============ RR SIMULATOR ============ */}
+      {}
       <section id="sim" className="ld-section" style={{ padding: '20px 6% 90px', maxWidth: 1560, margin: '0 auto' }}>
         <div className="ld-reveal" style={{ textAlign: 'center', marginBottom: 42 }}>
           <div className="ld-eyebrow" style={{ marginBottom: 14 }}>Play with the math</div>
@@ -1540,7 +1479,7 @@ export default function Landing() {
 
       <div className="ld-divider" style={{ maxWidth: 1200, margin: '0 auto' }} />
 
-      {/* ============ FEATURES ============ */}
+      {}
       <section id="features" className="ld-section" style={{ padding: '90px 6%', maxWidth: 1560, margin: '0 auto' }}>
         <div className="ld-reveal" style={{ textAlign: 'center', marginBottom: 56 }}>
           <div className="ld-eyebrow" style={{ marginBottom: 14 }}>Capabilities</div>
@@ -1564,12 +1503,12 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* ============ MONTE CARLO ============ */}
+      {}
       <section id="mc" className="ld-section" style={{ padding: '20px 6% 90px', maxWidth: 1560, margin: '0 auto' }}>
         <MonteCarlo accent={accent} />
       </section>
 
-      {/* ============ TESTIMONIALS ============ */}
+      {}
       <section style={{ padding: '40px 6% 90px', maxWidth: 1080, margin: '0 auto', textAlign: 'center' }}>
         <div className="ld-eyebrow ld-reveal" style={{ marginBottom: 14 }}>Signal, not noise</div>
         <h2 className="ld-reveal" style={{ fontSize: 'clamp(1.9rem, 3.4vw, 2.6rem)', fontWeight: 800, letterSpacing: '-.02em', marginBottom: 44 }}>
@@ -1615,7 +1554,7 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* ============ FAQ ============ */}
+      {}
       <section id="faq" className="ld-section" style={{ padding: '40px 6% 90px', maxWidth: 980, margin: '0 auto' }}>
         <div className="ld-reveal" style={{ textAlign: 'center', marginBottom: 46 }}>
           <div className="ld-eyebrow" style={{ marginBottom: 14 }}>FAQ</div>
@@ -1678,7 +1617,7 @@ export default function Landing() {
         })}
       </section>
 
-      {/* ============ CTA ============ */}
+      {}
       <section style={{ padding: '20px 6% 100px', maxWidth: 1200, margin: '0 auto' }}>
         <div className="ld-reveal" style={{
           position: 'relative', textAlign: 'center',
@@ -1702,7 +1641,7 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* ============ FOOTER ============ */}
+      {}
       <footer style={{
         borderTop: '1px solid rgba(255,255,255,.07)',
         padding: '40px 6%',

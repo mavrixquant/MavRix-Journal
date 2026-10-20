@@ -1,19 +1,3 @@
-// apps/api/src/routes/chat.routes.js
-//
-// Chat is FULLY private. Every route requires an authenticated user, and
-// every service call re-verifies participant membership before touching the
-// conversation. There is NO admin route that reads or moderates chat.
-//
-// Group discovery, join, leave, and member-list are the ONLY group
-// operations a normal user can perform. Group *creation* and full
-// administration live under /api/admin/groups/*.
-//
-// Rate limits:
-//   - send message: 30 / min / user
-//   - typing:       120 / min / user (client throttles to ~1 per 2s)
-//   - search:       30 / min / user
-//   - delivered:    600 / min / user (one per inbound message, high ceiling)
-//   - group actions: 30 / min / user (discovery, join, leave, member-list)
 
 import { Router } from 'express';
 import {
@@ -70,7 +54,12 @@ const groupActionLimiter = rateLimit({
   message: 'Too many group actions. Slow down.',
 });
 
-/* ---------------- Users ---------------- */
+const clearLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 5,
+  message: 'Too many clear requests. Slow down.',
+});
+
 
 chatRoutes.get(
   '/users/search',
@@ -84,11 +73,6 @@ chatRoutes.get(
   ctrl.searchUsers
 );
 
-/* ---------------- Groups (user surface) ---------------- */
-//
-// Mount order matters: static "/groups/discover" must come before any
-// "/groups/:id/*" pattern so Express doesn't try to parse "discover" as
-// an id.
 
 chatRoutes.get(
   '/groups/discover',
@@ -109,7 +93,6 @@ chatRoutes.post('/groups/:id/join',   groupActionLimiter, ctrl.joinGroup);
 chatRoutes.post('/groups/:id/leave',  groupActionLimiter, ctrl.leaveGroup);
 chatRoutes.get( '/groups/:id/members', groupActionLimiter, ctrl.listGroupMembers);
 
-/* ---------------- Conversations ---------------- */
 
 chatRoutes.get('/conversations', ctrl.listConversations);
 chatRoutes.post('/conversations', validate(createDmSchema), ctrl.createConversation);
@@ -120,7 +103,9 @@ chatRoutes.patch(
   ctrl.updateConversation
 );
 
-/* ---------------- Messages ---------------- */
+
+chatRoutes.post('/conversations/:id/clear', clearLimiter, ctrl.clearChat);
+
 
 chatRoutes.get('/conversations/:id/messages', ctrl.listMessages);
 chatRoutes.post(
@@ -137,7 +122,6 @@ chatRoutes.post(
   ctrl.typing
 );
 
-/* ---------------- Single message ---------------- */
 
 chatRoutes.post(
   '/messages/:messageId/delivered',

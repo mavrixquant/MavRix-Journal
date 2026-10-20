@@ -1,27 +1,3 @@
-// apps/api/src/lib/marketData/biquoteProvider.js
-//
-// Forex / metals provider backed by Biquote's MetaTrader 5 feed.
-// Free, no API key. Docs: https://biquote.io/docs/
-//
-// Verified response shapes (from live diagnostic):
-//
-//   bq.ohlc(symbol, { interval, limit })  →  array of:
-//     {
-//       openTime: "2026-10-08T12:00:00Z",   // ISO string
-//       open, high, low, close: number,
-//       volume: 0,                           // always 0 for forex
-//       tickVolume: 4796,                    // the real activity count
-//       isOpen: boolean
-//     }
-//
-//   bq.tick(symbol)  →  {
-//     symbol, bid, ask, mid, last, volume, timestamp, source, exchange,
-//     high, low, direction, dayDiffPercent, description, time, spread,
-//     stale, quoteAgeSeconds, marketState, lastQuoteAt
-//   }
-//
-// Normalized bar shape (same as yahooProvider):
-//   { time: number|string, open, high, low, close, volume }
 
 import Biquote from 'biquote';
 
@@ -29,9 +5,6 @@ import { HttpError } from '../../middleware/error.js';
 import { enqueue } from './queue.js';
 import { get as cacheGet, set as cacheSet } from './cache.js';
 
-/* ------------------------------------------------------------------ */
-/*  Client — lazy singleton                                           */
-/* ------------------------------------------------------------------ */
 
 let _client = null;
 
@@ -42,9 +15,6 @@ function getClient() {
   return _client;
 }
 
-/* ------------------------------------------------------------------ */
-/*  Interval / limit / TTL maps                                       */
-/* ------------------------------------------------------------------ */
 
 const BIQUOTE_INTERVAL_MAP = {
   '1m':  '1m',
@@ -73,16 +43,7 @@ const CACHE_TTL = {
   '1d':  60 * 60_000,
 };
 
-/* ------------------------------------------------------------------ */
-/*  Time normalization                                                */
-/* ------------------------------------------------------------------ */
 
-/**
- * Biquote returns `openTime` as an ISO 8601 string ("2026-10-08T12:00:00Z").
- * Convert to:
- *   - Unix seconds (integer) for intraday intervals — what lightweight-charts wants
- *   - "YYYY-MM-DD" for daily bars — what lightweight-charts wants for daily
- */
 function normalizeTime(isoString, isDaily) {
   if (!isoString) return null;
   const d = new Date(isoString);
@@ -94,9 +55,6 @@ function normalizeTime(isoString, isDaily) {
   return Math.floor(d.getTime() / 1000);
 }
 
-/* ------------------------------------------------------------------ */
-/*  Bar normalization                                                 */
-/* ------------------------------------------------------------------ */
 
 function normalizeBars(raw, interval) {
   if (!Array.isArray(raw) || raw.length === 0) {
@@ -129,7 +87,6 @@ function normalizeBars(raw, interval) {
       continue;
     }
 
-    // `volume` is always 0 for forex; `tickVolume` is the real activity.
     const tickVol = Number(c.tickVolume);
     const realVol = Number(c.volume);
     const volume = Number.isFinite(tickVol) && tickVol > 0
@@ -154,15 +111,11 @@ function normalizeBars(raw, interval) {
     );
   }
 
-  // lightweight-charts requires ascending time order.
   bars.sort((a, b) => (a.time < b.time ? -1 : a.time > b.time ? 1 : 0));
 
   return bars;
 }
 
-/* ------------------------------------------------------------------ */
-/*  Public — bars                                                     */
-/* ------------------------------------------------------------------ */
 
 export async function getBars(symbol, interval) {
   const biqInterval = BIQUOTE_INTERVAL_MAP[interval];
@@ -193,9 +146,6 @@ export async function getBars(symbol, interval) {
   return bars;
 }
 
-/* ------------------------------------------------------------------ */
-/*  Public — quote                                                    */
-/* ------------------------------------------------------------------ */
 
 const QUOTE_TTL_MS = 30_000;
 
@@ -228,8 +178,6 @@ export async function getQuote(symbol) {
   const low = Number(tick.low);
   const volume = Number(tick.volume);
 
-  // Derive previous close from current mid + dayDiffPercent:
-  //   mid = prev * (1 + pct/100)  →  prev = mid / (1 + pct/100)
   let previousClose = null;
   let change = null;
   if (Number.isFinite(dayPct)) {

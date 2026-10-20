@@ -1,4 +1,3 @@
-// apps/web/src/shared/api/accounts.js
 import {
   useQuery,
   useMutation,
@@ -7,13 +6,11 @@ import {
 import { apiJson } from './client';
 import { useSSEFallback } from '@/shared/api/sse';
 
-// ---------- Query keys ----------
 export const accountsKeys = {
   all: ['accounts'],
   detail: (id) => ['accounts', id],
 };
 
-// ---------- Raw API calls (unchanged signatures for compat) ----------
 export async function getAccounts() {
   const data = await apiJson('/api/accounts');
   return data.accounts;
@@ -47,13 +44,10 @@ export async function updateAccountColumnConfigs(accountId, columnConfigs) {
   return data.account;
 }
 
-// ---------- Hooks ----------
 
-/** List all accounts for the current user. */
 export function useAccounts({ refetchInterval } = {}) {
   const sseFallback = useSSEFallback();
 
-  // Poll only if SSE failed AND the caller didn't explicitly override.
   const interval =
     refetchInterval !== undefined
       ? refetchInterval
@@ -68,7 +62,6 @@ export function useAccounts({ refetchInterval } = {}) {
   });
 }
 
-/** Create an account. Invalidates the list on success. */
 export function useCreateAccount() {
   const qc = useQueryClient();
   return useMutation({
@@ -79,7 +72,6 @@ export function useCreateAccount() {
   });
 }
 
-/** Update an account. Invalidates the list and the detail. */
 export function useUpdateAccount() {
   const qc = useQueryClient();
   return useMutation({
@@ -91,20 +83,17 @@ export function useUpdateAccount() {
   });
 }
 
-/** Delete an account (cascades to its trades on the API). */
 export function useDeleteAccount() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (accountId) => deleteAccount(accountId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: accountsKeys.all });
-      // Any cached trades for a deleted account are now stale.
       qc.invalidateQueries({ queryKey: ['trades'] });
     },
   });
 }
 
-/** Patch the columnConfigs JSON blob on an account. */
 export function useUpdateColumnConfigs() {
   const qc = useQueryClient();
   return useMutation({
@@ -117,7 +106,6 @@ export function useUpdateColumnConfigs() {
   });
 }
 
-// ---------- Deprecated polling helper (kept for compat, do not use) ----------
 export function subscribeToAccounts(_userId, callback) {
   let cancelled = false;
   let timer = null;

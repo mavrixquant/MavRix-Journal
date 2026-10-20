@@ -1,4 +1,3 @@
-// apps/web/src/features/admin/components/Pagination.jsx
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 export default function Pagination({ page, pages, total, onChange }) {

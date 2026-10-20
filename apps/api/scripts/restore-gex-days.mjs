@@ -1,17 +1,11 @@
-// apps/api/scripts/restore-gex-days.mjs
-//
-// Restore gex_days rows from a backup JSON produced by backup-gex-days.mjs.
-// Uses upsert, so it's safe to re-run — existing dates get overwritten,
-// new dates get inserted.
-//
-// Usage (from apps/api):
-//   node --env-file=.env scripts/restore-gex-days.mjs backups/gex-days-2026-10-05T22-15-30.json
-
 import { PrismaClient } from '@prisma/client';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
 const prisma = new PrismaClient();
+
+const VALID_SYMBOLS = new Set(['NQ', 'ES']);
+const DEFAULT_SYMBOL = 'NQ';
 
 async function main() {
   const inputPath = process.argv[2];
@@ -25,7 +19,6 @@ async function main() {
   const raw = await fs.readFile(path.resolve(inputPath), 'utf8');
   const payload = JSON.parse(raw);
 
-  // Support both { rows: [...] } (our format) and a bare array
   const rows = Array.isArray(payload) ? payload : payload.rows;
   if (!Array.isArray(rows)) {
     throw new Error('Backup file does not contain a rows array.');
@@ -38,6 +31,10 @@ async function main() {
 
   for (const r of rows) {
     try {
+      // Backups made before the symbol column existed have no `symbol` field.
+      // Fall back to NQ so those backups still restore cleanly.
+      const symbol = VALID_SYMBOLS.has(r.symbol) ? r.symbol : DEFAULT_SYMBOL;
+
       const data = {
         levels: r.levels,
         converted: r.converted,
@@ -50,14 +47,16 @@ async function main() {
       };
 
       await prisma.gexDay.upsert({
-        where: { date: r.date },
-        create: { date: r.date, ...data },
+        where: { date_symbol: { date: r.date, symbol } },
+        create: { date: r.date, symbol, ...data },
         update: data,
       });
       ok += 1;
     } catch (err) {
       fail += 1;
-      console.error(`[restore]   ✗ ${r.date}: ${err?.message || err}`);
+      console.error(
+        `[restore]   x ${r.date}/${r.symbol || DEFAULT_SYMBOL}: ${err?.message || err}`
+      );
     }
   }
 

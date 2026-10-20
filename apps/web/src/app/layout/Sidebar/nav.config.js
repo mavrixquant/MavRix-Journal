@@ -1,7 +1,3 @@
-// apps/web/src/app/layout/Sidebar/nav.config.js
-//
-// Single source of truth for the sidebar navigation tree.
-// Each top-level entry is a group; each `items` entry is a route.
 
 import {
   FaBook,

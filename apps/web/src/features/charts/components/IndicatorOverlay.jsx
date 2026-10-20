@@ -1,6 +1,3 @@
-// apps/web/src/features/charts/components/IndicatorOverlay.jsx
-//
-// Toggle buttons for chart overlays.
 
 const TOGGLES = [
   { key: 'ema20', label: 'EMA 20', color: 'var(--accent)' },

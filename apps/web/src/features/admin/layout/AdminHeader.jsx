@@ -1,4 +1,3 @@
-// apps/web/src/features/admin/layout/AdminHeader.jsx
 import { Menu as MenuIcon } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { useAdminHealth } from '../api';

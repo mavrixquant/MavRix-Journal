@@ -1,4 +1,3 @@
-// apps/api/src/services/auth.service.js
 import { prisma } from '../lib/prisma.js';
 import { hashPassword, verifyPassword } from '../lib/password.js';
 import {
@@ -15,6 +14,7 @@ import {
 import { sendVerificationEmail, sendPasswordResetEmail } from '../lib/mailer.js';
 import { verifyGoogleAccessToken } from '../lib/google.js';
 import { invalidateSvCache } from '../lib/session.js';
+import { ensureAiDmForUser } from './maveAiBootstrap.js';
 
 const publicUser = (u) => ({
   id: u.id,
@@ -28,10 +28,6 @@ const publicUser = (u) => ({
   isBanned: !!u.isBanned,
 });
 
-// Tokens carry three role-aware claims:
-//   sub  — user id (unchanged)
-//   role — 'user' | 'admin' | 'superadmin' (read by requireAdmin)
-//   sv   — snapshot of user.tokenVersion (checked by requireAuth against DB)
 const issueTokens = (user) => {
   const payload = {
     sub: user.id,
@@ -52,9 +48,20 @@ function assertNotBanned(user) {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Signup / login / refresh / me
-// ---------------------------------------------------------------------------
+function assertNotAi(user) {
+  if (user.isAi || user.role === 'ai') {
+    throw new HttpError(403, 'This account is reserved.');
+  }
+}
+
+function scheduleAiDmForUser(userId) {
+  ensureAiDmForUser(userId).catch((err) => {
+    console.warn(
+      `[mave-ai] failed to ensure DM for new user ${userId}:`,
+      err?.message || err
+    );
+  });
+}
 
 export async function signup({ email, password, firstName, lastName }) {
   const existing = await prisma.user.findUnique({ where: { email } });
@@ -77,6 +84,8 @@ export async function signup({ email, password, firstName, lastName }) {
 
   await sendVerificationEmail({ to: user.email, token: verifyToken });
 
+  scheduleAiDmForUser(user.id);
+
   return { user: publicUser(user), ...issueTokens(user) };
 }
 
@@ -87,6 +96,7 @@ export async function login({ email, password }) {
   }
 
   assertNotBanned(user);
+  assertNotAi(user);
 
   const ok = await verifyPassword(password, user.passwordHash);
   if (!ok) throw new HttpError(401, 'Invalid email or password');
@@ -95,6 +105,8 @@ export async function login({ email, password }) {
     where: { id: user.id },
     data: { lastLoginAt: new Date() },
   });
+
+  scheduleAiDmForUser(updated.id);
 
   return { user: publicUser(updated), ...issueTokens(updated) };
 }
@@ -151,9 +163,8 @@ export async function refresh(refreshToken) {
   if (!user) throw new HttpError(401, 'User no longer exists');
 
   assertNotBanned(user);
+  assertNotAi(user);
 
-  // The refresh token's `sv` is a snapshot. If the DB value has moved on
-  // (force-logout, password reset, admin demotion), the token is dead.
   const tokenSv = Number.isFinite(payload.sv) ? payload.sv : 0;
   if (tokenSv !== user.tokenVersion) {
     throw new HttpError(401, 'Session revoked');
@@ -162,29 +173,26 @@ export async function refresh(refreshToken) {
   return { user: publicUser(user), ...issueTokens(user) };
 }
 
-// ---------------------------------------------------------------------------
-// Google
-// ---------------------------------------------------------------------------
-
 export async function loginWithGoogle(accessToken) {
   const g = await verifyGoogleAccessToken(accessToken);
 
-  // Case 1: existing user with this googleId
   const byGoogle = await prisma.user.findUnique({
     where: { googleId: g.googleId },
   });
   if (byGoogle) {
+    assertNotAi(byGoogle);
     assertNotBanned(byGoogle);
     const updated = await prisma.user.update({
       where: { id: byGoogle.id },
       data: { lastLoginAt: new Date() },
     });
+    scheduleAiDmForUser(updated.id);
     return { user: publicUser(updated), ...issueTokens(updated) };
   }
 
-  // Case 2: existing user with this email (created via password signup)
   const byEmail = await prisma.user.findUnique({ where: { email: g.email } });
   if (byEmail) {
+    assertNotAi(byEmail);
     assertNotBanned(byEmail);
     if (!byEmail.emailVerified) {
       throw new HttpError(
@@ -200,10 +208,10 @@ export async function loginWithGoogle(accessToken) {
         lastLoginAt: new Date(),
       },
     });
+    scheduleAiDmForUser(linked.id);
     return { user: publicUser(linked), ...issueTokens(linked) };
   }
 
-  // Case 3: brand new user, Google-verified email
   const created = await prisma.user.create({
     data: {
       email: g.email,
@@ -216,6 +224,9 @@ export async function loginWithGoogle(accessToken) {
       lastLoginAt: new Date(),
     },
   });
+
+  scheduleAiDmForUser(created.id);
+
   return { user: publicUser(created), ...issueTokens(created) };
 }
 
@@ -226,7 +237,7 @@ export async function linkGoogleAccount(userId, accessToken) {
   if (!me) throw new HttpError(404, 'User not found');
 
   if (me.googleId === g.googleId) {
-    return publicUser(me); // idempotent
+    return publicUser(me);
   }
 
   const clash = await prisma.user.findUnique({
@@ -250,7 +261,7 @@ export async function unlinkGoogleAccount(userId) {
   const me = await prisma.user.findUnique({ where: { id: userId } });
   if (!me) throw new HttpError(404, 'User not found');
 
-  if (!me.googleId) return publicUser(me); // idempotent
+  if (!me.googleId) return publicUser(me);
 
   if (!me.passwordHash) {
     throw new HttpError(
@@ -266,16 +277,11 @@ export async function unlinkGoogleAccount(userId) {
   return publicUser(updated);
 }
 
-// ---------------------------------------------------------------------------
-// Password reset
-// ---------------------------------------------------------------------------
-
 export async function requestPasswordReset(email) {
   const user = await prisma.user.findUnique({ where: { email } });
 
-  // Always return success even if the email doesn't exist,
-  // to prevent account enumeration.
   if (!user) return { ok: true };
+  if (user.isAi) return { ok: true };
 
   const resetToken = generateSecureToken();
   const resetTokenExpiry = new Date(Date.now() + RESET_TTL_MS);
@@ -299,6 +305,7 @@ export async function resetPassword(token, newPassword) {
 
   const user = await prisma.user.findUnique({ where: { resetToken: token } });
   if (!user) throw new HttpError(400, 'Invalid reset token');
+  if (user.isAi) throw new HttpError(400, 'Invalid reset token');
   if (user.resetTokenExpiry && user.resetTokenExpiry < new Date()) {
     throw new HttpError(400, 'Reset token expired');
   }
@@ -311,7 +318,6 @@ export async function resetPassword(token, newPassword) {
       passwordHash,
       resetToken: null,
       resetTokenExpiry: null,
-      // Password change kills every existing session.
       tokenVersion: { increment: 1 },
     },
   });

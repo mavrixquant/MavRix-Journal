@@ -1,4 +1,3 @@
-// apps/web/src/features/auth/pages/LoginPage.jsx
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
@@ -25,7 +24,6 @@ function GoogleIcon() {
   );
 }
 
-/** Where to send a user after a successful auth — role-aware. */
 function landingFor(user) {
   if (!user) return '/login';
   if (!user.emailVerified) return '/verify-email';

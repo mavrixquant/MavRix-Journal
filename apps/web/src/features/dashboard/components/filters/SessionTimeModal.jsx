@@ -1,4 +1,3 @@
-// apps/web/src/features/dashboard/components/filters/SessionTimeModal.jsx
 import { useState, useEffect, useMemo } from 'react';
 import { X } from 'lucide-react';
 
@@ -6,9 +5,6 @@ import { useFilters } from '@/features/dashboard/hooks/useFilters';
 import { generateTimeBlocks } from '@/shared/trading/time';
 import Portal from '@/shared/components/Portal';
 
-/* ------------------------------------------------------------------ */
-/*  Scoped styles                                                      */
-/* ------------------------------------------------------------------ */
 const CSS = `
   .st-overlay {
     
@@ -322,9 +318,6 @@ const CSS = `
   }
 `;
 
-/* ------------------------------------------------------------------ */
-/*  Data                                                               */
-/* ------------------------------------------------------------------ */
 const SESSIONS = [
   { id: 'Asia', name: 'Asia', detail: '00:00 - 08:00 UTC' },
   { id: 'London', name: 'London', detail: '07:00 - 15:00 UTC' },
@@ -335,9 +328,6 @@ const SESSIONS = [
   { id: 'After Hours', name: 'After Hours', detail: '21:00 - 00:00 UTC' },
 ];
 
-/* ------------------------------------------------------------------ */
-/*  Main                                                                */
-/* ------------------------------------------------------------------ */
 export default function SessionTimeModal({ isOpen, onClose }) {
   const {
     stMode,
@@ -354,7 +344,6 @@ export default function SessionTimeModal({ isOpen, onClose }) {
 
   const timeBlocks = useMemo(() => generateTimeBlocks(), []);
 
-  // Sync local state when modal opens
   useEffect(() => {
     if (isOpen) {
       setLocalMode(stMode || 'session');
@@ -363,7 +352,6 @@ export default function SessionTimeModal({ isOpen, onClose }) {
     }
   }, [isOpen, stMode, selectedSessions, selectedTimeBlocks]);
 
-  // ESC to close
   useEffect(() => {
     if (!isOpen) return;
     const h = (e) => e.key === 'Escape' && onClose();
@@ -413,7 +401,7 @@ export default function SessionTimeModal({ isOpen, onClose }) {
         onClick={(e) => e.target === e.currentTarget && onClose()}
       >
         <div className="st-modal">
-          {/* Header */}
+          {}
           <div className="st-head">
             <div>
               <h2 className="st-title">Session & Time Filter</h2>
@@ -426,9 +414,9 @@ export default function SessionTimeModal({ isOpen, onClose }) {
             </button>
           </div>
 
-          {/* Body */}
+          {}
           <div className="st-body">
-            {/* Mode switch */}
+            {}
             <div className="st-switch">
               <button
                 type="button"
@@ -446,7 +434,7 @@ export default function SessionTimeModal({ isOpen, onClose }) {
               </button>
             </div>
 
-            {/* Quick actions */}
+            {}
             <div className="st-actions">
               <span className="st-count">
                 Selected: <strong>{currentCount}</strong> / {maxCount}
@@ -461,7 +449,7 @@ export default function SessionTimeModal({ isOpen, onClose }) {
               </div>
             </div>
 
-            {/* Sessions */}
+            {}
             {localMode === 'session' && (
               <div className="st-sessions-grid">
                 {SESSIONS.map((s) => {
@@ -487,7 +475,7 @@ export default function SessionTimeModal({ isOpen, onClose }) {
               </div>
             )}
 
-            {/* Time blocks */}
+            {}
             {localMode === 'time' && (
               <div className="st-blocks-grid">
                 {timeBlocks.map((t) => {
@@ -507,7 +495,7 @@ export default function SessionTimeModal({ isOpen, onClose }) {
             )}
           </div>
 
-          {/* Footer */}
+          {}
           <div className="st-foot">
             <button className="st-btn st-btn-cancel" onClick={onClose}>
               Cancel

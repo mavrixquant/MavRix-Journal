@@ -1,7 +1,3 @@
-﻿// apps/web/src/features/personal/chats/components/ChatHeader.jsx
-//
-// PHASE 4 — the single Info button now toggles the right panel for BOTH
-// DMs and Groups. Group settings moved inside GroupProfilePanel.
 
 import { ArrowLeft, Info } from 'lucide-react';
 import GroupAvatar from './GroupAvatar';
@@ -34,6 +30,7 @@ export default function ChatHeader({
   panelOpen = false,
 }) {
   const isGroup = !!conversation?.isGroup;
+  const isAi = !!conversation?.isAi;
   const peer = conversation?.peer;
   const isTyping = typingUserIds.length > 0 && showTypingInThread;
 
@@ -48,6 +45,7 @@ export default function ChatHeader({
       const vis = conversation?.visibility === 'private' ? 'Private' : 'Public';
       return `${mc} member${mc === 1 ? '' : 's'} · ${vis}`;
     }
+    if (isAi) return 'AI Assistant';
     return peer?.email || '';
   })();
 

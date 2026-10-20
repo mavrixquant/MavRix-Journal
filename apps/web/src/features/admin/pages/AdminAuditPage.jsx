@@ -1,13 +1,3 @@
-// apps/web/src/features/admin/pages/AdminAuditPage.jsx
-//
-// Paginated audit log. Filters: search by actor email, action prefix,
-// target type. Row expands to show metadata JSON.
-//
-// PHASE 6 CHANGE (EmptyState migration)
-// -------------------------------------
-//   • The "No audit entries" filter-empty state now uses the shared
-//     <EmptyState> component (@/shared/components/EmptyState).
-//   • Dead `.aad-empty` rule removed; `.aad-loading` retained.
 
 import { useState, useMemo, Fragment } from 'react';
 import { Search, ChevronDown, ChevronRight, ScrollText } from 'lucide-react';

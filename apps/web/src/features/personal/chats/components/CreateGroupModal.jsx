@@ -1,8 +1,3 @@
-﻿// apps/web/src/features/personal/chats/components/CreateGroupModal.jsx
-//
-// PHASE 5 — polish only. Visual parity with the other Phase 5 modals:
-// eyebrow-style labels, tighter spacing, warning chips on the disabled
-// Private option. Behaviour is unchanged from Phase 4.
 
 import { useEffect, useState } from 'react';
 import { X, Hash, Lock } from 'lucide-react';

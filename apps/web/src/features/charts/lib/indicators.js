@@ -1,11 +1,4 @@
-// apps/web/src/features/charts/lib/indicators.js
-//
-// Pure math for the chart overlays. Each function returns an array of
-// { time, value } objects in the exact shape lightweight-charts expects.
 
-/* ------------------------------------------------------------------ */
-/*  EMA                                                               */
-/* ------------------------------------------------------------------ */
 
 export function computeEMA(bars, period) {
   if (!bars || bars.length < period) return [];
@@ -23,9 +16,6 @@ export function computeEMA(bars, period) {
   return out;
 }
 
-/* ------------------------------------------------------------------ */
-/*  VWAP (resets each UTC day)                                        */
-/* ------------------------------------------------------------------ */
 
 function dayKey(time) {
   if (typeof time === 'string') return time;
@@ -54,9 +44,6 @@ export function computeVWAP(bars) {
   return out;
 }
 
-/* ------------------------------------------------------------------ */
-/*  Bollinger Bands                                                   */
-/* ------------------------------------------------------------------ */
 
 export function computeBollinger(bars, period = 20, mult = 2) {
   if (!bars || bars.length < period) return { upper: [], middle: [], lower: [] };
@@ -84,9 +71,6 @@ export function computeBollinger(bars, period = 20, mult = 2) {
   return { upper, middle, lower };
 }
 
-/* ------------------------------------------------------------------ */
-/*  Bundled compute — one call per render                             */
-/* ------------------------------------------------------------------ */
 
 export function computeIndicators(bars, flags) {
   return {

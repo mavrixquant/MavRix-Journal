@@ -1,4 +1,3 @@
-// apps/web/src/features/auth/components/ResetPasswordPage.jsx
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
@@ -42,7 +41,6 @@ export default function ResetPassword() {
     defaultValues: { token: '', password: '', confirm: '' },
   });
 
-  // Auto-fill token from ?token=... in the email link
   useEffect(() => {
     const t = searchParams.get('token');
     if (t) setValue('token', t);

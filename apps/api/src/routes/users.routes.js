@@ -1,4 +1,3 @@
-// apps/api/src/routes/users.routes.js
 import { Router } from 'express';
 import { z } from 'zod';
 import { layoutSchema, layoutItemSchema } from '@mavrix/shared/validators';
@@ -17,18 +16,15 @@ const validate = (schema) => (req, _res, next) => {
   } catch (e) { next(e); }
 };
 
-// Partial schema for PATCH — id is immutable and set via URL.
 const layoutUpdateSchema = z.object({
   name: z.string().trim().min(1).max(24).optional(),
   layout: z.array(layoutItemSchema).optional(),
 });
 
-/* ---------------- Preferences ---------------- */
 
 usersRoutes.get('/preferences', preferencesController.get);
 usersRoutes.put('/preferences', preferencesController.put);
 
-/* ---------------- Layouts ---------------- */
 
 usersRoutes.get('/layouts', usersController.listLayouts);
 usersRoutes.post('/layouts', validate(layoutSchema), usersController.createLayout);

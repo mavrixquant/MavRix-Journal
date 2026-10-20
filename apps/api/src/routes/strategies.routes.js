@@ -1,7 +1,3 @@
-// apps/api/src/routes/strategies.routes.js
-//
-// User-facing strategy CRUD. Every route requires an authenticated user
-// and every handler is scoped to that user's own strategies.
 
 import { Router } from 'express';
 import { strategySchema } from '@mavrix/shared/validators';

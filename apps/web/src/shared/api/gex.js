@@ -1,23 +1,3 @@
-// apps/web/src/shared/api/gex.js
-//
-// React Query hooks + raw fetchers for GEX day data.
-//
-// Two surfaces:
-//   User  → useGexDays(), useGexDay(date)
-//   Admin → useAdminGexDays(), useAdminUpsertGex(), useAdminDeleteGex()
-//
-// SSE invalidation:
-//   The API does NOT broadcast on GEX mutations today (mutations are rare
-//   and admin-scoped). Instead we lean on React Query's staleTime plus the
-//   `useSSEFallback` polling safety net — same pattern used by accounts.js
-//   and trades.js.
-//
-// Overwrite flow:
-//   POST /api/admin/gex returns 409 when the date already exists.
-//   The mutation throws an Error with `.status === 409` and
-//   `.body.details.existing` populated. Callers catch that, show a
-//   confirmation, then re-call with `{ overwrite: true }`.
-
 import {
   useQuery,
   useMutation,
@@ -25,59 +5,53 @@ import {
 } from '@tanstack/react-query';
 import { apiJson } from './client.js';
 import { useSSEFallback } from './sse.js';
+import { DEFAULT_GEX_SYMBOL } from '@mavrix/shared';
 
-/* ------------------------------------------------------------------ */
-/*  Query keys                                                         */
-/* ------------------------------------------------------------------ */
 
-// All GEX queries share the ['gex', ...] prefix so a single
-// invalidateQueries({ queryKey: ['gex'] }) refreshes everything.
 export const gexKeys = {
   all: ['gex'],
-  days: () => ['gex', 'days'],
-  day: (date) => ['gex', 'day', date],
-  adminDays: () => ['gex', 'admin', 'days'],
+  days: (symbol) => ['gex', 'days', symbol],
+  day: (date, symbol) => ['gex', 'day', date, symbol],
+  adminDays: (symbol) => ['gex', 'admin', 'days', symbol],
 };
 
-/* ------------------------------------------------------------------ */
-/*  Raw fetchers                                                       */
-/* ------------------------------------------------------------------ */
 
-/* ---------------- User ---------------- */
+// ---------------------------------------------------------------------------
+// User fetchers — symbol-aware, symbol optional (defaults to NQ server-side).
+// ---------------------------------------------------------------------------
 
-export async function getGexDays() {
-  const data = await apiJson('/api/gex');
+function withSymbol(symbol) {
+  const params = new URLSearchParams();
+  if (symbol) params.set('symbol', symbol);
+  const qs = params.toString();
+  return qs ? `?${qs}` : '';
+}
+
+export async function getGexDays(symbol) {
+  const data = await apiJson(`/api/gex${withSymbol(symbol)}`);
   return data.days;
 }
 
-export async function getGexDay(date) {
-  const data = await apiJson(`/api/gex/${encodeURIComponent(date)}`);
+export async function getGexDay(date, symbol) {
+  const data = await apiJson(
+    `/api/gex/${encodeURIComponent(date)}${withSymbol(symbol)}`
+  );
   return data.day;
 }
 
-/* ---------------- Admin ---------------- */
 
-export async function getAdminGexDays() {
-  const data = await apiJson('/api/admin/gex');
+// ---------------------------------------------------------------------------
+// Admin fetchers / mutations.
+// ---------------------------------------------------------------------------
+
+export async function getAdminGexDays(symbol) {
+  const data = await apiJson(`/api/admin/gex${withSymbol(symbol)}`);
   return data.days;
 }
 
-/**
- * Upsert a day's levels.
- *
- * @param {object}  payload
- * @param {string}  payload.date             — "YYYY-MM-DD"
- * @param {Array}   payload.levels           — [{ type, price, label }]
- * @param {string}  payload.converted        — pipe-string
- * @param {string}  [payload.sourceTimezone] — e.g. "Asia/Kolkata"
- * @param {boolean} [payload.overwrite]      — when true, bypasses the 409
- *
- * @throws {Error} when the server rejects. `.status === 409` means the
- *                 date exists and the caller must confirm overwrite.
- *                 `.body.details.existing` carries the current metadata.
- */
 export async function upsertAdminGex({
   date,
+  symbol,
   levels,
   converted,
   sourceTimezone,
@@ -86,71 +60,52 @@ export async function upsertAdminGex({
   const qs = overwrite ? '?overwrite=true' : '';
   const data = await apiJson(`/api/admin/gex${qs}`, {
     method: 'POST',
-    body: JSON.stringify({ date, levels, converted, sourceTimezone }),
+    body: JSON.stringify({ date, symbol, levels, converted, sourceTimezone }),
   });
   return data.day;
 }
 
-export async function deleteAdminGex(date) {
-  return apiJson(`/api/admin/gex/${encodeURIComponent(date)}`, {
-    method: 'DELETE',
-  });
+export async function deleteAdminGex(date, symbol) {
+  return apiJson(
+    `/api/admin/gex/${encodeURIComponent(date)}${withSymbol(symbol)}`,
+    { method: 'DELETE' }
+  );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Hooks — User                                                       */
-/* ------------------------------------------------------------------ */
 
 const FIVE_MIN = 5 * 60_000;
 const THIRTY_SEC = 30_000;
 
-/**
- * List of uploaded GEX days (metadata only, newest first).
- * Polls every 60s ONLY if SSE has fallen back.
- */
-export function useGexDays() {
+export function useGexDays(symbol = DEFAULT_GEX_SYMBOL) {
   const sseFallback = useSSEFallback();
   return useQuery({
-    queryKey: gexKeys.days(),
-    queryFn: getGexDays,
+    queryKey: gexKeys.days(symbol),
+    queryFn: () => getGexDays(symbol),
+    enabled: !!symbol,
     staleTime: FIVE_MIN,
     refetchInterval: sseFallback ? 60_000 : false,
   });
 }
 
-/**
- * Full payload for one date — levels + converted string.
- * Pass `null` / `undefined` to disable (e.g. nothing selected yet).
- */
-export function useGexDay(date) {
+export function useGexDay(date, symbol = DEFAULT_GEX_SYMBOL) {
   return useQuery({
-    queryKey: gexKeys.day(date),
-    queryFn: () => getGexDay(date),
-    enabled: !!date,
+    queryKey: gexKeys.day(date, symbol),
+    queryFn: () => getGexDay(date, symbol),
+    enabled: !!date && !!symbol,
     staleTime: FIVE_MIN,
   });
 }
 
-/* ------------------------------------------------------------------ */
-/*  Hooks — Admin                                                      */
-/* ------------------------------------------------------------------ */
 
-/**
- * Admin list — same shape as the user list, plus `uploadedBy`.
- * Shorter staleTime so a freshly-upserted day shows up immediately.
- */
-export function useAdminGexDays() {
+export function useAdminGexDays(symbol = DEFAULT_GEX_SYMBOL) {
   return useQuery({
-    queryKey: gexKeys.adminDays(),
-    queryFn: getAdminGexDays,
+    queryKey: gexKeys.adminDays(symbol),
+    queryFn: () => getAdminGexDays(symbol),
+    enabled: !!symbol,
     staleTime: THIRTY_SEC,
   });
 }
 
-/**
- * Upsert mutation.
- * Invalidates the whole ['gex'] subtree so both user and admin lists refresh.
- */
 export function useAdminUpsertGex() {
   const qc = useQueryClient();
   return useMutation({
@@ -161,13 +116,10 @@ export function useAdminUpsertGex() {
   });
 }
 
-/**
- * Delete mutation — superadmin only on the server side.
- */
 export function useAdminDeleteGex() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (date) => deleteAdminGex(date),
+    mutationFn: ({ date, symbol }) => deleteAdminGex(date, symbol),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: gexKeys.all });
     },

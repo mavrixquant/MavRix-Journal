@@ -1,23 +1,9 @@
-// apps/web/src/features/journal/economic-calendar/components/CalendarGrid.jsx
-//
-// Month view: 7-column grid of day cells, each showing up to 4 impact-colored
-// dots. Clicking a day jumps to List view scoped to that day.
-//
-// PHASE 2:
-//   • Events are bucketed by their day in the user's preferred timezone, so
-//     an event that happens "on Oct 15 IST" lands in the Oct 15 cell even if
-//     it's Oct 14 UTC.
-//   • The month grid is the internal scroll container inside the calendar
-//     card; the month nav row stays pinned.
 
 import { useMemo, useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useSettings } from '@/app/layout/Settings/SettingsProvider';
 import { resolveTimezone, dayKey } from '@/shared/format/datetime';
 
-/* ------------------------------------------------------------------ */
-/*  Scoped CSS                                                         */
-/* ------------------------------------------------------------------ */
 
 const CSS = `
   .cg-root {
@@ -187,17 +173,11 @@ const CSS = `
   }
 `;
 
-/* ------------------------------------------------------------------ */
-/*  Constants                                                          */
-/* ------------------------------------------------------------------ */
 
 const DOW_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const IMPACT_ORDER = { high: 0, medium: 1, low: 2 };
 const MAX_DOTS = 4;
 
-/* ------------------------------------------------------------------ */
-/*  Helpers                                                            */
-/* ------------------------------------------------------------------ */
 
 function buildMonthMatrix(year, month) {
   const first = new Date(year, month - 1, 1);
@@ -226,9 +206,6 @@ function buildMonthMatrix(year, month) {
   return cells;
 }
 
-/* ------------------------------------------------------------------ */
-/*  Component                                                          */
-/* ------------------------------------------------------------------ */
 
 export default function CalendarGrid({ events = [], onDayClick }) {
   const { settings } = useSettings();
@@ -240,8 +217,6 @@ export default function CalendarGrid({ events = [], onDayClick }) {
     [tz]
   );
 
-  // Anchor month (year + 1-based month), initialized to the current month
-  // in the user's timezone. Re-anchors whenever the tz changes.
   const [anchor, setAnchor] = useState(() => {
     const [y, m] = todayKey.split('-').map(Number);
     return { year: y, month: m };
@@ -252,7 +227,6 @@ export default function CalendarGrid({ events = [], onDayClick }) {
     setAnchor({ year: y, month: m });
   }, [todayKey]);
 
-  // Bucket events by their tz-day.
   const byDate = useMemo(() => {
     const map = new Map();
     for (const e of events) {

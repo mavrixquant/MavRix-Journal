@@ -1,4 +1,3 @@
-// apps/api/src/index.js
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -11,6 +10,7 @@ import { eventsRoutes } from './routes/events.routes.js';
 import { errorHandler, notFound } from './middleware/error.js';
 import { startCalendarSync, stopCalendarSync } from './lib/calendarSync.js';
 import { ensureSuperadmin } from './lib/adminBootstrap.js';
+import { ensureMaveAi } from './services/maveAiBootstrap.js';
 
 const app = express();
 
@@ -25,17 +25,8 @@ app.use(express.json({ limit: '5mb' }));
 app.use(cookieParser());
 app.use(morgan(env.isProd ? 'combined' : 'dev'));
 
-// ---------------------------------------------------------------------------
-// SSE — mounted BEFORE the /api no-cache middleware and BEFORE the main API
-// router, because:
-//   - SSE needs its own Cache-Control header (the no-cache middleware would
-//     conflict with EventSource's expectations)
-//   - It manages its own long-lived response lifecycle
-//   - Only the events route uses this prefix
-// ---------------------------------------------------------------------------
 app.use('/api/events', eventsRoutes);
 
-// Disable HTTP caching for all OTHER API responses.
 app.use('/api', (_req, res, next) => {
   res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
   res.set('Pragma', 'no-cache');
@@ -48,22 +39,21 @@ app.use('/api', apiRouter);
 app.use(notFound);
 app.use(errorHandler);
 
-// ---------------------------------------------------------------------------
-// Boot: start the HTTP server, ensure a superadmin exists, then kick off the
-// calendar sync loop.
-//
-// Sync runs in-process — no external cron, no queue.
-// ---------------------------------------------------------------------------
 const server = app.listen(env.port, async () => {
   console.log(
     `[api] listening on http://localhost:${env.port} (${env.nodeEnv})`
   );
 
-  // Idempotent — no-op once any superadmin exists.
   try {
     await ensureSuperadmin();
   } catch (err) {
     console.error('[admin] bootstrap failed:', err);
+  }
+
+  try {
+    await ensureMaveAi();
+  } catch (err) {
+    console.error('[mave-ai] bootstrap failed:', err);
   }
 
   if (env.calendar.syncEnabled) {
@@ -71,7 +61,6 @@ const server = app.listen(env.port, async () => {
   }
 });
 
-// Graceful shutdown — stop the sync loop before the process exits.
 const shutdown = (signal) => {
   console.log(`[api] received ${signal}, shutting down…`);
   stopCalendarSync();

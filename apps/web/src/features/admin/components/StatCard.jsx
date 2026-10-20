@@ -1,7 +1,3 @@
-// apps/web/src/features/admin/components/StatCard.jsx
-//
-// Simple stat display used by the dashboard. Optional `accent` prop picks
-// a colour theme: 'amber' | 'win' | 'loss' | 'plain'.
 
 export default function StatCard({ label, value, sub, accent = 'plain', icon: Icon }) {
   const iconCls = `sc-icon sc-icon-${accent}`;
@@ -23,7 +19,6 @@ export default function StatCard({ label, value, sub, accent = 'plain', icon: Ic
   );
 }
 
-// Inject stat-card styles once per page — safe, dedupes identical rules.
 if (typeof document !== 'undefined') {
   const ID = 'admin-stat-card-styles';
   if (!document.getElementById(ID)) {

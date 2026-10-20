@@ -1,7 +1,3 @@
-// apps/api/src/services/healthCheck/phases/gex.js
-//
-// GEX phase — 2 tests.
-// Read-only. Skips if no GEX days have been uploaded yet.
 
 export async function run(ctx) {
   const { test, tokens } = ctx;

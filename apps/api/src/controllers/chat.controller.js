@@ -1,10 +1,6 @@
-// apps/api/src/controllers/chat.controller.js
 
 import * as svc from '../services/chat.service.js';
 
-/* ------------------------------------------------------------------ */
-/*  Users                                                              */
-/* ------------------------------------------------------------------ */
 
 export async function searchUsers(req, res, next) {
   try {
@@ -13,9 +9,6 @@ export async function searchUsers(req, res, next) {
   } catch (e) { next(e); }
 }
 
-/* ------------------------------------------------------------------ */
-/*  Conversations                                                      */
-/* ------------------------------------------------------------------ */
 
 export async function listConversations(req, res, next) {
   try {
@@ -49,9 +42,14 @@ export async function updateConversation(req, res, next) {
   } catch (e) { next(e); }
 }
 
-/* ------------------------------------------------------------------ */
-/*  Messages                                                           */
-/* ------------------------------------------------------------------ */
+
+export async function clearChat(req, res, next) {
+  try {
+    const result = await svc.clearChat(req.userId, req.params.id);
+    res.json(result);
+  } catch (e) { next(e); }
+}
+
 
 export async function listMessages(req, res, next) {
   try {
@@ -114,9 +112,6 @@ export async function deleteMessage(req, res, next) {
   } catch (e) { next(e); }
 }
 
-/* ------------------------------------------------------------------ */
-/*  Groups — user-facing surface                                       */
-/* ------------------------------------------------------------------ */
 
 export async function discoverGroups(req, res, next) {
   try {

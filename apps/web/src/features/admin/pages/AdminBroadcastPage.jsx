@@ -1,6 +1,3 @@
-// apps/web/src/features/admin/pages/AdminBroadcastPage.jsx
-//
-// Compose + send a message to all users via SSE. Optional email blast.
 
 import { useState } from 'react';
 import { Send, Radio, Mail, AlertTriangle, Info, Siren } from 'lucide-react';
@@ -257,7 +254,7 @@ export default function AdminBroadcastPage() {
             <span className="abp-card-title">Compose</span>
           </div>
           <div className="abp-card-body">
-            {/* ---------- Level ---------- */}
+            {}
             <div>
               <div className="abp-preview-label">Severity</div>
               <div className="abp-levels">
@@ -277,7 +274,7 @@ export default function AdminBroadcastPage() {
               </div>
             </div>
 
-            {/* ---------- Message ---------- */}
+            {}
             <div>
               <div className="abp-preview-label" style={{ marginBottom: 8 }}>Message</div>
               <textarea
@@ -293,7 +290,7 @@ export default function AdminBroadcastPage() {
               </div>
             </div>
 
-            {/* ---------- Email toggle ---------- */}
+            {}
             <div className="abp-email-toggle">
               <input
                 type="checkbox"
@@ -314,7 +311,7 @@ export default function AdminBroadcastPage() {
               </label>
             </div>
 
-            {/* ---------- Preview ---------- */}
+            {}
             {trimmed && (
               <div>
                 <div className="abp-preview-label">User preview</div>
@@ -324,7 +321,7 @@ export default function AdminBroadcastPage() {
               </div>
             )}
 
-            {/* ---------- Warning ---------- */}
+            {}
             {sendEmail && trimmed && (
               <div className="abp-warn">
                 <AlertTriangle size={14} className="abp-warn-icon" />

@@ -1,10 +1,3 @@
-﻿// apps/web/src/features/manage/accounts/AccountsPage.jsx
-//
-// PHASE 3 CHANGE (EmptyState migration)
-// -------------------------------------
-//   • The "No {type} Accounts Found" filter-empty state now uses the shared
-//     <EmptyState> component (@/shared/components/EmptyState).
-//   • Preserves the existing "Create Account" CTA (calls openCreate).
 
 import { useState } from 'react';
 import {
@@ -43,9 +36,6 @@ import './AccountsPage.css';
 
 const ACCOUNT_TYPES = ['Backtest', 'Live', 'Demo'];
 
-/* ------------------------------------------------------------------ */
-/*  Formatting helpers                                                 */
-/* ------------------------------------------------------------------ */
 function formatCurrency(amount, currency) {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -97,9 +87,6 @@ function formatCommission(account) {
   return 'None';
 }
 
-/* ------------------------------------------------------------------ */
-/*  Page                                                               */
-/* ------------------------------------------------------------------ */
 export default function AccountsPage() {
   const { data: accounts = [], isLoading: loading } = useAccounts();
 
@@ -120,7 +107,6 @@ export default function AccountsPage() {
   const [successAlert, setSuccessAlert] = useState({ show: false, message: '' });
   const [errorAlert, setErrorAlert] = useState({ show: false, message: '' });
 
-  // Publish title + subtitle to the global header bar.
   usePageHeader({
     title: 'Portfolio Accounts',
     subtitle: 'Monitor account capital, risk parameters, and aggregate net return',
@@ -241,7 +227,7 @@ export default function AccountsPage() {
     <>
       <div className="acc-root">
 
-        {/* ---------- Toolbar: Type tabs left, New Account right ---------- */}
+        {}
         <div className="acc-toolbar">
           <div className="acc-type-tabs">
             <span className="acc-type-label">
@@ -271,7 +257,7 @@ export default function AccountsPage() {
           </button>
         </div>
 
-        {/* ---------- KPI summary ---------- */}
+        {}
         <div className="acc-kpi-grid">
           <div className="acc-kpi">
             <div className="acc-kpi-icon is-amber"><FaWallet /></div>
@@ -304,7 +290,7 @@ export default function AccountsPage() {
           </div>
         </div>
 
-        {/* ---------- Accounts grid ---------- */}
+        {}
         {filteredAccounts.length === 0 ? (
           <EmptyState
             icon={FaFolderOpen}
@@ -341,7 +327,7 @@ export default function AccountsPage() {
 
               return (
                 <div key={acc.id} className="acc-card acc-account">
-                  {/* Head */}
+                  {}
                   <div className="acc-account-head">
                     <div style={{ minWidth: 0 }}>
                       <h3 className="acc-name">{acc.name}</h3>
@@ -352,7 +338,7 @@ export default function AccountsPage() {
                     </span>
                   </div>
 
-                  {/* Metric bar */}
+                  {}
                   <div className="acc-metric-bar">
                     <div className="acc-metric">
                       <span className="acc-metric-label">Starting Capital</span>
@@ -368,7 +354,7 @@ export default function AccountsPage() {
                     </div>
                   </div>
 
-                  {/* Settings */}
+                  {}
                   <div className="acc-settings">
                     <div className="acc-setting">
                       <span className="acc-setting-icon"><FaShieldAlt /></span>
@@ -402,7 +388,7 @@ export default function AccountsPage() {
                     </div>
                   </div>
 
-                  {/* Footer */}
+                  {}
                   <div className="acc-account-footer">
                     <span className="acc-trades-count">
                       {tradesCount} {tradesCount === 1 ? 'trade' : 'trades'}
@@ -432,14 +418,14 @@ export default function AccountsPage() {
           </div>
         )}
 
-        {/* ---------- Create / Edit modal ---------- */}
+        {}
         <AccountFormModal
           isOpen={modalState.open}
           account={modalState.account}
           onClose={closeModal}
         />
 
-        {/* ---------- Alerts ---------- */}
+        {}
         <Alert
           isOpen={deleteAlert.show}
           title="Delete Account"

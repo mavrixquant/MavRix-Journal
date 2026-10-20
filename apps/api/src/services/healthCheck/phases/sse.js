@@ -1,8 +1,3 @@
-// apps/api/src/services/healthCheck/phases/sse.js
-//
-// SSE phase — 1 test.
-// Opens the /api/events stream, waits for the `hello` handshake, closes.
-// Uses native fetch with a ReadableStream reader — Node 20+ supports it.
 
 export async function run(ctx) {
   const { test, tokens } = ctx;
@@ -31,15 +26,12 @@ export async function run(ctx) {
       throw new Error(`unexpected content-type: ${ct}`);
     }
 
-    // Read the first SSE chunk. The server writes the `hello` event
-    // immediately on connect, so we only need one read.
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
     let buffer = '';
     let gotHello = false;
 
     try {
-      // Read up to a few chunks in case of leading comments.
       for (let i = 0; i < 5 && !gotHello; i++) {
         const { value, done } = await reader.read();
         if (done) break;
@@ -51,8 +43,8 @@ export async function run(ctx) {
       }
     } finally {
       clearTimeout(timeout);
-      try { await reader.cancel(); } catch { /* noop */ }
-      try { controller.abort(); } catch { /* noop */ }
+      try { await reader.cancel(); } catch { }
+      try { controller.abort(); } catch { }
     }
 
     if (!gotHello) {

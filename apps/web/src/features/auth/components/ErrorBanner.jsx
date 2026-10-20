@@ -1,4 +1,3 @@
-// apps/web/src/features/auth/components/ErrorBanner.jsx
 export function ErrorBanner({ message }) {
   return (
     <div

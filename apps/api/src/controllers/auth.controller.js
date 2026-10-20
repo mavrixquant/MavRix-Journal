@@ -1,7 +1,7 @@
 import * as authService from '../services/auth.service.js';
 
 const REFRESH_COOKIE = 'refreshToken';
-const REFRESH_MAX_AGE = 30 * 24 * 60 * 60 * 1000; // 30 days
+const REFRESH_MAX_AGE = 30 * 24 * 60 * 60 * 1000;
 
 const isProd = process.env.NODE_ENV === 'production';
 
@@ -72,9 +72,6 @@ export async function resendVerification(req, res, next) {
   } catch (e) { next(e); }
 }
 
-// ---------------------------------------------------------------------------
-// Google
-// ---------------------------------------------------------------------------
 
 export async function googleLogin(req, res, next) {
   try {
@@ -102,9 +99,6 @@ export async function googleUnlink(req, res, next) {
   } catch (e) { next(e); }
 }
 
-// ---------------------------------------------------------------------------
-// Password reset
-// ---------------------------------------------------------------------------
 
 export async function requestPasswordReset(req, res, next) {
   try {

@@ -1,7 +1,3 @@
-// apps/web/src/features/admin/pages/AdminSettingsPage.jsx
-//
-// Site settings. Superadmin-only write — admins see the values but every
-// input is disabled with a "Superadmin required" hint.
 
 import { useState, useEffect, useMemo } from 'react';
 import { Save, Lock, Settings2, Bell } from 'lucide-react';
@@ -170,7 +166,6 @@ const CSS = `
   }
 `;
 
-/* ---------- Sub-component: toggle ---------- */
 function Toggle({ value, onChange, disabled }) {
   return (
     <button
@@ -185,7 +180,6 @@ function Toggle({ value, onChange, disabled }) {
   );
 }
 
-/* ---------- Sub-component: numeric input ---------- */
 function NumberField({ value, onChange, disabled, min = 0, max = 1_000_000 }) {
   return (
     <input
@@ -209,7 +203,6 @@ export default function AdminSettingsPage() {
 
   const { data: server, isLoading } = useAdminSettings();
   const [form, setForm] = useState(null);
-  // Hydrate form from server on load / after every successful save
   useEffect(() => {
     if (server) {
       setForm({ ...server });
@@ -222,7 +215,6 @@ export default function AdminSettingsPage() {
     setForm((f) => ({ ...f, [key]: value }));
   };
 
-  // Compute a patch — only changed keys
   const patch = useMemo(() => {
     if (!form || !server) return {};
     const diff = {};
@@ -272,7 +264,7 @@ export default function AdminSettingsPage() {
           </div>
         </div>
 
-        {/* ---------- Access control ---------- */}
+        {}
         <div className="asg-card">
           <div className="asg-card-head">
             <Settings2 size={14} style={{ color: 'var(--accent)' }} />
@@ -331,7 +323,7 @@ export default function AdminSettingsPage() {
           </div>
         </div>
 
-        {/* ---------- Limits ---------- */}
+        {}
         <div className="asg-card">
           <div className="asg-card-head">
             <span className="asg-card-title">Limits</span>
@@ -373,7 +365,7 @@ export default function AdminSettingsPage() {
           </div>
         </div>
 
-        {/* ---------- Announcement ---------- */}
+        {}
         <div className="asg-card">
           <div className="asg-card-head">
             <Bell size={14} style={{ color: 'var(--accent)' }} />
@@ -400,7 +392,7 @@ export default function AdminSettingsPage() {
           </div>
         </div>
 
-        {/* ---------- Footer ---------- */}
+        {}
         <div className="asg-foot">
           <button
             type="button"

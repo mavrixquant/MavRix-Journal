@@ -1,8 +1,3 @@
-// apps/web/src/features/admin/components/HealthCheckTestRow.jsx
-//
-// One test row. Three visual states — pending (grey), running (pulsing),
-// and terminal (pass/fail/skip). Collapsed by default; click to expand
-// error / skip reason / notes.
 
 import { useState } from 'react';
 import { ChevronDown, Loader2 } from 'lucide-react';

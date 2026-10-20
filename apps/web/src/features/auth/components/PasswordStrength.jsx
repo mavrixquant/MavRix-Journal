@@ -1,4 +1,3 @@
-// apps/web/src/features/auth/components/PasswordStrength.jsx
 import { useMemo } from 'react';
 
 const CHECKS = [

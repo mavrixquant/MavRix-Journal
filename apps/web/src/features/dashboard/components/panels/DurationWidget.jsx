@@ -1,4 +1,3 @@
-// src/components/dashboard/sections/DurationWidget.jsx
 import { useStats } from '@/features/dashboard/hooks/useStats';
 
 const formatDuration = (mins) => {
@@ -33,10 +32,6 @@ export default function DurationWidget() {
   const wPct = (w / max) * 100;
   const lPct = (l / max) * 100;
 
-  // Interpretation: 
-  //   delta > 10  → winners held longer (healthy)
-  //   delta < -10 → losers held longer (bad)
-  //   else        → balanced
   const verdict =
     delta > 10  ? { text: 'Winners held longer — healthy', color: COLORS.win } :
     delta < -10 ? { text: 'Losers held longer — reduce exits', color: COLORS.loss } :
@@ -44,16 +39,16 @@ export default function DurationWidget() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontFamily: "'Inter', sans-serif",padding:'10px' }}>
-      {/* Header */}
+      {}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span style={{ fontSize: '11px', fontWeight: '600', color: COLORS.text, letterSpacing: '0.02em', textTransform: 'uppercase' }}>
           Holding Time — Winners vs Losers
         </span>
       </div>
 
-      {/* Bar comparison */}
+      {}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        {/* Winners bar */}
+        {}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <span style={{ fontSize: '11px', color: COLORS.text, minWidth: '60px', fontFamily: "'IBM Plex Mono', monospace" }}>Winners</span>
           <div style={{ flex: 1, height: '10px', background: 'rgba(255, 255, 255, 0.04)', borderRadius: '5px', overflow: 'hidden', position: 'relative' }}>
@@ -70,7 +65,7 @@ export default function DurationWidget() {
           </span>
         </div>
 
-        {/* Losers bar */}
+        {}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <span style={{ fontSize: '11px', color: COLORS.text, minWidth: '60px', fontFamily: "'IBM Plex Mono', monospace" }}>Losers</span>
           <div style={{ flex: 1, height: '10px', background: 'rgba(255, 255, 255, 0.04)', borderRadius: '5px', overflow: 'hidden', position: 'relative' }}>
@@ -88,7 +83,7 @@ export default function DurationWidget() {
         </div>
       </div>
 
-      {/* Verdict */}
+      {}
       <div style={{
         display: 'flex', alignItems: 'center', gap: '8px',
         padding: '8px 12px', borderRadius: '8px',

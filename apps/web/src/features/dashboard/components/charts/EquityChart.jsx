@@ -1,7 +1,3 @@
-// apps/web/src/features/dashboard/components/charts/EquityChart.jsx
-//
-// Phase 2: wrapper fills its panel (height: 100%, min-height: 0).
-// Panel-level RGL minH: 4 enforces a 160px floor at the grid level.
 
 import { useMemo, useRef } from 'react';
 import { Line } from 'react-chartjs-2';

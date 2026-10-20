@@ -1,9 +1,10 @@
-// apps/api/src/config/env.js
 const required = (key) => {
   const v = process.env[key];
   if (!v) throw new Error(`Missing env var: ${key}`);
   return v;
 };
+
+const optional = (key, fallback = '') => process.env[key] || fallback;
 
 export const env = {
   nodeEnv: process.env.NODE_ENV || 'development',
@@ -21,17 +22,11 @@ export const env = {
 
   isProd: (process.env.NODE_ENV || 'development') === 'production',
 
-  // ---------------------------------------------------------------------------
-  // Admin panel — first-superadmin bootstrap.
-  // ---------------------------------------------------------------------------
   admin: {
     bootstrapEmail: process.env.ADMIN_BOOTSTRAP_EMAIL || '',
     bootstrapPassword: process.env.ADMIN_BOOTSTRAP_PASSWORD || '',
   },
 
-  // ---------------------------------------------------------------------------
-  // Economic Calendar (Biquote)
-  // ---------------------------------------------------------------------------
   calendar: {
     syncEnabled: process.env.CALENDAR_SYNC_ENABLED !== 'false',
     syncIntervalMs: Number(process.env.CALENDAR_SYNC_INTERVAL_MS || 60_000),
@@ -42,19 +37,6 @@ export const env = {
     baseUrl: process.env.BIQUOTE_BASE_URL || 'https://biquote.io',
   },
 
-  // ---------------------------------------------------------------------------
-  // Market Data (Yahoo Finance)
-  //
-  // No API key required. The v8 chart endpoint is undocumented but stable
-  // and used by yfinance and dozens of other libraries.
-  //
-  // Safety rails:
-  //   - yahooMaxConcurrent: max in-flight requests (see lib/marketData/queue.js)
-  //   - yahooMinGapMs:      min ms between two request STARTS
-  //   - yahooTimeoutMs:     per-request AbortController timeout
-  //
-  // Cache TTLs are per-interval — shorter for finer granularity.
-  // ---------------------------------------------------------------------------
   marketData: {
     yahooBaseUrl: process.env.YAHOO_BASE_URL || 'https://query1.finance.yahoo.com',
     yahooTimeoutMs: Number(process.env.YAHOO_TIMEOUT_MS || 10_000),
@@ -69,5 +51,28 @@ export const env = {
       '4h':  Number(process.env.YAHOO_TTL_4H  || 60 * 60_000),
       '1d':  Number(process.env.YAHOO_TTL_1D  || 60 * 60_000),
     },
+  },
+
+  ai: {
+    masterKey: optional('MAVE_AI_MASTER_KEY'),
+
+    providerPriority: optional('MAVE_AI_PROVIDER_PRIORITY', 'openrouter,groq,gemini,deepseek')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean),
+
+    keys: {
+      openrouter: optional('MAVE_AI_OPENROUTER_KEY'),
+      groq:       optional('MAVE_AI_GROQ_KEY'),
+      gemini:     optional('MAVE_AI_GEMINI_KEY'),
+      deepseek:   optional('MAVE_AI_DEEPSEEK_KEY'),
+      openai:     optional('MAVE_AI_OPENAI_KEY'),
+      anthropic:  optional('MAVE_AI_ANTHROPIC_KEY'),
+    },
+
+    historyLimit:     Number(optional('MAVE_AI_HISTORY_LIMIT', 20)),
+    userRatePerHour:  Number(optional('MAVE_AI_USER_RATE_PER_HOUR', 20)),
+    maxTokens:        Number(optional('MAVE_AI_MAX_TOKENS', 1024)),
+    requestTimeoutMs: Number(optional('MAVE_AI_TIMEOUT_MS', 30_000)),
   },
 };

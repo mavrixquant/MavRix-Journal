@@ -1,26 +1,15 @@
-// apps/web/src/features/utilities/gex/components/GexLevelChart.jsx
-//
-// NQ GEX price ladder. Same look as the approved NQ1 GEX levels chart:
-//  - to-scale price axis, with an axis break for far-away outlier levels
-//  - red call wall / green put support / amber HVL / blue GEX rank bars
-//  - dashed lines for 0DTE levels, shaded 1D min-max band
-//  - collision-free labels with leader lines
-//
-// Level shape: { price:number, type?:string, label:string }
-// Category is derived from the label (type is only a fallback), so labels
-// like "Call Resistance - ... Gamma Wall 0DTE (NQ1!)" work as-is.
 
 import { useMemo } from 'react';
 
 const W = 760;
 const TOP = 24;
 const BOTTOM_PAD = 24;
-const X0 = 72;            // y-axis spine
-const XE = 400;           // right edge of plot
-const XL = 414;           // label chip x
+const X0 = 72;
+const XE = 400;
+const XL = 414;
 const LABEL_SPACING = 18;
 const LABEL_MAX_CHARS = 52;
-const FAR_STEP = 26;      // spacing of levels moved behind an axis break
+const FAR_STEP = 26;
 const BREAK_H = 34;
 const PX_PER_LEVEL = 38;
 const MIN_MAIN_H = 420;
@@ -93,7 +82,6 @@ export default function GexLevelChart({ levels = [] }) {
     if (!all.length) return null;
     all.sort((a, b) => b.price - a.price);
 
-    // ---- outliers behind an axis break ----
     const span = all[0].price - all[all.length - 1].price;
     let low = 0, high = 0;
     if (all.length >= 5 && span > 0) {
@@ -118,7 +106,6 @@ export default function GexLevelChart({ levels = [] }) {
     const pmin = pminRaw - pad;
     const mainH = Math.max(MIN_MAIN_H, Math.min(MAX_MAIN_H, main.length * PX_PER_LEVEL));
 
-    // ---- vertical stack: [high far] break [main] break [low far] ----
     let y = TOP;
     const highY = [];
     highItems.forEach((it, j) => { highY.push(y + 6 + j * FAR_STEP); });
@@ -149,7 +136,6 @@ export default function GexLevelChart({ levels = [] }) {
       grid.push({ price: p, y: yMap(p) });
     }
 
-    // ---- label collision ----
     const byY = [...items].sort((a, b) => a.y - b.y);
     let prev = -Infinity;
     byY.forEach((it) => { it.ly = Math.max(it.y, prev + LABEL_SPACING); prev = it.ly; });
@@ -215,7 +201,7 @@ export default function GexLevelChart({ levels = [] }) {
              aria-label={`Price ladder with ${items.length} levels`}>
           {band && <rect x={X0} y={band.y1} width={XE - X0} height={band.y2 - band.y1} fill={CAT.rng.color} opacity="0.12" />}
 
-          {/* axis spines */}
+          {}
           <line x1={X0} x2={X0} y1={mainTop} y2={mainBottom} stroke="var(--gxl-axis)" />
           {highItems.length > 0 && (
             <line x1={X0} x2={X0} y1={TOP} y2={breakTop + 6} stroke="var(--gxl-axis)" />
@@ -226,7 +212,7 @@ export default function GexLevelChart({ levels = [] }) {
           {highItems.length > 0 && breakGlyph(breakTop + 14, 'axis break')}
           {lowItems.length > 0 && breakGlyph(breakBottom + 12, 'axis break')}
 
-          {/* gridlines */}
+          {}
           {grid.map((g) => (
             <g key={`g-${g.price}`}>
               <line x1={X0} x2={XE} y1={g.y} y2={g.y} stroke="var(--gxl-grid)" strokeWidth="0.5" />
@@ -240,7 +226,7 @@ export default function GexLevelChart({ levels = [] }) {
             </g>
           ))}
 
-          {/* 1D range lines */}
+          {}
           {items.filter((i) => i.cat === 'rng').map((it, i) => (
             <line key={`r-${i}`} x1={X0} x2={XE} y1={it.y} y2={it.y}
                   stroke={CAT.rng.color} strokeWidth="1.2" strokeDasharray="2 3">
@@ -248,7 +234,7 @@ export default function GexLevelChart({ levels = [] }) {
             </line>
           ))}
 
-          {/* GEX rank bars */}
+          {}
           {items.filter((i) => i.cat === 'gex').map((it, i) => {
             const r = it.rank || maxRank;
             const steps = maxRank + 1 - r;
@@ -262,7 +248,7 @@ export default function GexLevelChart({ levels = [] }) {
             );
           })}
 
-          {/* call / put / hvl / other lines */}
+          {}
           {items.filter((i) => ['call', 'put', 'hvl', 'other'].includes(i.cat)).map((it, i) => (
             <line key={`l-${i}`} x1={X0} x2={XE} y1={it.y} y2={it.y}
                   stroke={CAT[it.cat].color}
@@ -272,7 +258,7 @@ export default function GexLevelChart({ levels = [] }) {
             </line>
           ))}
 
-          {/* leader lines + labels */}
+          {}
           {items.map((it, i) => {
             const c = CAT[it.cat].color;
             const bold = it.cat !== 'gex' && it.cat !== 'rng';

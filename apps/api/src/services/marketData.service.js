@@ -1,7 +1,3 @@
-// apps/api/src/services/marketData.service.js
-//
-// Business logic. Routes each symbol to its declared provider via
-// resolveSymbol() — the caller never needs to know which feed it is.
 
 import { HttpError } from '../middleware/error.js';
 import {
@@ -20,9 +16,6 @@ import {
   getQuote as getBiquoteQuote,
 } from '../lib/marketData/biquoteProvider.js';
 
-/* ------------------------------------------------------------------ */
-/*  Provider dispatch                                                 */
-/* ------------------------------------------------------------------ */
 
 function pickBarsFn(provider) {
   return provider === 'biquote' ? getBiquoteBars : getYahooBars;
@@ -32,17 +25,11 @@ function pickQuoteFn(provider) {
   return provider === 'biquote' ? getBiquoteQuote : getYahooQuote;
 }
 
-/* ------------------------------------------------------------------ */
-/*  Catalog                                                           */
-/* ------------------------------------------------------------------ */
 
 export function listCatalog() {
   return { symbols: SYMBOL_CATALOG, intervals: SUPPORTED_INTERVALS };
 }
 
-/* ------------------------------------------------------------------ */
-/*  Bars                                                              */
-/* ------------------------------------------------------------------ */
 
 export async function fetchBars({ symbol, interval }) {
   if (!symbol) throw new HttpError(400, 'symbol is required');
@@ -90,9 +77,6 @@ export async function fetchBars({ symbol, interval }) {
   };
 }
 
-/* ------------------------------------------------------------------ */
-/*  Quote                                                             */
-/* ------------------------------------------------------------------ */
 
 export async function fetchQuote({ symbol }) {
   if (!symbol) throw new HttpError(400, 'symbol is required');
@@ -113,9 +97,6 @@ export async function fetchQuote({ symbol }) {
   return { symbol: symbol.toUpperCase(), provider: resolved.provider, ...quote };
 }
 
-/* ------------------------------------------------------------------ */
-/*  Batch quotes                                                      */
-/* ------------------------------------------------------------------ */
 
 const MAX_BATCH = 30;
 

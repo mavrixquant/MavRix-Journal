@@ -1,28 +1,3 @@
-// apps/web/src/features/dashboard/components/optimize/OptimizeModal.jsx
-//
-// Optimize filter-combination sweep.
-//
-// PHASE 2.3 — CSS TOKEN SCOPE FIX + ASCII-ONLY GLYPHS
-// ---------------------------------------------------
-//   • Every --opt-* token is now declared on :root, NOT on a wrapper class.
-//     Reason: Radix PopoverContent portals to document.body, which is a
-//     SIBLING of the modal wrapper -- so tokens scoped to a wrapper class
-//     were invisible to the portaled dropdown, causing transparent
-//     backgrounds and missing borders.
-//   • All decorative Unicode (emoji, box-drawing, arrows) removed and
-//     replaced with ASCII text or inline SVG, so nothing renders as tofu
-//     on any platform.
-//
-// PHASE 2.2 — RESULT TABLE + UI POLISH
-//   • table-layout: fixed + explicit <col> widths so long Combination
-//     strings cannot crush the numeric columns.
-//   • Modal 1400x92vh, denser typography (10.5px body / 9.5px headers).
-//   • Gold/silver/bronze rank medals, zebra rows, sticky header, summary
-//     bar, empty state, gradient progress bar.
-//
-// PHASE 2.1 — DROPDOWN DISMISSAL
-//   • Controlled Popovers keyed by a single `openKey` state.
-//   • Document-level pointerdown + Escape close the open panel.
 
 import { useState, useEffect, useMemo } from 'react';
 import Portal from '@/shared/components/Portal';
@@ -37,9 +12,6 @@ import {
 const RR_LEVELS = [1, 2, 3, 4, 5, 6, 7, 8];
 const OPTIMIZE_PAGE_SIZE = 50;
 
-/* ------------------------------------------------------------------ */
-/*  Inline SVG icons (no font dependency, no tofu)                    */
-/* ------------------------------------------------------------------ */
 
 function ChevronDown() {
   return (
@@ -147,11 +119,6 @@ function CloseIcon() {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Scoped styles                                                      */
-/*                                                                     */
-/*  Tokens live on :root so the portaled Radix popover can read them.  */
-/* ------------------------------------------------------------------ */
 
 const optimalizeModalStyles = `
   /* ---------------- Design tokens (GLOBAL) ---------------- */
@@ -686,15 +653,9 @@ const optimalizeModalStyles = `
   }
 `;
 
-/* ------------------------------------------------------------------ */
-/*  Selectors used by the outside-click handler                        */
-/* ------------------------------------------------------------------ */
 const POPPER_CONTENT_SELECTOR = '[data-radix-popper-content-wrapper]';
 const TRIGGER_SELECTOR = '[data-opt-pop-trigger]';
 
-/* ------------------------------------------------------------------ */
-/*  Number formatting                                                  */
-/* ------------------------------------------------------------------ */
 function formatValue(v, isMoney) {
   if (v == null || Number.isNaN(Number(v))) return '-';
   const n = Number(v);
@@ -706,9 +667,6 @@ function formatValue(v, isMoney) {
   return `${sign}${n.toFixed(2)}R`;
 }
 
-/* ------------------------------------------------------------------ */
-/*  Main component                                                     */
-/* ------------------------------------------------------------------ */
 export default function OptimizeModal({ isOpen, onClose }) {
   const { state } = useAppContext();
   const {
@@ -731,7 +689,6 @@ export default function OptimizeModal({ isOpen, onClose }) {
     isMoney,
   } = useOptimization();
 
-  /* ---------------- Single-key dropdown controller ---------------- */
   const [openKey, setOpenKey] = useState(null);
 
   useEffect(() => {
@@ -757,7 +714,6 @@ export default function OptimizeModal({ isOpen, onClose }) {
     };
   }, [openKey]);
 
-  /* ---------------- Reset on open ---------------- */
   useEffect(() => {
     if (isOpen) {
       resetOptimization();
@@ -765,7 +721,6 @@ export default function OptimizeModal({ isOpen, onClose }) {
     }
   }, [isOpen, resetOptimization]);
 
-  /* ---------------- Eligible filter columns ---------------- */
   const filterColumns = useMemo(() => {
     const counts = {};
     (state.dynamicFilterKeys || []).forEach(key => {
@@ -790,7 +745,6 @@ export default function OptimizeModal({ isOpen, onClose }) {
 
   if (!isOpen) return null;
 
-  /* ---------------- Handlers ---------------- */
   const handleValueChange = (key, value, checked) => {
     const current = columnValues[key] || [];
     const newValues = checked
@@ -844,7 +798,6 @@ export default function OptimizeModal({ isOpen, onClose }) {
 
   const valueHeader = isMoney ? 'Net P&L' : 'Total R';
 
-  /* ---------------- Render ---------------- */
   return (
     <Portal>
       <style>{optimalizeModalStyles}</style>
@@ -856,7 +809,7 @@ export default function OptimizeModal({ isOpen, onClose }) {
           className="opt-modal-container"
           onClick={(e) => e.stopPropagation()}
         >
-          {/* ============== Header ============== */}
+          {}
           <div className="opt-modal-header">
             <div className="opt-header-title">
               <span className="opt-header-icon" aria-hidden>
@@ -881,10 +834,10 @@ export default function OptimizeModal({ isOpen, onClose }) {
             </button>
           </div>
 
-          {/* ============== Body ============== */}
+          {}
           <div className="opt-modal-body">
 
-            {/* ---------- Filter configuration ---------- */}
+            {}
             <div className="opt-section">
               <label className="opt-section-label">
                 Select Active Filter Columns
@@ -989,7 +942,7 @@ export default function OptimizeModal({ isOpen, onClose }) {
               </div>
             </div>
 
-            {/* ---------- Controls bar ---------- */}
+            {}
             <div className="opt-controls-bar">
               {!isMoney && (
                 <div className="opt-rr-wrapper">
@@ -1078,7 +1031,7 @@ export default function OptimizeModal({ isOpen, onClose }) {
               {status && <div className="opt-status-badge">{status}</div>}
             </div>
 
-            {/* ---------- Progress ---------- */}
+            {}
             {isRunning && (
               <div className="opt-progress-container">
                 <div className="opt-progress-header">
@@ -1094,11 +1047,11 @@ export default function OptimizeModal({ isOpen, onClose }) {
               </div>
             )}
 
-            {/* ---------- Results ---------- */}
+            {}
             {results.length > 0 && (
               <div className="opt-results-section">
 
-                {/* Summary bar */}
+                {}
                 <div className="opt-results-summary">
                   <span>
                     <strong>{results.length}</strong> combinations
@@ -1132,7 +1085,7 @@ export default function OptimizeModal({ isOpen, onClose }) {
                   )}
                 </div>
 
-                {/* Table */}
+                {}
                 <div className="opt-table-wrapper">
                   <table className="opt-table">
                     <colgroup>
@@ -1216,7 +1169,7 @@ export default function OptimizeModal({ isOpen, onClose }) {
                   </table>
                 </div>
 
-                {/* Pagination */}
+                {}
                 <div className="opt-pagination">
                   <button
                     type="button"
@@ -1243,7 +1196,7 @@ export default function OptimizeModal({ isOpen, onClose }) {
               </div>
             )}
 
-            {/* ---------- Empty state (post-run, no matches) ---------- */}
+            {}
             {!isRunning && results.length === 0 && status.startsWith('Done') && (
               <div className="opt-empty">
                 <div className="opt-empty-title">No combinations found</div>

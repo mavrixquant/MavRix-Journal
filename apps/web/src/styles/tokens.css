@@ -1,19 +1,6 @@
-/* ============================================================
-   Mavrix design tokens — single source of truth.
-   Tailwind v4 reads @theme blocks to generate utility classes.
-   ============================================================ */
 
-/* ------------------------------------------------------------
-   Runtime accent variables.
 
-   SettingsProvider writes these four onto <html> whenever the
-   user picks a new accent in Appearance → Accent color. The
-   values below are the DEFAULT amber so the very first paint
-   (pre-hydration) matches the app's historical look.
 
-   The user's inline style on <html> always wins (inline styles
-   beat :root selectors), so this is just a safe fallback.
-   ------------------------------------------------------------ */
 :root {
   --accent:       #F59E0B;
   --accent-2:     #FDE68A;
@@ -21,11 +8,9 @@
   --accent-soft2: rgb(245 158 11 / 0.28);
 }
 
-/* ------------------------------------------------------------
-   Tailwind theme — non-accent tokens (fixed).
-   ------------------------------------------------------------ */
+
 @theme {
-  /* ---------- Mavrix palette ---------- */
+
   --color-bg-0: #07090D;
   --color-bg-1: #0A0D14;
   --color-panel: #11151F;
@@ -41,7 +26,7 @@
   --color-be: #6C7686;
   --color-blue: #4C8BF5;
 
-  /* ---------- shadcn semantic mapping ---------- */
+
   --color-background: #07090D;
   --color-foreground: #E7E9EE;
 
@@ -59,8 +44,7 @@
   --color-muted: #151A26;
   --color-muted-foreground: #8892A3;
 
-  /* shadcn's --color-accent is the subtle hover background — NOT
-     the brand accent. Do not confuse with the runtime --accent. */
+
   --color-accent: #1A2029;
   --color-accent-foreground: #E7E9EE;
 
@@ -70,26 +54,19 @@
   --color-border: #212836;
   --color-input: #212836;
 
-  /* ---------- Radii ---------- */
+
   --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 18px;
   --radius: 12px;
 
-  /* ---------- Fonts ---------- */
+
   --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
   --font-display: 'Space Grotesk', ui-sans-serif, sans-serif;
 }
 
-/* ------------------------------------------------------------
-   Tailwind theme — accent-derived tokens.
 
-   `inline` makes Tailwind substitute the variable's value at
-   each utility site (e.g. `bg-primary` -> `background-color:
-   var(--accent)`), so a runtime change to --accent propagates
-   to every Tailwind utility that uses primary / brand / ring.
-   ------------------------------------------------------------ */
 @theme inline {
   --color-brand:   var(--accent);
   --color-brand-2: var(--accent-2);
@@ -97,11 +74,7 @@
   --color-ring:    var(--accent);
 }
 
-/* ------------------------------------------------------------
-   Legacy aliases — so old components using var(--amber),
-   var(--panel), etc. keep working unchanged.
-   Remove this block in Phase 12.
-   ------------------------------------------------------------ */
+
 :root {
   --bg: #0A0D13;
   --bg-alt: #0D1119;
@@ -123,11 +96,7 @@
   --be: #6C7686;
   --blue: #4C8BF5;
 
-  /* --accent*, --accent-2, --accent-soft, --accent-soft2 are
-     declared at the top of this file. Do NOT redeclare them
-     here — the SettingsProvider writes inline to <html> and
-     that always wins, but a stale :root declaration would
-     still flash amber on the very first paint. */
+
 
   --line:      rgb(255 255 255 / 0.085);
   --line-soft: rgb(255 255 255 / 0.05);

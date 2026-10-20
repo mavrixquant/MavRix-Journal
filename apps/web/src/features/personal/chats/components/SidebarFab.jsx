@@ -1,15 +1,3 @@
-﻿// apps/web/src/features/personal/chats/components/SidebarFab.jsx
-//
-// Context-aware FAB rendered inside the conversation-list sidebar footer.
-// Phase 5 goal: replace the old floating overlay FAB with a footer-anchored
-// button that adapts to the active tab.
-//
-// Behaviour per tab:
-//   dms     → primary "New message" CTA. If admin, secondary "+" opens NewGroupModal.
-//   groups  → primary "Discover groups" CTA. If admin, secondary "+" opens CreateGroupModal.
-//   friends → primary "Add friend" CTA.
-//
-// Archived mode hides the FAB entirely (nothing to create from an archive view).
 
 import {
   MessageSquarePlus,

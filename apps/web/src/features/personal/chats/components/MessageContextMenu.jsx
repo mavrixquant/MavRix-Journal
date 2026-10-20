@@ -1,12 +1,3 @@
-﻿// apps/web/src/features/personal/chats/components/MessageContextMenu.jsx
-//
-// PHASE 6 — focus trap + a11y. Uses the shared useFocusTrap hook so:
-//   • Focus lands on the first menu item when the menu opens
-//   • Tab / Shift+Tab cycle inside the menu
-//   • Escape closes via the trap (the previous Escape handler is gone)
-//   • Focus returns to the triggering row when the menu closes
-//
-// Behaviour, actions, and rendering are otherwise unchanged from Phase 5.
 
 import { useEffect, useRef } from 'react';
 import { CornerUpLeft, Pencil, Trash2 } from 'lucide-react';
@@ -56,7 +47,7 @@ export default function MessageContextMenu({
   const itemCount =
     (canReply ? 1 : 0) +
     (canEdit ? 1 : 0) +
-    1 /* delete for me */ +
+    1 +
     (canDeleteAll ? 1 : 0);
   const estimatedH = itemCount * MENU_ITEM_H + MENU_PAD_V;
 

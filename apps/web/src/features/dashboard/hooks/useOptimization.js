@@ -1,4 +1,3 @@
-// apps/web/src/features/dashboard/hooks/useOptimization.js
 import { useState, useCallback, useMemo } from 'react';
 import { useAppContext, actions } from '@/app/providers/AppProvider';
 import { useDashboardAccount } from '@/app/providers/useDashboardAccount';
@@ -16,13 +15,11 @@ export function useOptimization() {
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 50;
 
-  // Route-aware: the CURRENT dashboard's account slot (Journal or Backtester).
   const selectedAccount = useMemo(
     () => state.accounts.find(a => a.id === accountId) || null,
     [state.accounts, accountId]
   );
 
-  // 'R' for Backtest accounts, '$' for Live/Demo.
   const metric = useMemo(() => getMetricMode(selectedAccount), [selectedAccount]);
   const isMoney = metric === '$';
 
@@ -68,8 +65,6 @@ export function useOptimization() {
       return;
     }
 
-    // RR targets are only meaningful for Backtest accounts. In money mode
-    // we pass [] down and the engine substitutes a single placeholder.
     const rrToUse = selectedRRs || state.optimize.rrSelected;
     if (!isMoney && rrToUse.length === 0) {
       setStatus('Please select at least one RR target.');
@@ -157,12 +152,10 @@ export function useOptimization() {
     pageResults,
     pageSize,
 
-    // NEW — mode metadata consumed by OptimizeModal
     isMoney,
     metric,
     account: selectedAccount,
 
-    // Actions
     toggleColumn,
     setColumnValues,
     setRRSelection,

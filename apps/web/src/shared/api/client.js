@@ -1,9 +1,3 @@
-// apps/web/src/shared/api/client.js
-// Central fetch wrapper for the Mavrix API.
-// - Prefixes VITE_API_URL
-// - Injects Authorization: Bearer <accessToken> when set
-// - Sends cookies (credentials: 'include') so /api/auth/refresh works
-// - On 401, tries one silent refresh and retries the original request once
 
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 

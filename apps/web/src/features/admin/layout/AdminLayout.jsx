@@ -1,4 +1,3 @@
-// apps/web/src/features/admin/layout/AdminLayout.jsx
 import { useState, Suspense } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '@/app/providers/AuthProvider';

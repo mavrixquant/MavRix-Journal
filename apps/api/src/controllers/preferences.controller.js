@@ -1,7 +1,3 @@
-// apps/api/src/controllers/preferences.controller.js
-//
-// Thin HTTP layer for /api/users/preferences.
-// `req.userId` is set by requireAuth (see routes/users.routes.js).
 
 import * as svc from '../services/preferences.service.js';
 

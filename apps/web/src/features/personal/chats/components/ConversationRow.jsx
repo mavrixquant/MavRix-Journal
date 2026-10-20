@@ -1,11 +1,3 @@
-﻿// apps/web/src/features/personal/chats/components/ConversationRow.jsx
-//
-// PHASE 6 — a11y:
-//   • aria-current="true" when the row is the active conversation
-//   • aria-label summarizes the row for screen readers
-//   • data-conv-row lets the parent list attach keyboard navigation
-//
-// Pure presentation; no state, no hooks.
 
 import { Pin, Lock } from 'lucide-react';
 import { formatRelative } from '@/shared/format/datetime';
@@ -44,7 +36,9 @@ export default function ConversationRow({
 
   const preview = conversation.lastMessageText
     ? (isOwn ? `You: ${conversation.lastMessageText}` : conversation.lastMessageText)
-    : 'No messages yet';
+    : conversation.clearedByMe
+      ? 'Chat cleared'
+      : 'No messages yet';
 
   const showFriendPill =
     !isGroup &&
@@ -63,6 +57,7 @@ export default function ConversationRow({
     conversation.isMuted ? 'muted' : null,
     conversation.isPinned ? 'pinned' : null,
     isTyping ? 'typing' : null,
+    conversation.clearedByMe && !conversation.lastMessageText ? 'cleared' : null,
   ]
     .filter(Boolean)
     .join(', ');

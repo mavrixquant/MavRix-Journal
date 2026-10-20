@@ -1,8 +1,3 @@
-// apps/api/src/controllers/adminGroups.controller.js
-//
-// Thin HTTP layer for admin group management. Follows the pattern set by
-// adminStrategies.controller.js and adminGex.controller.js: buildActor()
-// resolves the caller's email for audit logs, then delegates to the service.
 
 import { prisma } from '../lib/prisma.js';
 import * as svc from '../services/adminGroups.service.js';
@@ -15,9 +10,6 @@ async function buildActor(req) {
   return { id: req.userId, email: u?.email || '', role: req.userRole, req };
 }
 
-/* ------------------------------------------------------------------ */
-/*  List                                                               */
-/* ------------------------------------------------------------------ */
 
 export async function list(req, res, next) {
   try {
@@ -33,9 +25,6 @@ export async function list(req, res, next) {
   } catch (e) { next(e); }
 }
 
-/* ------------------------------------------------------------------ */
-/*  Detail                                                             */
-/* ------------------------------------------------------------------ */
 
 export async function get(req, res, next) {
   try {
@@ -45,9 +34,6 @@ export async function get(req, res, next) {
   } catch (e) { next(e); }
 }
 
-/* ------------------------------------------------------------------ */
-/*  Create                                                             */
-/* ------------------------------------------------------------------ */
 
 export async function create(req, res, next) {
   try {
@@ -57,9 +43,6 @@ export async function create(req, res, next) {
   } catch (e) { next(e); }
 }
 
-/* ------------------------------------------------------------------ */
-/*  Update                                                             */
-/* ------------------------------------------------------------------ */
 
 export async function update(req, res, next) {
   try {
@@ -69,9 +52,6 @@ export async function update(req, res, next) {
   } catch (e) { next(e); }
 }
 
-/* ------------------------------------------------------------------ */
-/*  Delete                                                             */
-/* ------------------------------------------------------------------ */
 
 export async function remove(req, res, next) {
   try {
@@ -81,9 +61,6 @@ export async function remove(req, res, next) {
   } catch (e) { next(e); }
 }
 
-/* ------------------------------------------------------------------ */
-/*  Members                                                            */
-/* ------------------------------------------------------------------ */
 
 export async function addMember(req, res, next) {
   try {

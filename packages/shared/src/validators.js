@@ -1,4 +1,3 @@
-// packages/shared/src/validators.js
 import { z } from 'zod';
 import {
   ACCOUNT_TYPES, CURRENCIES, RISK_TYPES, RISK_UNITS,
@@ -9,10 +8,8 @@ import {
   GROUP_DISCOVER_DEFAULT_LIMIT, GROUP_DISCOVER_MAX_LIMIT,
 } from './constants.js';
 import { IMPACT_LEVELS, MAX_CALENDAR_EVENTS_PER_REQUEST } from './calendar.js';
+import { GEX_SYMBOLS } from './gex.js';
 
-/* ------------------------------------------------------------------ */
-/*  Auth                                                               */
-/* ------------------------------------------------------------------ */
 
 export const signupSchema = z.object({
   email: z.string().trim().toLowerCase().email(),
@@ -26,9 +23,6 @@ export const loginSchema = z.object({
   password: z.string().min(1).max(128),
 });
 
-/* ------------------------------------------------------------------ */
-/*  Column configs                                                     */
-/* ------------------------------------------------------------------ */
 
 const columnTypeEnum = z.enum(['text', 'dropdown', 'number']);
 
@@ -42,9 +36,6 @@ const columnConfigEntrySchema = z.union([
 
 const columnConfigsSchema = z.record(columnConfigEntrySchema).default({});
 
-/* ------------------------------------------------------------------ */
-/*  Account                                                            */
-/* ------------------------------------------------------------------ */
 
 const decimal = z.number().finite();
 
@@ -63,11 +54,7 @@ export const accountSchema = z.object({
   columnConfigs: columnConfigsSchema,
 });
 
-/* ------------------------------------------------------------------ */
-/*  Strategy                                                           */
-/* ------------------------------------------------------------------ */
 
-// Accept only hex values from the shared palette.
 const strategyColorEnum = z.enum(
   STRATEGY_COLORS.map((c) => c.hex)
 );
@@ -85,21 +72,9 @@ export const strategySchema = z.object({
 
 export const strategyUpdateSchema = strategySchema.partial();
 
-/* ------------------------------------------------------------------ */
-/*  Chat groups                                                        */
-/*                                                                     */
-/*  Groups reuse the strategy colour palette. `iconEmoji` is optional  */
-/*  and stored as a short string (typically one emoji, but we allow    */
-/*  a few code points so combined emoji pass through cleanly).         */
-/* ------------------------------------------------------------------ */
 
 const groupColorEnum = z.enum(GROUP_COLORS.map((c) => c.hex));
 
-// POST /api/admin/groups
-//
-// `initialMemberIds` is optional — the creator automatically becomes the
-// group owner via the service layer. Any ids listed here are added as
-// members in the same transaction.
 export const createGroupSchema = z.object({
   name: z.string().trim().min(1).max(GROUP_NAME_MAX),
   description: z.string().trim().max(GROUP_DESCRIPTION_MAX).optional().default(''),
@@ -109,7 +84,6 @@ export const createGroupSchema = z.object({
   initialMemberIds: z.array(z.string().min(1).max(64)).max(500).optional().default([]),
 });
 
-// PATCH /api/admin/groups/:id
 export const updateGroupSchema = z.object({
   name: z.string().trim().min(1).max(GROUP_NAME_MAX).optional(),
   description: z.string().trim().max(GROUP_DESCRIPTION_MAX).optional(),
@@ -118,22 +92,14 @@ export const updateGroupSchema = z.object({
   iconEmoji: z.string().trim().max(GROUP_ICON_EMOJI_MAX).nullable().optional(),
 });
 
-// POST /api/admin/groups/:id/members
 export const groupMemberAddSchema = z.object({
   userId: z.string().min(1).max(64),
 });
 
-// PATCH /api/admin/groups/:id/members/:userId
-//
-// Changing a member's role is how a group owner is transferred. The
-// service layer enforces "exactly one owner per group" in a transaction.
 export const groupMemberRoleSchema = z.object({
   role: z.enum(GROUP_ROLES),
 });
 
-// GET /api/chat/groups/discover
-//
-// Public groups the caller is NOT already in. `q` filters by name.
 export const groupDiscoverQuerySchema = z.object({
   q: z.string().trim().max(100).optional().default(''),
   limit: z.preprocess(
@@ -145,9 +111,6 @@ export const groupDiscoverQuerySchema = z.object({
   ),
 });
 
-/* ------------------------------------------------------------------ */
-/*  Trade                                                              */
-/* ------------------------------------------------------------------ */
 
 export const tradeSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
@@ -177,9 +140,6 @@ export const tradeBatchSchema = z.object({
   columnConfigs: columnConfigsSchema.optional(),
 });
 
-/* ------------------------------------------------------------------ */
-/*  User layout                                                        */
-/* ------------------------------------------------------------------ */
 
 export const layoutItemSchema = z.object({
   i: z.string(),
@@ -198,9 +158,6 @@ export const layoutSchema = z.object({
   layout: z.array(layoutItemSchema),
 });
 
-/* ------------------------------------------------------------------ */
-/*  Economic Calendar                                                  */
-/* ------------------------------------------------------------------ */
 
 const csvToArray = (v) => {
   if (v === undefined || v === null || v === '') return [];
@@ -222,62 +179,59 @@ export const calendarQuerySchema = z.object({
   ),
 });
 
-/* ------------------------------------------------------------------ */
-/*  GEX levels                                                         */
-/* ------------------------------------------------------------------ */
 
-// A single GEX level — { type, price, label }.
+// ---------------------------------------------------------------------------
+// GEX — levels + day payload.
+//
+// `gexDaySchema.symbol` defaults to 'NQ' so pre-refactor clients keep working;
+// the frontend always sends the symbol explicitly.
+// ---------------------------------------------------------------------------
+const gexSymbolEnum = z.enum(GEX_SYMBOLS);
+
 export const gexLevelSchema = z.object({
   type: z.string().trim().min(1).max(20),
   price: z.number().finite(),
   label: z.string().trim().min(1).max(500),
 });
 
-// Payload for POST /api/admin/gex — the whole day's worth of levels.
-//
-// `converted` is REQUIRED — the server re-serializes `levels` and rejects
-// any mismatch. This prevents a client from tampering with the pipe-string
-// that the user will later copy into TradingView.
 export const gexDaySchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  symbol: gexSymbolEnum.optional().default('NQ'),
   levels: z.array(gexLevelSchema).min(1).max(500),
   converted: z.string().min(1).max(20000),
   sourceTimezone: z.string().trim().min(1).max(64).optional(),
 });
 
-/* ------------------------------------------------------------------ */
-/*  Chat — Direct Messages                                             */
-/* ------------------------------------------------------------------ */
 
-// Body of a message. 4000 char cap, trimmed, non-empty.
 export const sendMessageSchema = z.object({
   body: z.string().trim().min(1).max(4000),
   replyToId: z.string().min(1).nullable().optional(),
 });
 
-// Edit uses the same body rules as send.
 export const editMessageSchema = z.object({
   body: z.string().trim().min(1).max(4000),
 });
 
-// Typing indicator — ephemeral, not persisted.
 export const typingSchema = z.object({
   isTyping: z.boolean(),
 });
 
-// Create (or fetch) a DM with a peer.
 export const createDmSchema = z.object({
   peerId: z.string().min(1).max(64),
 });
 
-// User search — min 2 chars, capped at 100 to prevent wildcard scanning.
 export const userSearchSchema = z.object({
   q: z.string().trim().min(2).max(100),
 });
 
-// Per-participant conversation flags (pin / mute / archive).
 export const updateConversationSchema = z.object({
   isPinned: z.boolean().optional(),
   isMuted: z.boolean().optional(),
   isArchived: z.boolean().optional(),
+});
+
+export const aiCredentialSchema = z.object({
+  provider: z.enum(['openai', 'anthropic', 'gemini', 'groq', 'deepseek']),
+  apiKey: z.string().trim().min(10).max(500),
+  model: z.string().trim().max(100).optional().nullable(),
 });

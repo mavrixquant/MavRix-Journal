@@ -1,4 +1,3 @@
-// apps/web/src/features/dashboard/hooks/useFilters.js
 import { useMemo } from 'react';
 import { useAppContext, actions } from '@/app/providers/AppProvider';
 import { useDashboardAccount } from '@/app/providers/useDashboardAccount';
@@ -9,9 +8,6 @@ export function useFilters() {
   const { state, dispatch } = useAppContext();
   const { accountId } = useDashboardAccount();
 
-  // Route-aware: reads the account slot for the CURRENT route, not
-  // the legacy mirror. This is the guard that stops Journal from
-  // scoring Backtest trades when only a Backtest account exists.
   const selectedAccount = useMemo(
     () => state.accounts.find(a => a.id === accountId) || null,
     [state.accounts, accountId]
@@ -30,9 +26,6 @@ export function useFilters() {
   const setFilterParams = (p) => dispatch({ type: actions.SET_FILTER_PARAMS, payload: p });
   const setStrategyIds = (ids) => dispatch({ type: actions.SET_STRATEGY_IDS, payload: ids });
 
-  // Guard: no account for the current dashboard type → no trades.
-  // Without this, the caller would score stale trades from the OTHER
-  // dashboard's cache.
   const getFilteredTrades = () => {
     if (!selectedAccount) return [];
     return applyFilters(state.trades, state, selectedAccount);

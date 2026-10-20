@@ -1,38 +1,3 @@
-// apps/web/src/shared/symbols/SymbolSelect.jsx
-//
-// Searchable, icon-rich symbol picker.
-//
-// Data source: useMarketCatalog() → SYMBOL_CATALOG from the API. This is
-// the SAME catalog the chart page uses, so the dropdown is guaranteed to
-// contain only symbols that the chart page can render.
-//
-// Public API:
-//   <SymbolSelect
-//     value="NQ"
-//     onChange={(code) => ...}
-//     placeholder="Select symbol…"
-//     disabled={false}
-//     error={false}
-//     id="trade-symbol"
-//   />
-//
-// Behaviour:
-//   - Panel opens on trigger click (Radix Popover + cmdk Command)
-//   - Rows grouped by category, each row shows SymbolIcon + code + label
-//   - Search matches code, label, category, exchange
-//   - Selecting a row calls onChange(code) and closes the panel
-//   - If `value` is set but not in the catalog (legacy data like "NQ1!"),
-//     the trigger still renders it as plain text so the value isn't
-//     silently dropped. The user must actively pick a catalog symbol to
-//     replace it.
-//   - While the catalog is loading, the trigger is disabled and shows
-//     "Loading symbols…"
-//
-// Z-INDEX NOTE:
-//   The popover content is portaled to document.body. When SymbolSelect is
-//   used inside a modal (e.g. AddTradeModal with .at-overlay z-index 1000),
-//   the default z-50 from the shadcn wrapper would sit BEHIND the modal
-//   backdrop. `.symsel-pop` therefore forces z-index: 3000 !important.
 
 import { useCallback, useMemo, useState } from 'react';
 import { Check, ChevronDown, Search } from 'lucide-react';
@@ -46,9 +11,6 @@ import {
 import { useMarketCatalog } from '@/shared/api/marketData';
 import SymbolIcon from './SymbolIcon';
 
-/* ------------------------------------------------------------------ */
-/*  Scoped styles                                                     */
-/* ------------------------------------------------------------------ */
 
 const CSS = `
   /* ---------- Trigger ---------- */
@@ -296,9 +258,6 @@ const CSS = `
   }
 `;
 
-/* ------------------------------------------------------------------ */
-/*  Component                                                         */
-/* ------------------------------------------------------------------ */
 
 export default function SymbolSelect({
   value = '',
@@ -319,7 +278,6 @@ export default function SymbolSelect({
     [symbols, value]
   );
 
-  // Group by category, preserving catalog order within each group.
   const grouped = useMemo(() => {
     const m = new Map();
     for (const s of symbols) {
@@ -340,9 +298,6 @@ export default function SymbolSelect({
   const isDisabled = disabled || isLoading;
   const showPlaceholder = !value;
 
-  // cmdk resets its internal query whenever the Command unmounts. Because
-  // the Popover contents unmount on close, we get a fresh search box on
-  // every open — no manual reset needed.
 
   return (
     <>
@@ -369,8 +324,6 @@ export default function SymbolSelect({
                 <span className="symsel-trigger-label">{current.label}</span>
               </>
             ) : (
-              // Legacy / unknown value — render as plain code so the
-              // existing value is not silently dropped.
               <span className="symsel-trigger-code">{value}</span>
             )}
 
@@ -409,9 +362,6 @@ export default function SymbolSelect({
                 >
                   {items.map((s) => {
                     const isCurrent = s.code === value;
-                    // `value` is what cmdk filters against — include every
-                    // searchable field so users can type "nasdaq", "cme",
-                    // "crypto", etc.
                     const searchValue = `${s.code} ${s.label} ${s.category} ${s.exchange || ''}`;
                     return (
                       <Command.Item

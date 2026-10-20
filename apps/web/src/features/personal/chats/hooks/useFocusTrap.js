@@ -1,18 +1,3 @@
-﻿// apps/web/src/features/personal/chats/hooks/useFocusTrap.js
-//
-// Minimal focus trap for dialog-style modals. When `active` becomes true,
-// the hook:
-//   1. remembers the element that was focused before
-//   2. moves focus to the first focusable element inside the container
-//   3. intercepts Tab / Shift+Tab so focus can never leave the container
-//   4. forwards Escape to `onEscape`
-//   5. on unmount / deactivate, restores focus to the originally-focused
-//      element
-//
-// Usage:
-//   const trapRef = useFocusTrap({ active: isOpen, onEscape: onClose });
-//   ...
-//   <div role="dialog" aria-modal="true" ref={trapRef}> ... </div>
 
 import { useEffect, useRef } from 'react';
 
@@ -47,11 +32,10 @@ export function useFocusTrap({ active = false, onEscape } = {}) {
         (el) => !el.hasAttribute('disabled') && el.offsetParent !== null
       );
 
-    // Move focus into the dialog on the next paint
     const initial = getFocusables()[0] || container;
     if (initial && typeof initial.focus === 'function') {
       requestAnimationFrame(() => {
-        try { initial.focus({ preventScroll: true }); } catch { /* noop */ }
+        try { initial.focus({ preventScroll: true }); } catch { }
       });
     }
 
@@ -81,12 +65,12 @@ export function useFocusTrap({ active = false, onEscape } = {}) {
       if (e.shiftKey) {
         if (!inside || activeEl === first) {
           e.preventDefault();
-          try { last.focus(); } catch { /* noop */ }
+          try { last.focus(); } catch { }
         }
       } else {
         if (!inside || activeEl === last) {
           e.preventDefault();
-          try { first.focus(); } catch { /* noop */ }
+          try { first.focus(); } catch { }
         }
       }
     };
@@ -97,7 +81,7 @@ export function useFocusTrap({ active = false, onEscape } = {}) {
       document.removeEventListener('keydown', onKeyDown, true);
       const prev = previousFocusRef.current;
       if (prev && typeof prev.focus === 'function') {
-        try { prev.focus({ preventScroll: true }); } catch { /* noop */ }
+        try { prev.focus({ preventScroll: true }); } catch { }
       }
       previousFocusRef.current = null;
     };

@@ -1,20 +1,4 @@
-// apps/web/src/features/admin/pages/AdminGexPage.jsx
-//
-// Admin GEX upload page — /admin/gex
-//
-// Flow:
-//   1. Pick a date (defaults to today IST)
-//   2. Paste JSON into the textarea (or load the built-in example)
-//   3. Convert → shows preview (counts + pipe-string)
-//   4. Save → POST /api/admin/gex
-//        - 200 → toast, clear form, refresh list
-//        - 409 → overwrite confirmation modal → re-POST with ?overwrite=true
-//
-// Editing the JSON textarea clears the preview, forcing re-convert.
-// The server re-serializes `levels` and rejects if `converted` doesn't
-// match — so a stale preview can never be saved silently.
-
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import {
   RefreshCw, Trash2, CheckCircle2, AlertTriangle,
   Clipboard, ClipboardCheck, Layers, Save, Wand2,
@@ -28,13 +12,15 @@ import {
   useAdminDeleteGex,
 } from '@/shared/api/gex';
 import Alert from '@/shared/components/Alert';
-import { convertGexJson, GEX_DEFAULT_TIMEZONE } from '@mavrix/shared';
+import {
+  convertGexJson,
+  GEX_DEFAULT_TIMEZONE,
+  GEX_SYMBOLS,
+  GEX_SYMBOL_META,
+  DEFAULT_GEX_SYMBOL,
+} from '@mavrix/shared';
 
-/* ------------------------------------------------------------------ */
-/*  Helpers                                                            */
-/* ------------------------------------------------------------------ */
 
-/** "YYYY-MM-DD" for today, in IST (Asia/Kolkata). */
 function todayIST() {
   const parts = new Intl.DateTimeFormat('en-GB', {
     timeZone: GEX_DEFAULT_TIMEZONE,
@@ -48,7 +34,6 @@ function todayIST() {
   return `${y}-${m}-${d}`;
 }
 
-/** "Oct 5, 2026" from "2026-10-05". */
 function formatDate(isoDate) {
   const [y, m, d] = isoDate.split('-').map(Number);
   return new Date(y, m - 1, d).toLocaleDateString('en-US', {
@@ -58,7 +43,6 @@ function formatDate(isoDate) {
   });
 }
 
-/** "5 min ago" from an ISO timestamp. */
 function relativeTime(iso) {
   if (!iso) return '—';
   const delta = Date.now() - new Date(iso).getTime();
@@ -72,24 +56,79 @@ function relativeTime(iso) {
   return `${days}d ago`;
 }
 
-/* ------------------------------------------------------------------ */
-/*  Scoped CSS                                                         */
-/* ------------------------------------------------------------------ */
 
 const CSS = `
   .gexp-root { display: flex; flex-direction: column; gap: 20px; }
 
+  /* ---------- Symbol switcher ---------- */
+  .gexp-symbar {
+    display: flex;
+    gap: 10px;
+    padding: 6px;
+    border-radius: 14px;
+    background: rgba(0,0,0,.32);
+    border: 1px solid rgba(255,255,255,.06);
+  }
+  .gexp-sym {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    border-radius: 10px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: #8892A3;
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: .02em;
+    cursor: pointer;
+    transition: all .22s cubic-bezier(.2,.8,.25,1);
+    text-align: left;
+  }
+  .gexp-sym:hover:not(.is-active) {
+    color: #E7E9EE;
+    background: rgba(255,255,255,.04);
+  }
+  .gexp-sym.is-active {
+    background: color-mix(in srgb, var(--sym-color) 12%, transparent);
+    border-color: color-mix(in srgb, var(--sym-color) 45%, transparent);
+    color: #FFFFFF;
+    box-shadow: 0 0 26px -10px color-mix(in srgb, var(--sym-color) 60%, transparent);
+  }
+  .gexp-sym-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+    background: var(--sym-color);
+    box-shadow: 0 0 10px var(--sym-color);
+    flex-shrink: 0;
+  }
+  .gexp-sym-code {
+    font-weight: 700;
+    font-size: 14px;
+    letter-spacing: .04em;
+  }
+  .gexp-sym-name {
+    font-size: 11px;
+    color: #545E6E;
+    font-weight: 500;
+    letter-spacing: .02em;
+  }
+  .gexp-sym.is-active .gexp-sym-name {
+    color: rgba(255,255,255,.6);
+  }
+
+  /* ---------- Top row ---------- */
   .gexp-top {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 18px;
     align-items: start;
   }
-  @media (max-width: 1100px) {
-    .gexp-top { grid-template-columns: 1fr; }
-  }
+  @media (max-width: 1100px) { .gexp-top { grid-template-columns: 1fr; } }
 
-  /* ---------- Card shell ---------- */
   .gexp-card {
     border-radius: 14px;
     background: linear-gradient(180deg, rgba(15,18,26,.72), rgba(15,18,26,.55));
@@ -102,56 +141,44 @@ const CSS = `
   .gexp-card-head {
     padding: 14px 18px 12px;
     border-bottom: 1px solid rgba(255,255,255,.05);
-    display: flex;
-    align-items: center;
-    gap: 10px;
+    display: flex; align-items: center; gap: 10px;
     flex-shrink: 0;
   }
   .gexp-card-title { font-size: 13px; font-weight: 700; color: #E7E9EE; letter-spacing: -.005em; }
   .gexp-card-sub {
     margin-left: auto;
     font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: .06em;
-    text-transform: uppercase;
-    color: var(--accent);
-    opacity: .85;
+    font-size: 10px; font-weight: 600;
+    letter-spacing: .06em; text-transform: uppercase;
+    color: var(--accent); opacity: .85;
   }
   .gexp-card-body { padding: 18px; display: flex; flex-direction: column; gap: 16px; }
 
   /* ---------- Form fields ---------- */
   .gexp-field { display: flex; flex-direction: column; gap: 6px; }
   .gexp-label {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+    display: flex; align-items: center; justify-content: space-between;
     font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: .14em;
-    text-transform: uppercase;
-    color: #545E6E;
+    font-size: 10px; font-weight: 700; letter-spacing: .14em;
+    text-transform: uppercase; color: #545E6E;
   }
   .gexp-label-hint {
-    font-weight: 500;
-    letter-spacing: .02em;
-    text-transform: none;
-    color: #8892A3;
+    font-weight: 500; letter-spacing: .02em;
+    text-transform: none; color: #8892A3;
+  }
+  .gexp-label-hint.is-strong {
+    color: var(--accent);
+    font-weight: 700;
   }
 
   .gexp-input {
-    width: 100%;
-    padding: 9px 12px;
+    width: 100%; padding: 9px 12px;
     background: rgba(10,13,19,.6);
     border: 1px solid rgba(255,255,255,.1);
-    border-radius: 10px;
-    color: #E7E9EE;
+    border-radius: 10px; color: #E7E9EE;
     font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    font-size: 13px;
-    outline: none;
-    box-sizing: border-box;
-    color-scheme: dark;
+    font-size: 13px; outline: none;
+    box-sizing: border-box; color-scheme: dark;
     transition: all .18s;
   }
   .gexp-input:hover { border-color: rgba(255,255,255,.2); }
@@ -161,20 +188,15 @@ const CSS = `
   }
 
   .gexp-textarea {
-    width: 100%;
-    min-height: 260px;
+    width: 100%; min-height: 260px;
     padding: 12px 14px;
     background: rgba(10,13,19,.6);
     border: 1px solid rgba(255,255,255,.1);
-    border-radius: 10px;
-    color: #E7E9EE;
+    border-radius: 10px; color: #E7E9EE;
     font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    font-size: 12px;
-    line-height: 1.6;
-    outline: none;
-    box-sizing: border-box;
-    resize: vertical;
-    transition: all .18s;
+    font-size: 12px; line-height: 1.6;
+    outline: none; box-sizing: border-box;
+    resize: vertical; transition: all .18s;
   }
   .gexp-textarea:hover { border-color: rgba(255,255,255,.2); }
   .gexp-textarea:focus {
@@ -189,77 +211,61 @@ const CSS = `
   .gexp-spacer { flex: 1; }
 
   .gexp-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    padding: 9px 14px;
-    border-radius: 10px;
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 9px 14px; border-radius: 10px;
     border: 1px solid rgba(255,255,255,.1);
-    background: rgba(255,255,255,.03);
-    color: #8892A3;
+    background: rgba(255,255,255,.03); color: #8892A3;
     font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    font-size: 11.5px;
-    font-weight: 600;
-    letter-spacing: .02em;
-    cursor: pointer;
-    transition: all .22s cubic-bezier(.2,.8,.25,1);
+    font-size: 11.5px; font-weight: 600; letter-spacing: .02em;
+    cursor: pointer; transition: all .22s cubic-bezier(.2,.8,.25,1);
     white-space: nowrap;
   }
   .gexp-btn:hover:not(:disabled) {
-    color: #E7E9EE;
-    background: rgba(255,255,255,.06);
-    border-color: rgba(255,255,255,.2);
-    transform: translateY(-1px);
+    color: #E7E9EE; background: rgba(255,255,255,.06);
+    border-color: rgba(255,255,255,.2); transform: translateY(-1px);
   }
   .gexp-btn:active:not(:disabled) { transform: translateY(0) scale(.98); }
   .gexp-btn:disabled { opacity: .4; cursor: not-allowed; transform: none; }
-  .gexp-btn:focus-visible {
-    outline: none;
-    border-color: var(--accent);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
-  }
 
   .gexp-btn-primary {
     border: none;
     background: linear-gradient(135deg, var(--accent), var(--accent-2));
-    color: #0D1117;
-    font-weight: 700;
+    color: #0D1117; font-weight: 700;
     box-shadow:
       0 10px 30px -8px color-mix(in srgb, var(--accent) 55%, transparent),
       inset 0 1px 0 rgba(255,255,255,.4);
-    transition: transform .25s cubic-bezier(.175,.885,.32,1.275), box-shadow .3s;
   }
   .gexp-btn-primary:hover:not(:disabled) {
     transform: translateY(-2px);
-    box-shadow: 0 16px 42px -10px color-mix(in srgb, var(--accent) 70%, transparent), inset 0 1px 0 rgba(255,255,255,.5);
+    box-shadow:
+      0 16px 42px -10px color-mix(in srgb, var(--accent) 70%, transparent),
+      inset 0 1px 0 rgba(255,255,255,.5);
   }
   .gexp-btn-primary:disabled {
-    background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 32%, transparent), color-mix(in srgb, var(--accent-2) 28%, transparent));
-    color: rgba(13,17,23,.55);
-    box-shadow: none;
+    background: linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--accent) 32%, transparent),
+      color-mix(in srgb, var(--accent-2) 28%, transparent)
+    );
+    color: rgba(13,17,23,.55); box-shadow: none;
   }
 
   /* ---------- Preview ---------- */
   .gexp-empty-preview {
-    padding: 60px 20px;
-    text-align: center;
+    padding: 60px 20px; text-align: center;
     border: 1px dashed rgba(255,255,255,.10);
     border-radius: 12px;
     background: rgba(255,255,255,.015);
     color: #545E6E;
     font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    font-size: 12px;
-    line-height: 1.7;
+    font-size: 12px; line-height: 1.7;
   }
 
   .gexp-banner {
-    display: flex;
-    gap: 10px;
-    padding: 11px 14px;
-    border-radius: 10px;
+    display: flex; gap: 10px;
+    padding: 11px 14px; border-radius: 10px;
     font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    font-size: 11.5px;
-    line-height: 1.6;
+    font-size: 11.5px; line-height: 1.6;
     align-items: flex-start;
   }
   .gexp-banner.ok {
@@ -280,69 +286,49 @@ const CSS = `
     gap: 8px;
   }
   .gexp-count {
-    padding: 10px 12px;
-    border-radius: 10px;
+    padding: 10px 12px; border-radius: 10px;
     background: rgba(255,255,255,.025);
     border: 1px solid rgba(255,255,255,.05);
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
+    display: flex; flex-direction: column; gap: 2px;
   }
   .gexp-count-label {
     font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    font-size: 9.5px;
-    font-weight: 700;
-    letter-spacing: .14em;
-    text-transform: uppercase;
+    font-size: 9.5px; font-weight: 700;
+    letter-spacing: .14em; text-transform: uppercase;
     color: #545E6E;
   }
   .gexp-count-value {
     font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    font-size: 18px;
-    font-weight: 700;
-    color: #E7E9EE;
-    letter-spacing: -.01em;
-    line-height: 1.1;
+    font-size: 18px; font-weight: 700;
+    color: #E7E9EE; letter-spacing: -.01em; line-height: 1.1;
   }
   .gexp-count-value.is-bl  { color: var(--accent); }
   .gexp-count-value.is-gex { color: #60A5FA; }
 
   .gexp-output-wrap {
-    position: relative;
     border-radius: 10px;
     border: 1px solid rgba(255,255,255,.08);
     background: rgba(10,13,19,.6);
     overflow: hidden;
   }
   .gexp-output-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+    display: flex; align-items: center; justify-content: space-between;
     padding: 8px 12px;
     background: rgba(0,0,0,.22);
     border-bottom: 1px solid rgba(255,255,255,.05);
     font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: .12em;
-    text-transform: uppercase;
+    font-size: 10px; font-weight: 700;
+    letter-spacing: .12em; text-transform: uppercase;
     color: #545E6E;
   }
   .gexp-output-copy {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    padding: 4px 9px;
-    border-radius: 7px;
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 4px 9px; border-radius: 7px;
     border: 1px solid rgba(255,255,255,.1);
-    background: rgba(255,255,255,.03);
-    color: #8892A3;
+    background: rgba(255,255,255,.03); color: #8892A3;
     font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: .04em;
-    text-transform: uppercase;
-    cursor: pointer;
+    font-size: 10px; font-weight: 600; letter-spacing: .04em;
+    text-transform: uppercase; cursor: pointer;
     transition: all .18s;
   }
   .gexp-output-copy:hover {
@@ -356,14 +342,11 @@ const CSS = `
     background: rgba(34,197,94,.06);
   }
   .gexp-output-body {
-    padding: 12px 14px;
-    max-height: 220px;
+    padding: 12px 14px; max-height: 220px;
     overflow-y: auto;
     font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    font-size: 11.5px;
-    line-height: 1.65;
-    color: #E7E9EE;
-    word-break: break-all;
+    font-size: 11.5px; line-height: 1.65;
+    color: #E7E9EE; word-break: break-all;
     white-space: pre-wrap;
   }
   .gexp-output-body::-webkit-scrollbar { width: 8px; }
@@ -371,17 +354,17 @@ const CSS = `
     background: rgba(255,255,255,.08); border-radius: 99px;
   }
 
-  /* ---------- Existing days table ---------- */
-  .gexp-table { width: 100%; border-collapse: collapse; font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 12px; }
+  /* ---------- Days table ---------- */
+  .gexp-table {
+    width: 100%; border-collapse: collapse;
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 12px;
+  }
   .gexp-th {
-    padding: 11px 14px;
-    text-align: left;
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: .08em;
-    text-transform: uppercase;
-    color: #8892A3;
-    background: rgba(0,0,0,.2);
+    padding: 11px 14px; text-align: left;
+    font-size: 10px; font-weight: 700;
+    letter-spacing: .08em; text-transform: uppercase;
+    color: #8892A3; background: rgba(0,0,0,.2);
     border-bottom: 1px solid rgba(255,255,255,.08);
     white-space: nowrap;
   }
@@ -391,8 +374,7 @@ const CSS = `
   .gexp-td {
     padding: 11px 14px;
     border-bottom: 1px solid rgba(255,255,255,.04);
-    color: #E7E9EE;
-    vertical-align: middle;
+    color: #E7E9EE; vertical-align: middle;
   }
   .gexp-td.muted { color: #8892A3; }
   .gexp-td.right { text-align: right; }
@@ -400,15 +382,20 @@ const CSS = `
 
   .gexp-pill {
     display: inline-flex;
-    padding: 2px 8px;
-    border-radius: 99px;
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: .04em;
-    border: 1px solid;
+    padding: 2px 8px; border-radius: 99px;
+    font-size: 10px; font-weight: 700;
+    letter-spacing: .04em; border: 1px solid;
   }
-  .gexp-pill.bl  { color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent);  border-color: color-mix(in srgb, var(--accent) 30%, transparent); }
-  .gexp-pill.gex { color: #60A5FA; background: rgba(96,165,250,.08); border-color: rgba(96,165,250,.30); }
+  .gexp-pill.bl {
+    color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 8%, transparent);
+    border-color: color-mix(in srgb, var(--accent) 30%, transparent);
+  }
+  .gexp-pill.gex {
+    color: #60A5FA;
+    background: rgba(96,165,250,.08);
+    border-color: rgba(96,165,250,.30);
+  }
 
   .gexp-btn-icon {
     width: 26px; height: 26px; padding: 0;
@@ -427,18 +414,19 @@ const CSS = `
   .gexp-btn-icon:disabled { opacity: .35; cursor: not-allowed; }
 
   .gexp-empty, .gexp-loading {
-    padding: 60px 24px;
-    text-align: center;
+    padding: 60px 24px; text-align: center;
     color: #545E6E;
     font-family: 'IBM Plex Mono', ui-monospace, monospace;
     font-size: 12.5px;
   }
   .gexp-loading { color: #8892A3; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .gexp-sym, .gexp-btn, .gexp-btn-primary, .gexp-output-copy,
+    .gexp-btn-icon { transition: none !important; }
+  }
 `;
 
-/* ------------------------------------------------------------------ */
-/*  Example JSON                                                       */
-/* ------------------------------------------------------------------ */
 
 const EXAMPLE_JSON = JSON.stringify(
   [
@@ -461,33 +449,35 @@ const EXAMPLE_JSON = JSON.stringify(
   2
 );
 
-/* ------------------------------------------------------------------ */
-/*  Page                                                               */
-/* ------------------------------------------------------------------ */
 
 export default function AdminGexPage() {
   const { user: me } = useAuth();
   const isSuper = me?.role === 'superadmin';
 
-  // ---- Upload form state ----
+  const [symbol, setSymbol] = useState(DEFAULT_GEX_SYMBOL);
   const [date, setDate] = useState(todayIST);
   const [jsonInput, setJsonInput] = useState('');
-  const [preview, setPreview] = useState(null);   // convert result or null
+  const [preview, setPreview] = useState(null);
   const [copied, setCopied] = useState(false);
 
-  // ---- Modals ----
-  const [overwritePrompt, setOverwritePrompt] = useState(null);   // { existing } | null
-  const [deleteTarget, setDeleteTarget] = useState(null);         // row | null
+  const [overwritePrompt, setOverwritePrompt] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
-  // ---- Data ----
-  const { data: days = [], isLoading } = useAdminGexDays();
+  const { data: days = [], isLoading } = useAdminGexDays(symbol);
   const upsert = useAdminUpsertGex();
   const remove = useAdminDeleteGex();
 
-  // Live-derived preview placeholder (for the info banner text)
   const hasPreview = !!preview?.ok;
+  const meta = useMemo(() => GEX_SYMBOL_META[symbol] || GEX_SYMBOL_META.NQ, [symbol]);
 
-  /* -------- Convert -------- */
+
+  const handleSymbolChange = useCallback((next) => {
+    if (next === symbol) return;
+    setSymbol(next);
+    setPreview(null);
+    setJsonInput('');
+  }, [symbol]);
+
   const handleConvert = useCallback(() => {
     const result = convertGexJson(jsonInput);
     setPreview(result);
@@ -496,17 +486,16 @@ export default function AdminGexPage() {
     }
   }, [jsonInput]);
 
-  /* -------- Textarea edits invalidate the previous preview -------- */
   const handleJsonChange = useCallback((value) => {
     setJsonInput(value);
-    if (preview) setPreview(null);   // force re-convert before save
+    if (preview) setPreview(null);
   }, [preview]);
 
-  /* -------- Save -------- */
   const runSave = useCallback(
     async (overwrite) => {
       const payload = {
         date,
+        symbol,
         levels: preview.levels,
         converted: preview.converted,
         sourceTimezone: GEX_DEFAULT_TIMEZONE,
@@ -514,14 +503,14 @@ export default function AdminGexPage() {
       };
       return upsert.mutateAsync(payload);
     },
-    [date, preview, upsert]
+    [date, symbol, preview, upsert]
   );
 
   const handleSave = useCallback(async () => {
     if (!hasPreview) return;
     try {
       await runSave(false);
-      toast.success(`GEX saved for ${formatDate(date)}`);
+      toast.success(`${symbol} GEX saved for ${formatDate(date)}`);
       setJsonInput('');
       setPreview(null);
     } catch (err) {
@@ -531,12 +520,12 @@ export default function AdminGexPage() {
         toast.error(err.message || 'Save failed');
       }
     }
-  }, [hasPreview, date, runSave]);
+  }, [hasPreview, date, symbol, runSave]);
 
   const handleConfirmOverwrite = useCallback(async () => {
     try {
       await runSave(true);
-      toast.success(`GEX overwritten for ${formatDate(date)}`);
+      toast.success(`${symbol} GEX overwritten for ${formatDate(date)}`);
       setOverwritePrompt(null);
       setJsonInput('');
       setPreview(null);
@@ -544,14 +533,18 @@ export default function AdminGexPage() {
       toast.error(err.message || 'Overwrite failed');
       setOverwritePrompt(null);
     }
-  }, [date, runSave]);
+  }, [date, symbol, runSave]);
 
-  /* -------- Delete -------- */
   const handleConfirmDelete = useCallback(async () => {
     if (!deleteTarget) return;
     try {
-      await remove.mutateAsync(deleteTarget.date);
-      toast.success(`Deleted GEX for ${formatDate(deleteTarget.date)}`);
+      await remove.mutateAsync({
+        date: deleteTarget.date,
+        symbol: deleteTarget.symbol,
+      });
+      toast.success(
+        `Deleted ${deleteTarget.symbol} GEX for ${formatDate(deleteTarget.date)}`
+      );
       setDeleteTarget(null);
     } catch (err) {
       toast.error(err.message || 'Delete failed');
@@ -559,7 +552,6 @@ export default function AdminGexPage() {
     }
   }, [deleteTarget, remove]);
 
-  /* -------- Copy converted string -------- */
   const handleCopyConverted = useCallback(async () => {
     if (!preview?.converted) return;
     try {
@@ -571,34 +563,59 @@ export default function AdminGexPage() {
     }
   }, [preview]);
 
-  /* -------- Derived -------- */
   const canSave = hasPreview && !!date && !upsert.isPending;
   const counts = preview?.counts;
+
 
   return (
     <>
       <style>{CSS}</style>
       <div className="gexp-root">
 
-        {/* ---------- Header ---------- */}
+        {/* Page header */}
         <div className="admin-ph">
           <div className="admin-ph-left">
             <span className="admin-ph-eyebrow">Operations</span>
             <h1 className="admin-ph-title">GEX Levels</h1>
             <p className="admin-ph-sub">
-              Upload daily gamma-exposure levels · users see these on Utilities → GEX
+              Upload daily gamma-exposure levels — NQ and ES tracked independently.
             </p>
           </div>
         </div>
 
-        {/* ---------- Upload + Preview ---------- */}
+        {/* Symbol switcher */}
+        <div className="gexp-symbar" role="tablist" aria-label="Select symbol">
+          {GEX_SYMBOLS.map((sym) => {
+            const m = GEX_SYMBOL_META[sym];
+            const active = symbol === sym;
+            return (
+              <button
+                key={sym}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                className={`gexp-sym${active ? ' is-active' : ''}`}
+                style={{ '--sym-color': m.color }}
+                onClick={() => handleSymbolChange(sym)}
+              >
+                <span className="gexp-sym-dot" aria-hidden />
+                <span className="gexp-sym-code">{m.label}</span>
+                <span className="gexp-sym-name">{m.fullName}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Top row: upload + preview */}
         <div className="gexp-top">
 
-          {/* ---------- Input card ---------- */}
           <div className="gexp-card">
             <div className="gexp-card-head">
               <Wand2 size={14} style={{ color: 'var(--accent)' }} />
               <span className="gexp-card-title">Upload</span>
+              <span className="gexp-card-sub">
+                <span style={{ color: meta.color }}>{meta.label}</span> · {meta.fullName}
+              </span>
             </div>
             <div className="gexp-card-body">
 
@@ -618,12 +635,12 @@ export default function AdminGexPage() {
               <div className="gexp-field">
                 <label className="gexp-label">
                   Raw JSON
-                  <span className="gexp-label-hint">array of {'{ Name, Y1, TextMsg, ShowPrice }'}</span>
+                  <span className="gexp-label-hint">{'array of { Name, Y1, TextMsg, ShowPrice }'}</span>
                 </label>
                 <textarea
                   className="gexp-textarea"
                   spellCheck={false}
-                  placeholder='[\n  {\n    "Name": "BL20260901_NQ1!_1000_VFRQ",\n    "Y1": 29104.19,\n    "TextMsg": "BL 1 (NQ1!)",\n    "ShowPrice": true\n  }\n]'
+                  placeholder={`[\n  {\n    "Name": "BL${todayIST().replace(/-/g, '')}_${symbol}1!_1000_VFRQ",\n    "Y1": 29104.19,\n    "TextMsg": "BL 1 (${symbol}1!)",\n    "ShowPrice": true\n  }\n]`}
                   value={jsonInput}
                   onChange={(e) => handleJsonChange(e.target.value)}
                 />
@@ -663,7 +680,6 @@ export default function AdminGexPage() {
             </div>
           </div>
 
-          {/* ---------- Preview card ---------- */}
           <div className="gexp-card">
             <div className="gexp-card-head">
               <Layers size={14} style={{ color: 'var(--accent)' }} />
@@ -679,7 +695,8 @@ export default function AdminGexPage() {
 
               {!preview && (
                 <div className="gexp-empty-preview">
-                  Paste JSON and click <b style={{ color: 'var(--accent)' }}>Convert</b> to preview the levels and the TradingView pipe-string.
+                  Paste JSON and click <b style={{ color: 'var(--accent)' }}>Convert</b> to
+                  preview the {symbol} levels and the TradingView pipe-string.
                 </div>
               )}
 
@@ -698,8 +715,8 @@ export default function AdminGexPage() {
                   <div className="gexp-banner ok">
                     <CheckCircle2 size={14} />
                     <span>
-                      <b>{counts.total}</b> level{counts.total === 1 ? '' : 's'} ready to upload
-                      for <b>{formatDate(date)}</b>.
+                      <b>{counts.total}</b> level{counts.total === 1 ? '' : 's'} ready to
+                      upload for <b>{symbol} · {formatDate(date)}</b>.
                     </span>
                   </div>
 
@@ -747,7 +764,7 @@ export default function AdminGexPage() {
                       disabled={!canSave}
                     >
                       <Save size={11} />
-                      {upsert.isPending ? 'Saving…' : 'Save to Database'}
+                      {upsert.isPending ? 'Saving…' : `Save ${symbol} to Database`}
                     </button>
                   </div>
                 </>
@@ -756,24 +773,27 @@ export default function AdminGexPage() {
           </div>
         </div>
 
-        {/* ---------- Existing days ---------- */}
+        {/* Uploaded days table */}
         <div className="gexp-card">
           <div className="gexp-card-head">
-            <span className="gexp-card-title">Uploaded Days</span>
+            <span className="gexp-card-title">Uploaded {symbol} Days</span>
             <span className="gexp-card-sub">
               {days.length} {days.length === 1 ? 'day' : 'days'}
             </span>
           </div>
           <div className="gexp-card-body" style={{ padding: 0 }}>
             {isLoading ? (
-              <div className="gexp-loading">Loading days…</div>
+              <div className="gexp-loading">Loading {symbol} days…</div>
             ) : days.length === 0 ? (
-              <div className="gexp-empty">No GEX days uploaded yet. Upload one above.</div>
+              <div className="gexp-empty">
+                No {symbol} days uploaded yet. Upload one above, or switch symbol.
+              </div>
             ) : (
               <table className="gexp-table">
                 <thead>
                   <tr>
                     <th className="gexp-th">Date</th>
+                    <th className="gexp-th">Symbol</th>
                     <th className="gexp-th">Levels</th>
                     <th className="gexp-th">BL</th>
                     <th className="gexp-th">GEX</th>
@@ -783,8 +803,20 @@ export default function AdminGexPage() {
                 </thead>
                 <tbody>
                   {days.map((d) => (
-                    <tr key={d.date} className="gexp-tr">
+                    <tr key={`${d.symbol}:${d.date}`} className="gexp-tr">
                       <td className="gexp-td date">{formatDate(d.date)}</td>
+                      <td className="gexp-td">
+                        <span
+                          className="gexp-pill"
+                          style={{
+                            color: GEX_SYMBOL_META[d.symbol]?.color,
+                            borderColor: `${GEX_SYMBOL_META[d.symbol]?.color}66`,
+                            background: `${GEX_SYMBOL_META[d.symbol]?.color}15`,
+                          }}
+                        >
+                          {d.symbol}
+                        </span>
+                      </td>
                       <td className="gexp-td muted">{d.levelCount}</td>
                       <td className="gexp-td">
                         <span className="gexp-pill bl">{d.blCount}</span>
@@ -798,7 +830,7 @@ export default function AdminGexPage() {
                           type="button"
                           className="gexp-btn-icon"
                           disabled={!isSuper || remove.isPending}
-                          title={isSuper ? 'Delete this day' : 'Superadmin only'}
+                          title={isSuper ? `Delete ${d.symbol} · ${d.date}` : 'Superadmin only'}
                           onClick={() => setDeleteTarget(d)}
                         >
                           <Trash2 size={12} />
@@ -813,14 +845,14 @@ export default function AdminGexPage() {
         </div>
       </div>
 
-      {/* ---------- Overwrite confirmation ---------- */}
+      {/* Overwrite confirm */}
       <Alert
         isOpen={!!overwritePrompt}
         type="confirm"
-        title="GEX data already exists"
+        title={`${symbol} GEX already exists`}
         message={
           overwritePrompt
-            ? `GEX data for ${formatDate(date)} already exists` +
+            ? `${symbol} GEX data for ${formatDate(date)} already exists` +
               (overwritePrompt.existing
                 ? ` (${overwritePrompt.existing.levelCount} levels).`
                 : '.') +
@@ -833,15 +865,14 @@ export default function AdminGexPage() {
         onCancel={() => setOverwritePrompt(null)}
       />
 
-      {/* ---------- Delete confirmation ---------- */}
+      {/* Delete confirm */}
       <Alert
         isOpen={!!deleteTarget}
         type="confirm"
-        title="Delete GEX day?"
+        title={`Delete ${deleteTarget?.symbol} GEX day?`}
         message={
           deleteTarget
-            ? `Delete all GEX levels for ${formatDate(deleteTarget.date)}? ` +
-              `Users will no longer see this day. This cannot be undone.`
+            ? `Delete all ${deleteTarget.symbol} GEX levels for ${formatDate(deleteTarget.date)}? Users on the ${deleteTarget.symbol} tab will no longer see this day. This cannot be undone.`
             : ''
         }
         confirmText="Delete"

@@ -1,4 +1,3 @@
-// src/components/simulator/SimulatorControls.jsx
 import { FaPlay, FaRedo, FaDownload, FaDice, FaTimes } from 'react-icons/fa';
 
 const PRESETS = {

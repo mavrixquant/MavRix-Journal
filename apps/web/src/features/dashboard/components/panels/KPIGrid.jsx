@@ -1,4 +1,3 @@
-// src/components/dashboard/sections/KPIGrid.jsx
 import { useStats } from '@/features/dashboard/hooks/useStats';
 
 const KPI_CSS = `

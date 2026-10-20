@@ -1,9 +1,3 @@
-﻿// apps/web/src/features/personal/chats/components/ConversationPanel.jsx
-//
-// Wrapper for the right-hand info panel. Renders DmProfilePanel or
-// GroupProfilePanel depending on conversation type. The parent
-// (MessageThread) decides whether the panel is mounted at all — this
-// component assumes it's only ever rendered when open.
 
 import DmProfilePanel from './DmProfilePanel';
 import GroupProfilePanel from './GroupProfilePanel';

@@ -1,4 +1,3 @@
-// apps/web/src/shared/trading/enrich.js
 import { getSession, get30MinBucket, DOW_NAMES } from './time.js';
 
 function parseTimeToMinutes(timeStr) {
@@ -7,8 +6,6 @@ function parseTimeToMinutes(timeStr) {
   return (h || 0) * 60 + (m || 0);
 }
 
-// Duration between entry and exit, in minutes.
-// Overnight trades (exit < entry in wall-clock) wrap to next day (+24h).
 function computeDurationMinutes(entryStr, exitStr) {
   const entryMin = parseTimeToMinutes(entryStr);
   const exitMin = parseTimeToMinutes(exitStr);
@@ -17,16 +14,6 @@ function computeDurationMinutes(entryStr, exitStr) {
   return d;
 }
 
-// Reserved keys — never treated as user-defined "dynamic" columns.
-//
-// This mirrors the API's RESERVED set in
-// apps/api/src/services/trades.service.js. Keep both in sync.
-//
-// NOTE: `notes` MUST be here. If it isn't, enrichTradesFromDB() treats it as
-// a custom column, and the trade table renders a duplicate "Notes" column.
-//
-// NOTE: `strategyId` and `strategy` are dedicated fields (a real FK and its
-// joined payload). They must not leak into `dynamic`.
 const STANDARD_KEYS = new Set([
   'accountId',
   'tradeId',
@@ -38,22 +25,18 @@ const STANDARD_KEYS = new Set([
   'direction',
   'symbol',
 
-  // Backtester-only
   'mae',
   'mfe',
   'slPoints',
 
-  // Journal-only
   'entryPrice',
   'takeProfit',
   'stopLoss',
 
-  // Common
   'pnl',
   'quantity',
   'notes',
 
-  // Derived / internal
   'commission',
   'netPnl',
   'durationMinutes',
@@ -89,8 +72,6 @@ export function enrichTradesFromDB(rawTrades) {
     const entryMinutes = parseTimeToMinutes(entryStr);
     const durationMinutes = computeDurationMinutes(entryStr, exitStr);
 
-    // mae / mfe are nullable on the model. For Live/Demo trades they arrive
-    // as null; we normalize to 0 so downstream R-mode math never sees NaN.
     const mae = trade.mae == null ? 0 : Number(trade.mae) || 0;
     const mfe = trade.mfe == null ? 0 : Number(trade.mfe) || 0;
 
@@ -101,7 +82,6 @@ export function enrichTradesFromDB(rawTrades) {
       ? Number(trade.quantity)
       : null;
 
-    // Journal-only fields — null on Backtest trades.
     const entryPrice = trade.entryPrice !== undefined && trade.entryPrice !== null
       ? Number(trade.entryPrice)
       : null;
@@ -112,8 +92,6 @@ export function enrichTradesFromDB(rawTrades) {
       ? Number(trade.stopLoss)
       : null;
 
-    // Strategy relation — nullable. Server serializes `strategy` as null when
-    // untagged, or a small snapshot { id, name, color, status, direction }.
     const strategyId = trade.strategyId ?? null;
     const strategy = trade.strategy ?? null;
 
@@ -141,17 +119,14 @@ export function enrichTradesFromDB(rawTrades) {
       symbol: trade.symbol || '—',
       pnl: trade.pnl !== undefined ? Number(trade.pnl) : 0,
 
-      // Backtester-only
       mae,
       mfe,
       slPoints,
 
-      // Journal-only
       entryPrice,
       takeProfit,
       stopLoss,
 
-      // Common
       quantity,
 
       dow: dateObj.getDay(),

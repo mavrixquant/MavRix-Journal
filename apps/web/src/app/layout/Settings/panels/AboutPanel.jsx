@@ -1,10 +1,3 @@
-// apps/web/src/app/layout/Settings/panels/AboutPanel.jsx
-//
-// About tab. Application info + support + legal placeholders.
-//
-// The old "API health" row was removed in Phase 5 — it linked to a raw
-// JSON endpoint with no styling, and the superadmin Health Checkup page
-// (/admin/health-check) now covers the same ground far better.
 
 import { Mail } from 'lucide-react';
 

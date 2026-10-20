@@ -1,14 +1,3 @@
-﻿// apps/web/src/features/personal/chats/components/ConversationList.jsx
-//
-// PHASE 6 — keyboard navigation between rows.
-//
-// The list container catches ArrowUp / ArrowDown / Home / End and moves focus
-// between the rendered `<button data-conv-row>` siblings. Enter and Space
-// already work because each row is a native <button>.
-//
-// Everything else (search + tabs + archived row + SidebarFab) is unchanged
-// from Phase 5.
-
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowLeft,
@@ -110,7 +99,6 @@ export default function ConversationList({
     return { dms, groups };
   }, [active]);
 
-  // Keyboard navigation between conversation rows
   const handleListKeyDown = (e) => {
     const list = listRef.current;
     if (!list) return;

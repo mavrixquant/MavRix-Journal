@@ -1,19 +1,3 @@
-﻿// apps/web/src/features/manage/strategies/StrategyDetailPage.jsx
-//
-// /manage/strategies/:id — detail page.
-//
-// Title + badge + subtitle are published to the GLOBAL header bar via
-// usePageHeader(). Action buttons (Edit / Archive / Delete) render in a
-// slim toolbar row on the page.
-//
-// Shows strategy meta + rules, KPIs computed from tagged trades, and the
-// list of trades belonging to this strategy.
-//
-// PHASE 3 CHANGE (EmptyState migration)
-// -------------------------------------
-//   • "Strategy not found" now uses the shared <EmptyState> component.
-//   • "No trades tagged yet" (inside the trades card) uses <EmptyState>
-//     with size="sm" + variant="bare".
 
 import { useMemo, useState } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
@@ -83,7 +67,6 @@ export default function StrategyDetailPage() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [archiveOpen, setArchiveOpen] = useState(false);
 
-  /* ---------- KPI computation ---------- */
   const kpis = useMemo(() => {
     if (!trades.length) {
       return {
@@ -113,7 +96,6 @@ export default function StrategyDetailPage() {
     };
   }, [trades]);
 
-  /* ---------- Trade list columns ---------- */
   const columns = useMemo(() => [
     {
       id: 'date',
@@ -188,7 +170,6 @@ export default function StrategyDetailPage() {
     },
   ], []);
 
-  /* ---------- Handlers ---------- */
   const handleArchive = async () => {
     try {
       await archiveMutation.mutateAsync(strategy.id);
@@ -217,9 +198,6 @@ export default function StrategyDetailPage() {
     }
   };
 
-  /* ---------- Publish to global header ----------
-     Note: called unconditionally (before early returns) so the hook
-     order stays stable. Passes safe defaults when strategy is missing. */
   const headerBadgeVariant =
     strategy?.status === 'active' ? 'is-live'
     : strategy?.status === 'paused' ? 'is-demo'
@@ -232,7 +210,6 @@ export default function StrategyDetailPage() {
     subtitle: strategy?.description,
   });
 
-  /* ---------- Early returns ---------- */
   if (stratLoading) return <PageSkeleton />;
 
   if (stratError || !strategy) {
@@ -265,7 +242,7 @@ export default function StrategyDetailPage() {
           <FaArrowLeft size={11} /> Back to Strategies
         </Link>
 
-        {/* ---------- Actions toolbar (title is in the global header) ---------- */}
+        {}
         <div className="strat-toolbar">
           <span className={`strat-tile-status ${statusClass}`}>
             {strategy.status}
@@ -305,7 +282,7 @@ export default function StrategyDetailPage() {
           </button>
         </div>
 
-        {/* ---------- KPI strip ---------- */}
+        {}
         <div className="strat-kpi-grid">
           <div className="strat-kpi">
             <div className="strat-kpi-icon is-amber">
@@ -365,7 +342,7 @@ export default function StrategyDetailPage() {
           </div>
         </div>
 
-        {/* ---------- Meta grid ---------- */}
+        {}
         <div className="strat-card strat-detail-meta">
           <div className="strat-meta-item">
             <span className="strat-meta-label">Direction</span>
@@ -410,7 +387,7 @@ export default function StrategyDetailPage() {
           )}
         </div>
 
-        {/* ---------- Rules ---------- */}
+        {}
         {strategy.rules && strategy.rules.trim() && (
           <div className="strat-card">
             <div style={{ padding: '14px 20px 0' }}>
@@ -420,7 +397,7 @@ export default function StrategyDetailPage() {
           </div>
         )}
 
-        {/* ---------- Trade list ---------- */}
+        {}
         <div className="strat-card" style={{ padding: '16px 18px' }}>
           <div
             style={{
@@ -476,7 +453,7 @@ export default function StrategyDetailPage() {
         </div>
       </div>
 
-      {/* ---------- Modals ---------- */}
+      {}
       <StrategyFormModal
         isOpen={editOpen}
         onClose={() => setEditOpen(false)}

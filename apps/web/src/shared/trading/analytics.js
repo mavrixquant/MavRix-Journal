@@ -1,9 +1,4 @@
-// apps/web/src/shared/trading/analytics.js
-// Series builders used by dashboard charts.
-// Pure functions — take stats.outcomes (already scored), return plain data.
 
-// --- Monthly series ---
-// Returns [{ month: 'YYYY-MM', total, n, wins, winRate }] sorted ascending.
 export function buildMonthlySeries(outcomes) {
   if (!outcomes || outcomes.length === 0) return [];
   const map = new Map();
@@ -25,9 +20,6 @@ export function buildMonthlySeries(outcomes) {
     }));
 }
 
-// --- Rolling expectancy ---
-// Returns [{ idx, date, value }] where value = mean(score) over trailing `window`.
-// Length = max(0, n - window + 1).
 export function buildRollingExpectancy(outcomes, window = 20) {
   if (!outcomes || outcomes.length < window) return [];
   const out = [];
@@ -46,8 +38,6 @@ export function buildRollingExpectancy(outcomes, window = 20) {
   return out;
 }
 
-// --- Underwater curve ---
-// Returns [{ idx, date, y, peak, equity }] where y = cum − peak (≤ 0).
 export function buildUnderwaterCurve(outcomes) {
   if (!outcomes || outcomes.length === 0) return [];
   let cum = 0, peak = 0;
@@ -65,8 +55,6 @@ export function buildUnderwaterCurve(outcomes) {
   });
 }
 
-// --- Symbol breakdown ---
-// Returns [{ symbol, n, winRate, total, avgWin, avgLoss, profitFactor }] sorted by total desc.
 export function buildSymbolBreakdown(outcomes) {
   if (!outcomes || outcomes.length === 0) return [];
   const map = new Map();

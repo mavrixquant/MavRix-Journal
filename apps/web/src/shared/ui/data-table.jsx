@@ -1,16 +1,3 @@
-// apps/web/src/shared/ui/data-table.jsx
-//
-// Virtualized, sortable, resizable, hideable, and REORDERABLE data table.
-//
-// Column reordering is exposed via the "Columns" popover: each column row
-// has a drag handle on its left. Dragging a row up/down reorders the visible
-// columns with a smooth FLIP animation.
-//
-// The panel is rendered through <Portal> (position: fixed) so it can escape
-// the `overflow: hidden` of any ancestor card and never gets clipped.
-//
-// New prop: `emptyState` — a ReactNode that renders inside <tbody> when
-// `data` is empty. When provided, it replaces the plain-text `emptyMessage`.
 
 import {
   flexRender,
@@ -40,9 +27,6 @@ import {
 
 import Portal from '@/shared/components/Portal';
 
-/* ------------------------------------------------------------------ */
-/*  Styles — inline, no Tailwind required                              */
-/* ------------------------------------------------------------------ */
 const CSS = `
   .dt-root {
     --dt-accent: var(--accent);
@@ -375,9 +359,6 @@ const CSS = `
   }
 `;
 
-/* ------------------------------------------------------------------ */
-/*  Column picker with drag-to-reorder                                 */
-/* ------------------------------------------------------------------ */
 
 const FLIP_MS = 200;
 const FLIP_EASE = 'cubic-bezier(0.2, 0.8, 0.25, 1)';
@@ -390,8 +371,8 @@ function ColumnPicker({ table, columnOrder, onReorder }) {
 
   const buttonRef = useRef(null);
   const panelRef = useRef(null);
-  const itemsRef = useRef(new Map());       // id -> DOM node
-  const prevOrderRef = useRef([]);          // order before the last reorder
+  const itemsRef = useRef(new Map());
+  const prevOrderRef = useRef([]);
   const itemHeightRef = useRef(30);
 
   const allLeafColumns = table.getAllLeafColumns();
@@ -405,7 +386,6 @@ function ColumnPicker({ table, columnOrder, onReorder }) {
     [allLeafColumns]
   );
 
-  // Effective display order for the reorderable rows.
   const displayOrder = useMemo(() => {
     if (previewOrder) return previewOrder;
     const byId = new Map(reorderableAll.map((c) => [c.id, c]));
@@ -425,7 +405,6 @@ function ColumnPicker({ table, columnOrder, onReorder }) {
     return displayOrder.map((id) => byId.get(id)).filter(Boolean);
   }, [displayOrder, reorderableAll]);
 
-  /* ---------------- Panel open / position ---------------- */
 
   const recalcPosition = () => {
     if (!buttonRef.current) return;
@@ -455,11 +434,6 @@ function ColumnPicker({ table, columnOrder, onReorder }) {
       setOpen(false);
     };
 
-    // Only close when the *page* scrolls (which would move the anchor
-    // button out from under our fixed-position panel). Scrolls that
-    // originate INSIDE the panel — e.g. scrolling the column list or
-    // dragging its scrollbar — must be ignored so the user can browse
-    // a long column list without the panel vanishing on them.
     const handleScroll = (e) => {
       const target = e.target;
       if (panelRef.current && target && panelRef.current.contains(target)) {
@@ -481,7 +455,6 @@ function ColumnPicker({ table, columnOrder, onReorder }) {
     };
   }, [open]);
 
-  /* ---------------- Drag handlers ---------------- */
 
   const measureItemHeight = () => {
     const nodes = reorderable
@@ -500,7 +473,6 @@ function ColumnPicker({ table, columnOrder, onReorder }) {
     try {
       e.dataTransfer.setData('text/plain', id);
     } catch {
-      /* Firefox sometimes rejects — no-op */
     }
     itemHeightRef.current = measureItemHeight();
     prevOrderRef.current = displayOrder;
@@ -534,7 +506,6 @@ function ColumnPicker({ table, columnOrder, onReorder }) {
     prevOrderRef.current = [];
   };
 
-  /* ---------------- FLIP animation for reordering ---------------- */
 
   useLayoutEffect(() => {
     if (!previewOrder || !draggingId) return;
@@ -562,7 +533,6 @@ function ColumnPicker({ table, columnOrder, onReorder }) {
     });
   }, [previewOrder, draggingId]);
 
-  /* ---------------- Render ---------------- */
 
   return (
     <div className="dt-cols-wrap">
@@ -650,9 +620,6 @@ function ColumnPicker({ table, columnOrder, onReorder }) {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Main                                                                */
-/* ------------------------------------------------------------------ */
 export default function DataTable({
   data,
   columns,

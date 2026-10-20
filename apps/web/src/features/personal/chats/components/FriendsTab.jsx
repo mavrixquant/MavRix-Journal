@@ -1,15 +1,3 @@
-// apps/web/src/features/personal/chats/components/FriendsTab.jsx
-//
-// PHASE 5 — polished Discord/Slack-style friends pane.
-//
-// Changes vs Phase 1:
-//   • Inline search filter on friends.
-//   • Count chip shows total friends in the side-pane header.
-//   • Row actions now reveal on hover via a compact "More" menu.
-//   • Row name shows an inline archived badge when applicable.
-//   • Empty state uses the shared <EmptyState /> component.
-//   • Requests sub-view is rendered by FriendRequestsPanel (unchanged API).
-
 import { useMemo, useState } from 'react';
 import {
   UserRoundPlus,
@@ -83,7 +71,10 @@ function CountBadge({ count }) {
   );
 }
 
-export default function FriendsTab({ onOpenAddFriend, onOpenThread }) {
+export default function FriendsTab({
+  onOpenAddFriend,
+  onOpenThread,
+}) {
   const [requestsOpen, setRequestsOpen] = useState(false);
 
   const { data: friends = [], isLoading } = useFriends();
@@ -99,8 +90,12 @@ export default function FriendsTab({ onOpenAddFriend, onOpenThread }) {
 
   const pendingIncoming = (requests?.incoming || []).length;
 
+  // No AI rows in the friends tab — AI lives in its own sidebar.
   const sortedFriends = useMemo(
-    () => [...friends].sort((a, b) => displayNameOf(a).localeCompare(displayNameOf(b))),
+    () =>
+      friends
+        .filter((f) => !f.isAi)
+        .sort((a, b) => displayNameOf(a).localeCompare(displayNameOf(b))),
     [friends]
   );
 
@@ -113,6 +108,8 @@ export default function FriendsTab({ onOpenAddFriend, onOpenThread }) {
       return name.includes(q) || email.includes(q);
     });
   }, [sortedFriends, searchInput]);
+
+  const isSearching = searchInput.trim().length > 0;
 
   const handleMessage = async (friend) => {
     try {
@@ -164,13 +161,16 @@ export default function FriendsTab({ onOpenAddFriend, onOpenThread }) {
     );
   };
 
+  const showEmptyNoFriends = !isLoading && sortedFriends.length === 0;
+  const showEmptySearch =
+    !isLoading && sortedFriends.length > 0 && visible.length === 0;
 
   return (
     <>
       <div className="side-pane" onClick={() => setMenuOpenId(null)}>
         <div className="side-pane-header">
           <span className="side-pane-title">Friends</span>
-          <span className="side-pane-count">{friends.length}</span>
+          <span className="side-pane-count">{sortedFriends.length}</span>
 
           <div className="side-pane-actions">
             <button
@@ -219,7 +219,14 @@ export default function FriendsTab({ onOpenAddFriend, onOpenThread }) {
         <div className="side-pane-body">
           {isLoading && <div className="side-pane-loading">Loading friends…</div>}
 
-          {!isLoading && sortedFriends.length === 0 && (
+          {!isLoading && sortedFriends.length > 0 && (
+            <div className="pane-section-label">
+              Friends
+              <span className="pane-section-label-count">{sortedFriends.length}</span>
+            </div>
+          )}
+
+          {showEmptyNoFriends && (
             <div style={{ padding: '24px 12px' }}>
               <EmptyState
                 size="md"
@@ -240,7 +247,7 @@ export default function FriendsTab({ onOpenAddFriend, onOpenThread }) {
             </div>
           )}
 
-          {!isLoading && sortedFriends.length > 0 && visible.length === 0 && (
+          {showEmptySearch && (
             <div style={{ padding: '24px 12px' }}>
               <EmptyState
                 size="sm"

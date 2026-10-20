@@ -1,15 +1,3 @@
-// apps/web/src/app/providers/useDashboardAccount.js
-//
-// Route-aware account selection.
-//
-// Each dashboard owns its own "currently selected account" slot:
-//   /journal/*     → journalAccountId    (Live + Demo only)
-//   /backtester/*  → backtesterAccountId (Backtest only)
-//   anything else  → AccountSelect hidden entirely
-//
-// The legacy `state.selectedAccountId` is kept in sync by the
-// SET_DASHBOARD_ACCOUNT_ID reducer case, so existing consumers that
-// read it directly continue to work unchanged.
 
 import { useCallback } from 'react';
 import { useLocation } from 'react-router-dom';

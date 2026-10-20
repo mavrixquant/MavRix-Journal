@@ -1,7 +1,3 @@
-// apps/api/src/services/adminTrades.service.js
-//
-// Cross-user trade administration. Reads + deletes only — we don't edit
-// trades from the admin panel (edit flows are the user's job).
 
 import { prisma } from '../lib/prisma.js';
 import { HttpError } from '../middleware/error.js';
@@ -32,9 +28,6 @@ const serialize = (t) => ({
   } : undefined,
 });
 
-/* ------------------------------------------------------------------ */
-/*  List — filter by account, user, date range, symbol                 */
-/* ------------------------------------------------------------------ */
 export async function listTrades({
   accountId,
   userId,
@@ -94,9 +87,6 @@ export async function listTrades({
   };
 }
 
-/* ------------------------------------------------------------------ */
-/*  Delete single trade                                                */
-/* ------------------------------------------------------------------ */
 export async function deleteTrade(actor, tradeId) {
   const t = await prisma.trade.findUnique({
     where: { id: tradeId },
@@ -127,9 +117,6 @@ export async function deleteTrade(actor, tradeId) {
   return { ok: true };
 }
 
-/* ------------------------------------------------------------------ */
-/*  Bulk delete by account                                             */
-/* ------------------------------------------------------------------ */
 export async function deleteTradesByAccount(actor, accountId) {
   const acc = await prisma.account.findUnique({
     where: { id: accountId },

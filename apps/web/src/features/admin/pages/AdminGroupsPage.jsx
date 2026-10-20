@@ -1,14 +1,3 @@
-// apps/web/src/features/admin/pages/AdminGroupsPage.jsx
-//
-// Cross-user chat group administration. Filters: search by name, visibility
-// segment (All / Public / Private). Row click opens the edit modal.
-// Row action deletes (superadmin or admin's own public groups).
-//
-// PHASE 6 CHANGE (EmptyState migration)
-// -------------------------------------
-//   • The "No groups match" filter-empty state now uses the shared
-//     <EmptyState> component (@/shared/components/EmptyState).
-//   • Dead `.agp-empty` rule removed; `.agp-loading` retained.
 
 import { useState, useMemo } from 'react';
 import { Search, Trash2, Plus, Hash, Lock, Users } from 'lucide-react';
@@ -180,7 +169,7 @@ export default function AdminGroupsPage() {
   const isSuper = me?.role === 'superadmin';
 
   const [q, setQ] = useState('');
-  const [visibility, setVisibility] = useState(''); // '' | 'public' | 'private'
+  const [visibility, setVisibility] = useState('');
   const [page, setPage] = useState(1);
 
   const [editingId, setEditingId] = useState(null);
@@ -376,20 +365,20 @@ export default function AdminGroupsPage() {
         <Pagination page={page} pages={pages} total={total} onChange={setPage} />
       </div>
 
-      {/* Create modal */}
+      {}
       <AdminGroupModal
         isOpen={creating}
         onClose={() => setCreating(false)}
       />
 
-      {/* Edit modal */}
+      {}
       <AdminGroupModal
         isOpen={!!editingId}
         onClose={() => setEditingId(null)}
         groupId={editingId}
       />
 
-      {/* Delete confirmation */}
+      {}
       <ConfirmDangerModal
         isOpen={!!deleteTarget}
         title={deleteTarget ? `Delete "${deleteTarget.name}"?` : ''}

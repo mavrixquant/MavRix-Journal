@@ -1,4 +1,3 @@
-// apps/web/src/features/dashboard/components/panels/panelRegistry.jsx
 import Hero from './Hero';
 import KPIGrid from './KPIGrid';
 import AdvancedKPIGrid from './AdvancedKPIGrid';
@@ -15,16 +14,6 @@ import RollingExpectancyChart from '../charts/RollingExpectancyChart';
 import CategoryBarChart from '../charts/CategoryBarChart';
 import { useStats } from '@/features/dashboard/hooks/useStats';
 
-/* ------------------------------------------------------------------ */
-/*  Shared Panel shell                                                 */
-/*                                                                    */
-/*  Phase 1 changes:                                                  */
-/*    • outer wrapper adds minWidth: 0 so flex children can shrink    */
-/*    • header row gets flexShrink: 0 explicitly (was implicit)       */
-/*    • body gains a `scrollable` prop — tables opt in, charts stay   */
-/*      hidden so a Chart.js canvas never gets a scrollbar attached.  */
-/*    • note span truncates rather than pushing the panel wider.      */
-/* ------------------------------------------------------------------ */
 function Panel({
   title,
   note,
@@ -101,9 +90,6 @@ function Panel({
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Wrapper components                                                 */
-/* ------------------------------------------------------------------ */
 
 function HeroPanel() {
   return (
@@ -217,7 +203,6 @@ function RRComparePanel() {
 }
 
 function StrategyBreakdownPanel() {
-  // Phase 1: opt into internal scroll since this is a DataTable.
   return (
     <Panel title="By Strategy" note="net per playbook" scrollable>
       <StrategyBreakdownTable />
@@ -295,9 +280,6 @@ function CategoryChartsPanel() {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Registry — every entry has a `Component`                           */
-/* ------------------------------------------------------------------ */
 export const PANEL_REGISTRY = {
   hero:              { label: 'Cumulative Equity Hero',                Component: HeroPanel },
   kpiGrid:           { label: 'Core KPI Grid',                         Component: KPIGrid },

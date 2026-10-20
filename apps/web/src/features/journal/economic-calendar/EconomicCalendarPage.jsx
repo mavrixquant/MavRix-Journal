@@ -1,13 +1,3 @@
-// apps/web/src/features/journal/economic-calendar/EconomicCalendarPage.jsx
-//
-// Economic Calendar — read-only feed of macro releases (CPI, NFP, FOMC, etc.)
-// sourced from Biquote and cached on the API.
-//
-// PHASE 2:
-//   • The page no longer scrolls. `.ec-root` fills the viewport minus the
-//     global header + main padding. The filter card sits at the top; the
-//     content card flexes to fill the rest with its own internal scroll.
-//   • `goToToday` prop was removed from CalendarFilters in Phase 1.
 
 import { useMemo } from 'react';
 
@@ -24,9 +14,6 @@ import CalendarGrid from './components/CalendarGrid';
 import EventList from './components/EventList';
 import EventDetailModal from './components/EventDetailModal';
 
-/* ------------------------------------------------------------------ */
-/*  Page CSS                                                           */
-/* ------------------------------------------------------------------ */
 
 const CSS = `
   .ec-root {
@@ -121,9 +108,6 @@ const CSS = `
   }
 `;
 
-/* ------------------------------------------------------------------ */
-/*  Page                                                               */
-/* ------------------------------------------------------------------ */
 
 export default function EconomicCalendarPage() {
   const filters = useCalendarFilters();
@@ -152,7 +136,6 @@ export default function EconomicCalendarPage() {
 
   const showError = eventsQuery.isError;
 
-  // Publish title + dynamic subtitle to the global header bar.
   const subText = meta.data?.totalEvents
     ? `${meta.data.totalEvents.toLocaleString()} events cached · live from Biquote`
     : 'Live macro releases · CPI · NFP · FOMC · central banks';
@@ -167,7 +150,7 @@ export default function EconomicCalendarPage() {
       <style>{CSS}</style>
       <div className="ec-root">
 
-        {/* ---------- Filters card ---------- */}
+        {}
         <div className="ec-card" style={{ padding: '18px 22px' }}>
           <CalendarFilters
             availableCurrencies={currencies.data ?? []}
@@ -187,7 +170,7 @@ export default function EconomicCalendarPage() {
           />
         </div>
 
-        {/* ---------- Content card (internal scroll) ---------- */}
+        {}
         <div className="ec-card ec-body">
           {showInitialSkeleton && (
             <div className="ec-loading">
@@ -215,7 +198,7 @@ export default function EconomicCalendarPage() {
         </div>
       </div>
 
-      {/* ---------- Detail modal ---------- */}
+      {}
       {selectedEvent && (
         <EventDetailModal
           event={selectedEvent}

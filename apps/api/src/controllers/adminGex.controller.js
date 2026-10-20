@@ -1,11 +1,3 @@
-// apps/api/src/controllers/adminGex.controller.js
-//
-// Admin-side GEX endpoints. Follows the pattern established by
-// adminAccounts.controller.js / adminTrades.controller.js:
-//   - buildActor() resolves the caller's email for the audit log
-//   - delegates business logic to the service
-//   - passes the `req` through on the actor so writeAudit can pull IP + UA
-
 import { prisma } from '../lib/prisma.js';
 import * as svc from '../services/adminGex.service.js';
 
@@ -17,26 +9,14 @@ async function buildActor(req) {
   return { id: req.userId, email: u?.email || '', role: req.userRole, req };
 }
 
-/* ------------------------------------------------------------------ */
-/*  List                                                               */
-/* ------------------------------------------------------------------ */
 
-export async function list(_req, res, next) {
+export async function list(req, res, next) {
   try {
-    const days = await svc.listAdminGexDays();
+    const days = await svc.listAdminGexDays(req.query.symbol);
     res.json({ days });
   } catch (e) { next(e); }
 }
 
-/* ------------------------------------------------------------------ */
-/*  Upsert                                                             */
-/* ------------------------------------------------------------------ */
-//
-// Query params:
-//   ?overwrite=true  → replace an existing day without a 409
-//
-// Without it, a duplicate date returns 409 with `details.existing` so the
-// client can show a "this date already exists, overwrite?" confirmation.
 
 export async function upsert(req, res, next) {
   try {
@@ -48,14 +28,15 @@ export async function upsert(req, res, next) {
   } catch (e) { next(e); }
 }
 
-/* ------------------------------------------------------------------ */
-/*  Delete (superadmin only — enforced at the route level)             */
-/* ------------------------------------------------------------------ */
 
 export async function remove(req, res, next) {
   try {
     const actor = await buildActor(req);
-    const result = await svc.deleteGexDay(actor, req.params.date);
+    const result = await svc.deleteGexDay(
+      actor,
+      req.params.date,
+      req.query.symbol
+    );
     res.json(result);
   } catch (e) { next(e); }
 }

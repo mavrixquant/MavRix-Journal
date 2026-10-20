@@ -1,7 +1,3 @@
-// apps/api/src/services/adminStrategies.service.js
-//
-// Cross-user strategy administration. Read + hard-delete only — no
-// admin creation or editing on behalf of a user.
 
 import { prisma } from '../lib/prisma.js';
 import { HttpError } from '../middleware/error.js';
@@ -86,11 +82,6 @@ export async function getStrategy(id) {
   return serialize(s);
 }
 
-/**
- * Hard delete. Detaches trades (FK SetNull). Audits with the owner id
- * and the number of trades that lost their tag, so an operator can see
- * the blast radius in the audit log after the fact.
- */
 export async function deleteStrategy(actor, id) {
   const s = await prisma.strategy.findUnique({
     where: { id },

@@ -1,7 +1,3 @@
-// apps/web/src/features/admin/pages/AdminSystemPage.jsx
-//
-// Full system diagnostics. Same data source as the dashboard health panel,
-// but with more detail and auto-refresh every 10 seconds.
 
 import { Activity, Database, Cpu, HardDrive, Radio, Clock } from 'lucide-react';
 
@@ -110,7 +106,7 @@ export default function AdminSystemPage() {
         </div>
 
         <div className="asy-grid">
-          {/* Overall status */}
+          {}
           <div className="asy-tile">
             <div className="asy-tile-head">
               <span className={`asy-tile-icon ${overallOk ? 'ok' : 'bad'}`}>
@@ -123,7 +119,7 @@ export default function AdminSystemPage() {
             </span>
           </div>
 
-          {/* Uptime */}
+          {}
           <div className="asy-tile">
             <div className="asy-tile-head">
               <span className="asy-tile-icon">
@@ -134,7 +130,7 @@ export default function AdminSystemPage() {
             <span className="asy-tile-value">{fmtUptime(health?.uptimeSeconds)}</span>
           </div>
 
-          {/* Database */}
+          {}
           <div className="asy-tile">
             <div className="asy-tile-head">
               <span className={`asy-tile-icon ${dbOk ? 'ok' : 'bad'}`}>
@@ -150,7 +146,7 @@ export default function AdminSystemPage() {
             </span>
           </div>
 
-          {/* SSE */}
+          {}
           <div className="asy-tile">
             <div className="asy-tile-head">
               <span className="asy-tile-icon">
@@ -162,7 +158,7 @@ export default function AdminSystemPage() {
           </div>
         </div>
 
-        {/* ---------- Memory ---------- */}
+        {}
         <div className="asy-tile">
           <div className="asy-tile-head">
             <span className="asy-tile-icon">
@@ -178,7 +174,7 @@ export default function AdminSystemPage() {
           </dl>
         </div>
 
-        {/* ---------- Counts ---------- */}
+        {}
         <div className="asy-tile">
           <div className="asy-tile-head">
             <span className="asy-tile-icon">

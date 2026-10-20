@@ -1,17 +1,3 @@
-// apps/api/src/lib/mailer.js
-// Transactional email via Brevo.
-//
-// Behaviour:
-//   - If BREVO_API_KEY is unset → logs a full block to the API console
-//     and returns { ok: true, logged: true }. No throw. Local dev works
-//     without a Brevo account.
-//   - Otherwise → sends via Brevo's transactional email API.
-//
-// Env vars:
-//   BREVO_API_KEY    — API key from Brevo (starts with xkeysib-)
-//   MAIL_FROM        — verified sender email in Brevo
-//   MAIL_FROM_NAME   — display name (default: "Mavrix Journal")
-//   CLIENT_ORIGIN    — used to build verification / reset links
 
 import { BrevoClient } from '@getbrevo/brevo';
 
@@ -27,9 +13,6 @@ function getClient() {
   return _client;
 }
 
-/* ------------------------------------------------------------------ */
-/*  Branded HTML template                                              */
-/* ------------------------------------------------------------------ */
 
 function renderEmail({ preheader, title, body, ctaText, ctaUrl, footerNote }) {
   return `<!doctype html>
@@ -104,9 +87,6 @@ function renderEmail({ preheader, title, body, ctaText, ctaUrl, footerNote }) {
 </html>`;
 }
 
-/* ------------------------------------------------------------------ */
-/*  Core send                                                          */
-/* ------------------------------------------------------------------ */
 
 async function send({ to, subject, html, text }) {
   if (!process.env.BREVO_API_KEY) {
@@ -133,9 +113,6 @@ async function send({ to, subject, html, text }) {
   return { ok: true, id: result?.messageId };
 }
 
-/* ------------------------------------------------------------------ */
-/*  Public API                                                         */
-/* ------------------------------------------------------------------ */
 
 export async function sendVerificationEmail({ to, token }) {
   const verifyUrl = `${CLIENT_ORIGIN}/verify-email?token=${encodeURIComponent(token)}`;
@@ -213,9 +190,6 @@ export async function sendPasswordResetEmail({ to, token }) {
   });
 }
 
-/* ------------------------------------------------------------------ */
-/*  Admin broadcast                                                    */
-/* ------------------------------------------------------------------ */
 
 const LEVEL_META = {
   info:     { label: 'Notice',   accent: '#F59E0B', ring: 'rgba(245,158,11,.28)' },

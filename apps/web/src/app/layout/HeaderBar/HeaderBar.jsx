@@ -1,4 +1,3 @@
-// apps/web/src/app/layout/HeaderBar/HeaderBar.jsx
 import { useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import {
@@ -8,6 +7,7 @@ import {
   Settings,
   FileText,
   Shield,
+  Sparkles,
 } from 'lucide-react';
 
 import { useAuth } from '@/app/providers/AuthProvider';
@@ -22,13 +22,6 @@ import './HeaderBar.css';
 
 export const HEADER_HEIGHT = 68;
 
-/* ------------------------------------------------------------------ */
-/*  Page title block — driven by PageHeaderContext                     */
-/*                                                                    */
-/*  Renders the current route's title (published via usePageHeader),   */
-/*  with an optional status badge and an optional subtitle line.       */
-/*  Falls back to "MavRix Journal" when no page has published one.     */
-/* ------------------------------------------------------------------ */
 function PageTitleBlock() {
   const { config } = usePageHeaderContext();
 
@@ -63,6 +56,7 @@ export default function HeaderBar({
   onAccountClick,
   onSettingsClick,
   onThemeClick,
+  onMaveAiClick,
   onLogout,
 }) {
   const { dispatch } = useAppContext();
@@ -167,6 +161,13 @@ export default function HeaderBar({
             </Link>
           </HBTooltip>
         )}
+
+        <IconButton
+          icon={<Sparkles size={16} />}
+          label="Mave AI"
+          variant="accent"
+          onClick={onMaveAiClick}
+        />
 
         <IconButton
           icon={<Palette size={16} />}

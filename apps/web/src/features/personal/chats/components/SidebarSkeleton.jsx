@@ -1,10 +1,3 @@
-﻿// apps/web/src/features/personal/chats/components/SidebarSkeleton.jsx
-//
-// Shimmering placeholder rows shown while the conversation list loads.
-// Class names are `.chat-skel-*` (declared in ChatsShell.css).
-//
-// Phase 6 polish: rows alternate between two preview-line widths so the
-// shimmer looks organic rather than a repetitive set of identical bars.
 
 export default function SidebarSkeleton({ rows = 6 }) {
   return (

@@ -1,4 +1,3 @@
-// apps/web/src/app/providers/AppProvider.jsx
 import { createContext, useContext, useReducer, useMemo } from 'react';
 
 const initialState = {
@@ -21,18 +20,12 @@ const initialState = {
   fileStatus: 'no file loaded',
   subtitleText: 'Waiting for a trade log to be loaded…',
 
-  // --- Accounts ---
   accounts: [],
 
-  // Legacy alias — mirrors whichever dashboard slot is active.
-  // Kept for backwards compatibility with existing consumers
-  // (useStats, useFilters, DashboardHeader, DashboardFooter, …).
   selectedAccountId: null,
 
-  // Per-dashboard account slots. Fully independent so switching
-  // between /journal and /backtester preserves each side's choice.
-  journalAccountId: null,      // Live + Demo
-  backtesterAccountId: null,   // Backtest
+  journalAccountId: null,
+  backtesterAccountId: null,
 
   optimize: {
     columnEnabled: {},
@@ -65,16 +58,11 @@ const ACTION_TYPES = {
   RESET_OPTIMIZE: 'RESET_OPTIMIZE',
   SET_ACCOUNTS: 'SET_ACCOUNTS',
 
-  // Legacy: sets selectedAccountId directly. Still supported for
-  // non-dashboard routes that may want to override the mirror.
   SET_SELECTED_ACCOUNT_ID: 'SET_SELECTED_ACCOUNT_ID',
 
-  // Route-aware: sets the per-dashboard slot AND mirrors
-  // selectedAccountId so legacy consumers stay in sync.
   SET_DASHBOARD_ACCOUNT_ID: 'SET_DASHBOARD_ACCOUNT_ID',
 };
 
-// ---------- Reducer ----------
 function appReducer(state, action) {
   switch (action.type) {
     case ACTION_TYPES.SET_TRADES:
@@ -100,7 +88,6 @@ function appReducer(state, action) {
     case ACTION_TYPES.SET_UI:
       return { ...state, ...action.payload };
     case ACTION_TYPES.RESET_FILTERS:
-      // Reset all filters to defaults, but keep trades
       return {
         ...state,
         filterSelections: {},
@@ -142,7 +129,6 @@ function appReducer(state, action) {
         ...state,
         ...(dashboardType === 'journal' && { journalAccountId: accountId }),
         ...(dashboardType === 'backtester' && { backtesterAccountId: accountId }),
-        // Mirror into the legacy alias.
         selectedAccountId: accountId,
       };
     }
@@ -151,20 +137,16 @@ function appReducer(state, action) {
   }
 }
 
-// ---------- Context ----------
 const AppContext = createContext(null);
 
-// ---------- Provider ----------
 export function AppProvider({ children }) {
   const [state, dispatch] = useReducer(appReducer, initialState);
 
-  // Memoize the context value to avoid unnecessary re-renders
   const value = useMemo(() => ({ state, dispatch }), [state]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }
 
-// ---------- Custom Hook ----------
 export function useAppContext() {
   const context = useContext(AppContext);
   if (!context) {
@@ -173,5 +155,4 @@ export function useAppContext() {
   return context;
 }
 
-// Export action types for use in components
 export const actions = ACTION_TYPES;

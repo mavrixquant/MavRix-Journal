@@ -1,10 +1,3 @@
-// apps/api/src/services/healthCheck/phases/trades.js
-//
-// Trades phase — 12 tests.
-//
-// Requires the Backtest account created in the accounts phase (ids.accountBacktest).
-// Fixtures: creates 1 single trade + 2 bulk trades. A dynamic column named
-// "healthcheck_tag" is created, populated, renamed, then cleared.
 
 export async function run(ctx) {
   const { test, tokens, ids } = ctx;
@@ -30,7 +23,6 @@ export async function run(ctx) {
     notes: 'healthcheck trade',
   };
 
-  /* ---------------- create ---------------- */
 
   await test('trades.create · single backtest trade', async () => {
     const res = await ctx.fetch('/api/trades', {
@@ -43,7 +35,6 @@ export async function run(ctx) {
     ctx.expect(res.body.trade.tradeId, 'no tradeId field');
   });
 
-  /* ---------------- list ---------------- */
 
   await test('trades.list · by account', async () => {
     const res = await ctx.fetch(`/api/trades?accountId=${accountId}`, {
@@ -61,7 +52,6 @@ export async function run(ctx) {
     ctx.assertStatus(res, 400);
   });
 
-  /* ---------------- get ---------------- */
 
   await test('trades.get · fetch back the trade', async () => {
     const res = await ctx.fetch(`/api/trades/${ids.tradeId}`, {
@@ -71,7 +61,6 @@ export async function run(ctx) {
     ctx.expect(res.body.trade.id === ids.tradeId, 'wrong trade');
   });
 
-  /* ---------------- update ---------------- */
 
   await test('trades.update · change notes', async () => {
     const res = await ctx.fetch(`/api/trades/${ids.tradeId}`, {
@@ -83,7 +72,6 @@ export async function run(ctx) {
     ctx.expect(res.body.trade.notes === 'healthcheck updated', 'notes not updated');
   });
 
-  /* ---------------- bulk create ---------------- */
 
   await test('trades.bulk · create 2 more trades', async () => {
     const res = await ctx.fetch('/api/trades/bulk', {
@@ -101,7 +89,6 @@ export async function run(ctx) {
     ctx.expect(res.body.created === 2, `expected created=2, got ${res.body.created}`);
   });
 
-  /* ---------------- dynamic columns ---------------- */
 
   await test('trades.columns.add · create "healthcheck_tag"', async () => {
     const res = await ctx.fetch(
@@ -138,7 +125,6 @@ export async function run(ctx) {
         allowError: true,
       }
     );
-    // Empty values are rejected by validation — accept either 200 (no-op) or 400.
     ctx.expect([200, 400].includes(res.status), `unexpected status ${res.status}`);
   });
 
@@ -166,7 +152,6 @@ export async function run(ctx) {
     ctx.assertStatus(res, 200);
   });
 
-  /* ---------------- delete single ---------------- */
 
   await test('trades.delete · remove the created trade', async () => {
     const res = await ctx.fetch(`/api/trades/${ids.tradeId}`, {
@@ -176,7 +161,6 @@ export async function run(ctx) {
     ctx.assertStatus(res, 200);
   });
 
-  /* ---------------- delete all by account ---------------- */
 
   await test('trades.deleteByAccount · wipe remaining trades', async () => {
     const res = await ctx.fetch(

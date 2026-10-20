@@ -1,48 +1,6 @@
-﻿// apps/web/src/shared/components/EmptyState.jsx
-//
-// Reusable "no data" empty state. Single visual language across the whole
-// app — modelled on the Test Logs (`.jm-empty`) empty card.
-//
-// Usage — the happy path:
-//
-//   import EmptyState from '@/shared/components/EmptyState';
-//   import { FaFolderOpen } from 'react-icons/fa';
-//
-//   <EmptyState
-//     icon={FaFolderOpen}
-//     title="No Backtest accounts"
-//     description="Create a Backtest account first, then come back here."
-//     actions={[
-//       { label: 'Create account', icon: FaPlus, variant: 'primary', to: '/manage/accounts' },
-//     ]}
-//   />
-//
-// Variants:
-//   variant="default"  — dashed card with gradient background (used when the
-//                        empty state stands on its own, e.g. Test Logs)
-//   variant="bare"     — no border/background (used when the empty state is
-//                        ALREADY inside a card wrapper — accounts page,
-//                        strategies page, admin cards, side panes, etc.)
-//
-// Sizes: 'sm' | 'md' (default) | 'lg'. Icon size, padding, and typography
-// scale together.
-//
-// Actions:
-//   Each entry supports one of:
-//     { label, onClick, variant? }              — <button>
-//     { label, to,      variant? }              — <Link>
-//     { label, icon,    variant?, disabled? }   — icon prepended
-//   variant ∈ { 'primary' | 'ghost' | 'danger' } — defaults to ghost.
-//
-// Everything is scoped under `.emptystate-*` so it never leaks.
-// All colours resolve from the live accent vars written by SettingsProvider
-// (--accent, --accent-2, --accent-soft, --accent-soft2).
 
 import { Link } from 'react-router-dom';
 
-/* ------------------------------------------------------------------ */
-/*  Scoped CSS                                                         */
-/* ------------------------------------------------------------------ */
 
 const CSS = `
   .emptystate {
@@ -233,9 +191,6 @@ const CSS = `
   }
 `;
 
-/* ------------------------------------------------------------------ */
-/*  Component                                                          */
-/* ------------------------------------------------------------------ */
 
 const ICON_SIZE = { sm: 18, md: 22, lg: 28 };
 

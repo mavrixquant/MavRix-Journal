@@ -1,14 +1,3 @@
-// apps/api/src/lib/google.js
-// Verifies a Google access token issued to our frontend by Google
-// Identity Services, and returns the caller's profile info.
-//
-// Two calls to Google:
-//   1. tokeninfo  → confirms `aud` matches OUR client_id (prevents
-//      replay of access tokens issued to a different app)
-//   2. userinfo   → returns the profile (name, picture, email)
-//
-// No client secret is used. The access token came straight from
-// Google's popup, and Google's own endpoints confirm its validity.
 
 import { HttpError } from '../middleware/error.js';
 
@@ -25,7 +14,6 @@ export async function verifyGoogleAccessToken(accessToken) {
     throw new HttpError(500, 'Server missing GOOGLE_CLIENT_ID configuration');
   }
 
-  // 1. Verify audience
   const infoRes = await fetch(
     `${TOKENINFO_URL}?access_token=${encodeURIComponent(accessToken)}`
   );
@@ -37,7 +25,6 @@ export async function verifyGoogleAccessToken(accessToken) {
     throw new HttpError(401, 'Google token was not issued for this application');
   }
 
-  // 2. Fetch profile
   const profileRes = await fetch(USERINFO_URL, {
     headers: { Authorization: `Bearer ${accessToken}` },
   });

@@ -1,4 +1,3 @@
-// apps/web/src/shared/ui/cn.js
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 

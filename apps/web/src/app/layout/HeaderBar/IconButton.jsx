@@ -1,4 +1,3 @@
-// apps/web/src/app/shell/IconButton.jsx
 import { Tooltip as TooltipPrimitive } from 'radix-ui';
 
 export function HBTooltip({ label, children }) {

@@ -1,9 +1,3 @@
-// apps/api/scripts/verify-chat-test-users.mjs
-//
-// Dev-only utility: force-verify a fixed pair of chat smoke-test users.
-// Run with:   node --env-file=.env scripts/verify-chat-test-users.mjs
-//
-// Safe to re-run. No-ops if the users don't exist yet (signup first).
 
 import { PrismaClient } from '@prisma/client';
 

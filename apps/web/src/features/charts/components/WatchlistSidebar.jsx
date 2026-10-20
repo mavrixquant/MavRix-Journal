@@ -1,15 +1,3 @@
-﻿// apps/web/src/features/charts/components/WatchlistSidebar.jsx
-//
-// Left sidebar: every catalog symbol grouped by category, with live price
-// + change % and per-symbol icon.
-//
-// Category headers are collapsible accordions; collapse state persists in
-// localStorage. The search box above filters across all symbols.
-//
-// PHASE 4 CHANGE (EmptyState migration)
-// -------------------------------------
-//   • The search-empty state now uses the shared <EmptyState> component.
-//     The old `.wl-empty` CSS rule was removed.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -47,7 +35,6 @@ function saveCollapsed(set) {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify([...set]));
     }
   } catch {
-    // localStorage disabled — silent
   }
 }
 
@@ -59,9 +46,6 @@ function fmtPrice(n) {
   });
 }
 
-/* ------------------------------------------------------------------ */
-/*  Scoped styles                                                     */
-/* ------------------------------------------------------------------ */
 
 const CSS = `
   .wl-root {
@@ -331,9 +315,6 @@ const CSS = `
   }
 `;
 
-/* ------------------------------------------------------------------ */
-/*  Component                                                         */
-/* ------------------------------------------------------------------ */
 
 export default function WatchlistSidebar({ catalog = [], activeSymbol, onChange }) {
   const symbols = useMemo(() => catalog.map((s) => s.code), [catalog]);

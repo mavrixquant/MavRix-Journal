@@ -1,4 +1,3 @@
-// apps/api/src/controllers/calendar.controller.js
 import * as calendarService from '../services/calendar.service.js';
 import { runCalendarSyncOnce } from '../lib/calendarSync.js';
 

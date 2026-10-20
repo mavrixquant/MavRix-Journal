@@ -1,11 +1,6 @@
-/* apps/web/src/features/manage/strategies/StrategiesPage.css
-   Page-level styles for the Strategies list page.
 
-   Title now lives in the global HeaderBar. This file only styles the
-   content: toolbar, KPI strip, strategy cards, empty state, buttons,
-   colour swatches, tag chips. */
 
-/* ---------- Root ---------- */
+
 .strat-root {
   --line: rgba(255,255,255,.085);
   --line-soft: rgba(255,255,255,.05);
@@ -27,7 +22,7 @@
   -webkit-font-smoothing: antialiased;
 }
 
-/* ---------- Toolbar (above KPI strip) ---------- */
+
 .strat-toolbar {
   display: flex;
   align-items: center;
@@ -38,7 +33,7 @@
 }
 .strat-toolbar-spacer { flex: 1; min-width: 8px; }
 
-/* ---------- Generic glass card ---------- */
+
 .strat-card {
   position: relative;
   border-radius: 16px;
@@ -51,7 +46,7 @@
     inset 0 1px 0 rgba(255,255,255,.03);
 }
 
-/* ---------- Filter tabs (segmented) ---------- */
+
 .strat-tabs {
   display: inline-flex;
   align-items: center;
@@ -98,7 +93,7 @@
   color: #0D1117;
 }
 
-/* ---------- Buttons ---------- */
+
 .strat-btn {
   display: inline-flex;
   align-items: center;
@@ -195,7 +190,7 @@
   border-color: rgba(239,68,68,.4);
 }
 
-/* ---------- KPI strip ---------- */
+
 .strat-kpi-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -262,7 +257,7 @@
   line-height: 1.15;
 }
 
-/* ---------- Strategy grid ---------- */
+
 .strat-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
@@ -413,7 +408,7 @@
   gap: 6px;
 }
 
-/* ---------- Empty state ---------- */
+
 .strat-empty {
   padding: 60px 24px;
   text-align: center;
@@ -451,7 +446,7 @@
   font-family: 'IBM Plex Mono', ui-monospace, monospace;
 }
 
-/* ---------- Animations ---------- */
+
 @keyframes stratShine {
   0%,100% { transform: translateX(-130%) skewX(-18deg); }
   55%     { transform: translateX(230%) skewX(-18deg); }
@@ -469,9 +464,7 @@
   .strat-tabs { justify-content: space-between; }
 }
 
-/* ==========================================================================
-   Form modal (unchanged from previous version — kept for completeness)
-   ========================================================================== */
+
 .strat-overlay {
   position: fixed;
   inset: 0;
@@ -785,9 +778,7 @@
   .strat-grid-2 { grid-template-columns: 1fr; }
 }
 
-/* ==========================================================================
-   Detail page (unchanged — preserved for completeness)
-   ========================================================================== */
+
 .strat-detail-root {
   --line: rgba(255,255,255,.085);
   --line-soft: rgba(255,255,255,.05);

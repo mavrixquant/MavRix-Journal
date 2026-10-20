@@ -1,24 +1,9 @@
-// apps/api/src/services/preferences.service.js
-//
-// Per-user UI preference storage.
-//
-// The server is a dumb, versioned store — it does NOT know the shape of
-// the preferences object. That lets the web client add new settings
-// without a backend deploy. The only server-side constraints are:
-//   - must be a plain JSON object (not null, not array, not primitive)
-//   - serialized size <= 8 KB
-//
-// Reads and writes are scoped to req.userId via requireAuth.
 
 import { prisma } from '../lib/prisma.js';
 import { HttpError } from '../middleware/error.js';
 
 const MAX_BYTES = 8 * 1024;
 
-/**
- * Guard against oversized or malformed payloads.
- * Returns the value unchanged if valid, throws HttpError otherwise.
- */
 export function assertPreferencesShape(value) {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) {
     throw new HttpError(400, 'preferences must be a plain object');

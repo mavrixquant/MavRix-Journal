@@ -1,10 +1,3 @@
-// apps/web/src/features/journal/economic-calendar/components/EventDetailModal.jsx
-//
-// Full detail for a single economic event. Opens as an overlay from the list.
-// Closes on backdrop click, X button, or Escape key.
-//
-// Reads the event from the already-cached event list via the passed-in object
-// (no extra fetch).
 
 import { useEffect } from 'react';
 import { X, ExternalLink } from 'lucide-react';
@@ -14,9 +7,6 @@ import {
   CURRENCY_NAMES,
 } from '@mavrix/shared';
 
-/* ------------------------------------------------------------------ */
-/*  Scoped CSS                                                         */
-/* ------------------------------------------------------------------ */
 
 const CSS = `
   .edm-overlay {
@@ -258,9 +248,6 @@ const CSS = `
   }
 `;
 
-/* ------------------------------------------------------------------ */
-/*  Helpers                                                            */
-/* ------------------------------------------------------------------ */
 
 function fmt(v) {
   if (v === null || v === undefined || v === '') return null;
@@ -274,9 +261,6 @@ function fmtTime(iso, timeUtc) {
   return `${timeUtc} UTC · ${d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })} local`;
 }
 
-/* ------------------------------------------------------------------ */
-/*  Component                                                          */
-/* ------------------------------------------------------------------ */
 
 export default function EventDetailModal({ event, onClose }) {
   useEffect(() => {
@@ -337,7 +321,7 @@ export default function EventDetailModal({ event, onClose }) {
           </div>
 
           <div className="edm-body">
-            {/* ---------- Values ---------- */}
+            {}
             <div className="edm-vals">
               <div className="edm-val-card">
                 <span className="edm-val-label">Actual</span>
@@ -359,7 +343,7 @@ export default function EventDetailModal({ event, onClose }) {
               </div>
             </div>
 
-            {/* ---------- Details ---------- */}
+            {}
             <div className="edm-section">
               <span className="edm-section-title">Release details</span>
               <dl className="edm-kv">

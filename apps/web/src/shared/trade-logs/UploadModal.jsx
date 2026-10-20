@@ -1,30 +1,3 @@
-// apps/web/src/shared/trade-logs/UploadModal.jsx
-//
-// Bulk-import from Excel. The required/expected column set depends on the
-// account type:
-//
-//   Live / Demo : Date*, Entry Time*, Exit Time*, Direction*, Symbol*,
-//                 Strategy, Entry Price, Take Profit, Stop Loss,
-//                 P&L*, Quantity*, Notes, [custom columns]
-//
-//   Backtest    : Date*, Entry Time*, Exit Time*, Direction*, Symbol*,
-//                 Strategy, MAE*, MFE*, SL* (or fall back to account default),
-//                 P&L, Quantity*, Notes, [custom columns]
-//
-// (* = mandatory)
-//
-// STRATEGY RESOLUTION
-// -------------------
-// The `Strategy` column is optional. Its value is matched (case-insensitive)
-// against the user's strategy names. Unmatched names are silently dropped
-// (the row keeps no strategy tag). This avoids surprising the user when
-// they rename a strategy and re-import an old file.
-//
-// CUSTOM COLUMN EDITOR
-// --------------------
-// After parsing, each detected custom column is presented as an editable
-// draft. See the ColumnCard component below for the rename / delete / type /
-// options UI.
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import * as XLSX from 'xlsx';
@@ -55,7 +28,6 @@ const RESERVED_NAMES = new Set([
   'pnl', 'quantity', 'notes',
 ]);
 
-/* ---------- Header → key maps, one per account type ---------- */
 
 const RESERVED_MAP_BACKTEST = {
   'Date': 'date',
@@ -92,7 +64,6 @@ function getReservedMap(account) {
   return account?.type === 'Backtest' ? RESERVED_MAP_BACKTEST : RESERVED_MAP_JOURNAL;
 }
 
-/* ---------- SL conversion (Backtest only) ---------- */
 
 function resolveSLPoints(rawSl, account) {
   const raw = (rawSl === '' || rawSl === undefined || rawSl === null) ? null : Number(rawSl);
@@ -109,7 +80,6 @@ function resolveSLPoints(rawSl, account) {
   return +pts.toFixed(4);
 }
 
-/* ---------- Excel cell formatters ---------- */
 
 function formatExcelDate(value) {
   if (!value) return '';
@@ -153,7 +123,6 @@ function hasAnyValue(v) {
   return v !== '' && v !== null && v !== undefined;
 }
 
-/* ---------- Parse ---------- */
 
 function parseFile(workbook, account, existingTrades, strategies) {
   const isBacktest = account.type === 'Backtest';
@@ -172,8 +141,6 @@ function parseFile(workbook, account, existingTrades, strategies) {
   originalHeaders.forEach((h) => {
     const trimmed = h.trim();
 
-    // Silently skip the template's "Custom Columns" placeholder header when
-    // it has no values in any data row.
     if (trimmed === 'Custom Columns') {
       const hasAnyValueInFile = rows.some((r) => {
         const v = r[h];
@@ -193,8 +160,6 @@ function parseFile(workbook, account, existingTrades, strategies) {
     }
   });
 
-  // Name → id lookup for strategy resolution. Lowercased for case-insensitive
-  // matching. Missing names will silently drop.
   const strategyByName = new Map();
   for (const s of strategies || []) {
     strategyByName.set(String(s.name).trim().toLowerCase(), s.id);
@@ -224,13 +189,10 @@ function parseFile(workbook, account, existingTrades, strategies) {
       trade[mappedKey] = value;
     });
 
-    // Skip completely blank rows
     if (!trade.date && !trade.entryTime && !trade.exitTime && !trade.direction) return;
 
-    // ---- Common required fields ----
     if (!trade.date || !trade.entryTime || !trade.exitTime) return;
 
-    // ---- Quantity (required in both modes) ----
     let quantityNum = null;
     if (trade.quantity !== undefined && trade.quantity !== '' && trade.quantity !== null) {
       const q = parseFloat(trade.quantity);
@@ -241,8 +203,6 @@ function parseFile(workbook, account, existingTrades, strategies) {
     }
     trade.quantity = quantityNum;
 
-    // ---- Strategy resolution ----
-    // Resolve the raw name to an id. Unmatched names → null, silently.
     if (trade.strategyName !== undefined && trade.strategyName !== null && trade.strategyName !== '') {
       const key = String(trade.strategyName).trim().toLowerCase();
       trade.strategyId = strategyByName.get(key) || null;
@@ -251,7 +211,6 @@ function parseFile(workbook, account, existingTrades, strategies) {
     }
     delete trade.strategyName;
 
-    // ---- Mode-specific validation ----
     if (isBacktest) {
       const maeNum = parseFloat(trade.mae);
       const mfeNum = parseFloat(trade.mfe);
@@ -298,8 +257,6 @@ function parseFile(workbook, account, existingTrades, strategies) {
 
     Object.keys(trade).forEach((k) => {
       if (trade[k] === undefined || trade[k] === null) {
-        // strategyId can legitimately be null; drop it here so defaults apply
-        // downstream, but leave it out of the payload entirely.
         if (k === 'strategyId') return;
         delete trade[k];
       }
@@ -397,7 +354,6 @@ function parseFile(workbook, account, existingTrades, strategies) {
   return { trades: tradesData, customColumns, errors, hasSLColumn, tradesCount: tradesData.length };
 }
 
-/* ---------- Drafts ---------- */
 
 function buildDrafts(customColumns) {
   return customColumns.map((col) => ({
@@ -444,9 +400,6 @@ function applyDraftsToTrades(trades, drafts, deletedOriginalNames) {
   });
 }
 
-/* ------------------------------------------------------------------ */
-/*  Scoped CSS                                                        */
-/* ------------------------------------------------------------------ */
 const UPL_CSS = `
   .upl-overlay {
     position: fixed;
@@ -1104,9 +1057,6 @@ const UPL_CSS = `
   }
 `;
 
-/* ------------------------------------------------------------------ */
-/*  Column card                                                       */
-/* ------------------------------------------------------------------ */
 
 function ColumnCard({
   draft,
@@ -1348,9 +1298,6 @@ function ColumnCard({
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Main component                                                     */
-/* ------------------------------------------------------------------ */
 
 export default function UploadModal({
   isOpen,

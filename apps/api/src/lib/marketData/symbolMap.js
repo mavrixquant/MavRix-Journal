@@ -1,16 +1,4 @@
-// apps/api/src/lib/marketData/symbolMap.js
-//
-// Central symbol catalog. Every entry declares WHICH PROVIDER serves it:
-//
-//   provider: 'yahoo'   →  yahooProvider.js  (futures, crypto)
-//   provider: 'biquote' →  biquoteProvider.js (forex, metals)
-//
-// Adding a symbol here is all that's needed — the service routes it
-// automatically, and the frontend catalog picks it up on next load.
 
-/* ------------------------------------------------------------------ */
-/*  Yahoo map (unchanged from Phase 1)                                */
-/* ------------------------------------------------------------------ */
 
 export const YAHOO_SYMBOL_MAP = {
   NQ:  'NQ=F',
@@ -28,9 +16,6 @@ export const YAHOO_SYMBOL_MAP = {
   SOLUSD: 'SOL-USD',
 };
 
-/* ------------------------------------------------------------------ */
-/*  Biquote map — MT5 symbol codes                                    */
-/* ------------------------------------------------------------------ */
 
 export const BIQUOTE_SYMBOL_MAP = {
   EURUSD: 'EURUSD',
@@ -47,18 +32,11 @@ export const BIQUOTE_SYMBOL_MAP = {
   XAGUSD: 'XAGUSD',
 };
 
-/* ------------------------------------------------------------------ */
-/*  Unified resolver                                                  */
-/* ------------------------------------------------------------------ */
 
-/**
- * Given an internal symbol, return { provider, providerSymbol } or null.
- */
 export function resolveSymbol(internalSymbol) {
   const raw = String(internalSymbol || '').trim().toUpperCase();
   if (!raw) return null;
 
-  // Direct Yahoo ticker?
   if (raw.endsWith('=F') || raw.includes('-USD')) {
     return { provider: 'yahoo', providerSymbol: raw };
   }
@@ -73,13 +51,9 @@ export function resolveSymbol(internalSymbol) {
   return null;
 }
 
-/* ------------------------------------------------------------------ */
-/*  Unified catalog — grouped by category                             */
-/* ------------------------------------------------------------------ */
 
 export const SYMBOL_CATALOG = [
 
-  // ---------- Forex (Biquote / MT5) ----------
   { code: 'EURUSD', label: 'Euro / US Dollar',       category: 'Forex', exchange: 'MT5', provider: 'biquote' },
   { code: 'GBPUSD', label: 'British Pound / US Dollar', category: 'Forex', exchange: 'MT5', provider: 'biquote' },
   { code: 'USDJPY', label: 'US Dollar / Japanese Yen',   category: 'Forex', exchange: 'MT5', provider: 'biquote' },
@@ -91,11 +65,9 @@ export const SYMBOL_CATALOG = [
   { code: 'EURJPY', label: 'Euro / Japanese Yen',         category: 'Forex', exchange: 'MT5', provider: 'biquote' },
   { code: 'GBPJPY', label: 'British Pound / Japanese Yen', category: 'Forex', exchange: 'MT5', provider: 'biquote' },
   
-  // ---------- Spot metals (Biquote) ----------
   { code: 'XAUUSD', label: 'Gold Spot / USD',   category: 'Metals', exchange: 'MT5', provider: 'biquote' },
   { code: 'XAGUSD', label: 'Silver Spot / USD', category: 'Metals', exchange: 'MT5', provider: 'biquote' },
 
-  // ---------- Equity index futures (Yahoo) ----------
   { code: 'NQ',  label: 'Nasdaq 100',       category: 'Futures',     exchange: 'CME',   provider: 'yahoo' },
   { code: 'MNQ', label: 'Micro Nasdaq 100', category: 'Futures',     exchange: 'CME',   provider: 'yahoo' },
   { code: 'ES',  label: 'S&P 500',          category: 'Futures',     exchange: 'CME',   provider: 'yahoo' },
@@ -103,13 +75,11 @@ export const SYMBOL_CATALOG = [
   { code: 'YM',  label: 'Dow 30',           category: 'Futures',     exchange: 'CBOT',  provider: 'yahoo' },
   { code: 'MYM', label: 'Micro Dow 30',     category: 'Futures',     exchange: 'CBOT',  provider: 'yahoo' },
 
-  // ---------- Commodity futures (Yahoo) ----------
   { code: 'GC',  label: 'Gold Futures',     category: 'Commodities', exchange: 'COMEX', provider: 'yahoo' },
   { code: 'MGC', label: 'Micro Gold',       category: 'Commodities', exchange: 'COMEX', provider: 'yahoo' },
   { code: 'CL',  label: 'Crude Oil (WTI)',  category: 'Commodities', exchange: 'NYMEX', provider: 'yahoo' },
   { code: 'MCL', label: 'Micro Crude Oil',  category: 'Commodities', exchange: 'NYMEX', provider: 'yahoo' },
 
-  // ---------- Crypto (Yahoo) ----------
   { code: 'BTCUSD', label: 'Bitcoin',  category: 'Crypto', provider: 'yahoo' },
   { code: 'ETHUSD', label: 'Ethereum', category: 'Crypto', provider: 'yahoo' },
   { code: 'SOLUSD', label: 'Solana',   category: 'Crypto', provider: 'yahoo' },

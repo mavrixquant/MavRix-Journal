@@ -1,4 +1,3 @@
-// apps/web/src/app/providers/AuthProvider.jsx
 import {
   createContext,
   useContext,
@@ -15,7 +14,6 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // On mount: attempt to restore session via the httpOnly refresh cookie.
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -34,7 +32,6 @@ export function AuthProvider({ children }) {
     return () => { cancelled = true; };
   }, []);
 
-  // If a protected call fails AND refresh fails, log out locally.
   useEffect(() => {
     setUnauthorizedHandler(() => {
       setAccessToken(null);

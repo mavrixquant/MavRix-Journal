@@ -1,6 +1,4 @@
-/* apps/web/src/features/accounts/components/AccountFormModal.css
-   Modal-specific styles. Reuses .acc-btn and .acc-btn-primary from
-   AccountsMain.css (both files are loaded whenever the modal is shown). */
+
 
 .acc-overlay {
   --line: rgba(255,255,255,.085);
@@ -101,7 +99,7 @@
   flex-shrink: 0;
 }
 
-/* ---------- Form fields ---------- */
+
 .acc-label {
   display: block;
   margin-bottom: 6px;
@@ -196,7 +194,7 @@ select.acc-input {
   gap: 12px;
 }
 
-/* ---------- Animations ---------- */
+
 @keyframes accFade {
   from { opacity: 0; }
   to   { opacity: 1; }

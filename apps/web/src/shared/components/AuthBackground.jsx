@@ -1,4 +1,3 @@
-// src/components/common/AuthBackground.jsx
 import { useEffect, useRef, useState } from 'react';
 
 const hexToRgba = (hex, a = 1) => {
@@ -10,12 +9,6 @@ const hexToRgba = (hex, a = 1) => {
 };
 
 export default function AuthBackground({ accent }) {
-  // Resolve the accent ONCE at mount. Priority:
-  //   1. explicit prop
-  //   2. the live --accent CSS custom property (root)
-  //   3. the amber default
-  // The canvas renderer needs a concrete hex; var(--accent) would break
-  // hexToRgba, so we resolve to a string here.
   const [resolvedAccent] = useState(() => {
     if (accent) return accent;
     if (typeof window === 'undefined') return '#F59E0B';

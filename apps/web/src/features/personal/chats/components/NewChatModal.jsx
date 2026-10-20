@@ -1,12 +1,3 @@
-﻿// apps/web/src/features/personal/chats/components/NewChatModal.jsx
-//
-// PHASE 5 — self-contained. Uses its own scoped CSS block so it no longer
-// depends on the legacy .chat-newchat-* classes inside ChatsShell.css
-// (several of those were never actually present after Phase 1's rewrite,
-// which silently broke the modal).
-//
-// Functionality is unchanged: search friends, debounce 300ms, hide
-// non-friends (server already enforces), open or resume a DM.
 
 import { useEffect, useState, useCallback } from 'react';
 import { X, Loader2, Search, UserRoundPlus } from 'lucide-react';

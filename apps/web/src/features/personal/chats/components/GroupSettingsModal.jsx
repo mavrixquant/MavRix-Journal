@@ -1,10 +1,3 @@
-﻿// apps/web/src/features/personal/chats/components/GroupSettingsModal.jsx
-//
-// PHASE 4 — trimmed to SETTINGS ONLY. Member management has moved to
-// GroupProfilePanel. Kept in this modal:
-//   • Name / Description / Visibility / Color / Emoji
-//   • Danger zone: Delete group (owner/superadmin only)
-// Leave group now lives in GroupProfilePanel.
 
 import { useEffect, useState, useCallback } from 'react';
 import { X, Hash, Lock, Trash2, ShieldCheck } from 'lucide-react';

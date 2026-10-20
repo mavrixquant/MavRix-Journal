@@ -1,40 +1,3 @@
-// apps/web/src/shared/trade-logs/TradeLogsView.jsx
-//
-// Shared trade-logs page body. Consumed by BOTH:
-//   - features/journal/trade-logs/TradeLogsPage.jsx   (Live + Demo accounts)
-//   - features/backtester/test-logs/TestLogsPage.jsx  (Backtest accounts)
-//
-// ACCOUNT SELECTION
-// -----------------
-// Account comes from the header's selector (via useDashboardAccount() in
-// the calling feature page). This view does not own a selector.
-//
-// TITLE PUBLISHING
-// ----------------
-// This file lives under shared/ and therefore MAY NOT import from
-// @/app/layout/PageHeaderProvider (enforced by the eslint boundary rule).
-// The two wrapper feature pages publish title/subtitle to the global
-// header bar themselves.
-//
-// ACTIONS ROW
-// -----------
-// The four primary actions (Template, Columns, Upload, Add) sit on the
-// right of the KPI strip — same row as "Net P&L" and its peers.
-//
-// DEEP-LINK SUPPORT (?addTrade=1)
-// -------------------------------
-// The global <DashboardFab /> navigates here with ?addTrade=1 to
-// auto-open the AddTradeModal. We read the param once on mount, open the
-// modal, and then strip the param from the URL via setSearchParams with
-// { replace: true } so a refresh never re-opens it.
-//
-// EMPTY STATE
-// -----------
-// When the account has zero trades, we now ALWAYS render the <DataTable />
-// so the toolbar, column picker, and header row stay visible, and pass the
-// <EmptyState /> through the new `emptyState` prop so it renders inside
-// the table body. This preserves all the affordances the user needs to
-// recover from an empty log (Add, Upload).
 
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
@@ -62,9 +25,6 @@ import { PageSkeleton } from '@/shared/ui/page-skeleton';
 import Alert from '@/shared/components/Alert';
 import EmptyState from '@/shared/components/EmptyState';
 
-/* ------------------------------------------------------------------ */
-/*  Page-local CSS                                                     */
-/* ------------------------------------------------------------------ */
 const CSS = `
   .jm-root {
     --line: rgba(255,255,255,.085);
@@ -303,9 +263,6 @@ const CSS = `
   }
 `;
 
-/* ------------------------------------------------------------------ */
-/*  Helpers                                                           */
-/* ------------------------------------------------------------------ */
 function formatTimeWithAMPM(timeStr) {
   if (!timeStr) return '—';
   if (/^\d{2}:\d{2}/.test(timeStr)) {
@@ -369,9 +326,6 @@ function StrategyCell({ strategy }) {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Columns — mode-aware                                              */
-/* ------------------------------------------------------------------ */
 function buildColumns(dynamicKeys, currency, isBacktest, { onEdit, onDelete }) {
   const common = [
     {
@@ -568,9 +522,6 @@ function buildColumns(dynamicKeys, currency, isBacktest, { onEdit, onDelete }) {
   return [...common, ...modeSpecific, ...common2, ...dynamicCols, actionsCol];
 }
 
-/* ------------------------------------------------------------------ */
-/*  Component                                                          */
-/* ------------------------------------------------------------------ */
 export default function TradeLogsView({
   accountId,
   allowedTypes = [],
@@ -608,7 +559,6 @@ export default function TradeLogsView({
 
   const currency = selectedAccount?.currency || 'USD';
 
-  /* -------- Deep-link: ?addTrade=1 opens the AddTradeModal -------- */
   useEffect(() => {
     if (accountsLoading) return;
     if (searchParams.get('addTrade') !== '1') return;
@@ -718,7 +668,7 @@ export default function TradeLogsView({
       <style>{CSS}</style>
       <div className="jm-root">
 
-        {/* ---------- KPI strip + action buttons (single row) ---------- */}
+        {}
         <div className="jm-top-row">
           <div className="jm-kpis">
             <div className="jm-kpi">
@@ -795,7 +745,7 @@ export default function TradeLogsView({
           </div>
         </div>
 
-        {/* ---------- Table card (always rendered) ---------- */}
+        {}
         <div className="jm-card jm-body">
           <DataTable
             data={enrichedTrades}

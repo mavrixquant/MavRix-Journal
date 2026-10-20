@@ -1,8 +1,3 @@
-// apps/api/src/services/healthCheck/phases/calendar.js
-//
-// Economic Calendar phase — 5 tests.
-// The sync endpoint hits Biquote over the network, so it is the slowest
-// test in the whole suite.
 
 export async function run(ctx) {
   const { test, tokens } = ctx;

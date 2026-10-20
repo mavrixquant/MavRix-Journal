@@ -1,11 +1,3 @@
-// apps/web/src/features/dashboard/components/panels/StrategyBreakdownTable.jsx
-//
-// Per-strategy performance table. Groups the CURRENT filtered outcomes by
-// strategyId (or "Untagged") and shows trade count, win rate, net R/$,
-// avg win/loss, and profit factor per strategy.
-//
-// Uses the shared useStats() hook so it honours every active filter
-// (dynamic, session/time, limits, strategy selection).
 
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
@@ -32,12 +24,6 @@ function formatPct(v) {
   return `${Number(v).toFixed(1)}%`;
 }
 
-/**
- * Group the current outcomes by strategyId.
- *
- * Returns rows sorted by net score desc. Always includes an "Untagged"
- * bucket when at least one outcome has no strategyId.
- */
 function buildStrategyBreakdown(outcomes) {
   if (!outcomes || outcomes.length === 0) return [];
 

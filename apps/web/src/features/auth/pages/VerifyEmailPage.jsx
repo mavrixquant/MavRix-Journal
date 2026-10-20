@@ -1,4 +1,3 @@
-// apps/web/src/features/auth/pages/VerifyEmailPage.jsx
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { MailCheck } from 'lucide-react';
@@ -22,7 +21,6 @@ export default function VerifyEmail() {
   const [resending, setResending] = useState(false);
   const [verifying, setVerifying] = useState(false);
 
-  // Did the user arrive via the emailed link? If so, verify on mount.
   const autoTriedRef = useRef(false);
   const urlToken = searchParams.get('token');
 

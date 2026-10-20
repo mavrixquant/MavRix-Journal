@@ -1,21 +1,3 @@
-// apps/api/src/services/healthCheck/index.js
-//
-// Health-check orchestrator. Runs a subset (or all) of the phase modules
-// sequentially against the local API, streams every event over the
-// runStore EventEmitter, and guarantees cleanup in a `finally` block.
-//
-// Cleanup strategy (belt & braces):
-//   1. Phase-registered cleanups (LIFO) — used for resources not owned
-//      by a health-check user (e.g. GEX days keyed by date).
-//   2. Cascade delete of every user whose email starts with `healthcheck-`
-//      — Prisma's onDelete: Cascade removes their accounts, trades,
-//      strategies, layouts, conversations, messages, friendships,
-//      friend requests, blocks.
-//   3. Audit-log sweep scoped to the requesting superadmin + this run's
-//      time window — deletes the audit rows our admin-phase tests wrote.
-//
-// Ordering matters: (3) must run AFTER (2), because deleting users also
-// writes audit rows in some paths.
 
 import { createRun, emit, complete, fail } from './runStore.js';
 import { createRunner } from './runner.js';
@@ -51,7 +33,6 @@ const PHASE_REGISTRY = {
   sse:        ssePhase,
 };
 
-// Metadata for the UI's phase picker. `est` is a rough count.
 export const PHASE_META = {
   auth:       { label: 'Authentication',   description: 'Signup · login · verify · reset · Google', est: 16 },
   accounts:   { label: 'Accounts',         description: 'CRUD + column configs',                    est: 6  },
@@ -69,10 +50,6 @@ export const PHASE_META = {
 
 export const ALL_PHASES = Object.keys(PHASE_REGISTRY);
 
-/**
- * Start a run. Returns immediately with the Run object; the actual work
- * happens in a detached async IIFE.
- */
 export function startHealthCheck({ phases, requestedBy }) {
   const selected = (phases && phases.length ? phases : ALL_PHASES).filter(
     (p) => PHASE_REGISTRY[p]
@@ -83,8 +60,6 @@ export function startHealthCheck({ phases, requestedBy }) {
     const baseUrl = `http://127.0.0.1:${env.port}`;
     const runner = createRunner({ run, baseUrl, adminId: requestedBy, prisma });
 
-    // Mint a bearer token for the requesting superadmin so tests can call
-    // protected routes without needing a real cookie session.
     const admin = await prisma.user.findUnique({
       where: { id: requestedBy },
       select: { id: true, email: true, role: true, tokenVersion: true },
@@ -132,7 +107,6 @@ export function startHealthCheck({ phases, requestedBy }) {
     } catch (err) {
       emit(run, { type: 'run:error', error: err?.message || String(err) });
     } finally {
-      /* ---------------- 1. Phase-registered cleanups ---------------- */
       emit(run, { type: 'cleanup:start' });
       let cleanupResults = [];
       try {
@@ -141,7 +115,6 @@ export function startHealthCheck({ phases, requestedBy }) {
         cleanupResults = [{ ok: false, label: err?.message || String(err) }];
       }
 
-      /* ---------------- 2. Cascade delete health-check users -------- */
       let cascadeDeleted = 0;
       try {
         const deleted = await prisma.user.deleteMany({
@@ -161,7 +134,6 @@ export function startHealthCheck({ phases, requestedBy }) {
         });
       }
 
-      /* ---------------- 3. Audit-log sweep --------------------------- */
       try {
         const auditSweep = await prisma.adminAuditLog.deleteMany({
           where: {
@@ -184,7 +156,6 @@ export function startHealthCheck({ phases, requestedBy }) {
 
       emit(run, { type: 'cleanup:end', deleted: cascadeDeleted });
 
-      /* ---------------- Summary ------------------------------------- */
       const elapsedMs = Date.now() - runner.startedAt;
       const pass = runner.results.filter((r) => r.status === 'pass').length;
       const failCount = runner.results.filter((r) => r.status === 'fail').length;

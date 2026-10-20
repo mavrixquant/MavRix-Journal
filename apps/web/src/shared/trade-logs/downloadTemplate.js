@@ -1,26 +1,3 @@
-// apps/web/src/shared/trade-logs/downloadTemplate.js
-//
-// Builds and downloads an .xlsx template whose column set depends on the
-// account type:
-//
-//   Live / Demo  →  Date | Entry Time | Exit Time | Direction | Symbol |
-//                   Strategy | Entry Price | Take Profit | Stop Loss |
-//                   P&L | Quantity | Notes | Custom Columns
-//
-//   Backtest     →  Date | Entry Time | Exit Time | Direction | Symbol |
-//                   Strategy | MAE | MFE | SL | P&L | Quantity |
-//                   Notes | Custom Columns
-//
-// The trailing "Custom Columns" header is a HINT, not a real column. It tells
-// the user they may append their own columns to the right of it. The upload
-// parser silently skips this header when it has no values.
-//
-// Strategy is optional. Value must match the exact name of a strategy the
-// user already created in /manage/strategies. Unmatched names are silently
-// dropped (the row gets no strategy tag).
-//
-// A single sample row is included so users know the expected format.
-// Quantity is always required.
 
 import * as XLSX from 'xlsx';
 
@@ -52,7 +29,7 @@ function buildBacktestSampleRow(account) {
     SAMPLE_EXIT,
     'Long',
     'NQ',
-    '',                                // Strategy (blank — user fills)
+    '',
     account?.slValue != null && account.slValue > 0 ? account.slValue : 8.2,
     15.4,
     account?.slValue ?? 12.5,
@@ -86,7 +63,7 @@ function buildJournalSampleRow() {
     SAMPLE_EXIT,
     'Long',
     'NQ',
-    '',                                // Strategy (blank — user fills)
+    '',
     20150.25,
     20200.0,
     20120.0,
@@ -104,7 +81,6 @@ export function downloadTradeTemplate({ account }) {
     ? buildBacktestSampleRow(account)
     : buildJournalSampleRow();
 
-  // Trailing placeholder column — the parser skips this header when empty.
   headers.push('Custom Columns');
   sampleRow.push('');
 

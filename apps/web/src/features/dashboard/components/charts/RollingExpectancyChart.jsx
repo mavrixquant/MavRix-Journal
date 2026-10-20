@@ -1,6 +1,3 @@
-// apps/web/src/features/dashboard/components/charts/RollingExpectancyChart.jsx
-//
-// Phase 2: wrapper fills its panel. min-height: 0 on both wrapper + empty state.
 
 import { useMemo, useRef } from 'react';
 import { Line } from 'react-chartjs-2';

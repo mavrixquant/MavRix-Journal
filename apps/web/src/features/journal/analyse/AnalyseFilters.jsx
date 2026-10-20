@@ -1,15 +1,3 @@
-// apps/web/src/features/journal/analyse/AnalyseFilters.jsx
-//
-// The full filter toolbar for the Analyse page.
-//
-// Contents:
-//   - DynamicFilters        (auto-detected 2–9-valued custom columns)
-//   - StrategyPicker        (multi-select of the user's strategies)
-//   - Session / Time button (opens SessionTimeModal)
-//   - Limits button         (opens LimitsModal)
-//   - Optimize button       (opens OptimizeModal — money mode)
-//   - Reset button          (disabled when no filter is active)
-//   - Active-filter chips   (each chip has an X to remove just that filter)
 
 import { useMemo, useState } from 'react';
 import { Clock, SlidersHorizontal, X, Brain, Target } from 'lucide-react';
@@ -187,9 +175,6 @@ const PICKER_CSS = `
   .af-strat-foot-btn.clear:hover { color: #8892A3; background: rgba(255,255,255,.04); }
 `;
 
-/* ------------------------------------------------------------------ */
-/*  Strategy picker popover                                            */
-/* ------------------------------------------------------------------ */
 function StrategyPicker({ strategies, selectedIds, onChange, disabled }) {
   const [open, setOpen] = useState(false);
 
@@ -286,9 +271,6 @@ function StrategyPicker({ strategies, selectedIds, onChange, disabled }) {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Main                                                               */
-/* ------------------------------------------------------------------ */
 export default function AnalyseFilters() {
   const {
     filterSelections,
@@ -310,8 +292,6 @@ export default function AnalyseFilters() {
   const [showLimitsModal, setShowLimitsModal] = useState(false);
   const [showOptimizeModal, setShowOptimizeModal] = useState(false);
 
-  // Only show ACTIVE + PAUSED strategies in the picker. Archived ones are
-  // hidden unless they're already selected.
   const { data: allStrategies = [] } = useStrategies();
   const strategies = useMemo(() => {
     const visible = allStrategies.filter((s) => s.status !== 'archived');
@@ -323,7 +303,6 @@ export default function AnalyseFilters() {
     );
   }, [allStrategies, strategyIds]);
 
-  /* ---- Active filter chips ---- */
   const chips = useMemo(() => {
     const list = [];
 

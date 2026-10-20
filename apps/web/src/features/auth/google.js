@@ -1,8 +1,3 @@
-// apps/web/src/features/auth/google.js
-// Thin wrapper around Google Identity Services (GIS).
-// Loads window.google (script tag in index.html), initializes an
-// OAuth2 token client, and exposes a Promise-based signIn() that
-// returns a Google access token.
 
 const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 const SCOPES = 'openid email profile';

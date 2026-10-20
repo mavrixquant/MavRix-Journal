@@ -1,6 +1,3 @@
-// apps/web/src/features/personal/chats/components/ChatRail.jsx
-//
-// Discord-style icon rail. All styling is in ChatsShell.css (.chat-rail-*).
 
 import {
   MessageCircle,
