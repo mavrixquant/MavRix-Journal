@@ -14,25 +14,52 @@ Write-Host "=========================================" -ForegroundColor Cyan
 Write-Host " Starting Mavrix Deployment Sequence " -ForegroundColor Cyan
 Write-Host "=========================================" -ForegroundColor Cyan
 
+
 # ---------------------------------------------------------------------
-# STEP 1: NUKE THE DATABASE
+# STEP 1: OPTIONAL DATABASE NUKE
 # ---------------------------------------------------------------------
-Write-Host "`n[1/3] Nuking Database..." -ForegroundColor Yellow
-Set-Location -Path "apps\api"
+Write-Host "`n[1/3] Database Reset Permission" -ForegroundColor Yellow
 
-# Reset DB (drops all tables, reapplies migrations)
-npx prisma migrate reset --force --skip-seed
+$NukeDatabase = Read-Host "WARNING: This will DELETE ALL DATA in the configured database and reapply migrations. Do you want to NUKE the database? (Y/N)"
 
-# Regenerate client to ensure perfect sync
-npx prisma generate
+if ($NukeDatabase -match '^(Y|YES)$') {
+    Write-Host "`nDatabase reset APPROVED. Proceeding..." -ForegroundColor Red
 
-# Verify
-Write-Host "Checking migration status..." -ForegroundColor Yellow
-npx prisma migrate status
+    Push-Location -Path "apps\api"
 
-# Return to root
-Set-Location -Path "..\.."
-Write-Host "Database nuked and rebuilt successfully." -ForegroundColor Green
+    try {
+        # Reset DB (drops all tables, reapplies migrations)
+        npx prisma migrate reset --force --skip-seed
+
+        if ($LASTEXITCODE -ne 0) {
+            throw "Prisma migrate reset failed. Deployment aborted."
+        }
+
+        # Regenerate client
+        npx prisma generate
+
+        if ($LASTEXITCODE -ne 0) {
+            throw "Prisma client generation failed. Deployment aborted."
+        }
+
+        # Verify migration status
+        Write-Host "`nChecking migration status..." -ForegroundColor Yellow
+        npx prisma migrate status
+
+        if ($LASTEXITCODE -ne 0) {
+            throw "Prisma migration status check failed."
+        }
+
+        Write-Host "`nDatabase reset and migration verification successful." -ForegroundColor Green
+    }
+    finally {
+        Pop-Location
+    }
+}
+else {
+    Write-Host "`nDatabase reset SKIPPED. Existing database data will be preserved by this script." -ForegroundColor Cyan
+}
+
 
 # ---------------------------------------------------------------------
 # STEP 2: SYNC PROD INTO DEV (Absorb any prod hotfixes)
