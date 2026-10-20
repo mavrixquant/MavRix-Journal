@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   X, Mail, UserRoundPlus, UserMinus, ShieldOff, Bell, BellOff, Pin, PinOff,
-  Archive, ArchiveRestore, Check, Loader2, Sparkles, Eraser,
+  Archive, ArchiveRestore, Check, Loader2, Eraser,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useFriendStatus, useSendFriendRequest, useRemoveFriend } from '@/shared/api/friends';

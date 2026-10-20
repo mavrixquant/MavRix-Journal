@@ -26,8 +26,12 @@ import { useMemo } from 'react';
 // Greedy URL match. We greedily capture trailing punctuation and strip it
 // inside the loop, so URLs wrapped in brackets/periods still linkify the
 // core part.
+//
+// NOTE: inside a character class, `[` is literal and does not need to be
+// escaped — only `]` does. Written as `[^\s<>()[\]]` to satisfy the
+// `no-useless-escape` ESLint rule.
 const PATTERN =
-  /\[([^\]\n]+)\]\(([^)\s]+)\)|((?:https?:\/\/|www\.)[^\s<>()\[\]]+)/gi;
+  /\[([^\]\n]+)\]\(([^)\s]+)\)|((?:https?:\/\/|www\.)[^\s<>()[\]]+)/gi;
 
 function parseBody(rawText) {
   if (rawText == null) return [{ type: 'text', value: '' }];
