@@ -12,13 +12,13 @@ import { useAdminMe, useAdminStats, useAdminHealth } from '../api';
 import StatCard from '../components/StatCard';
 
 const CSS = `
-  .ad-root { display: flex; flex-direction: column; gap: 22px; padding: 10px; }
-  .ad-kpi-grid {
+  .admin-dash-root { display: flex; flex-direction: column; gap: 22px; padding: 10px; }
+  .admin-dash-kpi-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 14px;
   }
-  .ad-panel {
+  .admin-dash-panel {
     position: relative;
     border-radius: 16px;
     background: linear-gradient(180deg, rgba(15,18,26,.72), rgba(15,18,26,.55));
@@ -26,7 +26,7 @@ const CSS = `
     box-shadow: 0 20px 50px -30px rgba(0,0,0,.9), inset 0 1px 0 rgba(255,255,255,.03);
     overflow: hidden;
   }
-  .ad-panel-head {
+  .admin-dash-panel-head {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -34,16 +34,16 @@ const CSS = `
     padding: 14px 18px 11px;
     border-bottom: 1px solid rgba(255,255,255,.05);
   }
-  .ad-panel-title { font-size: 13px; font-weight: 700; color: #E7E9EE; }
-  .ad-panel-note {
+  .admin-dash-panel-title { font-size: 13px; font-weight: 700; color: #E7E9EE; }
+  .admin-dash-panel-note {
     font-family: 'IBM Plex Mono', monospace;
     font-size: 10px; letter-spacing: .06em;
     text-transform: uppercase; color: #F59E0B; opacity: .85;
   }
-  .ad-panel-body { padding: 16px 18px; }
+  .admin-dash-panel-body { padding: 16px 18px; }
   
   /* Pure CSS/SVG Bar Chart */
-  .ad-chart-container {
+  .admin-dash-chart-container {
     display: flex;
     align-items: flex-end;
     justify-content: space-between;
@@ -53,7 +53,7 @@ const CSS = `
     border-bottom: 1px solid rgba(255,255,255,.1);
     position: relative;
   }
-  .ad-chart-bar-wrap {
+  .admin-dash-chart-bar-wrap {
     flex: 1;
     display: flex;
     flex-direction: column;
@@ -63,7 +63,7 @@ const CSS = `
     position: relative;
     min-width: 0;
   }
-  .ad-chart-bar {
+  .admin-dash-chart-bar {
     width: 100%;
     max-width: 24px;
     background: #F59E0B;
@@ -71,8 +71,8 @@ const CSS = `
     transition: height .3s ease;
     position: relative;
   }
-  .ad-chart-bar:hover { background: #FDE68A; }
-  .ad-chart-label {
+  .admin-dash-chart-bar:hover { background: #FDE68A; }
+  .admin-dash-chart-label {
     position: absolute;
     bottom: -24px;
     font-family: 'IBM Plex Mono', monospace;
@@ -82,7 +82,7 @@ const CSS = `
     transform-origin: top left;
     white-space: nowrap;
   }
-  .ad-chart-tooltip {
+  .admin-dash-chart-tooltip {
     position: absolute;
     top: -30px;
     background: #11151F;
@@ -98,35 +98,35 @@ const CSS = `
     white-space: nowrap;
     z-index: 10;
   }
-  .ad-chart-bar-wrap:hover .ad-chart-tooltip { opacity: 1; }
+  .admin-dash-chart-bar-wrap:hover .admin-dash-chart-tooltip { opacity: 1; }
 
-  .ad-health-grid {
+  .admin-dash-health-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
     gap: 12px;
   }
-  .ad-health-item {
+  .admin-dash-health-item {
     display: flex; flex-direction: column; gap: 3px;
     padding: 12px 14px; border-radius: 10px;
     background: rgba(255,255,255,.02);
     border: 1px solid rgba(255,255,255,.05);
   }
-  .ad-health-label {
+  .admin-dash-health-label {
     font-family: 'IBM Plex Mono', monospace;
     font-size: 9.5px; font-weight: 700;
     letter-spacing: .14em; text-transform: uppercase; color: #545E6E;
   }
-  .ad-health-value {
+  .admin-dash-health-value {
     font-family: 'IBM Plex Mono', monospace;
     font-size: 15px; font-weight: 700; color: #E7E9EE;
   }
-  .ad-health-value.is-ok { color: #35C4A1; }
-  .ad-health-value.is-bad { color: #ef4444; }
-  .ad-loading {
+  .admin-dash-health-value.is-ok { color: #35C4A1; }
+  .admin-dash-health-value.is-bad { color: #ef4444; }
+  .admin-dash-loading {
     padding: 60px 20px; text-align: center; color: #8892A3;
     font-family: 'IBM Plex Mono', monospace; font-size: 12.5px;
   }
-  .ad-error {
+  .admin-dash-error {
     padding: 24px 20px; text-align: center;
     color: #f87171;
     background: rgba(239,68,68,.06);
@@ -149,17 +149,17 @@ function CustomBarChart({ data }) {
   const maxCount = Math.max(...data.map((d) => d.count), 1);
 
   return (
-    <div className="ad-chart-container">
+    <div className="admin-dash-chart-container">
       {data.map((d, i) => {
         const heightPct = Math.max((d.count / maxCount) * 100, 1);
         const dateLabel = d.date ? d.date.slice(5) : '';
         return (
-          <div key={i} className="ad-chart-bar-wrap">
-            <div className="ad-chart-tooltip">
+          <div key={i} className="admin-dash-chart-bar-wrap">
+            <div className="admin-dash-chart-tooltip">
               {d.date}: {d.count} signups
             </div>
-            <div className="ad-chart-bar" style={{ height: `${heightPct}%` }} />
-            <span className="ad-chart-label">{dateLabel}</span>
+            <div className="admin-dash-chart-bar" style={{ height: `${heightPct}%` }} />
+            <span className="admin-dash-chart-label">{dateLabel}</span>
           </div>
         );
       })}
@@ -197,12 +197,7 @@ export default function AdminDashboardPage() {
   return (
     <>
       <style>{CSS}</style>
-      <div className="ad-root">
-        {/* DEBUG BANNER - REMOVE AFTER VERIFICATION */}
-        <div style={{ background: '#ef4444', color: '#fff', padding: 10, fontSize: 20, textAlign: 'center', borderRadius: 8 }}>
-          ADMIN DASHBOARD MOUNTED SUCCESSFULLY
-        </div>
-
+      <div className="admin-dash-root">
         <div className="admin-ph">
           <div className="admin-ph-left">
             <span className="admin-ph-eyebrow">Control Panel</span>
@@ -216,7 +211,7 @@ export default function AdminDashboardPage() {
         </div>
 
         {statsQuery.isError && (
-          <div className="ad-error">
+          <div className="admin-dash-error">
             <AlertTriangle size={18} />
             <span>Failed to load stats: {statsQuery.error?.message || 'Unknown error'}</span>
             <button
@@ -238,7 +233,7 @@ export default function AdminDashboardPage() {
           </div>
         )}
 
-        <div className="ad-kpi-grid">
+        <div className="admin-dash-kpi-grid">
           <StatCard
             label="Total Users"
             value={safeNum(stats?.users?.total)}
@@ -274,16 +269,16 @@ export default function AdminDashboardPage() {
           />
         </div>
 
-        <div className="ad-panel">
-          <div className="ad-panel-head">
-            <span className="ad-panel-title">Signups · Last 30 days</span>
-            <span className="ad-panel-note">daily</span>
+        <div className="admin-dash-panel">
+          <div className="admin-dash-panel-head">
+            <span className="admin-dash-panel-title">Signups · Last 30 days</span>
+            <span className="admin-dash-panel-note">daily</span>
           </div>
-          <div className="ad-panel-body">
+          <div className="admin-dash-panel-body">
             {statsLoading ? (
-              <div className="ad-loading">Loading chart…</div>
+              <div className="admin-dash-loading">Loading chart…</div>
             ) : !signupData || signupData.length === 0 ? (
-              <div className="ad-loading">
+              <div className="admin-dash-loading">
                 {statsQuery.isError ? 'Stats failed to load' : 'No signup data yet'}
               </div>
             ) : (
@@ -292,56 +287,56 @@ export default function AdminDashboardPage() {
           </div>
         </div>
 
-        <div className="ad-panel">
-          <div className="ad-panel-head">
-            <span className="ad-panel-title">System Health</span>
-            <span className="ad-panel-note">live · 30s</span>
+        <div className="admin-dash-panel">
+          <div className="admin-dash-panel-head">
+            <span className="admin-dash-panel-title">System Health</span>
+            <span className="admin-dash-panel-note">live · 30s</span>
           </div>
-          <div className="ad-panel-body">
-            <div className="ad-health-grid">
-              <div className="ad-health-item">
-                <span className="ad-health-label">Database</span>
-                <span className={`ad-health-value ${health?.database?.ok ? 'is-ok' : 'is-bad'}`}>
+          <div className="admin-dash-panel-body">
+            <div className="admin-dash-health-grid">
+              <div className="admin-dash-health-item">
+                <span className="admin-dash-health-label">Database</span>
+                <span className={`admin-dash-health-value ${health?.database?.ok ? 'is-ok' : 'is-bad'}`}>
                   {health?.database?.ok ? 'Connected' : (health ? 'Down' : '—')}
                 </span>
-                <span className="ad-health-label">
+                <span className="admin-dash-health-label">
                   {typeof health?.database?.latencyMs === 'number'
                     ? `${health.database.latencyMs} ms`
                     : '—'}
                 </span>
               </div>
-              <div className="ad-health-item">
-                <span className="ad-health-label">Uptime</span>
-                <span className="ad-health-value">{uptimeText}</span>
-                <span className="ad-health-label">process</span>
+              <div className="admin-dash-health-item">
+                <span className="admin-dash-health-label">Uptime</span>
+                <span className="admin-dash-health-value">{uptimeText}</span>
+                <span className="admin-dash-health-label">process</span>
               </div>
-              <div className="ad-health-item">
-                <span className="ad-health-label">SSE Clients</span>
-                <span className="ad-health-value">
+              <div className="admin-dash-health-item">
+                <span className="admin-dash-health-label">SSE Clients</span>
+                <span className="admin-dash-health-value">
                   {safeNum(health?.sse?.totalClients)}
                 </span>
-                <span className="ad-health-label">live streams</span>
+                <span className="admin-dash-health-label">live streams</span>
               </div>
-              <div className="ad-health-item">
-                <span className="ad-health-label">Memory (RSS)</span>
-                <span className="ad-health-value">
+              <div className="admin-dash-health-item">
+                <span className="admin-dash-health-label">Memory (RSS)</span>
+                <span className="admin-dash-health-value">
                   {typeof health?.memory?.rssMb === 'number'
                     ? `${health.memory.rssMb} MB`
                     : '—'}
                 </span>
-                <span className="ad-health-label">heap used</span>
+                <span className="admin-dash-health-label">heap used</span>
               </div>
-              <div className="ad-health-item">
-                <span className="ad-health-label">Node</span>
-                <span className="ad-health-value">{health?.nodeVersion || '—'}</span>
-                <span className="ad-health-label">runtime</span>
+              <div className="admin-dash-health-item">
+                <span className="admin-dash-health-label">Node</span>
+                <span className="admin-dash-health-value">{health?.nodeVersion || '—'}</span>
+                <span className="admin-dash-health-label">runtime</span>
               </div>
-              <div className="ad-health-item">
-                <span className="ad-health-label">Status</span>
-                <span className={`ad-health-value ${health?.status === 'ok' ? 'is-ok' : 'is-bad'}`}>
+              <div className="admin-dash-health-item">
+                <span className="admin-dash-health-label">Status</span>
+                <span className={`admin-dash-health-value ${health?.status === 'ok' ? 'is-ok' : 'is-bad'}`}>
                   {health?.status === 'ok' ? 'All good' : health ? 'Degraded' : '—'}
                 </span>
-                <span className="ad-health-label">overall</span>
+                <span className="admin-dash-health-label">overall</span>
               </div>
             </div>
           </div>
