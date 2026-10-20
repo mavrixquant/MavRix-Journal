@@ -16,19 +16,43 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     let cancelled = false;
+    const startedAt = Date.now();
+
+    if (import.meta.env.PROD) {
+      // eslint-disable-next-line no-console
+      console.info('[auth] bootstrap: POST /api/auth/refresh');
+    }
+
     (async () => {
       try {
         const { user: u } = await authService.refresh();
-        if (!cancelled) setUser(u);
-      } catch {
+        if (!cancelled) {
+          setUser(u);
+          if (import.meta.env.PROD) {
+            // eslint-disable-next-line no-console
+            console.info(
+              `[auth] bootstrap: SUCCESS in ${Date.now() - startedAt}ms`,
+              { email: u?.email, role: u?.role, verified: u?.emailVerified }
+            );
+          }
+        }
+      } catch (err) {
         if (!cancelled) {
           setAccessToken(null);
           setUser(null);
+          if (import.meta.env.PROD) {
+            // eslint-disable-next-line no-console
+            console.warn(
+              `[auth] bootstrap: FAILED in ${Date.now() - startedAt}ms`,
+              err?.message || err
+            );
+          }
         }
       } finally {
         if (!cancelled) setLoading(false);
       }
     })();
+
     return () => { cancelled = true; };
   }, []);
 

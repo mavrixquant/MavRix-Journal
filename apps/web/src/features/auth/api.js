@@ -1,5 +1,7 @@
 import { apiJson, setAccessToken } from '@/shared/api/client';
 
+const REFRESH_TIMEOUT_MS = 10_000;
+
 function normalizeUser(u) {
   if (!u) return null;
   const displayName =
@@ -43,10 +45,35 @@ export async function login({ email, password }) {
   return { user: normalizeUser(data.user) };
 }
 
+/**
+ * Refresh access token using the httpOnly cookie.
+ *
+ * HARD TIMEOUT: on Render free tier cold starts, the initial request can hang
+ * for 30–60 s. Without a timeout the whole app would show a blank screen for
+ * that entire duration while `AuthProvider.loading` stays `true`. Ten seconds
+ * is long enough for any legitimate response but short enough to fail fast.
+ */
 export async function refresh() {
-  const data = await apiJson('/api/auth/refresh', { method: 'POST' });
-  setAccessToken(data.accessToken);
-  return { user: normalizeUser(data.user) };
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), REFRESH_TIMEOUT_MS);
+
+  try {
+    const data = await apiJson('/api/auth/refresh', {
+      method: 'POST',
+      signal: controller.signal,
+    });
+    setAccessToken(data.accessToken);
+    return { user: normalizeUser(data.user) };
+  } catch (err) {
+    if (err?.name === 'AbortError') {
+      throw new Error(
+        `Auth refresh timed out after ${REFRESH_TIMEOUT_MS / 1000}s`
+      );
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 export async function logout() {
@@ -75,7 +102,6 @@ export async function resendVerification() {
 
 export { normalizeUser };
 
-
 export async function googleLogin(googleAccessToken) {
   const data = await apiJson('/api/auth/google', {
     method: 'POST',
@@ -97,7 +123,6 @@ export async function unlinkGoogle() {
   const data = await apiJson('/api/auth/google/unlink', { method: 'POST' });
   return normalizeUser(data.user);
 }
-
 
 export async function requestPasswordReset(email) {
   return apiJson('/api/auth/request-password-reset', {

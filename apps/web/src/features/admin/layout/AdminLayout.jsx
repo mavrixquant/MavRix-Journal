@@ -7,6 +7,7 @@ import { Sheet, SheetContent, SheetTitle } from '@/shared/ui/sheet';
 
 import AdminSidebar from './AdminSidebar';
 import AdminHeader from './AdminHeader';
+import AdminErrorBoundary from '../AdminErrorBoundary';
 import './AdminLayout.css';
 
 export default function AdminLayout() {
@@ -16,31 +17,33 @@ export default function AdminLayout() {
 
   return (
     <TooltipProvider delayDuration={250}>
-      <div className={`admin-shell${mobileOpen ? ' is-mobile-open' : ''}`}>
-        <AdminSidebar />
+      <AdminErrorBoundary>
+        <div className={`admin-shell${mobileOpen ? ' is-mobile-open' : ''}`}>
+          <AdminSidebar />
 
-        <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-          <SheetContent
-            side="left"
-            className="w-[280px] max-w-[85vw] border-r border-white/[.085] bg-transparent p-0 [&>button]:hidden"
-          >
-            <SheetTitle className="sr-only">Admin navigation</SheetTitle>
-            <AdminSidebar onNavigate={() => setMobileOpen(false)} />
-          </SheetContent>
-        </Sheet>
+          <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+            <SheetContent
+              side="left"
+              className="w-[280px] max-w-[85vw] border-r border-white/[.085] bg-transparent p-0 [&>button]:hidden"
+            >
+              <SheetTitle className="sr-only">Admin navigation</SheetTitle>
+              <AdminSidebar onNavigate={() => setMobileOpen(false)} />
+            </SheetContent>
+          </Sheet>
 
-        <div className="admin-main">
-          <AdminHeader
-            user={user}
-            onMobileMenuClick={() => setMobileOpen(true)}
-          />
-          <main className="admin-body">
-            <Suspense key={location.pathname} fallback={<PageSkeleton />}>
-              <Outlet />
-            </Suspense>
-          </main>
+          <div className="admin-main">
+            <AdminHeader
+              user={user}
+              onMobileMenuClick={() => setMobileOpen(true)}
+            />
+            <main className="admin-body">
+              <Suspense key={location.pathname} fallback={<PageSkeleton />}>
+                <Outlet />
+              </Suspense>
+            </main>
+          </div>
         </div>
-      </div>
+      </AdminErrorBoundary>
     </TooltipProvider>
   );
 }

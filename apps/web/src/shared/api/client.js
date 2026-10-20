@@ -1,5 +1,5 @@
-
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+const REFRESH_TIMEOUT_MS = 10_000;
 
 let accessToken = null;
 let unauthorizedHandler = null;
@@ -17,13 +17,24 @@ export function setUnauthorizedHandler(fn) {
   unauthorizedHandler = fn;
 }
 
+/**
+ * Background token refresh used by apiFetch when it sees a 401.
+ *
+ * Same hardening as authService.refresh: hard 10 s timeout so a Render free
+ * tier cold start can never leave the whole app hanging forever.
+ */
 async function doRefresh() {
   if (refreshInFlight) return refreshInFlight;
+
   refreshInFlight = (async () => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), REFRESH_TIMEOUT_MS);
+
     try {
       const res = await fetch(`${BASE_URL}/api/auth/refresh`, {
         method: 'POST',
         credentials: 'include',
+        signal: controller.signal,
       });
       if (!res.ok) return null;
       const data = await res.json();
@@ -32,9 +43,11 @@ async function doRefresh() {
     } catch {
       return null;
     } finally {
+      clearTimeout(timeout);
       refreshInFlight = null;
     }
   })();
+
   return refreshInFlight;
 }
 
