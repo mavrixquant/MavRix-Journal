@@ -15,6 +15,7 @@ import {
 import { sendVerificationEmail, sendPasswordResetEmail } from '../lib/mailer.js';
 import { verifyGoogleAccessToken } from '../lib/google.js';
 import { invalidateSvCache } from '../lib/session.js';
+import { ensureAiDmForUser } from './maveAiBootstrap.js';
 
 const publicUser = (u) => ({
   id: u.id,
@@ -52,6 +53,20 @@ function assertNotBanned(user) {
   }
 }
 
+/**
+ * Fire-and-forget DM creation for Mave AI. Never blocks signup / login.
+ * Handles the case where bootstrap hasn't run yet (ensureAiDmForUser
+ * returns null silently) — listConversations has a fallback.
+ */
+function scheduleAiDmForUser(userId) {
+  ensureAiDmForUser(userId).catch((err) => {
+    console.warn(
+      `[mave-ai] failed to ensure DM for new user ${userId}:`,
+      err?.message || err
+    );
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Signup / login / refresh / me
 // ---------------------------------------------------------------------------
@@ -77,6 +92,10 @@ export async function signup({ email, password, firstName, lastName }) {
 
   await sendVerificationEmail({ to: user.email, token: verifyToken });
 
+  // Ensure Mave AI DM exists so it appears in chats immediately after
+  // the user verifies their email.
+  scheduleAiDmForUser(user.id);
+
   return { user: publicUser(user), ...issueTokens(user) };
 }
 
@@ -95,6 +114,9 @@ export async function login({ email, password }) {
     where: { id: user.id },
     data: { lastLoginAt: new Date() },
   });
+
+  // Defensive — covers users whose DM was somehow never created.
+  scheduleAiDmForUser(updated.id);
 
   return { user: publicUser(updated), ...issueTokens(updated) };
 }
@@ -152,8 +174,6 @@ export async function refresh(refreshToken) {
 
   assertNotBanned(user);
 
-  // The refresh token's `sv` is a snapshot. If the DB value has moved on
-  // (force-logout, password reset, admin demotion), the token is dead.
   const tokenSv = Number.isFinite(payload.sv) ? payload.sv : 0;
   if (tokenSv !== user.tokenVersion) {
     throw new HttpError(401, 'Session revoked');
@@ -179,6 +199,7 @@ export async function loginWithGoogle(accessToken) {
       where: { id: byGoogle.id },
       data: { lastLoginAt: new Date() },
     });
+    scheduleAiDmForUser(updated.id);
     return { user: publicUser(updated), ...issueTokens(updated) };
   }
 
@@ -200,6 +221,7 @@ export async function loginWithGoogle(accessToken) {
         lastLoginAt: new Date(),
       },
     });
+    scheduleAiDmForUser(linked.id);
     return { user: publicUser(linked), ...issueTokens(linked) };
   }
 
@@ -216,6 +238,9 @@ export async function loginWithGoogle(accessToken) {
       lastLoginAt: new Date(),
     },
   });
+
+  scheduleAiDmForUser(created.id);
+
   return { user: publicUser(created), ...issueTokens(created) };
 }
 
@@ -273,8 +298,6 @@ export async function unlinkGoogleAccount(userId) {
 export async function requestPasswordReset(email) {
   const user = await prisma.user.findUnique({ where: { email } });
 
-  // Always return success even if the email doesn't exist,
-  // to prevent account enumeration.
   if (!user) return { ok: true };
 
   const resetToken = generateSecureToken();
@@ -311,7 +334,6 @@ export async function resetPassword(token, newPassword) {
       passwordHash,
       resetToken: null,
       resetTokenExpiry: null,
-      // Password change kills every existing session.
       tokenVersion: { increment: 1 },
     },
   });

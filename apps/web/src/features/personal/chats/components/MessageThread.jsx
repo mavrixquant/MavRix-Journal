@@ -15,9 +15,9 @@ import MessageContextMenu from './MessageContextMenu';
 import ScrollToBottom from './ScrollToBottom';
 import ThreadSkeleton from './ThreadSkeleton';
 import GroupSettingsModal from './GroupSettingsModal';
-import MaveAiTyping from './MaveAiTyping';
 
 const EDIT_WINDOW_MS = 15 * 60 * 1000;
+const AI_WAITING_WINDOW_MS = 60 * 1000;
 const PANEL_STORAGE_PREFIX = 'mavrix:chat:panel:';
 
 function displayNameOf(user) {
@@ -94,8 +94,29 @@ export default function MessageThread({ conversationId, onBack, onConversationCl
     return all;
   }, [data]);
 
-  // Detect if we are waiting for Mave AI to reply.
-  const waitingForAi = isAi && messages.length > 0 && messages[messages.length - 1].senderId === currentUserId && (Date.now() - new Date(messages[messages.length - 1].createdAt).getTime() < 60000);
+  /* -------- Timer state — drives both editability and AI-waiting -------- */
+  // Seeded with Date.now() at mount so both checks work on the FIRST render.
+  // Refreshed every 30s. Uses useState initializer to avoid impure render.
+  const [nowTs, setNowTs] = useState(() => Date.now());
+  useEffect(() => {
+    const iv = setInterval(() => setNowTs(Date.now()), 30_000);
+    return () => clearInterval(iv);
+  }, []);
+
+  /* -------- Waiting on Mave AI? -------- */
+  // True when:
+  //   • conversation is with the AI
+  //   • last message is from the current user (not yet answered)
+  //   • last message is younger than AI_WAITING_WINDOW_MS
+  const waitingForAi = useMemo(() => {
+    if (!isAi) return false;
+    if (!currentUserId) return false;
+    if (messages.length === 0) return false;
+    const last = messages[messages.length - 1];
+    if (last.senderId !== currentUserId) return false;
+    const age = nowTs - new Date(last.createdAt).getTime();
+    return age >= 0 && age < AI_WAITING_WINDOW_MS;
+  }, [isAi, currentUserId, messages, nowTs]);
 
   const scrollRef = useRef(null);
   const sentinelRef = useRef(null);
@@ -124,7 +145,7 @@ export default function MessageThread({ conversationId, onBack, onConversationCl
     if (el) requestAnimationFrame(() => { el.scrollTop = el.scrollHeight; });
   }, [conversationId]);
 
-  // Scroll to bottom when new message arrives OR when waitingForAi changes
+  // Scroll to bottom when a new message arrives OR while waiting on AI.
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
@@ -174,9 +195,6 @@ export default function MessageThread({ conversationId, onBack, onConversationCl
     markRead.mutate(conversationId);
   }, [conversationId, messages.length, sendReadReceipts]);
 
-  const [nowTs, setNowTs] = useState(0);
-  useEffect(() => { setNowTs(Date.now()); const iv = setInterval(() => setNowTs(Date.now()), 30_000); return () => clearInterval(iv); }, []);
-
   const [ctxMenu, setCtxMenu] = useState(null);
   const openContextMenu = useCallback((message, event) => { setCtxMenu({ x: event?.clientX ?? 100, y: event?.clientY ?? 100, message }); }, []);
   const closeContextMenu = useCallback(() => setCtxMenu(null), []);
@@ -210,7 +228,7 @@ export default function MessageThread({ conversationId, onBack, onConversationCl
   const handleUnarchive = useCallback(() => { updateConversation.mutate({ conversationId, patch: { isArchived: false } }); }, [conversationId, updateConversation]);
   const handleScrollToBottom = useCallback(() => { const el = scrollRef.current; if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' }); }, []);
 
-  const canEditMessage = useCallback((msg) => { if (!nowTs) return false; return nowTs - new Date(msg.createdAt).getTime() < EDIT_WINDOW_MS; }, [nowTs]);
+  const canEditMessage = useCallback((msg) => { return nowTs - new Date(msg.createdAt).getTime() < EDIT_WINDOW_MS; }, [nowTs]);
 
   if (convoLoading && !conversation) return <div className="chat-thread"><ThreadSkeleton rows={8} /></div>;
   if (!conversation) return null;
@@ -225,6 +243,7 @@ export default function MessageThread({ conversationId, onBack, onConversationCl
             messages={messages} currentUserId={currentUserId} isGroup={isGroup}
             headerName={isGroup ? (conversation.name || 'this group') : displayNameOf(peer)}
             typingUserIds={typingUserIds} showTypingInThread={showTypingInThread}
+            waitingForAi={waitingForAi}
             timeFormat={timeFormat} timezone={timezone} hasNextPage={hasNextPage}
             isFetchingNextPage={isFetchingNextPage} onLoadMore={fetchNextPage} isLoading={messagesLoading}
             editingId={editingId} editText={editText} onEditChange={setEditText} onEditSubmit={submitEdit}
@@ -232,8 +251,6 @@ export default function MessageThread({ conversationId, onBack, onConversationCl
             unreadBoundaryMsgId={unreadBoundaryRef.current || undefined} scrollRef={scrollRef} sentinelRef={sentinelRef}
             canEditMessage={canEditMessage}
           />
-          
-          {waitingForAi && <MaveAiTyping />}
 
           <ScrollToBottom visible={showScrollPill} onClick={handleScrollToBottom} />
         </div>

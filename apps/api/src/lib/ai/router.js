@@ -16,14 +16,17 @@
 //      so a single shared key doesn't get rate-limited trying 5 models.
 //
 // Rate limiting:
-//   The admin rate-limit bucket is reserved ONCE per request (not once per
-//   attempt) so an N-attempt chain doesn't drain N slots from a 20/hr budget.
-//   BYOK attempts are never rate-limited — that's the user's own quota.
+//   The admin rate-limit bucket is reserved LAZILY — only when we are
+//   actually about to try an admin provider. This means a user whose
+//   BYOK key succeeds never touches the admin budget, no matter how
+//   many admin providers are configured. When we do reach admin, the
+//   slot is reserved ONCE per request (not once per attempt), so an
+//   N-attempt chain doesn't drain N slots from a 20/hr budget.
 //
 // lastUsedAt write-back:
-//   On success, we UPDATE the winning credential's lastUsedAt (fire-and-forget).
-//   That bumps it to the back of the LRU queue for the next message, giving
-//   round-robin behaviour across credentials over time.
+//   On success, we UPDATE the winning credential's lastUsedAt
+//   (fire-and-forget). That bumps it to the back of the LRU queue for
+//   the next message, giving round-robin behaviour across credentials.
 
 import { prisma } from '../prisma.js';
 import { env } from '../../config/env.js';
@@ -120,23 +123,25 @@ export async function executeChat(userId, messages) {
     );
   }
 
-  // Reserve ONE admin rate-limit slot per request. Without this, an
-  // N-provider chain would consume N slots from a 20/hr budget on a single
-  // failed message.
-  const hasAdminInChain = chain.some((a) => !a.isByok);
-  if (hasAdminInChain) {
-    const limitCheck = checkRateLimit(userId);
-    if (!limitCheck.allowed) {
-      const mins = Math.ceil(limitCheck.retryAfterMs / 60000);
-      throw new Error(
-        `Rate limit reached. Try again in ${mins} minutes, or add your own API key in Settings -> Mave AI for unlimited access.`
-      );
-    }
-  }
+  // Rate limit is checked lazily — only when we're about to try an admin
+  // provider. Users whose BYOK key succeeds never touch this bucket.
+  let rateLimitReserved = false;
 
   let previousLabel = null;
 
   for (const attempt of chain) {
+    // --- Lazy rate-limit gate ---
+    if (!attempt.isByok && !rateLimitReserved) {
+      const limitCheck = checkRateLimit(userId);
+      if (!limitCheck.allowed) {
+        const mins = Math.ceil(limitCheck.retryAfterMs / 60000);
+        throw new Error(
+          `Rate limit reached. Try again in ${mins} minutes, or add your own API key in Settings -> Mave AI for unlimited access.`
+        );
+      }
+      rateLimitReserved = true;
+    }
+
     const meta = getProviderMeta(attempt.id);
     const label = meta ? meta.label : attempt.id;
 

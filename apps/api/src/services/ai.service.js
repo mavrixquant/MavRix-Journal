@@ -1,7 +1,14 @@
 // apps/api/src/services/ai.service.js
 //
 // Orchestrates the AI response lifecycle.
-// Called by chat.service.js (Phase 4) when a user sends a message to Mave AI.
+// Called by chat.service.js when a user sends a message to Mave AI.
+//
+// Concurrency:
+//   Each conversation has at most ONE in-flight AI generation. If a
+//   message arrives while a generation is running, it is queued. Once
+//   the current generation finishes, the queue is drained by triggering
+//   one more generation. This prevents rapid-fire user messages from
+//   spawning overlapping replies.
 
 import { prisma } from '../lib/prisma.js';
 import { broadcastToUser } from '../lib/broadcaster.js';
@@ -9,119 +16,157 @@ import { buildContext } from '../lib/ai/context.js';
 import { executeChat } from '../lib/ai/router.js';
 import { getProviderMeta } from '@mavrix/shared';
 
+/* ------------------------------------------------------------------ */
+/*  Concurrency guard                                                  */
+/* ------------------------------------------------------------------ */
+
+/** Set<conversationId> — conversations with an in-flight generation. */
+const inFlight = new Set();
+
+/** Map<conversationId, { userId, maveAiId }> — pending re-triggers. */
+const pending = new Map();
+
 /**
  * Generates and saves an AI reply, then broadcasts it via SSE.
- *
- * @param {string} conversationId
- * @param {string} userId — the human user's ID
- * @param {string} maveAiId — the Mave AI user's ID
+ * Non-blocking — callers do not await the generation.
  */
 export async function triggerAiResponse(conversationId, userId, maveAiId) {
-  // Fire-and-forget wrapper: we don't want the HTTP request that saved the
-  // user's message to block on the LLM call.
+  // Already running for this conversation → queue a re-trigger.
+  if (inFlight.has(conversationId)) {
+    pending.set(conversationId, { userId, maveAiId });
+    return;
+  }
+
+  inFlight.add(conversationId);
+  pending.delete(conversationId);
+
+  // Detached async runner — caller returns immediately.
   (async () => {
     try {
-      const messages = await buildContext(conversationId, maveAiId);
+      await generateAndBroadcast(conversationId, userId, maveAiId);
+    } catch (err) {
+      // generateAndBroadcast already handles its own errors; this is a
+      // last-resort guard for anything truly unexpected.
+      console.error('[mave-ai] Unhandled trigger error:', err?.message || err);
+    } finally {
+      inFlight.delete(conversationId);
 
-      // If the last message is from the AI, don't trigger another AI reply
-      // (prevents infinite loops).
-      const lastMsg = messages[messages.length - 1];
-      if (!lastMsg || lastMsg.role !== 'user') return;
-
-      const result = await executeChat(userId, messages);
-
-      // 1. If we had to switch providers or models, save a system notice first.
-      if (result.switchedFrom) {
-        const newProviderLabel =
-          getProviderMeta(result.provider)?.label || result.provider;
-        const modelLabel = result.model || 'unknown model';
-        const switchMsg = await prisma.message.create({
-          data: {
-            conversationId,
-            senderId: maveAiId, // Sent by the AI user
-            body: `Switched to ${newProviderLabel} · ${modelLabel} (previous provider limited).`,
-            kind: 'ai_switch',
-          },
-        });
-
-        await prisma.conversation.update({
-          where: { id: conversationId },
-          data: {
-            lastMessageAt: new Date(),
-            lastMessageText: switchMsg.body.slice(0, 120),
-            lastMessageById: maveAiId,
-          },
-        });
-
-        broadcastToUser(userId, 'chat:message:new', {
-          conversationId,
-          message: {
-            id: switchMsg.id,
-            conversationId,
-            senderId: maveAiId,
-            body: switchMsg.body,
-            kind: 'ai_switch',
-            createdAt: switchMsg.createdAt,
-            deleted: false,
-          },
-        });
+      const next = pending.get(conversationId);
+      if (next) {
+        pending.delete(conversationId);
+        // Recurse after releasing the lock.
+        triggerAiResponse(conversationId, next.userId, next.maveAiId);
       }
+    }
+  })();
+}
 
-      // 2. Save the actual AI reply.
-      const aiMsg = await prisma.message.create({
+/* ------------------------------------------------------------------ */
+/*  Core generation                                                    */
+/* ------------------------------------------------------------------ */
+
+async function generateAndBroadcast(conversationId, userId, maveAiId) {
+  try {
+    const messages = await buildContext(conversationId, maveAiId);
+
+    // Guard against loops: only trigger a reply when the last message in
+    // context is from the human user.
+    const lastMsg = messages[messages.length - 1];
+    if (!lastMsg || lastMsg.role !== 'user') return;
+
+    const result = await executeChat(userId, messages);
+
+    /* ---------- 1. Emit the "switched provider" notice ---------- */
+    if (result.switchedFrom) {
+      const newProviderLabel =
+        getProviderMeta(result.provider)?.label || result.provider;
+      const modelLabel = result.model || 'unknown model';
+
+      const switchMsg = await prisma.message.create({
         data: {
           conversationId,
           senderId: maveAiId,
-          body: result.text,
-          kind: 'user', // Renders as a normal message bubble
+          body: `Switched to ${newProviderLabel} · ${modelLabel} (previous provider limited).`,
+          kind: 'ai_switch',
         },
       });
 
-      // 3. Update conversation metadata.
       await prisma.conversation.update({
         where: { id: conversationId },
         data: {
           lastMessageAt: new Date(),
-          lastMessageText: result.text.slice(0, 120),
+          lastMessageText: switchMsg.body.slice(0, 120),
           lastMessageById: maveAiId,
         },
       });
 
-      // 4. Broadcast to the user.
-      // We construct the payload manually to match chat.service.js serialization.
-      const payload = {
+      broadcastToUser(userId, 'chat:message:new', {
         conversationId,
         message: {
-          id: aiMsg.id,
+          id: switchMsg.id,
           conversationId,
           senderId: maveAiId,
-          sender: {
-            id: maveAiId,
-            firstName: 'Mave',
-            lastName: 'AI',
-            isAi: true,
-          },
-          body: aiMsg.body,
-          kind: 'user',
-          createdAt: aiMsg.createdAt,
-          editedAt: null,
-          deletedAt: null,
+          body: switchMsg.body,
+          kind: 'ai_switch',
+          createdAt: switchMsg.createdAt,
           deleted: false,
-          deliveredAt: null,
-          readAt: null,
         },
-      };
+      });
+    }
 
-      broadcastToUser(userId, 'chat:message:new', payload);
-    } catch (err) {
-      console.error('[mave-ai] Error generating response:', err.message);
+    /* ---------- 2. Save and broadcast the actual AI reply ---------- */
+    const aiMsg = await prisma.message.create({
+      data: {
+        conversationId,
+        senderId: maveAiId,
+        body: result.text,
+        // kind: 'user' — renders as a normal chat bubble, not a system notice.
+        kind: 'user',
+      },
+    });
 
-      // Catch errors (like rate limits or all providers failing) and
-      // tell the user inside the chat.
-      const errorText = err.message.includes('Rate limit')
-        ? err.message
-        : 'Mave AI is temporarily unavailable. Please try again or add your own API key in Settings.';
+    await prisma.conversation.update({
+      where: { id: conversationId },
+      data: {
+        lastMessageAt: new Date(),
+        lastMessageText: result.text.slice(0, 120),
+        lastMessageById: maveAiId,
+      },
+    });
 
+    broadcastToUser(userId, 'chat:message:new', {
+      conversationId,
+      message: {
+        id: aiMsg.id,
+        conversationId,
+        senderId: maveAiId,
+        sender: {
+          id: maveAiId,
+          firstName: 'Mave',
+          lastName: 'AI',
+          isAi: true,
+        },
+        body: aiMsg.body,
+        kind: 'user',
+        createdAt: aiMsg.createdAt,
+        editedAt: null,
+        deletedAt: null,
+        deleted: false,
+        deliveredAt: null,
+        readAt: null,
+      },
+    });
+  } catch (err) {
+    console.error('[mave-ai] Error generating response:', err?.message || err);
+
+    // Save a system message so the user is never left hanging on a silent
+    // failure. This is kind: 'system' so it is EXCLUDED from future
+    // buildContext() calls.
+    const errorText = err.message.includes('Rate limit')
+      ? err.message
+      : 'Mave AI is temporarily unavailable. Please try again or add your own API key in Settings.';
+
+    try {
       const errorMsg = await prisma.message.create({
         data: {
           conversationId,
@@ -143,6 +188,12 @@ export async function triggerAiResponse(conversationId, userId, maveAiId) {
           deleted: false,
         },
       });
+    } catch (nestedErr) {
+      // The DB write itself failed — nothing more we can do here.
+      console.error(
+        '[mave-ai] Failed to save error message:',
+        nestedErr?.message || nestedErr
+      );
     }
-  })();
+  }
 }

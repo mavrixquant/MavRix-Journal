@@ -18,14 +18,19 @@
 //     no longer shows the peer's copy. Uses a single indexed DISTINCT ON
 //     query across the messages table.
 //   - serializeConversation() exposes lastMessageText / lastMessageById
-//     from that per-user view, plus a clearedByMe flag so the UI can show
-//     "Cleared" instead of "No messages yet" when appropriate.
+//     from that per-user view, plus a clearedByMe flag.
+//
+// Mave AI fix:
+//   - PUBLIC_USER_SELECT now includes `isAi` so AI messages loaded from
+//     the DB keep the sparkle avatar after page refresh.
+//   - listConversations() calls ensureAiDmForUser() first — covers users
+//     whose AI DM was never created (signed up after boot, etc).
 
 import { prisma } from '../lib/prisma.js';
 import { HttpError } from '../middleware/error.js';
 import { broadcastToUser } from '../lib/broadcaster.js';
 import { triggerAiResponse } from './ai.service.js';
-import { getMaveAiId } from './maveAiBootstrap.js';
+import { getMaveAiId, ensureAiDmForUser } from './maveAiBootstrap.js';
 import {
   areFriends,
   isBlockedEither,
@@ -41,20 +46,15 @@ const MESSAGE_PAGE_MAX = 100;
 const GROUP_DISCOVER_DEFAULT_LIMIT = 50;
 const GROUP_DISCOVER_MAX_LIMIT = 100;
 
-// How many outbound messages a non-friend may send in a single DM before
-// the composer locks. Counted per-user, per-conversation.
 const NON_FRIEND_MESSAGE_LIMIT = 3;
 
-// Shared projection: user fields exposed on every message payload.
-// Includes enough for the group UI to render the sender's name + avatar
-// above each bubble without a second round trip. DMs carry this too —
-// harmless, and it means the same component renders both cases uniformly.
 const PUBLIC_USER_SELECT = {
   id: true,
   email: true,
   firstName: true,
   lastName: true,
   photoUrl: true,
+  isAi: true,
 };
 
 /* ------------------------------------------------------------------ */
@@ -69,6 +69,7 @@ function serializePublicUser(u) {
     firstName: u.firstName,
     lastName: u.lastName,
     photoUrl: u.photoUrl,
+    isAi: !!u.isAi,
   };
 }
 
@@ -90,27 +91,6 @@ function serializeMessage(m) {
   };
 }
 
-/**
- * Unified serializer for both DM and group conversations.
- *
- * For DMs, `peer` is the other user and every group-metadata field is null.
- * For groups, `peer` is null and the metadata fields are populated.
- * `role` is the CALLER's role in this conversation — always 'member' for DMs.
- *
- * Per-user preview fields (Phase 5):
- *   `extras.lastVisible` — the newest message THIS user can see, or null.
- *                          When null and the conversation has had messages
- *                          before (`c.lastMessageText` is non-null), we
- *                          surface `clearedByMe: true` so the sidebar
- *                          shows "Cleared" rather than the peer's copy.
- *                          `lastMessageAt` always reflects GLOBAL activity,
- *                          so sort order never jumps when a user clears.
- *
- * `extras` (DM only):
- *   - isFriend:            boolean — whether caller + peer are friends
- *   - messagesRemaining:   number  — outbound messages left until the cap
- *                                    (only present when !isFriend)
- */
 function serializeConversation(c, userId, participantRow, extras = {}) {
   const isGroup = c.type === 'group';
 
@@ -118,14 +98,8 @@ function serializeConversation(c, userId, participantRow, extras = {}) {
     ? c.participants.find((p) => p.userId !== userId)?.user || null
     : null;
 
-  // Per-user "last visible message". When the caller cleared and nothing
-  // new has arrived since, `lastVisible` is null and we blank the preview.
   const lastVisible = extras.lastVisible || null;
   const hasVisible = !!lastVisible;
-
-  // Was this conversation ever active? (Determines "Cleared" vs "No messages
-  // yet" for the empty state.) `c.lastMessageText` is the peer's copy of the
-  // last message — non-null means at least one message has ever existed.
   const wasActive = !!c.lastMessageText;
 
   const base = {
@@ -135,7 +109,6 @@ function serializeConversation(c, userId, participantRow, extras = {}) {
 
     peer: serializePublicUser(peer),
 
-    // Group metadata — all null for DMs.
     name: isGroup ? c.name : null,
     description: isGroup ? c.description : null,
     visibility: isGroup ? c.visibility : null,
@@ -144,22 +117,15 @@ function serializeConversation(c, userId, participantRow, extras = {}) {
     createdById: isGroup ? c.createdById : null,
     memberCount: isGroup ? c.memberCount : null,
 
-    // Caller's role. 'member' for DMs by default.
     role: participantRow.role || 'member',
 
-    // Global "when" — last activity by ANY participant. Used for sorting
-    // and the sidebar time indicator. Never changes when a user clears.
     lastMessageAt: c.lastMessageAt,
 
-    // Per-user preview — the newest message this caller can actually see,
-    // or null when they've cleared and nothing new has arrived.
     lastMessageText: hasVisible
       ? String(lastVisible.body || '').slice(0, PREVIEW_MAX)
       : null,
     lastMessageById: hasVisible ? lastVisible.senderId : null,
 
-    // True when the caller cleared a conversation that previously had
-    // messages. Distinguishes "Cleared" from "No messages yet" in the UI.
     clearedByMe: !hasVisible && wasActive,
 
     unreadCount: participantRow.unreadCount,
@@ -172,7 +138,7 @@ function serializeConversation(c, userId, participantRow, extras = {}) {
 
   if (!isGroup) {
     base.isFriend = !!extras.isFriend;
-    base.isAi = !!extras.isAi; // flag for Mave AI
+    base.isAi = !!extras.isAi;
     if (!extras.isFriend && !extras.isAi && typeof extras.messagesRemaining === 'number') {
       base.messagesRemaining = extras.messagesRemaining;
     }
@@ -201,15 +167,6 @@ async function assertParticipant(userId, conversationId) {
   return row;
 }
 
-/**
- * Participant check + blocked-DM check.
- *
- * If the caller is a participant AND the conversation is a DM whose peer
- * is blocked in either direction, this throws 404 — deliberately not 403,
- * so a blocked caller can't distinguish "blocked" from "deleted".
- *
- * Returns the participant row so callers don't need a second round-trip.
- */
 async function assertAccessibleConversation(userId, conversationId) {
   const myRow = await assertParticipant(userId, conversationId);
 
@@ -244,12 +201,6 @@ async function getParticipantIds(conversationId) {
 /*  User search — FRIENDS ONLY                                         */
 /* ------------------------------------------------------------------ */
 
-/**
- * Search the caller's friends by name or email.
- *
- * Non-friends are never returned. This is enforced by starting from the
- * friend list rather than the user table.
- */
 export async function searchUsers(userId, q) {
   const query = String(q || '').trim();
   if (query.length < 2) return [];
@@ -288,8 +239,6 @@ export async function getOrCreateDm(userId, peerId) {
     throw new HttpError(403, 'This user has not verified their email');
   }
 
-  // Blocks are asymmetric to create but symmetric to enforce — either
-  // direction hides the pair from each other.
   if (!peer.isAi && (await isBlockedEither(userId, peerId))) {
     throw new HttpError(403, 'Cannot message this user');
   }
@@ -348,6 +297,18 @@ export async function getOrCreateDm(userId, peerId) {
 /* ------------------------------------------------------------------ */
 
 export async function listConversations(userId) {
+  // Ensure a DM with Mave AI exists for this user. Covers users whose
+  // AI DM was never created — new signups after boot, or edge cases
+  // where the initial bootstrap failed.
+  try {
+    await ensureAiDmForUser(userId);
+  } catch (err) {
+    console.warn(
+      '[mave-ai] ensureAiDmForUser failed in listConversations:',
+      err?.message || err
+    );
+  }
+
   const rows = await prisma.conversationParticipant.findMany({
     where: { userId },
     include: {
@@ -361,7 +322,6 @@ export async function listConversations(userId) {
     },
   });
 
-  // Extract AI ID for fast matching
   const aiId = getMaveAiId();
 
   const [blockedIds, dmPeerIds] = await Promise.all([
@@ -377,8 +337,6 @@ export async function listConversations(userId) {
   const blockedSet = new Set(blockedIds);
   const friendStatus = await getFriendStatusBatch(userId, dmPeerIds);
 
-  // Count outbound messages for each non-friend DM so we can compute
-  // messagesRemaining without an N+1.
   const nonFriendDmIds = rows
     .filter((r) => {
       if (r.conversation.type !== 'dm') return false;
@@ -401,13 +359,12 @@ export async function listConversations(userId) {
     for (const g of grouped) sentMap.set(g.conversationId, g._count._all);
   }
 
-  // Hide DMs whose peer is blocked in either direction.
   const visibleRows = rows.filter((r) => {
     const c = r.conversation;
     if (c.type !== 'dm') return true;
     const peerId = c.participants.find((p) => p.userId !== userId)?.userId;
     if (!peerId) return false;
-    if (peerId === aiId) return true; // Never hide AI
+    if (peerId === aiId) return true;
     return !blockedSet.has(peerId);
   });
 
@@ -418,17 +375,6 @@ export async function listConversations(userId) {
     return bt - at;
   });
 
-  // -------------------------------------------------------------------
-  // Phase 5 — fetch the last VISIBLE message per conversation.
-  //
-  // "Visible" means: not soft-deleted (deletedAt is null) AND the caller's
-  // id is not in the message's deletedForIds array (i.e. the caller has
-  // not cleared it). One indexed DISTINCT ON query covers every row;
-  // Postgres uses the existing (conversationId, createdAt) index.
-  //
-  // We then feed this into serializeConversation via `lastVisible`, so the
-  // sidebar preview reflects only what THIS user can actually see.
-  // -------------------------------------------------------------------
   const visibleConversationIds = visibleRows.map((r) => r.conversation.id);
   const lastVisibleMap = new Map();
 
@@ -470,7 +416,7 @@ export async function listConversations(userId) {
           extras.messagesRemaining = Math.max(0, NON_FRIEND_MESSAGE_LIMIT - sent);
         }
       } else {
-        extras.isFriend = true; // treat as friend for UI logic
+        extras.isFriend = true;
       }
     }
 
@@ -523,7 +469,6 @@ export async function updateConversation(userId, conversationId, patch) {
 
   const aiId = getMaveAiId();
 
-  // Prevent archiving the Mave AI conversation
   if (patch.isArchived === true && aiId) {
     const conv = await prisma.conversation.findUnique({
       where: { id: conversationId },
@@ -551,23 +496,6 @@ export async function updateConversation(userId, conversationId, patch) {
 /*  Clear chat                                                         */
 /* ------------------------------------------------------------------ */
 
-/**
- * Clear all messages in a conversation from the CALLER's view.
- *
- * Two behaviours:
- *   • AI conversation (peer === Mave AI)
- *       Hard-delete every message. This resets buildContext()'s memory
- *       because those rows no longer exist.
- *   • Human DM or group
- *       Soft-clear for THIS user only. Messages stay in the DB; we append
- *       userId to Message.deletedForIds so every read path hides them.
- *
- * Idempotent — a second call is a no-op.
- *
- * Known limitation: if the user clears an AI conversation WHILE a reply
- * is being generated, the reply still lands after the clear (the AI
- * pipeline doesn't abort mid-flight). Acceptable for v1.
- */
 export async function clearChat(userId, conversationId) {
   await assertAccessibleConversation(userId, conversationId);
 
@@ -587,7 +515,6 @@ export async function clearChat(userId, conversationId) {
     conv.participants.some((p) => p.userId === aiId);
 
   if (isAiConversation) {
-    // Hard delete — resets Mave AI's memory of this thread.
     await prisma.$transaction([
       prisma.message.deleteMany({ where: { conversationId } }),
       prisma.conversation.update({
@@ -608,7 +535,6 @@ export async function clearChat(userId, conversationId) {
     return { ok: true, scope: 'all' };
   }
 
-  // Human DM or group — soft-clear for THIS user only.
   await prisma.$executeRaw`
     UPDATE "messages"
     SET "deletedForIds" = array_append("deletedForIds", ${userId})
@@ -676,9 +602,6 @@ export async function sendMessage(userId, conversationId, { body, replyToId }) {
 
   const aiId = getMaveAiId();
 
-  // Non-friend DM cap. Only applies to DMs (groups have their own
-  // membership rules). Admins, friends, and group members are unlimited.
-  // Also bypass the cap for Mave AI.
   const conv = await prisma.conversation.findUnique({
     where: { id: conversationId },
     select: {
@@ -766,7 +689,6 @@ export async function sendMessage(userId, conversationId, { body, replyToId }) {
     broadcastToUser(pid, 'chat:message:new', payload);
   }
 
-  // Trigger Mave AI if this is a DM with the AI
   if (conv?.type === 'dm' && aiId) {
     const peerId = conv.participants.find((p) => p.userId !== userId)?.userId;
     if (peerId === aiId) {
@@ -1160,15 +1082,6 @@ export async function leaveGroup(userId, groupId) {
   return { ok: true };
 }
 
-/**
- * List members of a group the caller belongs to.
- *
- * Adds per-member `friendStatus` so the client can render the right action
- * on the member card (Add Friend / Pending / Message / Blocked).
- *
- * Members blocked in either direction (relative to the caller) are hidden.
- * The caller's own row is always included.
- */
 export async function listGroupMembers(userId, groupId) {
   await assertParticipant(userId, groupId);
 

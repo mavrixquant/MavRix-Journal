@@ -7,12 +7,14 @@
 //   • Day separators are rendered as `<time>` elements with a machine
 //     `dateTime` attribute.
 //   • The "load earlier" button now has an explicit aria-label.
-//   • The `.chat-day-sep` and `.chat-load-more` styles were previously
-//     missing from ChatsShell.css; they're declared there now (Phase 6 CSS).
 //
 // BUGFIX — clicking the reply-quote scrolls to the referenced message.
 // The parent `.msg-row` carries `data-msg-id`, so we can query it inside
 // the scroll container and animate it into view with a brief highlight.
+//
+// MAVE AI — the "thinking" indicator is now rendered INSIDE the scroll
+// container so it aligns with the message bubbles instead of sitting flush
+// against the pane edges. Driven by the `waitingForAi` prop.
 
 import { useMemo, useRef, useEffect, useCallback } from 'react';
 import { MessageSquare } from 'lucide-react';
@@ -22,6 +24,7 @@ import { formatDayLabel, dayKey } from '@/shared/format/datetime';
 import MessageBubble from './MessageBubble';
 import TypingIndicator from './TypingIndicator';
 import ThreadSkeleton from './ThreadSkeleton';
+import MaveAiTyping from './MaveAiTyping';
 
 const GROUP_WINDOW_MS = 5 * 60 * 1000;
 const LONG_PRESS_MS = 550;
@@ -43,6 +46,7 @@ export default function MessageList({
   headerName,
   typingUserIds = [],
   showTypingInThread = true,
+  waitingForAi = false,
   timeFormat,
   timezone,
   hasNextPage,
@@ -95,7 +99,6 @@ export default function MessageList({
     }
   }, []);
 
-  // BUGFIX — jump to a reply's target message and briefly highlight it.
   const handleJumpToMessage = useCallback(
     (messageId) => {
       const container = scrollRef?.current;
@@ -108,15 +111,10 @@ export default function MessageList({
 
       target.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
-      // Clear any stale highlight from a previous click.
       container.querySelectorAll('.is-jump-highlight').forEach((el) => {
         el.classList.remove('is-jump-highlight');
       });
 
-      // BUGFIX: apply the highlight class to the FULL-WIDTH wrapper
-      // (.chat-msg-group) so the flash spans the entire chat window,
-      // not just the bubble. Falls back to the row if the wrapper is
-      // somehow missing.
       const highlightEl = target.closest('.chat-msg-group') || target;
       highlightEl.classList.add('is-jump-highlight');
 
@@ -286,6 +284,10 @@ export default function MessageList({
           </div>
         );
       })}
+
+      {/* Mave AI "thinking" indicator — INSIDE the scroll container so it
+          aligns with the message bubbles. */}
+      {waitingForAi && <MaveAiTyping />}
 
       {typingUserIds.length > 0 && showTypingInThread && (
         <TypingIndicator
