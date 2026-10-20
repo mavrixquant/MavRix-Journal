@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useEffect } from 'react';
 import {
   Users,
   UserCheck,
@@ -7,19 +7,9 @@ import {
   TrendingUp,
   AlertTriangle,
 } from 'lucide-react';
-import { Bar } from 'react-chartjs-2';
-
-// Safety: ensure Chart.js is registered even if main.jsx somehow missed it.
-import '@/shared/charts/register';
 
 import { useAdminMe, useAdminStats, useAdminHealth } from '../api';
 import StatCard from '../components/StatCard';
-import {
-  chartColors,
-  baseTooltip,
-  baseAxis,
-  baseCategoryAxis,
-} from '@/shared/charts/theme';
 
 const CSS = `
   .ad-root { display: flex; flex-direction: column; gap: 22px; }
@@ -51,7 +41,69 @@ const CSS = `
     text-transform: uppercase; color: var(--accent); opacity: .85;
   }
   .ad-panel-body { padding: 16px 18px; }
-  .ad-chart-wrap { height: 220px; width: 100%; }
+  
+  /* Pure CSS/SVG Bar Chart */
+  .ad-chart-container {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    height: 220px;
+    gap: 4px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid rgba(255,255,255,.1);
+    position: relative;
+  }
+  .ad-chart-bar-wrap {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: center;
+    height: 100%;
+    position: relative;
+    min-width: 0;
+  }
+  .ad-chart-bar {
+    width: 100%;
+    max-width: 24px;
+    background: var(--accent);
+    border-radius: 4px 4px 0 0;
+    transition: height .3s ease;
+    position: relative;
+  }
+  .ad-chart-bar:hover {
+    background: var(--accent-2);
+  }
+  .ad-chart-label {
+    position: absolute;
+    bottom: -24px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px;
+    color: #8892A3;
+    transform: rotate(-45deg);
+    transform-origin: top left;
+    white-space: nowrap;
+  }
+  .ad-chart-tooltip {
+    position: absolute;
+    top: -30px;
+    background: #11151F;
+    border: 1px solid rgba(255,255,255,.1);
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: #fff;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .2s;
+    white-space: nowrap;
+    z-index: 10;
+  }
+  .ad-chart-bar-wrap:hover .ad-chart-tooltip {
+    opacity: 1;
+  }
+
   .ad-health-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -97,68 +149,44 @@ function safeNum(v, fallback = '—') {
   return typeof v === 'number' && Number.isFinite(v) ? v : fallback;
 }
 
-function useSignupChartData(signups) {
-  return useMemo(() => {
-    if (!Array.isArray(signups) || signups.length === 0) return null;
-    return {
-      labels: signups.map((s) => String(s?.date || '').slice(5)),
-      datasets: [
-        {
-          label: 'Signups',
-          data: signups.map((s) => Number(s?.count) || 0),
-          backgroundColor: chartColors.amber,
-          hoverBackgroundColor: chartColors.amberHover,
-          borderRadius: 4,
-          borderSkipped: false,
-          barPercentage: 0.8,
-          categoryPercentage: 0.85,
-        },
-      ],
-    };
-  }, [signups]);
-}
+function CustomBarChart({ data }) {
+  const maxCount = Math.max(...data.map((d) => d.count), 1);
 
-const signupOptions = {
-  responsive: true,
-  maintainAspectRatio: false,
-  animation: { duration: 300 },
-  plugins: {
-    legend: { display: false },
-    tooltip: baseTooltip({
-      callbacks: { label: (item) => `${item.parsed.y} signups` },
-    }),
-  },
-  scales: {
-    x: baseCategoryAxis({
-      ticks: {
-        color: chartColors.textLight,
-        font: { family: "'IBM Plex Mono', monospace", size: 9 },
-        maxRotation: 0,
-        autoSkip: true,
-        maxTicksLimit: 10,
-      },
-    }),
-    y: baseAxis({
-      ticks: {
-        color: chartColors.text,
-        font: { family: "'IBM Plex Mono', monospace", size: 10 },
-        precision: 0,
-      },
-    }),
-  },
-};
+  return (
+    <div className="ad-chart-container">
+      {data.map((d, i) => {
+        const heightPct = Math.max((d.count / maxCount) * 100, 1);
+        const dateLabel = d.date ? d.date.slice(5) : '';
+        return (
+          <div key={i} className="ad-chart-bar-wrap">
+            <div className="ad-chart-tooltip">
+              {d.date}: {d.count} signups
+            </div>
+            <div
+              className="ad-chart-bar"
+              style={{ height: `${heightPct}%` }}
+            />
+            <span className="ad-chart-label">{dateLabel}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 export default function AdminDashboardPage() {
   const meQuery     = useAdminMe();
   const statsQuery  = useAdminStats();
   const healthQuery = useAdminHealth();
 
+  useEffect(() => {
+    console.info('[AdminDashboardPage] mounted. Stats loading:', statsQuery.isLoading);
+  }, [statsQuery.isLoading]);
+
   const me     = meQuery.data;
   const stats  = statsQuery.data;
   const health = healthQuery.data;
   const statsLoading = statsQuery.isLoading;
-
-  const chartData = useSignupChartData(stats?.signups);
 
   const uptimeText = useMemo(() => {
     const s = health?.uptimeSeconds;
@@ -170,6 +198,8 @@ export default function AdminDashboardPage() {
     if (h > 0) return `${h}h ${m}m`;
     return `${m}m`;
   }, [health]);
+
+  const signupData = Array.isArray(stats?.signups) ? stats.signups : null;
 
   return (
     <>
@@ -254,16 +284,12 @@ export default function AdminDashboardPage() {
           <div className="ad-panel-body">
             {statsLoading ? (
               <div className="ad-loading">Loading chart…</div>
-            ) : !chartData ? (
+            ) : !signupData || signupData.length === 0 ? (
               <div className="ad-loading">
-                {statsQuery.isError
-                  ? 'Stats failed to load'
-                  : 'No signup data yet'}
+                {statsQuery.isError ? 'Stats failed to load' : 'No signup data yet'}
               </div>
             ) : (
-              <div className="ad-chart-wrap">
-                <Bar data={chartData} options={signupOptions} />
-              </div>
+              <CustomBarChart data={signupData} />
             )}
           </div>
         </div>

@@ -1,4 +1,4 @@
-import { useState, Suspense } from 'react';
+import { useState, Suspense, useEffect } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { PageSkeleton } from '@/shared/ui/page-skeleton';
@@ -14,6 +14,10 @@ export default function AdminLayout() {
   const { user } = useAuth();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  useEffect(() => {
+    console.info('[AdminLayout] mounted. path:', location.pathname);
+  }, [location.pathname]);
 
   return (
     <TooltipProvider delayDuration={250}>
