@@ -1,4 +1,3 @@
-
 import { useEffect, useRef, useState, useCallback } from 'react';
 import {
   SendHorizontal,
@@ -8,6 +7,8 @@ import {
   Archive,
   ArchiveRestore,
   Loader2,
+  StopCircle,
+  Sparkles,
 } from 'lucide-react';
 
 import { useSettings } from '@/app/layout/Settings/SettingsProvider';
@@ -42,6 +43,10 @@ export default function MessageComposer({
   isArchived = false,
   onUnarchive,
   unarchiving = false,
+
+  waitingForAi = false,
+  onStopAi,
+  stoppingAi = false,
 }) {
   const { settings } = useSettings();
   const enterToSend = settings.chats.enterToSend;
@@ -51,7 +56,6 @@ export default function MessageComposer({
   const lastTypingSentRef = useRef(0);
   const idleTimerRef = useRef(null);
 
-
   useEffect(() => {
     setText('');
     lastTypingSentRef.current = 0;
@@ -60,9 +64,7 @@ export default function MessageComposer({
       idleTimerRef.current = null;
     }
     const el = textareaRef.current;
-    if (el) {
-      el.style.height = 'auto';
-    }
+    if (el) el.style.height = 'auto';
 
     if (!isLocked && !isArchived) {
       requestAnimationFrame(() => {
@@ -71,29 +73,23 @@ export default function MessageComposer({
     }
   }, [conversationId, isLocked, isArchived]);
 
-
   useEffect(() => {
     return () => {
       if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
     };
   }, []);
 
-
   const grow = useCallback(() => {
-  const el = textareaRef.current;
-  if (!el) return;
-
-  el.style.height = 'auto';
-
-  const borderY = el.offsetHeight - el.clientHeight;
-  const next = Math.min(
-    Math.ceil(el.scrollHeight + borderY),
-    MAX_TEXTAREA_HEIGHT
-  );
-  el.style.height = next + 'px';
-
-}, []);
-
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    const borderY = el.offsetHeight - el.clientHeight;
+    const next = Math.min(
+      Math.ceil(el.scrollHeight + borderY),
+      MAX_TEXTAREA_HEIGHT
+    );
+    el.style.height = next + 'px';
+  }, []);
 
   const signalTyping = useCallback(() => {
     if (!onTyping) return;
@@ -121,30 +117,21 @@ export default function MessageComposer({
     }
   }, [onTyping]);
 
-
   const handleChange = (e) => {
     const next = e.target.value.slice(0, MAX_LEN);
     const wasNonEmpty = text.length > 0;
-
     setText(next);
     grow();
-
-    if (next.trim().length > 0) {
-      signalTyping();
-    } else if (wasNonEmpty) {
-      stopTypingNow();
-    }
+    if (next.trim().length > 0) signalTyping();
+    else if (wasNonEmpty) stopTypingNow();
   };
 
   const submit = useCallback(() => {
     const trimmed = text.trim();
     if (!trimmed || disabled || isLocked || isArchived || isSending) return;
-
     stopTypingNow();
-
     onSend(trimmed);
     setText('');
-
     requestAnimationFrame(() => {
       const el = textareaRef.current;
       if (el) {
@@ -152,15 +139,7 @@ export default function MessageComposer({
         el.focus();
       }
     });
-  }, [
-    text,
-    disabled,
-    isLocked,
-    isArchived,
-    isSending,
-    onSend,
-    stopTypingNow,
-  ]);
+  }, [text, disabled, isLocked, isArchived, isSending, onSend, stopTypingNow]);
 
   const handleKeyDown = (e) => {
     if (e.key !== 'Enter') return;
@@ -170,7 +149,6 @@ export default function MessageComposer({
     e.preventDefault();
     submit();
   };
-
 
   if (isLocked) {
     return (
@@ -207,7 +185,6 @@ export default function MessageComposer({
     );
   }
 
-
   if (isArchived) {
     return (
       <div className="composer-locked">
@@ -216,9 +193,7 @@ export default function MessageComposer({
             <Archive size={14} />
           </div>
           <div className="composer-banner-body">
-            <div className="composer-banner-title">
-              This chat is archived
-            </div>
+            <div className="composer-banner-title">This chat is archived</div>
             <div className="composer-banner-sub">
               Unarchive to send new messages. You&apos;ll still receive theirs.
             </div>
@@ -237,16 +212,22 @@ export default function MessageComposer({
     );
   }
 
-
   const canSend = text.trim().length > 0 && !disabled && !isSending;
 
+  // While AI is thinking → Stop button replaces Send.
   return (
     <div className="composer">
       <div className="composer-input-wrap">
         <textarea
           ref={textareaRef}
           className="composer-textarea"
-          placeholder={disabled ? 'You cannot reply here' : 'Type a message…'}
+          placeholder={
+            waitingForAi
+              ? 'Mave AI is thinking — you can draft your next message…'
+              : disabled
+                ? 'You cannot reply here'
+                : 'Type a message…'
+          }
           value={text}
           onChange={handleChange}
           onKeyDown={handleKeyDown}
@@ -257,20 +238,52 @@ export default function MessageComposer({
         />
       </div>
 
-      <button
-        type="button"
-        className="composer-send"
-        onClick={submit}
-        disabled={!canSend}
-        aria-label="Send message"
-        title={enterToSend ? 'Send (Enter)' : 'Send (Ctrl+Enter)'}
-      >
-        {isSending ? (
-          <Loader2 size={16} className="composer-spinner" />
-        ) : (
-          <SendHorizontal size={16} />
-        )}
-      </button>
+      {waitingForAi ? (
+        <button
+          type="button"
+          className="composer-stop"
+          onClick={onStopAi}
+          disabled={stoppingAi || !onStopAi}
+          aria-label="Stop AI response"
+          title="Stop AI response"
+          style={{
+            width: 42,
+            height: 42,
+            borderRadius: 12,
+            border: '1px solid rgba(239,68,68,.42)',
+            background: 'rgba(239,68,68,.10)',
+            color: '#f87171',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: stoppingAi ? 'not-allowed' : 'pointer',
+            opacity: stoppingAi ? 0.6 : 1,
+            transition: 'all .18s ease',
+            flexShrink: 0,
+          }}
+        >
+          {stoppingAi ? (
+            <Loader2 size={16} style={{ animation: 'composerSpin .8s linear infinite' }} />
+          ) : (
+            <StopCircle size={18} />
+          )}
+        </button>
+      ) : (
+        <button
+          type="button"
+          className="composer-send"
+          onClick={submit}
+          disabled={!canSend}
+          aria-label="Send message"
+          title={enterToSend ? 'Send (Enter)' : 'Send (Ctrl+Enter)'}
+        >
+          {isSending ? (
+            <Loader2 size={16} className="composer-spinner" />
+          ) : (
+            <SendHorizontal size={16} />
+          )}
+        </button>
+      )}
     </div>
   );
 }

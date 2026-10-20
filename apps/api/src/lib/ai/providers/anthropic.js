@@ -1,7 +1,6 @@
-
 import { safeFetch, ProviderError } from './base.js';
 
-export async function chat(messages, { apiKey, model, maxTokens, timeoutMs }) {
+export async function chat(messages, { apiKey, model, maxTokens, timeoutMs, signal }) {
   const targetModel = model || 'claude-3-5-haiku-latest';
   const url = 'https://api.anthropic.com/v1/messages';
 
@@ -18,9 +17,7 @@ export async function chat(messages, { apiKey, model, maxTokens, timeoutMs }) {
     })),
   };
 
-  if (systemMsg) {
-    payload.system = systemMsg.content;
-  }
+  if (systemMsg) payload.system = systemMsg.content;
 
   const res = await safeFetch(
     url,
@@ -34,15 +31,14 @@ export async function chat(messages, { apiKey, model, maxTokens, timeoutMs }) {
       body: JSON.stringify(payload),
     },
     timeoutMs,
-    'Anthropic'
+    'Anthropic',
+    signal
   );
 
   const data = await res.json();
   const text = data?.content?.[0]?.text;
-
   if (!text) {
     throw new ProviderError('Anthropic returned no text content', { status: 502 });
   }
-
   return { text, provider: 'anthropic', model: data.model || targetModel };
 }

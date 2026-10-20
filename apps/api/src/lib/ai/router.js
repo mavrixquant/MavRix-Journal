@@ -1,3 +1,13 @@
+// ============================================================================
+// Provider router — LRU round-robin + abort support.
+//
+// Round-robin: lastUsedAt is updated BEFORE the call so concurrent requests
+// don't collide on the same credential.
+//
+// Abort: an optional `signal` (from ai.service.js) is threaded into every
+// adapter → safeFetch → fetch, so `stop-AI` immediately cancels the network
+// request.
+// ============================================================================
 
 import { prisma } from '../prisma.js';
 import { env } from '../../config/env.js';
@@ -22,10 +32,7 @@ async function getProviderChain(userId) {
     try {
       apiKey = decryptKey(cred);
     } catch (err) {
-      console.warn(
-        `[mave-ai] Failed to decrypt BYOK for ${cred.provider}:`,
-        err.message
-      );
+      console.warn(`[mave-ai] Failed to decrypt BYOK for ${cred.provider}:`, err.message);
       continue;
     }
 
@@ -64,7 +71,7 @@ async function getProviderChain(userId) {
   return chain;
 }
 
-export async function executeChat(userId, messages) {
+export async function executeChat(userId, messages, { signal } = {}) {
   const chain = await getProviderChain(userId);
 
   if (chain.length === 0) {
@@ -75,9 +82,13 @@ export async function executeChat(userId, messages) {
 
   let rateLimitReserved = false;
 
-  let previousLabel = null;
-
   for (const attempt of chain) {
+    if (signal?.aborted) {
+      const err = new Error('Interrupted');
+      err.isAborted = true;
+      throw err;
+    }
+
     if (!attempt.isByok && !rateLimitReserved) {
       const limitCheck = checkRateLimit(userId);
       if (!limitCheck.allowed) {
@@ -89,8 +100,19 @@ export async function executeChat(userId, messages) {
       rateLimitReserved = true;
     }
 
-    const meta = getProviderMeta(attempt.id);
-    const label = meta ? meta.label : attempt.id;
+    // Round-robin: bump lastUsedAt BEFORE calling the provider.
+    // Fire-and-forget is fine — by the time this provider resolves, the
+    // update will have committed.
+    if (attempt.isByok && attempt.credentialId) {
+      prisma.aiCredential
+        .update({
+          where: { id: attempt.credentialId },
+          data: { lastUsedAt: new Date() },
+        })
+        .catch((err) => {
+          console.warn('[mave-ai] Failed to update lastUsedAt:', err.message);
+        });
+    }
 
     const adapter = getProviderAdapter(attempt.id);
 
@@ -100,32 +122,28 @@ export async function executeChat(userId, messages) {
         model: attempt.model,
         maxTokens: env.ai.maxTokens,
         timeoutMs: env.ai.requestTimeoutMs,
+        signal,
       });
-
-      if (attempt.isByok && attempt.credentialId) {
-        prisma.aiCredential
-          .update({
-            where: { id: attempt.credentialId },
-            data: { lastUsedAt: new Date() },
-          })
-          .catch((err) => {
-            console.warn('[mave-ai] Failed to update lastUsedAt:', err.message);
-          });
-      }
 
       return {
         text: result.text,
         provider: attempt.id,
         model: result.model,
-        switchedFrom: previousLabel,
       };
     } catch (err) {
+      // Abort → bubble out immediately (do NOT try next provider)
+      if (err.isAborted || signal?.aborted) {
+        const abortErr = new Error('Interrupted');
+        abortErr.isAborted = true;
+        throw abortErr;
+      }
+
       console.warn(
         `[mave-ai] Provider ${attempt.id} (${attempt.model}) failed:`,
         err.message
       );
-      previousLabel = `${label} · ${attempt.model}`;
 
+      // Retry next provider on transient / rate-limit / auth errors
       if (
         err.isRateLimit ||
         err.status === 401 ||
@@ -141,5 +159,7 @@ export async function executeChat(userId, messages) {
     }
   }
 
-  throw new Error('All AI providers are currently unavailable. Please try again later.');
+  throw new Error(
+    'All AI providers are currently unavailable. Please try again later.'
+  );
 }

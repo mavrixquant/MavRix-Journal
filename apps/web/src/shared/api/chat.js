@@ -55,6 +55,13 @@ export async function clearChat(conversationId) {
   );
 }
 
+export async function stopAi(conversationId) {
+  return apiJson(
+    `/api/chat/conversations/${encodeURIComponent(conversationId)}/stop-ai`,
+    { method: 'POST' }
+  );
+}
+
 export async function fetchMessages(id, { before, limit = 50 } = {}) {
   const params = new URLSearchParams();
   if (before) params.set('before', before);
@@ -68,10 +75,7 @@ export async function fetchMessages(id, { before, limit = 50 } = {}) {
 export async function sendMessage(conversationId, { body, replyToId }) {
   const data = await apiJson(
     `/api/chat/conversations/${encodeURIComponent(conversationId)}/messages`,
-    {
-      method: 'POST',
-      body: JSON.stringify({ body, replyToId: replyToId || null }),
-    }
+    { method: 'POST', body: JSON.stringify({ body, replyToId: replyToId || null }) }
   );
   return data.message;
 }
@@ -92,33 +96,26 @@ export async function deleteMessage(messageId, scope) {
 }
 
 export async function markConversationRead(conversationId) {
-  return apiJson(
-    `/api/chat/conversations/${encodeURIComponent(conversationId)}/read`,
-    { method: 'PATCH' }
-  );
+  return apiJson(`/api/chat/conversations/${encodeURIComponent(conversationId)}/read`, {
+    method: 'PATCH',
+  });
 }
 
 export async function markMessageDelivered(messageId) {
-  return apiJson(
-    `/api/chat/messages/${encodeURIComponent(messageId)}/delivered`,
-    { method: 'POST' }
-  );
+  return apiJson(`/api/chat/messages/${encodeURIComponent(messageId)}/delivered`, {
+    method: 'POST',
+  });
 }
 
 export async function sendTyping(conversationId, isTyping) {
   return apiJson(
     `/api/chat/conversations/${encodeURIComponent(conversationId)}/typing`,
-    {
-      method: 'POST',
-      body: JSON.stringify({ isTyping: !!isTyping }),
-    }
+    { method: 'POST', body: JSON.stringify({ isTyping: !!isTyping }) }
   );
 }
 
 export async function searchUsers(q) {
-  const data = await apiJson(
-    `/api/chat/users/search?q=${encodeURIComponent(q)}`
-  );
+  const data = await apiJson(`/api/chat/users/search?q=${encodeURIComponent(q)}`);
   return data.users;
 }
 
@@ -132,24 +129,20 @@ export async function fetchDiscoverableGroups({ q, limit } = {}) {
 }
 
 export async function joinGroup(groupId) {
-  const data = await apiJson(
-    `/api/chat/groups/${encodeURIComponent(groupId)}/join`,
-    { method: 'POST' }
-  );
+  const data = await apiJson(`/api/chat/groups/${encodeURIComponent(groupId)}/join`, {
+    method: 'POST',
+  });
   return data.conversation;
 }
 
 export async function leaveGroup(groupId) {
-  return apiJson(
-    `/api/chat/groups/${encodeURIComponent(groupId)}/leave`,
-    { method: 'POST' }
-  );
+  return apiJson(`/api/chat/groups/${encodeURIComponent(groupId)}/leave`, {
+    method: 'POST',
+  });
 }
 
 export async function fetchGroupMembers(groupId) {
-  const data = await apiJson(
-    `/api/chat/groups/${encodeURIComponent(groupId)}/members`
-  );
+  const data = await apiJson(`/api/chat/groups/${encodeURIComponent(groupId)}/members`);
   return data.members;
 }
 
@@ -185,19 +178,14 @@ export async function updateGroup(groupId, patch) {
 }
 
 export async function deleteGroup(groupId) {
-  return apiJson(`/api/admin/groups/${encodeURIComponent(groupId)}`, {
-    method: 'DELETE',
-  });
+  return apiJson(`/api/admin/groups/${encodeURIComponent(groupId)}`, { method: 'DELETE' });
 }
 
 export async function addGroupMember(groupId, userId) {
-  return apiJson(
-    `/api/admin/groups/${encodeURIComponent(groupId)}/members`,
-    {
-      method: 'POST',
-      body: JSON.stringify({ userId }),
-    }
-  );
+  return apiJson(`/api/admin/groups/${encodeURIComponent(groupId)}/members`, {
+    method: 'POST',
+    body: JSON.stringify({ userId }),
+  });
 }
 
 export async function removeGroupMember(groupId, userId) {
@@ -210,20 +198,10 @@ export async function removeGroupMember(groupId, userId) {
 export async function setGroupMemberRole(groupId, userId, role) {
   return apiJson(
     `/api/admin/groups/${encodeURIComponent(groupId)}/members/${encodeURIComponent(userId)}`,
-    {
-      method: 'PATCH',
-      body: JSON.stringify({ role }),
-    }
+    { method: 'PATCH', body: JSON.stringify({ role }) }
   );
 }
 
-/**
- * List the caller's conversations.
- *
- * @param {{ enabled?: boolean }} [options] — pass `enabled: false` to skip
- *   the fetch until a consumer actually needs the list (e.g. the Mave AI
- *   sidebar only fetches when it is open).
- */
 export function useChatConversations({ enabled = true } = {}) {
   const sseFallback = useSSEFallback();
   return useQuery({
@@ -252,8 +230,7 @@ export function useChatMessages(conversationId, { limit = 50 } = {}) {
       fetchMessages(conversationId, { before: pageParam, limit }),
     enabled: !!conversationId,
     initialPageParam: null,
-    getNextPageParam: (lastPage) =>
-      lastPage.hasMore ? lastPage.nextCursor : undefined,
+    getNextPageParam: (lastPage) => (lastPage.hasMore ? lastPage.nextCursor : undefined),
     staleTime: 15_000,
     refetchInterval: sseFallback ? 20_000 : false,
   });
@@ -303,8 +280,7 @@ export function useTypingIndicator(conversationId, excludeUserId) {
       setUserIds([]);
       return undefined;
     }
-    const update = () =>
-      setUserIds(getTypingUserIds(conversationId, excludeUserId));
+    const update = () => setUserIds(getTypingUserIds(conversationId, excludeUserId));
     update();
     const unsub = subscribeTyping(update);
     const iv = setInterval(update, 1500);
@@ -318,9 +294,7 @@ export function useTypingIndicator(conversationId, excludeUserId) {
 }
 
 export function useTypingConversations(excludeUserId) {
-  const [set, setSet] = useState(() =>
-    getTypingConversationIds(excludeUserId)
-  );
+  const [set, setSet] = useState(() => getTypingConversationIds(excludeUserId));
 
   useEffect(() => {
     const update = () => setSet(getTypingConversationIds(excludeUserId));
@@ -374,6 +348,21 @@ export function useClearChat() {
   });
 }
 
+export function useStopAi() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (conversationId) => stopAi(conversationId),
+    onSuccess: (_r, conversationId) => {
+      // Real "Interrupted" message arrives via SSE. Fall back to refetch
+      // in case SSE is not connected.
+      setTimeout(() => {
+        qc.invalidateQueries({ queryKey: chatKeys.messages(conversationId) });
+        qc.invalidateQueries({ queryKey: chatKeys.conversations() });
+      }, 800);
+    },
+  });
+}
+
 let __tempCounter = 0;
 function nextTempId() {
   __tempCounter += 1;
@@ -414,10 +403,7 @@ export function useSendMessage() {
         const [first, ...rest] = old.pages;
         return {
           ...old,
-          pages: [
-            { ...first, messages: [...first.messages, optimistic] },
-            ...rest,
-          ],
+          pages: [{ ...first, messages: [...first.messages, optimistic] }, ...rest],
         };
       });
 
@@ -682,8 +668,7 @@ export function useMarkDelivered() {
 
 export function useSendTyping() {
   return useMutation({
-    mutationFn: ({ conversationId, isTyping }) =>
-      sendTyping(conversationId, isTyping),
+    mutationFn: ({ conversationId, isTyping }) => sendTyping(conversationId, isTyping),
     retry: false,
     onError: () => {},
   });

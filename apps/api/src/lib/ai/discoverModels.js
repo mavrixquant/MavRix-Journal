@@ -1,3 +1,12 @@
+// ============================================================================
+// Model discovery — free-tier aware.
+//
+// The goal is to NEVER surface a paid model when the user expects free tier:
+//   • OpenRouter — strict filter by pricing (prompt = completion = 0)
+//   • Groq       — all models are free-tier (rate-limited)
+//   • Gemini     — filter to *-flash* models (free tier family)
+//   • DeepSeek / OpenAI / Anthropic — no free tier; return all
+// ============================================================================
 
 import { filterChatModels } from '@mavrix/shared';
 
@@ -24,7 +33,7 @@ async function fetchJson(url, init = {}) {
   }
 }
 
-
+// ---------- OpenRouter (pricing-based free filter) ----------
 async function discoverOpenRouter(apiKey) {
   const r = await fetchJson('https://openrouter.ai/api/v1/models?limit=500', {
     headers: { Authorization: `Bearer ${apiKey}`, Accept: 'application/json' },
@@ -39,21 +48,26 @@ async function discoverOpenRouter(apiKey) {
   const data = Array.isArray(r.body?.data) ? r.body.data : [];
 
   const free = [];
-  const paid = [];
   for (const m of data) {
     if (!m || typeof m.id !== 'string') continue;
     const p = m.pricing || {};
-    const isFree = String(p.prompt) === '0' && String(p.completion) === '0';
-    (isFree ? free : paid).push(m.id);
+    const isFree =
+      String(p.prompt) === '0' && String(p.completion) === '0';
+    if (isFree) free.push(m.id);
   }
 
-  const ids = filterChatModels('openrouter', [...free, ...paid]);
+  const ids = filterChatModels('openrouter', free);
   if (ids.length === 0) {
-    return { ok: false, status: 200, error: 'Provider returned no chat models for this key' };
+    return {
+      ok: false,
+      status: 200,
+      error: 'No free chat models returned for this key.',
+    };
   }
   return { ok: true, status: 200, models: ids };
 }
 
+// ---------- Groq — all models are free tier ----------
 async function discoverGroq(apiKey) {
   const r = await fetchJson('https://api.groq.com/openai/v1/models', {
     headers: { Authorization: `Bearer ${apiKey}`, Accept: 'application/json' },
@@ -73,6 +87,7 @@ async function discoverGroq(apiKey) {
   return { ok: true, status: 200, models: ids };
 }
 
+// ---------- Gemini — free tier = *-flash* family ----------
 async function discoverGemini(apiKey) {
   const r = await fetchJson(
     `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey)}`,
@@ -96,13 +111,19 @@ async function discoverGemini(apiKey) {
       )
       .map((m) => String(m.name || '').replace(/^models\//, ''))
       .filter(Boolean)
-  );
+  ).filter((id) => /flash/i.test(id)); // free-tier family
+
   if (ids.length === 0) {
-    return { ok: false, status: 200, error: 'Provider returned no chat models for this key' };
+    return {
+      ok: false,
+      status: 200,
+      error: 'No free-tier (flash) chat models returned for this key.',
+    };
   }
   return { ok: true, status: 200, models: ids };
 }
 
+// ---------- DeepSeek — no free tier; return all ----------
 async function discoverDeepSeek(apiKey) {
   const r = await fetchJson('https://api.deepseek.com/models', {
     headers: { Authorization: `Bearer ${apiKey}`, Accept: 'application/json' },
@@ -122,6 +143,7 @@ async function discoverDeepSeek(apiKey) {
   return { ok: true, status: 200, models: ids };
 }
 
+// ---------- OpenAI — no free tier; return all ----------
 async function discoverOpenAI(apiKey) {
   const r = await fetchJson('https://api.openai.com/v1/models', {
     headers: { Authorization: `Bearer ${apiKey}`, Accept: 'application/json' },
@@ -141,6 +163,7 @@ async function discoverOpenAI(apiKey) {
   return { ok: true, status: 200, models: ids };
 }
 
+// ---------- Anthropic — no free tier; return all ----------
 async function discoverAnthropic(apiKey) {
   const r = await fetchJson('https://api.anthropic.com/v1/models?limit=1000', {
     headers: {
@@ -163,7 +186,6 @@ async function discoverAnthropic(apiKey) {
   }
   return { ok: true, status: 200, models: ids };
 }
-
 
 const DISCOVERERS = {
   openrouter: discoverOpenRouter,

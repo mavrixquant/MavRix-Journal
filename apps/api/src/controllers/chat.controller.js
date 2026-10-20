@@ -1,6 +1,5 @@
-
 import * as svc from '../services/chat.service.js';
-
+import { stopAiForConversation } from '../services/ai.service.js';
 
 export async function searchUsers(req, res, next) {
   try {
@@ -8,7 +7,6 @@ export async function searchUsers(req, res, next) {
     res.json({ users });
   } catch (e) { next(e); }
 }
-
 
 export async function listConversations(req, res, next) {
   try {
@@ -33,15 +31,10 @@ export async function getConversation(req, res, next) {
 
 export async function updateConversation(req, res, next) {
   try {
-    const result = await svc.updateConversation(
-      req.userId,
-      req.params.id,
-      req.body
-    );
+    const result = await svc.updateConversation(req.userId, req.params.id, req.body);
     res.json(result);
   } catch (e) { next(e); }
 }
-
 
 export async function clearChat(req, res, next) {
   try {
@@ -49,7 +42,6 @@ export async function clearChat(req, res, next) {
     res.json(result);
   } catch (e) { next(e); }
 }
-
 
 export async function listMessages(req, res, next) {
   try {
@@ -84,22 +76,14 @@ export async function markDelivered(req, res, next) {
 
 export async function typing(req, res, next) {
   try {
-    const result = await svc.broadcastTyping(
-      req.userId,
-      req.params.id,
-      req.body.isTyping
-    );
+    const result = await svc.broadcastTyping(req.userId, req.params.id, req.body.isTyping);
     res.json(result);
   } catch (e) { next(e); }
 }
 
 export async function editMessage(req, res, next) {
   try {
-    const message = await svc.editMessage(
-      req.userId,
-      req.params.messageId,
-      req.body
-    );
+    const message = await svc.editMessage(req.userId, req.params.messageId, req.body);
     res.json({ message });
   } catch (e) { next(e); }
 }
@@ -111,7 +95,6 @@ export async function deleteMessage(req, res, next) {
     res.json(result);
   } catch (e) { next(e); }
 }
-
 
 export async function discoverGroups(req, res, next) {
   try {
@@ -141,5 +124,12 @@ export async function listGroupMembers(req, res, next) {
   try {
     const members = await svc.listGroupMembers(req.userId, req.params.id);
     res.json({ members });
+  } catch (e) { next(e); }
+}
+
+export async function stopAi(req, res, next) {
+  try {
+    const result = stopAiForConversation(req.params.id, req.userId);
+    res.json(result);
   } catch (e) { next(e); }
 }

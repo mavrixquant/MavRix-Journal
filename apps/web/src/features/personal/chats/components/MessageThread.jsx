@@ -3,8 +3,16 @@ import { toast } from 'sonner';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { useSettings } from '@/app/layout/Settings/SettingsProvider';
 import {
-  useChatMessages, useChatConversation, useTypingIndicator, useMarkRead,
-  useSendMessage, useEditMessage, useDeleteMessage, useSendTyping, useUpdateConversation,
+  useChatMessages,
+  useChatConversation,
+  useTypingIndicator,
+  useMarkRead,
+  useSendMessage,
+  useEditMessage,
+  useDeleteMessage,
+  useSendTyping,
+  useUpdateConversation,
+  useStopAi,
 } from '@/shared/api/chat';
 import { useSendFriendRequest, useFriendStatus } from '@/shared/api/friends';
 import ChatHeader from './ChatHeader';
@@ -29,7 +37,12 @@ function displayNameOf(user) {
   return user.email || 'Unknown';
 }
 
-export default function MessageThread({ conversationId, onBack, onConversationClosed, onOpenThread }) {
+export default function MessageThread({
+  conversationId,
+  onBack,
+  onConversationClosed,
+  onOpenThread,
+}) {
   const { user } = useAuth();
   const { settings } = useSettings();
   const currentUserId = user?.id;
@@ -40,7 +53,13 @@ export default function MessageThread({ conversationId, onBack, onConversationCl
   const showTypingInThread = settings.chats.showTypingInThread;
 
   const { data: conversation, isLoading: convoLoading } = useChatConversation(conversationId);
-  const { data, isLoading: messagesLoading, isFetchingNextPage, hasNextPage, fetchNextPage } = useChatMessages(conversationId);
+  const {
+    data,
+    isLoading: messagesLoading,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
+  } = useChatMessages(conversationId);
   const typingUserIds = useTypingIndicator(conversationId, currentUserId);
 
   const markRead = useMarkRead();
@@ -49,66 +68,121 @@ export default function MessageThread({ conversationId, onBack, onConversationCl
   const deleteMessage = useDeleteMessage();
   const sendTyping = useSendTyping();
   const updateConversation = useUpdateConversation();
+  const stopAi = useStopAi();
 
   const isGroup = !!conversation?.isGroup;
   const isAi = !!conversation?.isAi;
   const peer = conversation?.peer;
 
-  const { data: friendStatus } = useFriendStatus(peer?.id, { enabled: !isGroup && !isAi && !!peer?.id });
+  const { data: friendStatus } = useFriendStatus(peer?.id, {
+    enabled: !isGroup && !isAi && !!peer?.id,
+  });
   const sendFriendRequest = useSendFriendRequest();
 
-  const isLocked = !isGroup && !isAi && conversation && conversation.isFriend === false && typeof conversation.messagesRemaining === 'number' && conversation.messagesRemaining <= 0;
+  const isLocked =
+    !isGroup &&
+    !isAi &&
+    conversation &&
+    conversation.isFriend === false &&
+    typeof conversation.messagesRemaining === 'number' &&
+    conversation.messagesRemaining <= 0;
+
   const friendRequestPending = !!friendStatus?.hasOutgoingRequest;
 
   const handleComposerAddFriend = useCallback(async () => {
     if (!peer?.id) return;
-    try { await sendFriendRequest.mutateAsync({ toUserId: peer.id }); toast.success(`Friend request sent to ${displayNameOf(peer)}`); }
-    catch (err) { toast.error(err?.message || 'Could not send friend request'); }
+    try {
+      await sendFriendRequest.mutateAsync({ toUserId: peer.id });
+      toast.success(`Friend request sent to ${displayNameOf(peer)}`);
+    } catch (err) {
+      toast.error(err?.message || 'Could not send friend request');
+    }
   }, [peer, sendFriendRequest]);
 
   const [panelOpen, setPanelOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
-  const setPanelOpenPersisted = useCallback((next) => {
-    setPanelOpen(next);
-    if (!conversationId) return;
-    try { localStorage.setItem(PANEL_STORAGE_PREFIX + conversationId, next ? '1' : '0'); } catch {}
-  }, [conversationId]);
+  const setPanelOpenPersisted = useCallback(
+    (next) => {
+      setPanelOpen(next);
+      if (!conversationId) return;
+      try {
+        localStorage.setItem(PANEL_STORAGE_PREFIX + conversationId, next ? '1' : '0');
+      } catch {}
+    },
+    [conversationId]
+  );
 
   useEffect(() => {
     setSettingsOpen(false);
-    if (!conversationId) { setPanelOpen(false); return; }
-    try { setPanelOpen(localStorage.getItem(PANEL_STORAGE_PREFIX + conversationId) === '1'); } catch { setPanelOpen(false); }
+    if (!conversationId) {
+      setPanelOpen(false);
+      return;
+    }
+    try {
+      setPanelOpen(localStorage.getItem(PANEL_STORAGE_PREFIX + conversationId) === '1');
+    } catch {
+      setPanelOpen(false);
+    }
   }, [conversationId]);
 
-  const handleTogglePanel = useCallback(() => setPanelOpenPersisted(!panelOpen), [panelOpen, setPanelOpenPersisted]);
-  const handleClosePanel = useCallback(() => setPanelOpenPersisted(false), [setPanelOpenPersisted]);
-  const handleOpenGroupSettings = useCallback(() => { setPanelOpenPersisted(false); setSettingsOpen(true); }, [setPanelOpenPersisted]);
+  const handleTogglePanel = useCallback(
+    () => setPanelOpenPersisted(!panelOpen),
+    [panelOpen, setPanelOpenPersisted]
+  );
+  const handleClosePanel = useCallback(
+    () => setPanelOpenPersisted(false),
+    [setPanelOpenPersisted]
+  );
+  const handleOpenGroupSettings = useCallback(() => {
+    setPanelOpenPersisted(false);
+    setSettingsOpen(true);
+  }, [setPanelOpenPersisted]);
 
-  const canManageGroup = isGroup && conversation && (user?.role === 'superadmin' || (user?.role === 'admin' && conversation.visibility === 'public') || conversation.createdById === currentUserId);
+  const canManageGroup =
+    isGroup &&
+    conversation &&
+    (user?.role === 'superadmin' ||
+      (user?.role === 'admin' && conversation.visibility === 'public') ||
+      conversation.createdById === currentUserId);
 
   const messages = useMemo(() => {
     if (!data?.pages) return [];
     const all = [];
-    for (let i = data.pages.length - 1; i >= 0; i--) { if (data.pages[i]?.messages) all.push(...data.pages[i].messages); }
+    for (let i = data.pages.length - 1; i >= 0; i--) {
+      if (data.pages[i]?.messages) all.push(...data.pages[i].messages);
+    }
     return all;
   }, [data]);
 
+  // Force re-render every 15s so the AI-waiting indicator expires promptly.
   const [nowTs, setNowTs] = useState(() => Date.now());
   useEffect(() => {
-    const iv = setInterval(() => setNowTs(Date.now()), 30_000);
+    const iv = setInterval(() => setNowTs(Date.now()), 15_000);
     return () => clearInterval(iv);
   }, []);
 
+  // BUG FIX: use Date.now() at compute time — the previous version used a
+  // stale `nowTs` and could go negative for freshly-sent messages, hiding
+  // the "thinking" indicator for up to 30s.
   const waitingForAi = useMemo(() => {
     if (!isAi) return false;
     if (!currentUserId) return false;
     if (messages.length === 0) return false;
     const last = messages[messages.length - 1];
     if (last.senderId !== currentUserId) return false;
-    const age = nowTs - new Date(last.createdAt).getTime();
-    return age >= 0 && age < AI_WAITING_WINDOW_MS;
+    if (last.kind === 'system' || last.kind === 'ai_switch') return false;
+    const createdMs = new Date(last.createdAt).getTime();
+    if (!Number.isFinite(createdMs)) return false;
+    const age = Math.max(0, Date.now() - createdMs);
+    return age < AI_WAITING_WINDOW_MS;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAi, currentUserId, messages, nowTs]);
+
+  const handleStopAi = useCallback(() => {
+    if (!conversationId || !isAi) return;
+    stopAi.mutate(conversationId);
+  }, [conversationId, isAi, stopAi]);
 
   const scrollRef = useRef(null);
   const sentinelRef = useRef(null);
@@ -150,7 +224,9 @@ export default function MessageThread({ conversationId, onBack, onConversationCl
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
-    if (isFetchingNextPage && !prependAnchorRef.current) prependAnchorRef.current = { height: el.scrollHeight, top: el.scrollTop };
+    if (isFetchingNextPage && !prependAnchorRef.current) {
+      prependAnchorRef.current = { height: el.scrollHeight, top: el.scrollTop };
+    }
     if (!isFetchingNextPage && prependAnchorRef.current) {
       const prev = prependAnchorRef.current;
       const delta = el.scrollHeight - prev.height;
@@ -162,9 +238,14 @@ export default function MessageThread({ conversationId, onBack, onConversationCl
   useEffect(() => {
     const el = sentinelRef.current;
     if (!el || !hasNextPage) return undefined;
-    const observer = new IntersectionObserver((entries) => {
-      for (const entry of entries) { if (entry.isIntersecting && hasNextPage && !isFetchingNextPage) fetchNextPage(); }
-    }, { root: scrollRef.current, rootMargin: '80px 0px 0px 0px', threshold: 0 });
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting && hasNextPage && !isFetchingNextPage) fetchNextPage();
+        }
+      },
+      { root: scrollRef.current, rootMargin: '80px 0px 0px 0px', threshold: 0 }
+    );
     observer.observe(el);
     return () => observer.disconnect();
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
@@ -184,62 +265,144 @@ export default function MessageThread({ conversationId, onBack, onConversationCl
     lastReadCountRef.current = messages.length;
     if (document.visibilityState !== 'visible') return;
     markRead.mutate(conversationId);
-  }, [conversationId, messages.length, sendReadReceipts]);
+  }, [conversationId, messages.length, sendReadReceipts, markRead]);
 
   const [ctxMenu, setCtxMenu] = useState(null);
-  const openContextMenu = useCallback((message, event) => { setCtxMenu({ x: event?.clientX ?? 100, y: event?.clientY ?? 100, message }); }, []);
+  const openContextMenu = useCallback((message, event) => {
+    setCtxMenu({ x: event?.clientX ?? 100, y: event?.clientY ?? 100, message });
+  }, []);
   const closeContextMenu = useCallback(() => setCtxMenu(null), []);
 
   const [editingId, setEditingId] = useState(null);
   const [editText, setEditText] = useState('');
 
-  const startEdit = useCallback((msg) => { setEditingId(msg.id); setEditText(msg.body || ''); setCtxMenu(null); }, []);
-  const cancelEdit = useCallback(() => { setEditingId(null); setEditText(''); }, []);
+  const startEdit = useCallback((msg) => {
+    setEditingId(msg.id);
+    setEditText(msg.body || '');
+    setCtxMenu(null);
+  }, []);
+  const cancelEdit = useCallback(() => {
+    setEditingId(null);
+    setEditText('');
+  }, []);
   const submitEdit = useCallback(() => {
     const trimmed = editText.trim();
     if (!trimmed || !editingId) return;
-    editMessage.mutate({ conversationId, messageId: editingId, body: trimmed }, { onSuccess: () => { setEditingId(null); setEditText(''); } });
+    editMessage.mutate(
+      { conversationId, messageId: editingId, body: trimmed },
+      { onSuccess: () => { setEditingId(null); setEditText(''); } }
+    );
   }, [editText, editingId, conversationId, editMessage]);
 
-  const handleDeleteMe = useCallback((msg) => { deleteMessage.mutate({ conversationId, messageId: msg.id, scope: 'me' }, { onSuccess: () => setCtxMenu(null) }); }, [conversationId, deleteMessage]);
-  const handleDeleteAll = useCallback((msg) => { deleteMessage.mutate({ conversationId, messageId: msg.id, scope: 'all' }, { onSuccess: () => setCtxMenu(null) }); }, [conversationId, deleteMessage]);
+  const handleDeleteMe = useCallback(
+    (msg) => {
+      deleteMessage.mutate(
+        { conversationId, messageId: msg.id, scope: 'me' },
+        { onSuccess: () => setCtxMenu(null) }
+      );
+    },
+    [conversationId, deleteMessage]
+  );
+  const handleDeleteAll = useCallback(
+    (msg) => {
+      deleteMessage.mutate(
+        { conversationId, messageId: msg.id, scope: 'all' },
+        { onSuccess: () => setCtxMenu(null) }
+      );
+    },
+    [conversationId, deleteMessage]
+  );
 
   const [replyTo, setReplyTo] = useState(null);
-  const handleReply = useCallback((msg) => { setReplyTo(msg); setCtxMenu(null); }, []);
+  const handleReply = useCallback((msg) => {
+    setReplyTo(msg);
+    setCtxMenu(null);
+  }, []);
   const cancelReply = useCallback(() => setReplyTo(null), []);
   useEffect(() => { setReplyTo(null); }, [conversationId]);
 
-  const handleSend = useCallback((body) => {
-    sendMessage.mutate({ conversationId, body, senderId: currentUserId, replyToId: replyTo?.id }, { onSuccess: () => setReplyTo(null) });
-  }, [conversationId, currentUserId, sendMessage, replyTo]);
+  const handleSend = useCallback(
+    (body) => {
+      sendMessage.mutate(
+        {
+          conversationId,
+          body,
+          senderId: currentUserId,
+          replyToId: replyTo?.id,
+        },
+        { onSuccess: () => setReplyTo(null) }
+      );
+    },
+    [conversationId, currentUserId, sendMessage, replyTo]
+  );
 
-  const handleTyping = useCallback((isTyping) => sendTyping.mutate({ conversationId, isTyping }), [conversationId, sendTyping]);
+  const handleTyping = useCallback(
+    (isTyping) => sendTyping.mutate({ conversationId, isTyping }),
+    [conversationId, sendTyping]
+  );
 
   const isArchived = !!conversation?.isArchived;
-  const handleUnarchive = useCallback(() => { updateConversation.mutate({ conversationId, patch: { isArchived: false } }); }, [conversationId, updateConversation]);
-  const handleScrollToBottom = useCallback(() => { const el = scrollRef.current; if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' }); }, []);
+  const handleUnarchive = useCallback(() => {
+    updateConversation.mutate({ conversationId, patch: { isArchived: false } });
+  }, [conversationId, updateConversation]);
 
-  const canEditMessage = useCallback((msg) => { return nowTs - new Date(msg.createdAt).getTime() < EDIT_WINDOW_MS; }, [nowTs]);
+  const handleScrollToBottom = useCallback(() => {
+    const el = scrollRef.current;
+    if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+  }, []);
 
-  if (convoLoading && !conversation) return <div className="chat-thread"><ThreadSkeleton rows={8} /></div>;
+  const canEditMessage = useCallback(
+    (msg) => Date.now() - new Date(msg.createdAt).getTime() < EDIT_WINDOW_MS,
+    []
+  );
+
+  if (convoLoading && !conversation) {
+    return (
+      <div className="chat-thread">
+        <ThreadSkeleton rows={8} />
+      </div>
+    );
+  }
   if (!conversation) return null;
 
   return (
     <>
       <div className={`chat-thread${panelOpen ? ' has-panel' : ''}`}>
-        <ChatHeader conversation={conversation} typingUserIds={typingUserIds} showTypingInThread={showTypingInThread} onBack={onBack} onTogglePanel={handleTogglePanel} panelOpen={panelOpen} />
-        
+        <ChatHeader
+          conversation={conversation}
+          typingUserIds={typingUserIds}
+          showTypingInThread={showTypingInThread}
+          onBack={onBack}
+          onTogglePanel={handleTogglePanel}
+          panelOpen={panelOpen}
+        />
+
         <div className="chat-thread-messages-wrap">
           <MessageList
-            messages={messages} currentUserId={currentUserId} isGroup={isGroup}
+            messages={messages}
+            currentUserId={currentUserId}
+            isGroup={isGroup}
             headerName={isGroup ? (conversation.name || 'this group') : displayNameOf(peer)}
-            typingUserIds={typingUserIds} showTypingInThread={showTypingInThread}
+            typingUserIds={typingUserIds}
+            showTypingInThread={showTypingInThread}
             waitingForAi={waitingForAi}
-            timeFormat={timeFormat} timezone={timezone} hasNextPage={hasNextPage}
-            isFetchingNextPage={isFetchingNextPage} onLoadMore={fetchNextPage} isLoading={messagesLoading}
-            editingId={editingId} editText={editText} onEditChange={setEditText} onEditSubmit={submitEdit}
-            onEditCancel={cancelEdit} onEditStart={startEdit} onReply={handleReply} onContextMenu={openContextMenu}
-            unreadBoundaryMsgId={unreadBoundaryRef.current || undefined} scrollRef={scrollRef} sentinelRef={sentinelRef}
+            timeFormat={timeFormat}
+            timezone={timezone}
+            hasNextPage={hasNextPage}
+            isFetchingNextPage={isFetchingNextPage}
+            onLoadMore={fetchNextPage}
+            isLoading={messagesLoading}
+            editingId={editingId}
+            editText={editText}
+            onEditChange={setEditText}
+            onEditSubmit={submitEdit}
+            onEditCancel={cancelEdit}
+            onEditStart={startEdit}
+            onReply={handleReply}
+            onContextMenu={openContextMenu}
+            unreadBoundaryMsgId={unreadBoundaryRef.current || undefined}
+            scrollRef={scrollRef}
+            sentinelRef={sentinelRef}
             canEditMessage={canEditMessage}
           />
 
@@ -250,41 +413,79 @@ export default function MessageThread({ conversationId, onBack, onConversationCl
           <div className="chat-reply-banner">
             <div className="chat-reply-banner-body">
               <div className="chat-reply-banner-label">Replying to</div>
-              <div className="chat-reply-banner-text">{(replyTo.body || '').slice(0, 100)}</div>
+              <div className="chat-reply-banner-text">
+                {(replyTo.body || '').slice(0, 100)}
+              </div>
             </div>
-            <button type="button" className="chat-reply-banner-cancel" onClick={cancelReply} aria-label="Cancel reply">✕</button>
+            <button
+              type="button"
+              className="chat-reply-banner-cancel"
+              onClick={cancelReply}
+              aria-label="Cancel reply"
+            >
+              ✕
+            </button>
           </div>
         )}
 
         <MessageComposer
-          conversationId={conversationId} onSend={handleSend} onTyping={handleTyping}
-          disabled={false} isSending={sendMessage.isPending} isLocked={isLocked}
-          peer={peer} friendRequestPending={friendRequestPending} onAddFriend={handleComposerAddFriend}
-          isArchived={isArchived} onUnarchive={handleUnarchive} unarchiving={updateConversation.isPending}
+          conversationId={conversationId}
+          onSend={handleSend}
+          onTyping={handleTyping}
+          disabled={false}
+          isSending={sendMessage.isPending}
+          isLocked={isLocked}
+          peer={peer}
+          friendRequestPending={friendRequestPending}
+          onAddFriend={handleComposerAddFriend}
+          isArchived={isArchived}
+          onUnarchive={handleUnarchive}
+          unarchiving={updateConversation.isPending}
+          waitingForAi={waitingForAi}
+          onStopAi={handleStopAi}
+          stoppingAi={stopAi.isPending}
         />
       </div>
 
       {panelOpen && (
         <ConversationPanel
-          conversation={conversation} currentUserId={currentUserId} canManageGroup={canManageGroup}
-          onClose={handleClosePanel} onOpenGroupSettings={handleOpenGroupSettings}
-          onConversationClosed={onConversationClosed} onOpenThread={onOpenThread}
+          conversation={conversation}
+          currentUserId={currentUserId}
+          canManageGroup={canManageGroup}
+          onClose={handleClosePanel}
+          onOpenGroupSettings={handleOpenGroupSettings}
+          onConversationClosed={onConversationClosed}
+          onOpenThread={onOpenThread}
         />
       )}
 
       {ctxMenu && (
         <MessageContextMenu
-          x={ctxMenu.x} y={ctxMenu.y} canReply={!ctxMenu.message.deleted}
-          canEdit={ctxMenu.message.senderId === currentUserId && !ctxMenu.message.deleted && nowTs > 0 && nowTs - new Date(ctxMenu.message.createdAt).getTime() < EDIT_WINDOW_MS}
+          x={ctxMenu.x}
+          y={ctxMenu.y}
+          canReply={!ctxMenu.message.deleted}
+          canEdit={
+            ctxMenu.message.senderId === currentUserId &&
+            !ctxMenu.message.deleted &&
+            Date.now() - new Date(ctxMenu.message.createdAt).getTime() < EDIT_WINDOW_MS
+          }
           canDeleteAll={ctxMenu.message.senderId === currentUserId && !ctxMenu.message.deleted}
-          onReply={() => handleReply(ctxMenu.message)} onEdit={() => startEdit(ctxMenu.message)}
-          onDeleteMe={() => handleDeleteMe(ctxMenu.message)} onDeleteAll={() => handleDeleteAll(ctxMenu.message)}
+          onReply={() => handleReply(ctxMenu.message)}
+          onEdit={() => startEdit(ctxMenu.message)}
+          onDeleteMe={() => handleDeleteMe(ctxMenu.message)}
+          onDeleteAll={() => handleDeleteAll(ctxMenu.message)}
           onClose={closeContextMenu}
         />
       )}
 
       {isGroup && canManageGroup && (
-        <GroupSettingsModal isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} conversation={conversation} onConversationClosed={onConversationClosed} onOpenThread={onOpenThread} />
+        <GroupSettingsModal
+          isOpen={settingsOpen}
+          onClose={() => setSettingsOpen(false)}
+          conversation={conversation}
+          onConversationClosed={onConversationClosed}
+          onOpenThread={onOpenThread}
+        />
       )}
     </>
   );
