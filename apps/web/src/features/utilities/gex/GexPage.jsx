@@ -1,4 +1,3 @@
-
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Layers, Clipboard, ClipboardCheck, CalendarDays } from 'lucide-react';
 import { toast } from 'sonner';
@@ -8,6 +7,11 @@ import { usePageHeader } from '@/app/layout/PageHeaderProvider';
 import { PageSkeleton } from '@/shared/ui/page-skeleton';
 import EmptyState from '@/shared/components/EmptyState';
 import GexLevelChart from './components/GexLevelChart';
+import {
+  GEX_SYMBOLS,
+  GEX_SYMBOL_META,
+  DEFAULT_GEX_SYMBOL,
+} from '@mavrix/shared';
 
 
 function formatDateLong(isoDate) {
@@ -52,6 +56,66 @@ const CSS = `
     -webkit-font-smoothing: antialiased;
   }
 
+  /* ---------- Symbol switcher ---------- */
+  .gxp-symbar {
+    display: flex;
+    gap: 10px;
+    padding: 6px;
+    border-radius: 14px;
+    background: rgba(0,0,0,.32);
+    border: 1px solid var(--line-soft);
+  }
+  .gxp-sym {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    border-radius: 10px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--ink-2);
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: .02em;
+    cursor: pointer;
+    transition: all .22s cubic-bezier(.2,.8,.25,1);
+    text-align: left;
+  }
+  .gxp-sym:hover:not(.is-active) {
+    color: var(--ink-1);
+    background: rgba(255,255,255,.04);
+  }
+  .gxp-sym.is-active {
+    background: color-mix(in srgb, var(--sym-color) 12%, transparent);
+    border-color: color-mix(in srgb, var(--sym-color) 45%, transparent);
+    color: #FFFFFF;
+    box-shadow: 0 0 26px -10px color-mix(in srgb, var(--sym-color) 60%, transparent);
+  }
+  .gxp-sym-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+    background: var(--sym-color);
+    box-shadow: 0 0 10px var(--sym-color);
+    flex-shrink: 0;
+  }
+  .gxp-sym-code {
+    font-weight: 700;
+    font-size: 14px;
+    letter-spacing: .04em;
+  }
+  .gxp-sym-name {
+    font-size: 11px;
+    color: var(--ink-3);
+    font-weight: 500;
+    letter-spacing: .02em;
+  }
+  .gxp-sym.is-active .gxp-sym-name {
+    color: rgba(255,255,255,.6);
+  }
+
   /* ---------- Two-column body ---------- */
   .gxp-body {
     display: grid;
@@ -65,7 +129,7 @@ const CSS = `
 
   /* ---------- Sidebar (date list) ---------- */
   .gxp-sidebar {
-    max-height: calc(100vh - 120px);
+    max-height: calc(100vh - 240px);
     display: flex;
     flex-direction: column;
     border-radius: 14px;
@@ -75,7 +139,7 @@ const CSS = `
     overflow: hidden;
   }
   @media (max-width: 1000px) {
-    .gxp-sidebar { position: static; max-height: 320px; }
+    .gxp-sidebar { position: static; max-height: 340px; }
   }
 
   .gxp-sidebar-head {
@@ -91,6 +155,20 @@ const CSS = `
     font-weight: 700;
     color: var(--ink-1);
     letter-spacing: -.005em;
+  }
+  .gxp-sidebar-sym {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 8px;
+    border-radius: 99px;
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    border: 1px solid;
+    flex-shrink: 0;
   }
   .gxp-sidebar-count {
     margin-left: auto;
@@ -213,6 +291,19 @@ const CSS = `
     color: var(--ink-1);
     letter-spacing: -.005em;
   }
+  .gxp-card-sym {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 9px;
+    border-radius: 99px;
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    border: 1px solid;
+  }
   .gxp-card-sub {
     margin-left: auto;
     font-family: 'IBM Plex Mono', ui-monospace, monospace;
@@ -319,26 +410,42 @@ const CSS = `
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .gxp-date, .gxp-copy-btn { transition: none !important; }
+    .gxp-sym, .gxp-date, .gxp-copy-btn { transition: none !important; }
   }
 `;
 
 
 export default function GexPage() {
-  const { data: days = [], isLoading: daysLoading } = useGexDays();
+  const [symbol, setSymbol] = useState(DEFAULT_GEX_SYMBOL);
   const [selectedDate, setSelectedDate] = useState(null);
   const [copied, setCopied] = useState(false);
 
+  const { data: days = [], isLoading: daysLoading } = useGexDays(symbol);
+  const { data: day, isLoading: dayLoading } = useGexDay(selectedDate, symbol);
+
+  const meta = useMemo(
+    () => GEX_SYMBOL_META[symbol] || GEX_SYMBOL_META.NQ,
+    [symbol]
+  );
+
+  // Whenever the day list changes (symbol switch, refetch), keep a valid
+  // selected date — auto-pick the newest day for the active symbol.
   useEffect(() => {
     if (days.length === 0) {
       if (selectedDate !== null) setSelectedDate(null);
       return;
     }
-    const stillValid = selectedDate && days.some((d) => d.date === selectedDate);
+    const stillValid =
+      selectedDate && days.some((d) => d.date === selectedDate);
     if (!stillValid) setSelectedDate(days[0].date);
   }, [days, selectedDate]);
 
-  const { data: day, isLoading: dayLoading } = useGexDay(selectedDate);
+  const handleSymbolChange = useCallback((next) => {
+    if (next === symbol) return;
+    setSymbol(next);
+    setSelectedDate(null);
+    setCopied(false);
+  }, [symbol]);
 
   const handleCopy = useCallback(async () => {
     if (!day?.converted) return;
@@ -358,14 +465,13 @@ export default function GexPage() {
   );
 
   const subText = days.length === 0
-    ? 'No GEX data uploaded yet'
-    : `${days.length} ${days.length === 1 ? 'day' : 'days'} uploaded · ${totalLevels} levels total`;
+    ? `No ${symbol} GEX data uploaded yet`
+    : `${days.length} ${days.length === 1 ? 'day' : 'days'} · ${totalLevels} levels · ${meta.fullName}`;
 
   usePageHeader({
     title: 'GEX Levels',
     subtitle: subText,
   });
-
 
   if (daysLoading) return <PageSkeleton />;
 
@@ -374,25 +480,57 @@ export default function GexPage() {
       <style>{CSS}</style>
       <div className="gxp-root">
 
-        {}
+        {/* Symbol switcher */}
+        <div className="gxp-symbar" role="tablist" aria-label="Select symbol">
+          {GEX_SYMBOLS.map((sym) => {
+            const m = GEX_SYMBOL_META[sym];
+            const active = symbol === sym;
+            return (
+              <button
+                key={sym}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                className={`gxp-sym${active ? ' is-active' : ''}`}
+                style={{ '--sym-color': m.color }}
+                onClick={() => handleSymbolChange(sym)}
+              >
+                <span className="gxp-sym-dot" aria-hidden />
+                <span className="gxp-sym-code">{m.label}</span>
+                <span className="gxp-sym-name">{m.fullName}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Empty state for the active symbol */}
         {days.length === 0 && (
           <EmptyState
             size="lg"
             icon={CalendarDays}
-            eyebrow="No data"
-            title="No GEX levels available"
-            description="Daily gamma-exposure and buy/sell levels will appear here once an admin uploads them. Check back soon."
+            eyebrow={`No ${symbol} data`}
+            title={`No ${meta.fullName} GEX levels available`}
+            description={`Daily ${symbol} gamma-exposure levels will appear here once an admin uploads them. Try switching to the other symbol, or check back later.`}
           />
         )}
 
-        {}
+        {/* Day rail + main content */}
         {days.length > 0 && (
           <div className="gxp-body">
 
-            {}
             <aside className="gxp-sidebar">
               <div className="gxp-sidebar-head">
                 <span className="gxp-sidebar-title">Uploaded Days</span>
+                <span
+                  className="gxp-sidebar-sym"
+                  style={{
+                    color: meta.color,
+                    borderColor: `${meta.color}55`,
+                    background: `${meta.color}15`,
+                  }}
+                >
+                  {meta.label}
+                </span>
                 <span className="gxp-sidebar-count">{days.length}</span>
               </div>
               <div className="gxp-sidebar-list">
@@ -400,7 +538,7 @@ export default function GexPage() {
                   const isActive = d.date === selectedDate;
                   return (
                     <button
-                      key={d.date}
+                      key={`${d.symbol}:${d.date}`}
                       type="button"
                       className={`gxp-date ${isActive ? 'is-active' : ''}`}
                       onClick={() => setSelectedDate(d.date)}
@@ -421,13 +559,12 @@ export default function GexPage() {
               </div>
             </aside>
 
-            {}
             <main className="gxp-main">
               {dayLoading || !day ? (
-                <div className="gxp-loading">Loading day…</div>
+                <div className="gxp-loading">Loading {symbol} day…</div>
               ) : (
                 <>
-                  {}
+                  {/* TradingView string */}
                   <div className="gxp-card">
                     <div className="gxp-card-head">
                       <span className="gxp-card-title">TradingView String</span>
@@ -455,12 +592,22 @@ export default function GexPage() {
                     </div>
                   </div>
 
-                  {}
+                  {/* Level chart */}
                   <div className="gxp-card">
                     <div className="gxp-card-head">
                       <Layers size={14} style={{ color: 'var(--accent)' }} />
                       <span className="gxp-card-title">
                         {formatDateLong(day.date)}
+                      </span>
+                      <span
+                        className="gxp-card-sym"
+                        style={{
+                          color: meta.color,
+                          borderColor: `${meta.color}55`,
+                          background: `${meta.color}15`,
+                        }}
+                      >
+                        {meta.label}
                       </span>
                       <span className="gxp-card-sub">
                         <span>{day.levelCount} {day.levelCount === 1 ? 'level' : 'levels'}</span>

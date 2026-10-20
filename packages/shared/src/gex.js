@@ -1,3 +1,19 @@
+// ============================================================================
+// GEX — symbols, JSON → TradingView-string conversion, level parsing.
+// ============================================================================
+
+export const GEX_SYMBOLS = ['NQ', 'ES'];
+
+export const GEX_SYMBOL_META = {
+  NQ: { id: 'NQ', label: 'NQ', fullName: 'Nasdaq 100', color: '#4C8BF5' },
+  ES: { id: 'ES', label: 'ES', fullName: 'S&P 500',    color: '#35C4A1' },
+};
+
+export const DEFAULT_GEX_SYMBOL = 'NQ';
+
+export const GEX_DEFAULT_TIMEZONE = 'Asia/Kolkata';
+
+export const GEX_TYPES = Object.freeze(['BL', 'GEX', 'OTHER']);
 
 
 export function classifyGexLevel(item) {
@@ -157,8 +173,3 @@ export function convertGexJson(input, opts = {}) {
     errors,
   };
 }
-
-
-export const GEX_TYPES = Object.freeze(['BL', 'GEX', 'OTHER']);
-
-export const GEX_DEFAULT_TIMEZONE = 'Asia/Kolkata';

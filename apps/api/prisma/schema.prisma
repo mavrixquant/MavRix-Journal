@@ -224,9 +224,17 @@ model SiteSetting {
   @@map("site_settings")
 }
 
+// ---------------------------------------------------------------------------
+// GEX days — per-symbol gamma exposure levels.
+//
+// One row per (date, symbol). `symbol` is a plain string ('NQ' | 'ES' today,
+// extensible later). Queries always target a specific symbol; the composite
+// unique key guarantees at most one row per (date, symbol).
+// ---------------------------------------------------------------------------
 model GexDay {
   id        String @id @default(cuid())
-  date      String @unique
+  date      String
+  symbol    String @default("NQ")
   levels    Json   @default("[]")
   converted String @default("")
 
@@ -241,7 +249,8 @@ model GexDay {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([date])
+  @@unique([date, symbol])
+  @@index([symbol, date])
   @@map("gex_days")
 }
 
@@ -385,8 +394,6 @@ model Message {
 
   @@index([conversationId, createdAt])
   @@index([senderId])
-  // Powers the "how many messages has user X sent in conversation Y?" query
-  // used by the friend-required 3-message cap on non-friend DMs.
   @@index([conversationId, senderId])
   @@map("messages")
 }

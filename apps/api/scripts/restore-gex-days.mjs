@@ -1,9 +1,11 @@
-
 import { PrismaClient } from '@prisma/client';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
 const prisma = new PrismaClient();
+
+const VALID_SYMBOLS = new Set(['NQ', 'ES']);
+const DEFAULT_SYMBOL = 'NQ';
 
 async function main() {
   const inputPath = process.argv[2];
@@ -29,6 +31,10 @@ async function main() {
 
   for (const r of rows) {
     try {
+      // Backups made before the symbol column existed have no `symbol` field.
+      // Fall back to NQ so those backups still restore cleanly.
+      const symbol = VALID_SYMBOLS.has(r.symbol) ? r.symbol : DEFAULT_SYMBOL;
+
       const data = {
         levels: r.levels,
         converted: r.converted,
@@ -41,14 +47,16 @@ async function main() {
       };
 
       await prisma.gexDay.upsert({
-        where: { date: r.date },
-        create: { date: r.date, ...data },
+        where: { date_symbol: { date: r.date, symbol } },
+        create: { date: r.date, symbol, ...data },
         update: data,
       });
       ok += 1;
     } catch (err) {
       fail += 1;
-      console.error(`[restore]   ✗ ${r.date}: ${err?.message || err}`);
+      console.error(
+        `[restore]   x ${r.date}/${r.symbol || DEFAULT_SYMBOL}: ${err?.message || err}`
+      );
     }
   }
 

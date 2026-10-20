@@ -1,4 +1,3 @@
-
 import { Router } from 'express';
 import { z } from 'zod';
 import {
@@ -8,8 +7,10 @@ import {
   groupMemberAddSchema,
   groupMemberRoleSchema,
 } from '@mavrix/shared/validators';
+import { GEX_SYMBOLS } from '@mavrix/shared';
 import { requireAuth } from '../middleware/auth.js';
 import { requireAdmin, requireSuperadmin } from '../middleware/admin.js';
+import { HttpError } from '../middleware/error.js';
 import { rateLimit } from '../lib/rateLimit.js';
 import * as ctrl from '../controllers/admin.controller.js';
 import * as accCtrl from '../controllers/adminAccounts.controller.js';
@@ -30,6 +31,16 @@ const validate = (schema) => (req, _res, next) => {
     req.body = schema.parse(req.body);
     next();
   } catch (e) { next(e); }
+};
+
+const validateSymbolQuery = (req, _res, next) => {
+  const sym = req.query.symbol;
+  if (sym && !GEX_SYMBOLS.includes(sym)) {
+    return next(
+      new HttpError(400, `Invalid symbol. Allowed: ${GEX_SYMBOLS.join(', ')}`)
+    );
+  }
+  next();
 };
 
 const userUpdateSchema = z.object({
@@ -175,9 +186,10 @@ adminRoutes.post('/calendar/sync', sensitive, opsCtrl.calendarSync);
 adminRoutes.delete('/calendar/cache', requireSuperadmin, sensitive, opsCtrl.calendarWipe);
 adminRoutes.get('/calendar/logs', opsCtrl.calendarLogs);
 
-adminRoutes.get('/gex', gexCtrl.list);
+// GEX — symbol-aware. GET/DELETE take ?symbol=..., POST takes symbol in body.
+adminRoutes.get('/gex', validateSymbolQuery, gexCtrl.list);
 adminRoutes.post('/gex', writeLimiter, validate(gexDaySchema), gexCtrl.upsert);
-adminRoutes.delete('/gex/:date', requireSuperadmin, sensitive, gexCtrl.remove);
+adminRoutes.delete('/gex/:date', requireSuperadmin, sensitive, validateSymbolQuery, gexCtrl.remove);
 
 adminRoutes.get(
   '/health-check/phases',

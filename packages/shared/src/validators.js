@@ -8,6 +8,7 @@ import {
   GROUP_DISCOVER_DEFAULT_LIMIT, GROUP_DISCOVER_MAX_LIMIT,
 } from './constants.js';
 import { IMPACT_LEVELS, MAX_CALENDAR_EVENTS_PER_REQUEST } from './calendar.js';
+import { GEX_SYMBOLS } from './gex.js';
 
 
 export const signupSchema = z.object({
@@ -179,6 +180,14 @@ export const calendarQuerySchema = z.object({
 });
 
 
+// ---------------------------------------------------------------------------
+// GEX — levels + day payload.
+//
+// `gexDaySchema.symbol` defaults to 'NQ' so pre-refactor clients keep working;
+// the frontend always sends the symbol explicitly.
+// ---------------------------------------------------------------------------
+const gexSymbolEnum = z.enum(GEX_SYMBOLS);
+
 export const gexLevelSchema = z.object({
   type: z.string().trim().min(1).max(20),
   price: z.number().finite(),
@@ -187,6 +196,7 @@ export const gexLevelSchema = z.object({
 
 export const gexDaySchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  symbol: gexSymbolEnum.optional().default('NQ'),
   levels: z.array(gexLevelSchema).min(1).max(500),
   converted: z.string().min(1).max(20000),
   sourceTimezone: z.string().trim().min(1).max(64).optional(),

@@ -1,15 +1,22 @@
-
 import { prisma } from '../lib/prisma.js';
 import { HttpError } from '../middleware/error.js';
 import { writeAudit } from '../lib/audit.js';
 import {
   serializeGexLevels,
   GEX_DEFAULT_TIMEZONE,
+  GEX_SYMBOLS,
+  DEFAULT_GEX_SYMBOL,
 } from '@mavrix/shared';
 
+function resolveSymbol(symbol) {
+  const s = String(symbol || '').trim().toUpperCase();
+  if (GEX_SYMBOLS.includes(s)) return s;
+  return DEFAULT_GEX_SYMBOL;
+}
 
 const serializeListItem = (row) => ({
   date: row.date,
+  symbol: row.symbol,
   levelCount: row.levelCount,
   blCount: row.blCount,
   gexCount: row.gexCount,
@@ -22,6 +29,7 @@ const serializeListItem = (row) => ({
 const serializeFull = (row) => ({
   id: row.id,
   date: row.date,
+  symbol: row.symbol,
   levels: row.levels,
   converted: row.converted,
   levelCount: row.levelCount,
@@ -35,8 +43,10 @@ const serializeFull = (row) => ({
 });
 
 
-export async function listAdminGexDays() {
+export async function listAdminGexDays(symbol) {
+  const s = resolveSymbol(symbol);
   const rows = await prisma.gexDay.findMany({
+    where: { symbol: s },
     orderBy: { date: 'desc' },
   });
   return rows.map(serializeListItem);
@@ -44,7 +54,8 @@ export async function listAdminGexDays() {
 
 
 export async function upsertGexDay(actor, payload, { overwrite = false } = {}) {
-  const { date, levels, converted, sourceTimezone } = payload;
+  const { date, levels, converted, sourceTimezone, symbol: rawSymbol } = payload;
+  const symbol = resolveSymbol(rawSymbol);
 
   const expected = serializeGexLevels(levels);
   if (expected !== converted) {
@@ -55,16 +66,19 @@ export async function upsertGexDay(actor, payload, { overwrite = false } = {}) {
     );
   }
 
-  const existing = await prisma.gexDay.findUnique({ where: { date } });
+  const existing = await prisma.gexDay.findUnique({
+    where: { date_symbol: { date, symbol } },
+  });
 
   if (existing && !overwrite) {
     const err = new HttpError(
       409,
-      `GEX data for ${date} already exists. Confirm overwrite to replace it.`
+      `GEX data for ${symbol} · ${date} already exists. Confirm overwrite to replace it.`
     );
     err.details = {
       existing: {
         date: existing.date,
+        symbol: existing.symbol,
         levelCount: existing.levelCount,
         blCount: existing.blCount,
         gexCount: existing.gexCount,
@@ -80,6 +94,7 @@ export async function upsertGexDay(actor, payload, { overwrite = false } = {}) {
 
   const data = {
     date,
+    symbol,
     levels,
     converted,
     levelCount: levels.length,
@@ -91,7 +106,10 @@ export async function upsertGexDay(actor, payload, { overwrite = false } = {}) {
   };
 
   const row = existing
-    ? await prisma.gexDay.update({ where: { date }, data })
+    ? await prisma.gexDay.update({
+        where: { date_symbol: { date, symbol } },
+        data,
+      })
     : await prisma.gexDay.create({ data });
 
   await writeAudit({
@@ -99,8 +117,10 @@ export async function upsertGexDay(actor, payload, { overwrite = false } = {}) {
     actorEmail: actor.email,
     action: existing ? 'gex.overwrite' : 'gex.create',
     targetType: 'gex_day',
-    targetId: date,
+    targetId: `${symbol}:${date}`,
     metadata: {
+      symbol,
+      date,
       levelCount: levels.length,
       blCount,
       gexCount,
@@ -114,19 +134,26 @@ export async function upsertGexDay(actor, payload, { overwrite = false } = {}) {
 }
 
 
-export async function deleteGexDay(actor, date) {
-  const existing = await prisma.gexDay.findUnique({ where: { date } });
-  if (!existing) throw new HttpError(404, `No GEX data for ${date}`);
+export async function deleteGexDay(actor, date, symbol) {
+  const s = resolveSymbol(symbol);
+  const existing = await prisma.gexDay.findUnique({
+    where: { date_symbol: { date, symbol: s } },
+  });
+  if (!existing) throw new HttpError(404, `No GEX data for ${s} · ${date}`);
 
-  await prisma.gexDay.delete({ where: { date } });
+  await prisma.gexDay.delete({
+    where: { date_symbol: { date, symbol: s } },
+  });
 
   await writeAudit({
     actorId: actor.id,
     actorEmail: actor.email,
     action: 'gex.delete',
     targetType: 'gex_day',
-    targetId: date,
+    targetId: `${s}:${date}`,
     metadata: {
+      symbol: s,
+      date,
       levelCount: existing.levelCount,
       blCount: existing.blCount,
       gexCount: existing.gexCount,

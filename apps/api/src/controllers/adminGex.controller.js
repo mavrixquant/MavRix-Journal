@@ -1,4 +1,3 @@
-
 import { prisma } from '../lib/prisma.js';
 import * as svc from '../services/adminGex.service.js';
 
@@ -11,9 +10,9 @@ async function buildActor(req) {
 }
 
 
-export async function list(_req, res, next) {
+export async function list(req, res, next) {
   try {
-    const days = await svc.listAdminGexDays();
+    const days = await svc.listAdminGexDays(req.query.symbol);
     res.json({ days });
   } catch (e) { next(e); }
 }
@@ -33,7 +32,11 @@ export async function upsert(req, res, next) {
 export async function remove(req, res, next) {
   try {
     const actor = await buildActor(req);
-    const result = await svc.deleteGexDay(actor, req.params.date);
+    const result = await svc.deleteGexDay(
+      actor,
+      req.params.date,
+      req.query.symbol
+    );
     res.json(result);
   } catch (e) { next(e); }
 }

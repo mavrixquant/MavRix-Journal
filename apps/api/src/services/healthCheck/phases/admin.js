@@ -1,4 +1,3 @@
-
 export async function run(ctx) {
   const { test, tokens, ids } = ctx;
   const admin = tokens.admin;
@@ -338,15 +337,18 @@ export async function run(ctx) {
   });
 
 
-  await test('admin.gex.list · metadata', async () => {
-    const res = await ctx.fetch('/api/admin/gex', { token: admin });
+  await test('admin.gex.list · metadata (NQ)', async () => {
+    const res = await ctx.fetch('/api/admin/gex?symbol=NQ', { token: admin });
     ctx.assertStatus(res, 200);
     ctx.expect(Array.isArray(res.body.days), 'days not array');
   });
 
-  await test('admin.gex.upsert + delete · round-trip', async () => {
+  await test('admin.gex.upsert + delete · round-trip (NQ)', async () => {
     const date = '2099-12-31';
-    await ctx.fetch(`/api/admin/gex/${date}?overwrite=true`, {
+    const symbol = 'NQ';
+
+    // Best-effort cleanup of any leftover from a previous run.
+    await ctx.fetch(`/api/admin/gex/${date}?symbol=${symbol}`, {
       method: 'DELETE',
       token: admin,
       allowError: true,
@@ -357,6 +359,7 @@ export async function run(ctx) {
       token: admin,
       body: {
         date,
+        symbol,
         levels: [
           { type: 'BL', price: 20000, label: 'HealthCheck BL' },
           { type: 'GEX', price: 20500, label: 'HealthCheck GEX' },
@@ -366,16 +369,18 @@ export async function run(ctx) {
       },
     });
     ctx.assertStatus(create, 200);
+    ctx.expect(create.body.day?.symbol === 'NQ', 'returned symbol not NQ');
+
     ctx.onCleanup(async () => {
-      await ctx.fetch(`/api/admin/gex/${date}`, {
+      await ctx.fetch(`/api/admin/gex/${date}?symbol=${symbol}`, {
         method: 'DELETE',
         token: admin,
         allowError: true,
       });
-      return `gex ${date} deleted`;
+      return `gex ${symbol} ${date} deleted`;
     });
 
-    const del = await ctx.fetch(`/api/admin/gex/${date}`, {
+    const del = await ctx.fetch(`/api/admin/gex/${date}?symbol=${symbol}`, {
       method: 'DELETE',
       token: admin,
     });
