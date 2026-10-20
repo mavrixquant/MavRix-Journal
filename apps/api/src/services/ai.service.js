@@ -1,18 +1,24 @@
+// ============================================================================
+// AI response orchestration.
+//
+// `triggerAiResponse(conversationId, userId, aiId)` — aiId is the specific
+// persona's user ID (Guide / Trainer / Chat). The persona determines the
+// system prompt (see context.js) and the sender identity used in broadcasts.
+// ============================================================================
 
 import { prisma } from '../lib/prisma.js';
 import { broadcastToUser } from '../lib/broadcaster.js';
 import { buildContext } from '../lib/ai/context.js';
 import { executeChat } from '../lib/ai/router.js';
 import { getProviderMeta } from '@mavrix/shared';
-
+import { getMaveAiUser } from './maveAiBootstrap.js';
 
 const inFlight = new Set();
-
 const pending = new Map();
 
-export async function triggerAiResponse(conversationId, userId, maveAiId) {
+export async function triggerAiResponse(conversationId, userId, aiId) {
   if (inFlight.has(conversationId)) {
-    pending.set(conversationId, { userId, maveAiId });
+    pending.set(conversationId, { userId, aiId });
     return;
   }
 
@@ -21,7 +27,7 @@ export async function triggerAiResponse(conversationId, userId, maveAiId) {
 
   (async () => {
     try {
-      await generateAndBroadcast(conversationId, userId, maveAiId);
+      await generateAndBroadcast(conversationId, userId, aiId);
     } catch (err) {
       console.error('[mave-ai] Unhandled trigger error:', err?.message || err);
     } finally {
@@ -30,16 +36,28 @@ export async function triggerAiResponse(conversationId, userId, maveAiId) {
       const next = pending.get(conversationId);
       if (next) {
         pending.delete(conversationId);
-        triggerAiResponse(conversationId, next.userId, next.maveAiId);
+        triggerAiResponse(conversationId, next.userId, next.aiId);
       }
     }
   })();
 }
 
+function personaSender(aiId) {
+  const cached = getMaveAiUser(aiId);
+  if (cached) {
+    return {
+      id: aiId,
+      firstName: cached.firstName || 'Mave',
+      lastName: cached.lastName || 'AI',
+      isAi: true,
+    };
+  }
+  return { id: aiId, firstName: 'Mave', lastName: 'AI', isAi: true };
+}
 
-async function generateAndBroadcast(conversationId, userId, maveAiId) {
+async function generateAndBroadcast(conversationId, userId, aiId) {
   try {
-    const messages = await buildContext(conversationId, maveAiId);
+    const messages = await buildContext(conversationId, aiId);
 
     const lastMsg = messages[messages.length - 1];
     if (!lastMsg || lastMsg.role !== 'user') return;
@@ -54,7 +72,7 @@ async function generateAndBroadcast(conversationId, userId, maveAiId) {
       const switchMsg = await prisma.message.create({
         data: {
           conversationId,
-          senderId: maveAiId,
+          senderId: aiId,
           body: `Switched to ${newProviderLabel} · ${modelLabel} (previous provider limited).`,
           kind: 'ai_switch',
         },
@@ -65,7 +83,7 @@ async function generateAndBroadcast(conversationId, userId, maveAiId) {
         data: {
           lastMessageAt: new Date(),
           lastMessageText: switchMsg.body.slice(0, 120),
-          lastMessageById: maveAiId,
+          lastMessageById: aiId,
         },
       });
 
@@ -74,7 +92,7 @@ async function generateAndBroadcast(conversationId, userId, maveAiId) {
         message: {
           id: switchMsg.id,
           conversationId,
-          senderId: maveAiId,
+          senderId: aiId,
           body: switchMsg.body,
           kind: 'ai_switch',
           createdAt: switchMsg.createdAt,
@@ -86,7 +104,7 @@ async function generateAndBroadcast(conversationId, userId, maveAiId) {
     const aiMsg = await prisma.message.create({
       data: {
         conversationId,
-        senderId: maveAiId,
+        senderId: aiId,
         body: result.text,
         kind: 'user',
       },
@@ -97,7 +115,7 @@ async function generateAndBroadcast(conversationId, userId, maveAiId) {
       data: {
         lastMessageAt: new Date(),
         lastMessageText: result.text.slice(0, 120),
-        lastMessageById: maveAiId,
+        lastMessageById: aiId,
       },
     });
 
@@ -106,13 +124,8 @@ async function generateAndBroadcast(conversationId, userId, maveAiId) {
       message: {
         id: aiMsg.id,
         conversationId,
-        senderId: maveAiId,
-        sender: {
-          id: maveAiId,
-          firstName: 'Mave',
-          lastName: 'AI',
-          isAi: true,
-        },
+        senderId: aiId,
+        sender: personaSender(aiId),
         body: aiMsg.body,
         kind: 'user',
         createdAt: aiMsg.createdAt,
@@ -134,7 +147,7 @@ async function generateAndBroadcast(conversationId, userId, maveAiId) {
       const errorMsg = await prisma.message.create({
         data: {
           conversationId,
-          senderId: maveAiId,
+          senderId: aiId,
           body: errorText,
           kind: 'system',
         },
@@ -145,7 +158,7 @@ async function generateAndBroadcast(conversationId, userId, maveAiId) {
         message: {
           id: errorMsg.id,
           conversationId,
-          senderId: maveAiId,
+          senderId: aiId,
           body: errorMsg.body,
           kind: 'system',
           createdAt: errorMsg.createdAt,

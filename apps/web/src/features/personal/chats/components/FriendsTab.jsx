@@ -1,4 +1,3 @@
-
 import { useMemo, useState } from 'react';
 import {
   UserRoundPlus,
@@ -10,6 +9,7 @@ import {
   Archive,
   ArchiveRestore,
   Search,
+  Sparkles,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -23,6 +23,7 @@ import Alert from '@/shared/components/Alert';
 import EmptyState from '@/shared/components/EmptyState';
 import BlockConfirmModal from './BlockConfirmModal';
 import FriendRequestsPanel from './FriendRequestsPanel';
+import MaveAiAvatar from './MaveAiAvatar';
 
 function initialsOf(u) {
   if (!u) return '?';
@@ -72,7 +73,62 @@ function CountBadge({ count }) {
   );
 }
 
-export default function FriendsTab({ onOpenAddFriend, onOpenThread }) {
+/**
+ * Single grouped tile that represents all 3 Mave AI personas in the friends
+ * list. Clicking it opens the Mave AI hub.
+ */
+function MaveAiHubRow({ onClick }) {
+  return (
+    <div
+      className="pane-row"
+      onClick={onClick}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onClick();
+        }
+      }}
+      style={{ cursor: 'pointer' }}
+      aria-label="Open Mave AI"
+    >
+      <span className="pane-row-avatar">
+        <MaveAiAvatar size={40} />
+      </span>
+      <div className="pane-row-body">
+        <div className="pane-row-name">
+          Mave AI
+          <span
+            style={{
+              marginLeft: 8,
+              fontFamily: "'IBM Plex Mono', monospace",
+              fontSize: 9.5,
+              fontWeight: 700,
+              letterSpacing: '.06em',
+              padding: '2px 7px',
+              borderRadius: 99,
+              border: '1px solid var(--accent-soft2)',
+              background: 'color-mix(in srgb, var(--accent) 8%, transparent)',
+              color: 'var(--accent)',
+              verticalAlign: 'middle',
+            }}
+          >
+            <Sparkles size={8} style={{ verticalAlign: 'middle', marginRight: 3 }} />
+            3 personas
+          </span>
+        </div>
+        <div className="pane-row-sub">Guide · Trainer · Chat</div>
+      </div>
+    </div>
+  );
+}
+
+export default function FriendsTab({
+  onOpenAddFriend,
+  onOpenThread,
+  onOpenAiHub,
+}) {
   const [requestsOpen, setRequestsOpen] = useState(false);
 
   const { data: friends = [], isLoading } = useFriends();
@@ -88,8 +144,17 @@ export default function FriendsTab({ onOpenAddFriend, onOpenThread }) {
 
   const pendingIncoming = (requests?.incoming || []).length;
 
+  // Split AI persona entries (grouped) from real human friends.
+  const hasAi = useMemo(
+    () => friends.some((f) => f.isAi),
+    [friends]
+  );
+
   const sortedFriends = useMemo(
-    () => [...friends].sort((a, b) => displayNameOf(a).localeCompare(displayNameOf(b))),
+    () =>
+      friends
+        .filter((f) => !f.isAi)
+        .sort((a, b) => displayNameOf(a).localeCompare(displayNameOf(b))),
     [friends]
   );
 
@@ -102,6 +167,8 @@ export default function FriendsTab({ onOpenAddFriend, onOpenThread }) {
       return name.includes(q) || email.includes(q);
     });
   }, [sortedFriends, searchInput]);
+
+  const isSearching = searchInput.trim().length > 0;
 
   const handleMessage = async (friend) => {
     try {
@@ -153,13 +220,20 @@ export default function FriendsTab({ onOpenAddFriend, onOpenThread }) {
     );
   };
 
+  const handleOpenAiHub = () => {
+    if (typeof onOpenAiHub === 'function') onOpenAiHub();
+  };
+
+  const showEmptyNoFriends = !isLoading && !hasAi && sortedFriends.length === 0;
+  const showEmptySearch =
+    !isLoading && sortedFriends.length > 0 && visible.length === 0;
 
   return (
     <>
       <div className="side-pane" onClick={() => setMenuOpenId(null)}>
         <div className="side-pane-header">
           <span className="side-pane-title">Friends</span>
-          <span className="side-pane-count">{friends.length}</span>
+          <span className="side-pane-count">{sortedFriends.length}</span>
 
           <div className="side-pane-actions">
             <button
@@ -208,7 +282,21 @@ export default function FriendsTab({ onOpenAddFriend, onOpenThread }) {
         <div className="side-pane-body">
           {isLoading && <div className="side-pane-loading">Loading friends…</div>}
 
-          {!isLoading && sortedFriends.length === 0 && (
+          {!isLoading && hasAi && !isSearching && (
+            <>
+              <div className="pane-section-label">AI Assistants</div>
+              <MaveAiHubRow onClick={handleOpenAiHub} />
+            </>
+          )}
+
+          {!isLoading && sortedFriends.length > 0 && (
+            <div className="pane-section-label">
+              Friends
+              <span className="pane-section-label-count">{sortedFriends.length}</span>
+            </div>
+          )}
+
+          {showEmptyNoFriends && (
             <div style={{ padding: '24px 12px' }}>
               <EmptyState
                 size="md"
@@ -229,7 +317,7 @@ export default function FriendsTab({ onOpenAddFriend, onOpenThread }) {
             </div>
           )}
 
-          {!isLoading && sortedFriends.length > 0 && visible.length === 0 && (
+          {showEmptySearch && (
             <div style={{ padding: '24px 12px' }}>
               <EmptyState
                 size="sm"

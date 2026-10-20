@@ -1,22 +1,112 @@
+// ============================================================================
+// Bootstrap three Mave AI sentinel users (Guide / Trainer / Chat), cache
+// their IDs, and ensure every human user has one DM with each persona.
+//
+// `ensureAiDmForUser(userId)` with no persona → ensures all 3 (backward
+// compatible with legacy callers like auth.service.js).
+// ============================================================================
 
 import { prisma } from '../lib/prisma.js';
-import {
-  MAVE_AI_EMAIL,
-  MAVE_AI_FIRST_NAME,
-  MAVE_AI_LAST_NAME,
-} from '@mavrix/shared';
+import { MAVE_AI_PERSONAS } from '@mavrix/shared';
 
-let _cachedAiId = null;
+const _personaCache = {};
+const _idToPersona = new Map();
 
-export function getMaveAiId() {
-  return _cachedAiId;
+// ---------------------------------------------------------------------------
+// Public accessors
+// ---------------------------------------------------------------------------
+
+export function getAllMaveAiIds() {
+  return Object.values(_personaCache)
+    .map((p) => p?.id)
+    .filter(Boolean);
 }
 
-export async function ensureAiDmForUser(userId) {
-  if (!userId || !_cachedAiId) return null;
-  if (userId === _cachedAiId) return null;
+export function getMaveAiIdForPersona(persona) {
+  return _personaCache[persona]?.id || null;
+}
 
-  const dmKey = [userId, _cachedAiId].sort().join(':');
+export function getPersonaForAiId(id) {
+  return _idToPersona.get(id) || null;
+}
+
+export function isAnyMaveAiId(id) {
+  return _idToPersona.has(id);
+}
+
+export function getMaveAiUser(id) {
+  for (const persona of Object.keys(_personaCache)) {
+    if (_personaCache[persona]?.id === id) {
+      return { ..._personaCache[persona], persona };
+    }
+  }
+  return null;
+}
+
+// Legacy single-persona accessor — prefer isAnyMaveAiId / getMaveAiIdForPersona.
+export function getMaveAiId() {
+  return _personaCache.guide?.id || _personaCache.chat?.id || null;
+}
+
+// ---------------------------------------------------------------------------
+// Internal helpers
+// ---------------------------------------------------------------------------
+
+async function ensureOnePersona(meta) {
+  let user = await prisma.user.findUnique({
+    where: { email: meta.email },
+  });
+
+  if (!user) {
+    user = await prisma.user.create({
+      data: {
+        email: meta.email,
+        firstName: meta.firstName,
+        lastName: meta.lastName,
+        isAi: true,
+        emailVerified: true,
+        role: 'user',
+      },
+    });
+    return user;
+  }
+
+  const patch = {};
+  if (!user.isAi) patch.isAi = true;
+  if (!user.emailVerified) patch.emailVerified = true;
+  if (user.firstName !== meta.firstName) patch.firstName = meta.firstName;
+  if (user.lastName !== meta.lastName) patch.lastName = meta.lastName;
+
+  if (Object.keys(patch).length > 0) {
+    user = await prisma.user.update({
+      where: { id: user.id },
+      data: patch,
+    });
+  }
+
+  return user;
+}
+
+function cachePersona(personaId, user) {
+  _personaCache[personaId] = {
+    id: user.id,
+    email: user.email,
+    firstName: user.firstName,
+    lastName: user.lastName,
+  };
+  _idToPersona.set(user.id, personaId);
+}
+
+// ---------------------------------------------------------------------------
+// DM creation
+// ---------------------------------------------------------------------------
+
+async function _ensureOneDm(userId, personaId) {
+  const aiId = _personaCache[personaId]?.id;
+  if (!aiId) return null;
+  if (userId === aiId) return null;
+
+  const dmKey = [userId, aiId].sort().join(':');
 
   const existing = await prisma.conversation.findUnique({
     where: { dmKey },
@@ -30,7 +120,7 @@ export async function ensureAiDmForUser(userId) {
         type: 'dm',
         dmKey,
         participants: {
-          create: [{ userId }, { userId: _cachedAiId }],
+          create: [{ userId }, { userId: aiId }],
         },
       },
       select: { id: true },
@@ -48,27 +138,53 @@ export async function ensureAiDmForUser(userId) {
   }
 }
 
-export async function ensureMaveAi() {
-  console.log('[mave-ai] checking bootstrap...');
+/**
+ * Ensure the DM(s) between a human user and Mave AI exist.
+ *
+ * @param {string} userId         The human user's id.
+ * @param {string} [personaId]    'guide' | 'trainer' | 'chat'.
+ *                                Omitted → ensures ALL personas (backward compat).
+ * @returns {Promise<string|null>} The conversation id (or null for no-op).
+ */
+export async function ensureAiDmForUser(userId, personaId) {
+  if (!userId) return null;
 
-  let aiUser = await prisma.user.findFirst({ where: { isAi: true } });
-
-  if (!aiUser) {
-    console.log('[mave-ai] creating sentinel user...');
-    aiUser = await prisma.user.create({
-      data: {
-        email: MAVE_AI_EMAIL,
-        firstName: MAVE_AI_FIRST_NAME,
-        lastName: MAVE_AI_LAST_NAME,
-        isAi: true,
-        emailVerified: true,
-        role: 'user',
-      },
-    });
+  if (!personaId) {
+    let lastId = null;
+    for (const meta of MAVE_AI_PERSONAS) {
+      try {
+        const id = await _ensureOneDm(userId, meta.id);
+        if (id) lastId = id;
+      } catch (err) {
+        console.warn(
+          `[mave-ai] failed to ensure DM for ${userId} × ${meta.id}:`,
+          err.message
+        );
+      }
+    }
+    return lastId;
   }
 
-  _cachedAiId = aiUser.id;
+  return _ensureOneDm(userId, personaId);
+}
 
+// ---------------------------------------------------------------------------
+// Bootstrap
+// ---------------------------------------------------------------------------
+
+export async function ensureMaveAi() {
+  console.log('[mave-ai] checking bootstrap…');
+
+  // 1. Ensure a sentinel user exists per persona
+  for (const meta of MAVE_AI_PERSONAS) {
+    const user = await ensureOnePersona(meta);
+    cachePersona(meta.id, user);
+    console.log(
+      `[mave-ai] persona "${meta.id}" → ${user.id} (${user.email})`
+    );
+  }
+
+  // 2. Ensure every human user has one DM per persona
   const users = await prisma.user.findMany({
     where: { isAi: false },
     select: { id: true },
@@ -80,26 +196,33 @@ export async function ensureMaveAi() {
   }
 
   const chunkSize = 50;
-  let ensured = 0;
-  let failed = 0;
+  let totalOk = 0;
+  let totalFailed = 0;
 
   for (let i = 0; i < users.length; i += chunkSize) {
     const chunk = users.slice(i, i + chunkSize);
     await Promise.all(
       chunk.map(async (u) => {
-        try {
-          await ensureAiDmForUser(u.id);
-          ensured++;
-        } catch (err) {
-          failed++;
-          console.warn(`[mave-ai] failed to ensure DM for ${u.id}:`, err.message);
+        for (const meta of MAVE_AI_PERSONAS) {
+          try {
+            await _ensureOneDm(u.id, meta.id);
+            totalOk++;
+          } catch (err) {
+            totalFailed++;
+            console.warn(
+              `[mave-ai] failed to ensure DM for ${u.id} × ${meta.id}:`,
+              err.message
+            );
+          }
         }
       })
     );
   }
 
   console.log(
-    `[mave-ai] bootstrap complete. Sentinel ID: ${aiUser.id}. ` +
-      `Ensured ${ensured} user DM(s)${failed ? `, ${failed} failed` : ''}.`
+    `[mave-ai] bootstrap complete. Ensured ${totalOk} DM(s) across ` +
+      `${users.length} user(s)` +
+      (totalFailed ? `, ${totalFailed} failed` : '') +
+      '.'
   );
 }

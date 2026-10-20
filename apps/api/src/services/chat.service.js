@@ -1,9 +1,23 @@
+// ============================================================================
+// Chat service — DMs, groups, friends-aware, Mave AI (Guide / Trainer / Chat).
+//
+// Multi-persona Mave AI:
+//   - Three sentinel users (isAi = true) — Guide, Trainer, Chat.
+//   - Each human has one DM with each persona.
+//   - Checks use isAnyMaveAiId() instead of a single aiId.
+//   - Serialized conversations include `aiPersona` so the UI can group.
+// ============================================================================
 
 import { prisma } from '../lib/prisma.js';
 import { HttpError } from '../middleware/error.js';
 import { broadcastToUser } from '../lib/broadcaster.js';
 import { triggerAiResponse } from './ai.service.js';
-import { getMaveAiId, ensureAiDmForUser } from './maveAiBootstrap.js';
+import {
+  getMaveAiIdForPersona,
+  getPersonaForAiId,
+  isAnyMaveAiId,
+  ensureAiDmForUser,
+} from './maveAiBootstrap.js';
 import {
   areFriends,
   isBlockedEither,
@@ -18,7 +32,6 @@ const MESSAGE_PAGE_DEFAULT = 50;
 const MESSAGE_PAGE_MAX = 100;
 const GROUP_DISCOVER_DEFAULT_LIMIT = 50;
 const GROUP_DISCOVER_MAX_LIMIT = 100;
-
 const NON_FRIEND_MESSAGE_LIMIT = 3;
 
 const PUBLIC_USER_SELECT = {
@@ -29,7 +42,6 @@ const PUBLIC_USER_SELECT = {
   photoUrl: true,
   isAi: true,
 };
-
 
 function serializePublicUser(u) {
   if (!u) return null;
@@ -109,6 +121,7 @@ function serializeConversation(c, userId, participantRow, extras = {}) {
   if (!isGroup) {
     base.isFriend = !!extras.isFriend;
     base.isAi = !!extras.isAi;
+    base.aiPersona = extras.aiPersona || null;
     if (!extras.isFriend && !extras.isAi && typeof extras.messagesRemaining === 'number') {
       base.messagesRemaining = extras.messagesRemaining;
     }
@@ -116,7 +129,6 @@ function serializeConversation(c, userId, participantRow, extras = {}) {
 
   return base;
 }
-
 
 async function assertParticipant(userId, conversationId) {
   const row = await prisma.conversationParticipant.findUnique({
@@ -148,7 +160,7 @@ async function assertAccessibleConversation(userId, conversationId) {
 
   if (conv.type === 'dm') {
     const peerId = conv.participants.find((p) => p.userId !== userId)?.userId;
-    if (peerId && (await isBlockedEither(userId, peerId))) {
+    if (peerId && !isAnyMaveAiId(peerId) && (await isBlockedEither(userId, peerId))) {
       throw new HttpError(404, 'Conversation not found');
     }
   }
@@ -164,6 +176,9 @@ async function getParticipantIds(conversationId) {
   return rows.map((r) => r.userId);
 }
 
+// ---------------------------------------------------------------------------
+// Users / DMs
+// ---------------------------------------------------------------------------
 
 export async function searchUsers(userId, q) {
   const query = String(q || '').trim();
@@ -180,7 +195,6 @@ export async function searchUsers(userId, q) {
     })
     .slice(0, 20);
 }
-
 
 function dmKeyFor(a, b) {
   return [a, b].sort().join(':');
@@ -218,7 +232,11 @@ export async function getOrCreateDm(userId, peerId) {
   if (existing) {
     const myRow = await assertParticipant(userId, existing.id);
     const friend = peer.isAi ? true : await areFriends(userId, peerId);
-    const extras = { isFriend: friend, isAi: peer.isAi };
+    const extras = {
+      isFriend: friend,
+      isAi: peer.isAi,
+      aiPersona: peer.isAi ? getPersonaForAiId(peerId) : null,
+    };
     if (!friend && !peer.isAi) {
       const sent = await prisma.message.count({
         where: { conversationId: existing.id, senderId: userId, deletedAt: null },
@@ -249,14 +267,17 @@ export async function getOrCreateDm(userId, peerId) {
   return serializeConversation(created, userId, myRow, {
     isFriend: friend,
     isAi: peer.isAi,
+    aiPersona: peer.isAi ? getPersonaForAiId(peerId) : null,
     messagesRemaining: (friend || peer.isAi) ? undefined : NON_FRIEND_MESSAGE_LIMIT,
   });
 }
 
-
 export async function listConversations(userId) {
+  // Best-effort — do not fail the whole list if DM creation races
   try {
-    await ensureAiDmForUser(userId);
+    for (const persona of ['guide', 'trainer', 'chat']) {
+      await ensureAiDmForUser(userId, persona);
+    }
   } catch (err) {
     console.warn(
       '[mave-ai] ensureAiDmForUser failed in listConversations:',
@@ -277,8 +298,6 @@ export async function listConversations(userId) {
     },
   });
 
-  const aiId = getMaveAiId();
-
   const [blockedIds, dmPeerIds] = await Promise.all([
     getBlockedUserIds(userId),
     Promise.resolve(
@@ -296,7 +315,7 @@ export async function listConversations(userId) {
     .filter((r) => {
       if (r.conversation.type !== 'dm') return false;
       const peerId = r.conversation.participants.find((p) => p.userId !== userId)?.userId;
-      return peerId && peerId !== aiId && !friendStatus[peerId]?.isFriend;
+      return peerId && !isAnyMaveAiId(peerId) && !friendStatus[peerId]?.isFriend;
     })
     .map((r) => r.conversation.id);
 
@@ -319,7 +338,7 @@ export async function listConversations(userId) {
     if (c.type !== 'dm') return true;
     const peerId = c.participants.find((p) => p.userId !== userId)?.userId;
     if (!peerId) return false;
-    if (peerId === aiId) return true;
+    if (isAnyMaveAiId(peerId)) return true;
     return !blockedSet.has(peerId);
   });
 
@@ -355,23 +374,25 @@ export async function listConversations(userId) {
     const c = p.conversation;
     const extras = {
       isAi: false,
+      aiPersona: null,
       lastVisible: lastVisibleMap.get(c.id) || null,
     };
 
     if (c.type === 'dm') {
       const peerId = c.participants.find((x) => x.userId !== userId)?.userId;
-      const isAi = peerId === aiId;
+      const isAi = isAnyMaveAiId(peerId);
       extras.isAi = isAi;
 
-      if (!isAi) {
+      if (isAi) {
+        extras.aiPersona = getPersonaForAiId(peerId);
+        extras.isFriend = true;
+      } else {
         const fs = friendStatus[peerId];
         extras.isFriend = !!fs?.isFriend;
         if (!extras.isFriend) {
           const sent = sentMap.get(c.id) || 0;
           extras.messagesRemaining = Math.max(0, NON_FRIEND_MESSAGE_LIMIT - sent);
         }
-      } else {
-        extras.isFriend = true;
       }
     }
 
@@ -392,16 +413,18 @@ export async function getConversation(userId, conversationId) {
   });
   if (!c) throw new HttpError(404, 'Conversation not found');
 
-  const aiId = getMaveAiId();
-  const extras = { isAi: false };
+  const extras = { isAi: false, aiPersona: null };
 
   if (c.type === 'dm') {
     const peerId = c.participants.find((p) => p.userId !== userId)?.userId;
     if (peerId) {
-      const isAi = peerId === aiId;
+      const isAi = isAnyMaveAiId(peerId);
       extras.isAi = isAi;
 
-      if (!isAi) {
+      if (isAi) {
+        extras.aiPersona = getPersonaForAiId(peerId);
+        extras.isFriend = true;
+      } else {
         const friend = await areFriends(userId, peerId);
         extras.isFriend = friend;
         if (!friend) {
@@ -410,8 +433,6 @@ export async function getConversation(userId, conversationId) {
           });
           extras.messagesRemaining = Math.max(0, NON_FRIEND_MESSAGE_LIMIT - sent);
         }
-      } else {
-        extras.isFriend = true;
       }
     }
   }
@@ -422,14 +443,15 @@ export async function getConversation(userId, conversationId) {
 export async function updateConversation(userId, conversationId, patch) {
   await assertAccessibleConversation(userId, conversationId);
 
-  const aiId = getMaveAiId();
-
-  if (patch.isArchived === true && aiId) {
+  if (patch.isArchived === true) {
     const conv = await prisma.conversation.findUnique({
       where: { id: conversationId },
       select: { type: true, participants: { select: { userId: true } } },
     });
-    if (conv?.type === 'dm' && conv.participants.some((p) => p.userId === aiId)) {
+    if (
+      conv?.type === 'dm' &&
+      conv.participants.some((p) => isAnyMaveAiId(p.userId))
+    ) {
       throw new HttpError(403, 'Mave AI conversations cannot be archived.');
     }
   }
@@ -447,7 +469,6 @@ export async function updateConversation(userId, conversationId, patch) {
   return { ok: true };
 }
 
-
 export async function clearChat(userId, conversationId) {
   await assertAccessibleConversation(userId, conversationId);
 
@@ -460,11 +481,9 @@ export async function clearChat(userId, conversationId) {
   });
   if (!conv) throw new HttpError(404, 'Conversation not found');
 
-  const aiId = getMaveAiId();
   const isAiConversation =
     conv.type === 'dm' &&
-    aiId &&
-    conv.participants.some((p) => p.userId === aiId);
+    conv.participants.some((p) => isAnyMaveAiId(p.userId));
 
   if (isAiConversation) {
     await prisma.$transaction([
@@ -503,6 +522,9 @@ export async function clearChat(userId, conversationId) {
   return { ok: true, scope: 'me' };
 }
 
+// ---------------------------------------------------------------------------
+// Messages
+// ---------------------------------------------------------------------------
 
 export async function listMessages(userId, conversationId, { before, limit } = {}) {
   await assertAccessibleConversation(userId, conversationId);
@@ -549,8 +571,6 @@ export async function sendMessage(userId, conversationId, { body, replyToId }) {
   if (!trimmed) throw new HttpError(400, 'Message body is required');
   if (trimmed.length > 4000) throw new HttpError(400, 'Message too long');
 
-  const aiId = getMaveAiId();
-
   const conv = await prisma.conversation.findUnique({
     where: { id: conversationId },
     select: {
@@ -561,7 +581,7 @@ export async function sendMessage(userId, conversationId, { body, replyToId }) {
 
   if (conv?.type === 'dm') {
     const peerId = conv.participants.find((p) => p.userId !== userId)?.userId;
-    if (peerId && peerId !== aiId) {
+    if (peerId && !isAnyMaveAiId(peerId)) {
       const friend = await areFriends(userId, peerId);
       if (!friend) {
         const sent = await prisma.message.count({
@@ -638,10 +658,11 @@ export async function sendMessage(userId, conversationId, { body, replyToId }) {
     broadcastToUser(pid, 'chat:message:new', payload);
   }
 
-  if (conv?.type === 'dm' && aiId) {
+  // Trigger AI reply if peer is an AI persona
+  if (conv?.type === 'dm') {
     const peerId = conv.participants.find((p) => p.userId !== userId)?.userId;
-    if (peerId === aiId) {
-      triggerAiResponse(conversationId, userId, aiId);
+    if (peerId && isAnyMaveAiId(peerId)) {
+      triggerAiResponse(conversationId, userId, peerId);
     }
   }
 
@@ -771,7 +792,6 @@ export async function deleteMessage(userId, messageId, scope) {
   return { ok: true, scope: 'all' };
 }
 
-
 export async function markDelivered(userId, messageId) {
   const msg = await prisma.message.findUnique({
     where: { id: messageId },
@@ -781,12 +801,8 @@ export async function markDelivered(userId, messageId) {
 
   await assertAccessibleConversation(userId, msg.conversationId);
 
-  if (msg.senderId === userId) {
-    return { ok: true, skipped: 'sender' };
-  }
-  if (msg.deliveredAt) {
-    return { ok: true, alreadyDelivered: true };
-  }
+  if (msg.senderId === userId) return { ok: true, skipped: 'sender' };
+  if (msg.deliveredAt) return { ok: true, alreadyDelivered: true };
 
   const now = new Date();
   const updated = await prisma.message.update({
@@ -829,10 +845,7 @@ export async function markRead(userId, conversationId) {
         senderId: { not: userId },
         readAt: null,
       },
-      data: {
-        deliveredAt: now,
-        readAt: now,
-      },
+      data: { deliveredAt: now, readAt: now },
     });
 
     await tx.conversationParticipant.update({
@@ -860,7 +873,6 @@ export async function markRead(userId, conversationId) {
   return { ok: true, readAt: now };
 }
 
-
 export async function broadcastTyping(userId, conversationId, isTyping) {
   await assertAccessibleConversation(userId, conversationId);
 
@@ -876,6 +888,9 @@ export async function broadcastTyping(userId, conversationId, isTyping) {
   return { ok: true };
 }
 
+// ---------------------------------------------------------------------------
+// Groups (unchanged behaviour)
+// ---------------------------------------------------------------------------
 
 export async function listDiscoverablePublicGroups(
   userId,
@@ -975,21 +990,14 @@ export async function leaveGroup(userId, groupId) {
     select: { id: true, type: true },
   });
   if (!conv) throw new HttpError(404, 'Conversation not found');
-  if (conv.type === 'dm') {
-    throw new HttpError(400, 'You cannot leave a direct message.');
-  }
-  if (conv.type !== 'group') {
-    throw new HttpError(400, 'Not a group');
-  }
+  if (conv.type === 'dm') throw new HttpError(400, 'You cannot leave a direct message.');
+  if (conv.type !== 'group') throw new HttpError(400, 'Not a group');
 
   const participant = await prisma.conversationParticipant.findUnique({
     where: { conversationId_userId: { conversationId: groupId, userId } },
     select: { id: true, role: true },
   });
-
-  if (!participant) {
-    return { ok: true, alreadyLeft: true };
-  }
+  if (!participant) return { ok: true, alreadyLeft: true };
 
   if (participant.role === 'owner') {
     const ownerCount = await prisma.conversationParticipant.count({

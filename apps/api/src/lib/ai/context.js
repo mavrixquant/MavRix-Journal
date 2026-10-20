@@ -1,9 +1,16 @@
+// ============================================================================
+// Conversation context builder — persona-aware.
+//
+// The `aiId` argument is the persona's user ID (Guide / Trainer / Chat).
+// We resolve the persona to pick the correct system prompt.
+// ============================================================================
 
 import { prisma } from '../prisma.js';
-import { MAVE_AI_SYSTEM_PROMPT } from './systemPrompt.js';
+import { getSystemPrompt } from './systemPrompt.js';
+import { getPersonaForAiId } from '../../services/maveAiBootstrap.js';
 import { env } from '../../config/env.js';
 
-export async function buildContext(conversationId, maveAiId) {
+export async function buildContext(conversationId, aiId) {
   const limit = env.ai.historyLimit;
 
   const rows = await prisma.message.findMany({
@@ -18,19 +25,15 @@ export async function buildContext(conversationId, maveAiId) {
 
   rows.reverse();
 
-  const history = [
-    { role: 'system', content: MAVE_AI_SYSTEM_PROMPT },
-  ];
+  const persona = getPersonaForAiId(aiId) || 'guide';
+  const systemPrompt = getSystemPrompt(persona);
+
+  const history = [{ role: 'system', content: systemPrompt }];
 
   for (const msg of rows) {
-    const role = msg.senderId === maveAiId ? 'assistant' : 'user';
-    
+    const role = msg.senderId === aiId ? 'assistant' : 'user';
     if (!msg.body || !msg.body.trim()) continue;
-
-    history.push({
-      role,
-      content: msg.body,
-    });
+    history.push({ role, content: msg.body });
   }
 
   return history;

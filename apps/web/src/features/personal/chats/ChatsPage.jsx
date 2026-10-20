@@ -1,4 +1,3 @@
-
 import { useState, useMemo, useEffect } from 'react';
 import { MessageSquare } from 'lucide-react';
 
@@ -13,6 +12,7 @@ import EmptyState from '@/shared/components/EmptyState';
 import ChatRail from './components/ChatRail';
 import ConversationList from './components/ConversationList';
 import MessageThread from './components/MessageThread';
+import MaveAiThreads from './components/MaveAiThreads';
 import FriendsTab from './components/FriendsTab';
 import NewChatModal from './components/NewChatModal';
 import GroupDiscoverModal from './components/GroupDiscoverModal';
@@ -21,6 +21,8 @@ import AddFriendModal from './components/AddFriendModal';
 import { useSwipeBack } from './hooks/useSwipeBack';
 
 import './ChatsShell.css';
+
+const AI_HUB_ID = '__mave_ai_hub__';
 
 export default function ChatsPage() {
   const { user } = useAuth();
@@ -49,9 +51,23 @@ export default function ChatsPage() {
     }
   }, [activeTab]);
 
+  const aiConversations = useMemo(
+    () => conversations.filter((c) => c.isAi),
+    [conversations]
+  );
+  const humanConversations = useMemo(
+    () => conversations.filter((c) => !c.isAi),
+    [conversations]
+  );
+
+  const isAiHubSelected = selectedId === AI_HUB_ID;
+
   const selectedConversation = useMemo(
-    () => conversations.find((c) => c.id === selectedId) || null,
-    [conversations, selectedId]
+    () =>
+      isAiHubSelected
+        ? null
+        : conversations.find((c) => c.id === selectedId) || null,
+    [conversations, selectedId, isAiHubSelected]
   );
 
   const counts = useMemo(() => {
@@ -65,14 +81,41 @@ export default function ChatsPage() {
     return { dmUnread, groupUnread };
   }, [conversations]);
 
-  const filteredConversations = useMemo(() => {
-    if (activeTab === 'dms') return conversations.filter((c) => !c.isGroup);
-    if (activeTab === 'groups') return conversations.filter((c) => c.isGroup);
+  const filteredHumanConversations = useMemo(() => {
+    if (activeTab === 'dms') return humanConversations.filter((c) => !c.isGroup);
+    if (activeTab === 'groups') return humanConversations.filter((c) => c.isGroup);
     return [];
-  }, [conversations, activeTab]);
+  }, [humanConversations, activeTab]);
+
+  const aiHub = useMemo(() => {
+    if (aiConversations.length === 0) return null;
+    const personaOrder = { guide: 0, trainer: 1, chat: 2 };
+    const sortedByPersona = [...aiConversations].sort((a, b) => {
+      return (personaOrder[a.aiPersona] ?? 9) - (personaOrder[b.aiPersona] ?? 9);
+    });
+    const latest = sortedByPersona.reduce(
+      (acc, c) => {
+        const ts = new Date(c.lastMessageAt).getTime();
+        return ts > acc.ts ? { ts, c } : acc;
+      },
+      { ts: 0, c: null }
+    );
+    return {
+      conversations: sortedByPersona,
+      unreadCount: sortedByPersona.reduce((s, c) => s + (c.unreadCount || 0), 0),
+      lastMessageAt: latest.ts || 0,
+      lastMessageText: latest.c?.lastMessageText || null,
+      selected: isAiHubSelected,
+    };
+  }, [aiConversations, isAiHubSelected]);
 
   const handleSelect = (id) => {
     setSelectedId(id);
+    setMobileThreadOpen(true);
+  };
+
+  const handleSelectAiHub = () => {
+    setSelectedId(AI_HUB_ID);
     setMobileThreadOpen(true);
   };
 
@@ -106,7 +149,7 @@ export default function ChatsPage() {
 
   usePageHeader({
     title: 'Chats',
-    subtitle: 'Private DMs, groups, and friends · visible only to participants',
+    subtitle: 'Private DMs, groups, friends, and Mave AI',
   });
 
   if (isLoading) return <PageSkeleton />;
@@ -123,6 +166,7 @@ export default function ChatsPage() {
         <FriendsTab
           onOpenAddFriend={() => setAddFriendOpen(true)}
           onOpenThread={handleOpenThread}
+          onOpenAiHub={handleSelectAiHub}
         />
       );
     }
@@ -131,8 +175,10 @@ export default function ChatsPage() {
       <>
         <aside className="chat-sidebar" aria-label="Conversations">
           <ConversationList
-            conversations={filteredConversations}
-            selectedId={selectedId}
+            conversations={filteredHumanConversations}
+            aiHub={activeTab === 'dms' ? aiHub : null}
+            onSelectAiHub={handleSelectAiHub}
+            selectedId={isAiHubSelected ? AI_HUB_ID : selectedId}
             currentUserId={user?.id}
             onSelect={handleSelect}
             activeTab={activeTab}
@@ -153,7 +199,13 @@ export default function ChatsPage() {
           aria-label="Conversation"
           ref={threadSwipeRef}
         >
-          {selectedConversation ? (
+          {isAiHubSelected && aiHub ? (
+            <MaveAiThreads
+              aiConversations={aiHub.conversations}
+              onBack={handleMobileBack}
+              onOpenThread={handleOpenThread}
+            />
+          ) : selectedConversation ? (
             <MessageThread
               conversationId={selectedId}
               onBack={handleMobileBack}
