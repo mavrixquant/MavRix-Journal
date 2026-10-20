@@ -5,25 +5,31 @@
 // One credential per (userId, provider). The router walks them in LRU order
 // at chat time; the UI shows one card per saved provider.
 //
-// Endpoints:
-//   GET    /providers                       — list of AI_PROVIDERS
-//   GET    /settings                        — array of my credentials
-//   POST   /settings                        — upsert (userId, provider)
-//   PATCH  /settings/:provider/models       — reorder / toggle models[]
-//   DELETE /settings/:provider              — remove one credential
-//   POST   /test                            — validate a key + model without saving
+// Test Key design:
+//   Tests validate the API key via the provider's /models endpoint. We
+//   NEVER call /chat/completions with a specific model from this endpoint,
+//   because providers deprecate, promote to paid, or rename models without
+//   warning — a model pin would make the test falsely fail on a perfectly
+//   good key. If /models returns 200, the key is valid.
+//
+// Save Key design:
+//   Discovery runs at save time.
+//     - 401 / 403 → REJECT save (bad key)
+//     - other failures → save with fallbackModels[provider] so the key is
+//       at least available if the discovery endpoint recovers later
+//     - success → save the discovered list
 
 import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
 import { HttpError } from '../middleware/error.js';
 import { encryptKey } from '../lib/ai/crypto.js';
-import { getProviderAdapter } from '../lib/ai/registry.js';
 import { discoverModels } from '../lib/ai/discoverModels.js';
 import { AI_PROVIDERS, getProviderMeta, fallbackModels } from '@mavrix/shared';
 
 const credentialSchema = z.object({
   provider: z.enum(['openrouter', 'openai', 'anthropic', 'gemini', 'groq', 'deepseek']),
   apiKey: z.string().trim().min(10).max(500),
+  // Retained for backward-compat callers; ignored by testKey since 20261023.
   model: z.string().trim().max(100).optional().nullable(),
 });
 
@@ -75,13 +81,25 @@ export async function saveSettings(req, res, next) {
     const { encryptedKey, keyIv, keyTag } = encryptKey(payload.apiKey);
 
     // ---- Discover models from the provider ----
-    // If the key works but discovery fails, save with the curated fallback
-    // so the user doesn't have to retry. The `discovered` flag tells the UI
-    // which path was taken.
-    const discovered = await discoverModels(payload.provider, payload.apiKey);
+    // This doubles as the key validity check. Auth failures (401/403) are
+    // REJECTED — the user must fix their key. Transient failures (network,
+    // 5xx, rate limit) fall back to the curated list so the key isn't
+    // blocked by a temporary outage of the discovery endpoint.
+    const discovery = await discoverModels(payload.provider, payload.apiKey);
+
+    if (!discovery.ok && (discovery.status === 401 || discovery.status === 403)) {
+      throw new HttpError(
+        400,
+        discovery.status === 401
+          ? '401 Unauthorized: The API key was rejected by the provider. Check that you copied it correctly.'
+          : '403 Forbidden: This key is not permitted to list models on the provider.'
+      );
+    }
+
+    const usingFallback = !discovery.ok;
     const models =
-      discovered && discovered.length > 0
-        ? discovered
+      discovery.ok && discovery.models.length > 0
+        ? discovery.models
         : (fallbackModels[payload.provider] || []);
 
     const cred = await prisma.aiCredential.upsert({
@@ -108,10 +126,12 @@ export async function saveSettings(req, res, next) {
 
     res.json({
       credential: serialize(cred),
-      discovered: Array.isArray(discovered) && discovered.length > 0,
+      discovered: !usingFallback,
+      discoveryError: usingFallback ? (discovery.error || 'Discovery failed') : null,
     });
   } catch (err) {
     if (err.name === 'ZodError') return next(err);
+    if (err instanceof HttpError) return next(err);
     next(new HttpError(500, `Failed to save AI credential: ${err.message}`));
   }
 }
@@ -165,7 +185,7 @@ export async function deleteSettings(req, res, next) {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Test key                                                           */
+/*  Test key — verifies the key via /models, NEVER via chat           */
 /* ------------------------------------------------------------------ */
 
 export async function testKey(req, res, next) {
@@ -174,36 +194,34 @@ export async function testKey(req, res, next) {
     const meta = getProviderMeta(payload.provider);
     if (!meta) throw new HttpError(400, `Unknown provider: ${payload.provider}`);
 
-    const adapter = getProviderAdapter(payload.provider);
+    const result = await discoverModels(payload.provider, payload.apiKey);
 
-    const testMessages = [
-      { role: 'system', content: 'You are a test bot. Respond with exactly "OK".' },
-      { role: 'user', content: 'Test' },
-    ];
-
-    try {
-      await adapter.chat(testMessages, {
-        apiKey: payload.apiKey,
-        model: payload.model || meta.defaultModel,
-        maxTokens: 50, // Increased from 5 for reasoning models
-        timeoutMs: 10_000,
+    if (result.ok) {
+      const count = result.models?.length ?? 0;
+      return res.json({
+        ok: true,
+        message: `Key is valid · ${count} model${count === 1 ? '' : 's'} available.`,
+        modelCount: count,
+        sampleModels: (result.models || []).slice(0, 5),
       });
-      res.json({ ok: true, message: 'Key is valid and working.' });
-    } catch (err) {
-      let msg = err.message || 'Invalid key or provider error.';
-
-      if (err.status === 401) {
-        msg = '401 Unauthorized: The API key was rejected by the provider. Check that you copied it correctly.';
-      } else if (err.status === 429) {
-        msg = '429 Too Many Requests: This key is valid but has hit its rate limit or has insufficient credits.';
-      } else if (msg.toLowerCase().includes('credit balance')) {
-        msg = 'Credit balance is too low. You must add funds to your provider dashboard.';
-      } else if (msg.toLowerCase().includes('quota')) {
-        msg = 'Quota exceeded. You need to add billing details to this API key.';
-      }
-
-      throw new HttpError(400, msg);
     }
+
+    // Map the provider's status code to a friendly message. The raw
+    // error text from the provider is preserved when nothing better exists.
+    let msg = result.error || 'Invalid key or provider error.';
+    if (result.status === 401) {
+      msg = '401 Unauthorized: The API key was rejected by the provider. Check that you copied it correctly.';
+    } else if (result.status === 403) {
+      msg = '403 Forbidden: This key is not permitted to list models on the provider.';
+    } else if (result.status === 429) {
+      msg = "429 Too Many Requests: The key is valid but has hit the provider's rate limit.";
+    } else if (result.status === 0) {
+      msg = result.error === 'Request timed out'
+        ? 'Request timed out. Check your network connection.'
+        : `Network error: ${msg}`;
+    }
+
+    throw new HttpError(400, msg);
   } catch (err) {
     next(err);
   }

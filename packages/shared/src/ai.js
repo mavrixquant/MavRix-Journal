@@ -16,7 +16,8 @@ export const AI_PROVIDERS = [
     freeTier: true,
     keyPrefix: 'sk-or-v1-',
     keyDocsUrl: 'https://openrouter.ai/keys',
-    defaultModel: 'meta-llama/llama-3.3-70b-instruct:free',
+    // Admin-fallback default only. BYOK uses the discovered model list.
+    defaultModel: 'meta-llama/llama-3.1-8b-instruct:free',
   },
   {
     id: 'groq',
@@ -32,7 +33,7 @@ export const AI_PROVIDERS = [
     freeTier: true,
     keyPrefix: 'AIza',
     keyDocsUrl: 'https://aistudio.google.com/apikey',
-    defaultModel: 'gemini-3.8-flash',
+    defaultModel: 'gemini-1.5-flash',
   },
   {
     id: 'deepseek',
@@ -69,43 +70,43 @@ export function getProviderMeta(id) {
 // ---------------------------------------------------------------------------
 // Curated fallback model lists.
 //
-// Used ONLY when live model discovery fails at save time (network error,
-// /models returns 403/404, provider temporarily down). The key save still
-// succeeds — the credential just gets a smaller default rotation instead of
-// the full live list. The user can re-save to retry discovery, or toggle
-// individual models in Settings → Mave AI.
+// Used ONLY when live discovery fails at save time AND the failure was NOT
+// an auth error (401/403). Auth failures reject the save — the user must
+// fix their key. Transient failures (network, timeout, 5xx, 429) fall back
+// to this list so the credential isn't blocked by a discovery outage.
 //
-// Ordered by preference. The router tries models[] in order.
+// STALENESS WARNING:
+//   Providers — especially OpenRouter — rotate their free tier constantly.
+//   If any model in this list returns "unavailable" or "now paid", the
+//   router fails over to the next entry (up to the last one). If every
+//   entry in a provider's list is stale, the user re-saves their key to
+//   trigger fresh discovery.
+//
+//   Keep these lists SHORT and CHOOSE THE STABLEST AVAILABLE MODELS. Two
+//   entries is plenty — the router handles failover within the list.
 // ---------------------------------------------------------------------------
 
 export const fallbackModels = {
   openrouter: [
-    'meta-llama/llama-3.3-70b-instruct:free',
-    'google/gemini-2.0-flash-exp:free',
-    'deepseek/deepseek-r1:free',
-    'qwen/qwen-2.5-72b-instruct:free',
-    'mistralai/mistral-small-24b-instruct-2501:free',
+    'meta-llama/llama-3.1-8b-instruct:free',
+    'google/gemma-2-9b-it:free',
   ],
   groq: [
-    'openai/gpt-oss-20b',
-    'llama-3.3-70b-versatile',
     'llama-3.1-8b-instant',
+    'llama-3.3-70b-versatile',
   ],
   gemini: [
-    'gemini-3.8-flash',
-    'gemini-3.8-pro',
+    'gemini-1.5-flash',
+    'gemini-1.5-pro',
   ],
   deepseek: [
     'deepseek-chat',
-    'deepseek-reasoner',
   ],
   openai: [
     'gpt-4o-mini',
-    'gpt-4o',
   ],
   anthropic: [
     'claude-3-5-haiku-latest',
-    'claude-3-5-sonnet-latest',
   ],
 };
 
@@ -136,6 +137,7 @@ export function filterChatModels(provider, ids) {
 
   return unique;
 }
+
 // ---------------------------------------------------------------------------
 // Built-in Mave AI sentinel identity.
 //

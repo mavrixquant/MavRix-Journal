@@ -10,16 +10,21 @@
 //   3. Add / edit form — provider dropdown (all 6, ordered per
 //      AI_PROVIDERS), API key, optional primary model override, Test, Save.
 //
-// Saving a key auto-discovers the models available to that key (see
-// apps/api/src/lib/ai/discoverModels.js). If discovery fails, the API
-// falls back to `fallbackModels[provider]` from @mavrix/shared so the save
-// still succeeds.
+// Test Key behaviour (since 20261023):
+//   The server verifies the key against the provider's /models endpoint.
+//   NO chat call is made, and NO model is sent. This means a stale or
+//   deprecated model can never cause the test to falsely fail — the test
+//   only asserts that the KEY is valid.
+//
+// Save Key behaviour:
+//   Server rejects 401/403 (bad key). Falls back to curated models on
+//   transient failure. Response's `discovered` flag reflects which path
+//   was taken.
 
 import { useState, useEffect, useMemo } from 'react';
 import {
   Sparkles,
   KeyRound,
-  AlertTriangle,
   Loader2,
   Trash2,
   ExternalLink,
@@ -84,7 +89,6 @@ const CSS = `
     font-family: 'IBM Plex Mono', monospace;
   }
 
-  /* Saved credentials list */
   .mave-cred-list {
     display: flex;
     flex-direction: column;
@@ -169,7 +173,6 @@ const CSS = `
     font-size: 11px;
   }
 
-  /* Form */
   .mave-form {
     display: flex;
     flex-direction: column;
@@ -279,7 +282,7 @@ function SavedCredentialCard({ cred, onRequestDelete, onToggleModel, updating })
         <div className="mave-cred-models">
           {models.length === 0 && (
             <div className="mave-cred-empty">
-              No models discovered. Re-save the key to refresh.
+              No models discovered. Re-save the key to retry discovery.
             </div>
           )}
           {models.map((m) => (
@@ -328,7 +331,6 @@ export default function MaveAiPanel() {
     [credentials]
   );
 
-  // Keep the selected provider valid if the list changes.
   useEffect(() => {
     if (
       availableProviders.length > 0 &&
@@ -352,6 +354,9 @@ export default function MaveAiPanel() {
   const selectedMeta = getProviderMeta(provider);
   const isProviderSaved = savedProviders.has(provider);
 
+  // Test Key — sends ONLY provider + apiKey. The server validates via the
+  // provider's /models endpoint. No chat model is involved, so this can
+  // never falsely fail on a deprecated or paid-only model.
   const handleTest = async () => {
     setErrorMsg('');
     if (!apiKey.trim()) {
@@ -359,12 +364,20 @@ export default function MaveAiPanel() {
       return;
     }
     try {
-      await testMutation.mutateAsync({
+      const result = await testMutation.mutateAsync({
         provider,
         apiKey: apiKey.trim(),
-        model: model.trim() || undefined,
       });
-      toast.success('API key is valid!');
+      const count = result?.modelCount ?? 0;
+      const sample = Array.isArray(result?.sampleModels) ? result.sampleModels : [];
+      const suffix = count > 0
+        ? ` · ${count} model${count === 1 ? '' : 's'} available`
+        : '';
+      toast.success(`Key is valid${suffix}.`, {
+        description: sample.length > 0
+          ? `e.g. ${sample.slice(0, 2).join(', ')}`
+          : undefined,
+      });
     } catch (err) {
       setErrorMsg(err?.message || 'Test failed. Check your key.');
     }
@@ -392,7 +405,9 @@ export default function MaveAiPanel() {
       if (discovered) {
         toast.success(`${label} connected · ${count} model${count === 1 ? '' : 's'} in rotation.`);
       } else {
-        toast.success(`${label} connected · using ${count} fallback model${count === 1 ? '' : 's'} (discovery failed).`);
+        toast.warning(`${label} saved · discovery failed, using ${count} fallback model${count === 1 ? '' : 's'}.`, {
+          description: result?.discoveryError || 'You can re-save to retry discovery.',
+        });
       }
 
       setApiKey('');
