@@ -9,7 +9,19 @@ export default function AdminSidebar({ onNavigate }) {
   const isSuperadmin = user?.role === 'superadmin';
 
   return (
-    <aside className="admin-sidebar">
+    <aside
+      className="admin-sidebar"
+      style={{
+        width: 240,
+        flexShrink: 0,
+        height: '100%',
+        borderRight: '1px solid rgba(255,255,255,.08)',
+        background: '#0F121A',
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+      }}
+    >
       <div className="admin-sidebar-head">
         <span className="admin-sidebar-head-dot" aria-hidden />
         <div style={{ minWidth: 0 }}>
@@ -18,7 +30,7 @@ export default function AdminSidebar({ onNavigate }) {
         </div>
       </div>
 
-      <nav className="admin-sidebar-nav">
+      <nav className="admin-sidebar-nav" style={{ flex: 1, overflowY: 'auto' }}>
         {ADMIN_NAV.map((section) => {
           const visibleItems = section.items.filter(
             (item) => !item.superadminOnly || isSuperadmin

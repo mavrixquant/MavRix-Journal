@@ -20,34 +20,69 @@ export default function AdminLayout() {
   }, [location.pathname]);
 
   return (
-    <TooltipProvider delayDuration={250}>
-      <AdminErrorBoundary>
-        <div className={`admin-shell${mobileOpen ? ' is-mobile-open' : ''}`}>
-          <AdminSidebar />
+    <div
+      style={{
+        display: 'block',
+        width: '100%',
+        height: '100vh',
+        overflow: 'hidden',
+        background: '#07090D',
+        position: 'relative',
+        zIndex: 1,
+      }}
+    >
+      <TooltipProvider delayDuration={250}>
+        <AdminErrorBoundary>
+          <div
+            className={`admin-shell${mobileOpen ? ' is-mobile-open' : ''}`}
+            style={{ display: 'flex', height: '100%', width: '100%' }}
+          >
+            <AdminSidebar />
 
-          <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-            <SheetContent
-              side="left"
-              className="w-[280px] max-w-[85vw] border-r border-white/[.085] bg-transparent p-0 [&>button]:hidden"
+            {/* Only mount the Sheet component if it's actually needed.
+                Radix portals can sometimes cause invisible overlays if mismounted. */}
+            {mobileOpen && (
+              <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+                <SheetContent
+                  side="left"
+                  className="w-[280px] max-w-[85vw] border-r border-white/[.085] bg-transparent p-0 [&>button]:hidden"
+                >
+                  <SheetTitle className="sr-only">Admin navigation</SheetTitle>
+                  <AdminSidebar onNavigate={() => setMobileOpen(false)} />
+                </SheetContent>
+              </Sheet>
+            )}
+
+            <div
+              className="admin-main"
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                flex: 1,
+                minWidth: 0,
+                height: '100%',
+              }}
             >
-              <SheetTitle className="sr-only">Admin navigation</SheetTitle>
-              <AdminSidebar onNavigate={() => setMobileOpen(false)} />
-            </SheetContent>
-          </Sheet>
-
-          <div className="admin-main">
-            <AdminHeader
-              user={user}
-              onMobileMenuClick={() => setMobileOpen(true)}
-            />
-            <main className="admin-body">
-              <Suspense key={location.pathname} fallback={<PageSkeleton />}>
-                <Outlet />
-              </Suspense>
-            </main>
+              <AdminHeader
+                user={user}
+                onMobileMenuClick={() => setMobileOpen(true)}
+              />
+              <main
+                className="admin-body"
+                style={{
+                  flex: 1,
+                  overflowY: 'auto',
+                  padding: 24,
+                }}
+              >
+                <Suspense key={location.pathname} fallback={<PageSkeleton />}>
+                  <Outlet />
+                </Suspense>
+              </main>
+            </div>
           </div>
-        </div>
-      </AdminErrorBoundary>
-    </TooltipProvider>
+        </AdminErrorBoundary>
+      </TooltipProvider>
+    </div>
   );
 }

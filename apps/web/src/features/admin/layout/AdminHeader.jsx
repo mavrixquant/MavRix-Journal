@@ -32,7 +32,18 @@ export default function AdminHeader({ user, onMobileMenuClick }) {
     'A';
 
   return (
-    <header className="admin-header">
+    <header
+      className="admin-header"
+      style={{
+        height: 56,
+        flexShrink: 0,
+        display: 'flex',
+        alignItems: 'center',
+        padding: '0 24px',
+        borderBottom: '1px solid rgba(255,255,255,.08)',
+        background: '#0F121A',
+      }}
+    >
       <button
         type="button"
         className="admin-mobile-menu"
@@ -48,7 +59,7 @@ export default function AdminHeader({ user, onMobileMenuClick }) {
         <span className="admin-header-crumbs-current">{current}</span>
       </div>
 
-      <div className="admin-header-spacer" />
+      <div className="admin-header-spacer" style={{ flex: 1 }} />
 
       <span className={`admin-health is-${status}`}>
         <span className="admin-health-dot" aria-hidden />

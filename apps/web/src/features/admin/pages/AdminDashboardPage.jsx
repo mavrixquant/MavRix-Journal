@@ -12,7 +12,7 @@ import { useAdminMe, useAdminStats, useAdminHealth } from '../api';
 import StatCard from '../components/StatCard';
 
 const CSS = `
-  .ad-root { display: flex; flex-direction: column; gap: 22px; }
+  .ad-root { display: flex; flex-direction: column; gap: 22px; padding: 10px; }
   .ad-kpi-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -38,7 +38,7 @@ const CSS = `
   .ad-panel-note {
     font-family: 'IBM Plex Mono', monospace;
     font-size: 10px; letter-spacing: .06em;
-    text-transform: uppercase; color: var(--accent); opacity: .85;
+    text-transform: uppercase; color: #F59E0B; opacity: .85;
   }
   .ad-panel-body { padding: 16px 18px; }
   
@@ -66,14 +66,12 @@ const CSS = `
   .ad-chart-bar {
     width: 100%;
     max-width: 24px;
-    background: var(--accent);
+    background: #F59E0B;
     border-radius: 4px 4px 0 0;
     transition: height .3s ease;
     position: relative;
   }
-  .ad-chart-bar:hover {
-    background: var(--accent-2);
-  }
+  .ad-chart-bar:hover { background: #FDE68A; }
   .ad-chart-label {
     position: absolute;
     bottom: -24px;
@@ -100,9 +98,7 @@ const CSS = `
     white-space: nowrap;
     z-index: 10;
   }
-  .ad-chart-bar-wrap:hover .ad-chart-tooltip {
-    opacity: 1;
-  }
+  .ad-chart-bar-wrap:hover .ad-chart-tooltip { opacity: 1; }
 
   .ad-health-grid {
     display: grid;
@@ -162,10 +158,7 @@ function CustomBarChart({ data }) {
             <div className="ad-chart-tooltip">
               {d.date}: {d.count} signups
             </div>
-            <div
-              className="ad-chart-bar"
-              style={{ height: `${heightPct}%` }}
-            />
+            <div className="ad-chart-bar" style={{ height: `${heightPct}%` }} />
             <span className="ad-chart-label">{dateLabel}</span>
           </div>
         );
@@ -205,6 +198,11 @@ export default function AdminDashboardPage() {
     <>
       <style>{CSS}</style>
       <div className="ad-root">
+        {/* DEBUG BANNER - REMOVE AFTER VERIFICATION */}
+        <div style={{ background: '#ef4444', color: '#fff', padding: 10, fontSize: 20, textAlign: 'center', borderRadius: 8 }}>
+          ADMIN DASHBOARD MOUNTED SUCCESSFULLY
+        </div>
+
         <div className="admin-ph">
           <div className="admin-ph-left">
             <span className="admin-ph-eyebrow">Control Panel</span>
@@ -341,11 +339,7 @@ export default function AdminDashboardPage() {
               <div className="ad-health-item">
                 <span className="ad-health-label">Status</span>
                 <span className={`ad-health-value ${health?.status === 'ok' ? 'is-ok' : 'is-bad'}`}>
-                  {health?.status === 'ok'
-                    ? 'All good'
-                    : health
-                      ? 'Degraded'
-                      : '—'}
+                  {health?.status === 'ok' ? 'All good' : health ? 'Degraded' : '—'}
                 </span>
                 <span className="ad-health-label">overall</span>
               </div>
