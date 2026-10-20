@@ -47,6 +47,24 @@ function formatRelativeShort(iso) {
   });
 }
 
+const BADGE_STYLE = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 4,
+  padding: '2px 7px',
+  borderRadius: 99,
+  border: '1px solid var(--accent-soft2)',
+  background: 'color-mix(in srgb, var(--accent) 8%, transparent)',
+  color: 'var(--accent)',
+  fontFamily: "'IBM Plex Mono', monospace",
+  fontSize: 9.5,
+  fontWeight: 700,
+  letterSpacing: '.06em',
+  lineHeight: 1,
+  whiteSpace: 'nowrap',
+  flexShrink: 0,
+};
+
 function AiHubRow({ hub, onClick, selected }) {
   const { unreadCount, lastMessageText, lastMessageAt, conversations } = hub;
 
@@ -77,29 +95,23 @@ function AiHubRow({ hub, onClick, selected }) {
       </span>
 
       <span className="conv-body">
-        <span className="conv-row-top">
-          <span className="conv-name">
-            Mave AI
-            <span
-              style={{
-                marginLeft: 8,
-                fontFamily: "'IBM Plex Mono', monospace",
-                fontSize: 9.5,
-                fontWeight: 700,
-                letterSpacing: '.06em',
-                padding: '2px 7px',
-                borderRadius: 99,
-                border: '1px solid var(--accent-soft2)',
-                background: 'color-mix(in srgb, var(--accent) 8%, transparent)',
-                color: 'var(--accent)',
-                verticalAlign: 'middle',
-              }}
-            >
-              <Sparkles size={8} style={{ verticalAlign: 'middle', marginRight: 3 }} />
+        <span
+          className="conv-row-top"
+          style={{ alignItems: 'center', display: 'flex', justifyContent: 'space-between' }}
+        >
+          <span
+            className="conv-name"
+            style={{ display: 'flex', alignItems: 'center', gap: 8, overflow: 'hidden' }}
+          >
+            <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              Mave AI
+            </span>
+            <span style={BADGE_STYLE}>
+              <Sparkles size={9} strokeWidth={2.5} style={{ display: 'block', flexShrink: 0 }} />
               3 personas
             </span>
           </span>
-          <span className="conv-time">
+          <span className="conv-time" style={{ flexShrink: 0 }}>
             {lastMessageAt
               ? formatRelativeShort(new Date(lastMessageAt).toISOString())
               : ''}

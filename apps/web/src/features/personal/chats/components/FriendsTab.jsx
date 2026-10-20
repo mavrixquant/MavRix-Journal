@@ -73,10 +73,24 @@ function CountBadge({ count }) {
   );
 }
 
-/**
- * Single grouped tile that represents all 3 Mave AI personas in the friends
- * list. Clicking it opens the Mave AI hub.
- */
+const BADGE_STYLE = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 4,
+  padding: '2px 7px',
+  borderRadius: 99,
+  border: '1px solid var(--accent-soft2)',
+  background: 'color-mix(in srgb, var(--accent) 8%, transparent)',
+  color: 'var(--accent)',
+  fontFamily: "'IBM Plex Mono', monospace",
+  fontSize: 9.5,
+  fontWeight: 700,
+  letterSpacing: '.06em',
+  lineHeight: 1,
+  whiteSpace: 'nowrap',
+  flexShrink: 0,
+};
+
 function MaveAiHubRow({ onClick }) {
   return (
     <div
@@ -93,28 +107,22 @@ function MaveAiHubRow({ onClick }) {
       style={{ cursor: 'pointer' }}
       aria-label="Open Mave AI"
     >
-      <span className="pane-row-avatar">
+      <span
+        className="pane-row-avatar"
+        style={{ background: 'transparent', border: 'none' }}
+      >
         <MaveAiAvatar size={40} />
       </span>
       <div className="pane-row-body">
-        <div className="pane-row-name">
-          Mave AI
-          <span
-            style={{
-              marginLeft: 8,
-              fontFamily: "'IBM Plex Mono', monospace",
-              fontSize: 9.5,
-              fontWeight: 700,
-              letterSpacing: '.06em',
-              padding: '2px 7px',
-              borderRadius: 99,
-              border: '1px solid var(--accent-soft2)',
-              background: 'color-mix(in srgb, var(--accent) 8%, transparent)',
-              color: 'var(--accent)',
-              verticalAlign: 'middle',
-            }}
-          >
-            <Sparkles size={8} style={{ verticalAlign: 'middle', marginRight: 3 }} />
+        <div
+          className="pane-row-name"
+          style={{ display: 'flex', alignItems: 'center', gap: 8, overflow: 'hidden' }}
+        >
+          <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            Mave AI
+          </span>
+          <span style={BADGE_STYLE}>
+            <Sparkles size={9} strokeWidth={2.5} style={{ display: 'block', flexShrink: 0 }} />
             3 personas
           </span>
         </div>
@@ -144,7 +152,6 @@ export default function FriendsTab({
 
   const pendingIncoming = (requests?.incoming || []).length;
 
-  // Split AI persona entries (grouped) from real human friends.
   const hasAi = useMemo(
     () => friends.some((f) => f.isAi),
     [friends]
