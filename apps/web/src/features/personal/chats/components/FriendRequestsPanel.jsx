@@ -8,7 +8,7 @@
 // previous version. Only the wrapper (Portal + overlay + modal chrome)
 // is new.
 
-import { X, Check, UserRoundPlus, Inbox } from 'lucide-react';
+import { X, Check, Inbox } from 'lucide-react';
 import { toast } from 'sonner';
 
 import Portal from '@/shared/components/Portal';
@@ -177,7 +177,6 @@ function relativeTime(iso) {
 export default function FriendRequestsPanel({
   isOpen = false,
   onClose,
-  onOpenAddFriend,
 }) {
   const trapRef = useFocusTrap({ active: isOpen, onEscape: onClose });
 

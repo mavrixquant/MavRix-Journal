@@ -12,8 +12,9 @@ coverage/
 apps/api/prisma/migrations/dev.db*
 ai-context
 *.ps1
+*.mjs
 notes.*
-# GEX data backups (contains real data — never commit)
+# GEX data backups (contains real data ï¿½ never commit)
 apps/api/backups/
 
 # Chat smoke-test scratch files

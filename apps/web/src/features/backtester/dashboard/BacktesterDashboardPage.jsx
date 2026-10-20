@@ -46,7 +46,6 @@ import {
   FaClipboardList,
 } from 'react-icons/fa';
 import { useAuth } from '@/app/providers/AuthProvider';
-import { useAppContext } from '@/app/providers/AppProvider';
 import { useDashboardAccount } from '@/app/providers/useDashboardAccount';
 import { useStats } from '@/features/dashboard/hooks/useStats';
 import { useEnrichedTrades } from '@/features/dashboard/hooks/useEnrichedTrades';
@@ -75,7 +74,6 @@ const DEFAULT_NAME_PATTERN = /^Layout \d+$/;
 /* ------------------------------------------------------------------ */
 export default function BacktesterDashboardPage() {
   const { user } = useAuth();
-  const { state } = useAppContext();
   const { accountId } = useDashboardAccount();
 
   // Enrich + dispatch trades for this Backtest account into AppProvider.

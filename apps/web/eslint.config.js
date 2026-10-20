@@ -153,6 +153,7 @@ export default defineConfig([
           ignoreRestSiblings: true,
         },
       ],
+      'no-empty': ['error', { allowEmptyCatch: true }],
 
       /* ── React 19 / Compiler rules — deferred to a future
          "React Compiler readiness" project. These flag patterns
