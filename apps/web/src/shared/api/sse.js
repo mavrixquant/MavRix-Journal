@@ -274,13 +274,39 @@ export function useSSEBridge({ enabled = true, currentUserId = null } = {}) {
         setTypingState(conversationId, userId, !!isTyping);
       });
 
+      /* ---------------- Chat: cleared ---------------- */
+      //
+      // Phase 5. The API broadcasts this to the CALLER ONLY after a
+      // successful clearChat. Invalidating the affected keys refetches:
+      //   - messages  → empty (AI) or filtered (human)
+      //   - conversation detail
+      //   - the sidebar list → preview flips to "Cleared" / "No messages yet"
+      //
+      // No participant needs notifying — the clear is per-user (or, for AI,
+      // hard-delete for everyone in the DM which is only the caller + AI).
+
+      es.addEventListener('chat:cleared', (e) => {
+        let payload;
+        try {
+          payload = JSON.parse(e.data);
+        } catch {
+          return;
+        }
+        const { conversationId } = payload || {};
+        if (!conversationId) return;
+
+        queryClient.invalidateQueries({ queryKey: ['chat', 'messages', conversationId] });
+        queryClient.invalidateQueries({ queryKey: ['chat', 'conversation', conversationId] });
+        queryClient.invalidateQueries({ queryKey: ['chat', 'conversations'] });
+      });
+
       /* ---------------- Friends: incoming request ---------------- */
 
       es.addEventListener('friend:request:new', (e) => {
         queryClient.invalidateQueries({ queryKey: ['friends', 'requests'] });
         queryClient.invalidateQueries({ queryKey: ['friends', 'status'] });
 
-        // BUGFIX — pop a notification so the recipient knows immediately,
+        // Pop a notification so the recipient knows immediately,
         // regardless of which route they're on.
         try {
           const payload = JSON.parse(e.data);
@@ -306,8 +332,8 @@ export function useSSEBridge({ enabled = true, currentUserId = null } = {}) {
         queryClient.invalidateQueries({ queryKey: ['friends'] });
         queryClient.invalidateQueries({ queryKey: ['chat', 'conversations'] });
 
-        // BUGFIX — notify both sides. Server broadcasts `peer` = the OTHER
-        // user: to the accepter, peer=requester; to the requester, peer=accepter.
+        // Notify both sides. Server broadcasts `peer` = the OTHER user:
+        // to the accepter, peer=requester; to the requester, peer=accepter.
         try {
           const payload = JSON.parse(e.data);
           const peer = payload?.peer;

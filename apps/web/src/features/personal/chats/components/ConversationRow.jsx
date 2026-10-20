@@ -1,11 +1,15 @@
-﻿// apps/web/src/features/personal/chats/components/ConversationRow.jsx
+// apps/web/src/features/personal/chats/components/ConversationRow.jsx
 //
-// PHASE 6 — a11y:
-//   • aria-current="true" when the row is the active conversation
-//   • aria-label summarizes the row for screen readers
-//   • data-conv-row lets the parent list attach keyboard navigation
+// Phase 5 — per-user preview:
+//   • When `clearedByMe === true` (caller cleared, no newer message since),
+//     the preview line reads "Chat cleared" instead of showing the peer's
+//     copy of the last message.
+//   • When the conversation has never had any messages, it reads
+//     "No messages yet" (unchanged).
+//   • Group rows get the same treatment.
 //
-// Pure presentation; no state, no hooks.
+// Everything else (a11y, friendship pill, pinned/unread indicators, keyboard
+// navigation hooks) is unchanged from the previous version.
 
 import { Pin, Lock } from 'lucide-react';
 import { formatRelative } from '@/shared/format/datetime';
@@ -42,9 +46,17 @@ export default function ConversationRow({
   const isGroup = conversation.isGroup;
   const isOwn = conversation.lastMessageById === currentUserId;
 
+  // Phase 5 — preview text.
+  // Priority:
+  //   1. Typing indicator overrides everything
+  //   2. Real last message (own vs peer)
+  //   3. Cleared state ("Chat cleared")
+  //   4. Truly empty ("No messages yet")
   const preview = conversation.lastMessageText
     ? (isOwn ? `You: ${conversation.lastMessageText}` : conversation.lastMessageText)
-    : 'No messages yet';
+    : conversation.clearedByMe
+      ? 'Chat cleared'
+      : 'No messages yet';
 
   const showFriendPill =
     !isGroup &&
@@ -63,6 +75,7 @@ export default function ConversationRow({
     conversation.isMuted ? 'muted' : null,
     conversation.isPinned ? 'pinned' : null,
     isTyping ? 'typing' : null,
+    conversation.clearedByMe && !conversation.lastMessageText ? 'cleared' : null,
   ]
     .filter(Boolean)
     .join(', ');

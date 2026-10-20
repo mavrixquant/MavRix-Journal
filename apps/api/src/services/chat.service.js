@@ -11,6 +11,15 @@
 // Phase 2-Clear addition:
 //   - clearChat() endpoint. AI conversations hard-delete messages (resets
 //     buildContext() memory). Human DM/Group clears only for the caller.
+//
+// Phase 5 additions:
+//   - listConversations() computes a PER-USER "last visible message" so
+//     that after a user clears a human DM / group, their sidebar preview
+//     no longer shows the peer's copy. Uses a single indexed DISTINCT ON
+//     query across the messages table.
+//   - serializeConversation() exposes lastMessageText / lastMessageById
+//     from that per-user view, plus a clearedByMe flag so the UI can show
+//     "Cleared" instead of "No messages yet" when appropriate.
 
 import { prisma } from '../lib/prisma.js';
 import { HttpError } from '../middleware/error.js';
@@ -88,6 +97,15 @@ function serializeMessage(m) {
  * For groups, `peer` is null and the metadata fields are populated.
  * `role` is the CALLER's role in this conversation — always 'member' for DMs.
  *
+ * Per-user preview fields (Phase 5):
+ *   `extras.lastVisible` — the newest message THIS user can see, or null.
+ *                          When null and the conversation has had messages
+ *                          before (`c.lastMessageText` is non-null), we
+ *                          surface `clearedByMe: true` so the sidebar
+ *                          shows "Cleared" rather than the peer's copy.
+ *                          `lastMessageAt` always reflects GLOBAL activity,
+ *                          so sort order never jumps when a user clears.
+ *
  * `extras` (DM only):
  *   - isFriend:            boolean — whether caller + peer are friends
  *   - messagesRemaining:   number  — outbound messages left until the cap
@@ -99,6 +117,16 @@ function serializeConversation(c, userId, participantRow, extras = {}) {
   const peer = !isGroup
     ? c.participants.find((p) => p.userId !== userId)?.user || null
     : null;
+
+  // Per-user "last visible message". When the caller cleared and nothing
+  // new has arrived since, `lastVisible` is null and we blank the preview.
+  const lastVisible = extras.lastVisible || null;
+  const hasVisible = !!lastVisible;
+
+  // Was this conversation ever active? (Determines "Cleared" vs "No messages
+  // yet" for the empty state.) `c.lastMessageText` is the peer's copy of the
+  // last message — non-null means at least one message has ever existed.
+  const wasActive = !!c.lastMessageText;
 
   const base = {
     id: c.id,
@@ -119,9 +147,20 @@ function serializeConversation(c, userId, participantRow, extras = {}) {
     // Caller's role. 'member' for DMs by default.
     role: participantRow.role || 'member',
 
+    // Global "when" — last activity by ANY participant. Used for sorting
+    // and the sidebar time indicator. Never changes when a user clears.
     lastMessageAt: c.lastMessageAt,
-    lastMessageText: c.lastMessageText,
-    lastMessageById: c.lastMessageById,
+
+    // Per-user preview — the newest message this caller can actually see,
+    // or null when they've cleared and nothing new has arrived.
+    lastMessageText: hasVisible
+      ? String(lastVisible.body || '').slice(0, PREVIEW_MAX)
+      : null,
+    lastMessageById: hasVisible ? lastVisible.senderId : null,
+
+    // True when the caller cleared a conversation that previously had
+    // messages. Distinguishes "Cleared" from "No messages yet" in the UI.
+    clearedByMe: !hasVisible && wasActive,
 
     unreadCount: participantRow.unreadCount,
     isPinned: participantRow.isPinned,
@@ -379,9 +418,44 @@ export async function listConversations(userId) {
     return bt - at;
   });
 
+  // -------------------------------------------------------------------
+  // Phase 5 — fetch the last VISIBLE message per conversation.
+  //
+  // "Visible" means: not soft-deleted (deletedAt is null) AND the caller's
+  // id is not in the message's deletedForIds array (i.e. the caller has
+  // not cleared it). One indexed DISTINCT ON query covers every row;
+  // Postgres uses the existing (conversationId, createdAt) index.
+  //
+  // We then feed this into serializeConversation via `lastVisible`, so the
+  // sidebar preview reflects only what THIS user can actually see.
+  // -------------------------------------------------------------------
+  const visibleConversationIds = visibleRows.map((r) => r.conversation.id);
+  const lastVisibleMap = new Map();
+
+  if (visibleConversationIds.length > 0) {
+    const lastVisibleRows = await prisma.$queryRaw`
+      SELECT DISTINCT ON ("conversationId")
+        "conversationId",
+        "body",
+        "senderId",
+        "createdAt"
+      FROM "messages"
+      WHERE "conversationId" = ANY(${visibleConversationIds}::text[])
+        AND "deletedAt" IS NULL
+        AND NOT (${userId} = ANY("deletedForIds"))
+      ORDER BY "conversationId", "createdAt" DESC
+    `;
+    for (const row of lastVisibleRows) {
+      lastVisibleMap.set(row.conversationId, row);
+    }
+  }
+
   return visibleRows.map((p) => {
     const c = p.conversation;
-    const extras = { isAi: false };
+    const extras = {
+      isAi: false,
+      lastVisible: lastVisibleMap.get(c.id) || null,
+    };
 
     if (c.type === 'dm') {
       const peerId = c.participants.find((x) => x.userId !== userId)?.userId;
@@ -939,15 +1013,6 @@ export async function broadcastTyping(userId, conversationId, isTyping) {
 
 /* ------------------------------------------------------------------ */
 /*  Groups — user-facing surface                                       */
-/*                                                                     */
-/*  Group *creation* and full administration live under                */
-/*  /api/admin/groups/* (see adminGroups.service.js). This file only   */
-/*  handles the four actions a normal user can take:                   */
-/*                                                                     */
-/*    • browse public groups they aren't in                             */
-/*    • self-join a public group                                        */
-/*    • leave a group they belong to                                    */
-/*    • list the members of a group they belong to                      */
 /* ------------------------------------------------------------------ */
 
 export async function listDiscoverablePublicGroups(
