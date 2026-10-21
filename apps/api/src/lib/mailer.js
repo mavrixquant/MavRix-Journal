@@ -3,7 +3,7 @@ import { BrevoClient } from '@getbrevo/brevo';
 const MAIL_FROM      = process.env.MAIL_FROM      || 'onboarding@brevo.dev';
 const MAIL_FROM_NAME = process.env.MAIL_FROM_NAME || 'Mavrix Journal';
 const CLIENT_ORIGIN  = process.env.CLIENT_ORIGIN  || 'http://localhost:5173';
-const SUPPORT_EMAIL  = process.env.SUPPORT_EMAIL  || 'support@mavrixjournal.com';
+const SUPPORT_EMAIL  = process.env.SUPPORT_EMAIL  || 'support@mavrix.trade';
 
 let _client = null;
 function getClient() {

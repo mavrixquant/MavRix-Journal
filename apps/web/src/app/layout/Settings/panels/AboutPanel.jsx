@@ -8,7 +8,7 @@ const API_BASE =
 
 const MODE = import.meta.env.MODE || 'development';
 
-const SUPPORT_EMAIL = 'support@mavrixjournal.com';
+const SUPPORT_EMAIL = 'support@mavrix.trade';
 
 export default function AboutPanel() {
   return (
