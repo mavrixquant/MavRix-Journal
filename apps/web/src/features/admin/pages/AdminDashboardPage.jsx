@@ -9,10 +9,11 @@ import {
 } from 'lucide-react';
 
 import { useAdminMe, useAdminStats, useAdminHealth } from '../api';
+import { useAdminPageHeader } from '../AdminPageHeader';
 import StatCard from '../components/StatCard';
 
 const CSS = `
-  .admin-dash-root { display: flex; flex-direction: column; gap: 22px; padding: 10px; }
+  .admin-dash-root { display: flex; flex-direction: column; gap: 22px; }
   .admin-dash-kpi-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -41,8 +42,7 @@ const CSS = `
     text-transform: uppercase; color: #F59E0B; opacity: .85;
   }
   .admin-dash-panel-body { padding: 16px 18px; }
-  
-  /* Pure CSS/SVG Bar Chart */
+
   .admin-dash-chart-container {
     display: flex;
     align-items: flex-end;
@@ -172,14 +172,20 @@ export default function AdminDashboardPage() {
   const statsQuery  = useAdminStats();
   const healthQuery = useAdminHealth();
 
-  useEffect(() => {
-    console.info('[AdminDashboardPage] mounted. Stats loading:', statsQuery.isLoading);
-  }, [statsQuery.isLoading]);
-
   const me     = meQuery.data;
   const stats  = statsQuery.data;
   const health = healthQuery.data;
   const statsLoading = statsQuery.isLoading;
+
+  useAdminPageHeader({
+    eyebrow: 'Control Panel',
+    title: me?.firstName ? `Welcome back, ${me.firstName}` : 'Welcome back',
+    subtitle: 'Global overview across all users, accounts, and trades',
+  });
+
+  useEffect(() => {
+    console.info('[AdminDashboardPage] mounted. Stats loading:', statsQuery.isLoading);
+  }, [statsQuery.isLoading]);
 
   const uptimeText = useMemo(() => {
     const s = health?.uptimeSeconds;
@@ -198,18 +204,6 @@ export default function AdminDashboardPage() {
     <>
       <style>{CSS}</style>
       <div className="admin-dash-root">
-        <div className="admin-ph">
-          <div className="admin-ph-left">
-            <span className="admin-ph-eyebrow">Control Panel</span>
-            <h1 className="admin-ph-title">
-              Welcome back{me?.firstName ? `, ${me.firstName}` : ''}
-            </h1>
-            <p className="admin-ph-sub">
-              Global overview across all users, accounts, and trades
-            </p>
-          </div>
-        </div>
-
         {statsQuery.isError && (
           <div className="admin-dash-error">
             <AlertTriangle size={18} />

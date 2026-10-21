@@ -1,8 +1,8 @@
-
 import { useState, useMemo, Fragment } from 'react';
 import { Search, ChevronDown, ChevronRight, ScrollText } from 'lucide-react';
 
 import { useAdminAuditLog } from '../api';
+import { useAdminPageHeader } from '../AdminPageHeader';
 import Pagination from '../components/Pagination';
 import EmptyState from '@/shared/components/EmptyState';
 
@@ -148,6 +148,12 @@ export default function AdminAuditPage() {
   const total = data?.total || 0;
   const pages = data?.pages || 1;
 
+  useAdminPageHeader({
+    eyebrow: 'System',
+    title: 'Audit log',
+    subtitle: `${total} recorded admin action${total === 1 ? '' : 's'}`,
+  });
+
   const hasFilter = q.trim().length > 0 || actionPrefix !== '';
 
   const toggle = (id) => setExpandedId((prev) => (prev === id ? null : id));
@@ -156,16 +162,6 @@ export default function AdminAuditPage() {
     <>
       <style>{CSS}</style>
       <div className="aad-root">
-        <div className="admin-ph">
-          <div className="admin-ph-left">
-            <span className="admin-ph-eyebrow">System</span>
-            <h1 className="admin-ph-title">Audit log</h1>
-            <p className="admin-ph-sub">
-              {total} recorded admin action{total === 1 ? '' : 's'}
-            </p>
-          </div>
-        </div>
-
         <div className="aad-bar">
           <div className="aad-search">
             <Search size={14} className="aad-search-icon" />

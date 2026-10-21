@@ -1,4 +1,3 @@
-
 import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, Trash2, Wallet } from 'lucide-react';
@@ -6,6 +5,7 @@ import { toast } from 'sonner';
 
 import { useAuth } from '@/app/providers/AuthProvider';
 import { useAdminAccounts, useAdminDeleteAccount } from '../api';
+import { useAdminPageHeader } from '../AdminPageHeader';
 import Pagination from '../components/Pagination';
 import ConfirmDangerModal from '../components/ConfirmDangerModal';
 import EmptyState from '@/shared/components/EmptyState';
@@ -162,6 +162,12 @@ export default function AdminAccountsPage() {
   const total = data?.total || 0;
   const pages = data?.pages || 1;
 
+  useAdminPageHeader({
+    eyebrow: 'Manage',
+    title: 'Accounts',
+    subtitle: `${total} account${total === 1 ? '' : 's'} across every user`,
+  });
+
   const hasFilter = q.trim().length > 0 || type !== '';
 
   const confirmDelete = async () => {
@@ -179,16 +185,6 @@ export default function AdminAccountsPage() {
     <>
       <style>{CSS}</style>
       <div className="aap-root">
-        <div className="admin-ph">
-          <div className="admin-ph-left">
-            <span className="admin-ph-eyebrow">Manage</span>
-            <h1 className="admin-ph-title">Accounts</h1>
-            <p className="admin-ph-sub">
-              {total} account{total === 1 ? '' : 's'} across every user
-            </p>
-          </div>
-        </div>
-
         <div className="aap-bar">
           <div className="aap-search">
             <Search size={14} className="aap-search-icon" />

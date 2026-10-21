@@ -1,9 +1,9 @@
-
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, ShieldCheck, Ban, CheckCircle2, Users } from 'lucide-react';
 
 import { useAdminUsers } from '../api';
+import { useAdminPageHeader } from '../AdminPageHeader';
 import RoleBadge from '../components/RoleBadge';
 import Pagination from '../components/Pagination';
 import EmptyState from '@/shared/components/EmptyState';
@@ -125,24 +125,6 @@ const CSS = `
     font-family: 'IBM Plex Mono', ui-monospace, monospace;
     font-size: 12.5px;
   }
-
-  .aup-actions { display: inline-flex; gap: 6px; }
-  .aup-action {
-    width: 26px; height: 26px;
-    display: inline-flex; align-items: center; justify-content: center;
-    border-radius: 7px;
-    border: 1px solid rgba(255,255,255,.09);
-    background: rgba(255,255,255,.025);
-    color: #8892A3;
-    cursor: pointer; transition: all .18s;
-    text-decoration: none;
-    flex-shrink: 0;
-  }
-  .aup-action:hover {
-    color: var(--accent);
-    border-color: color-mix(in srgb, var(--accent) 30%, transparent);
-    background: color-mix(in srgb, var(--accent) 6%, transparent);
-  }
 `;
 
 function fmtDate(iso) {
@@ -182,6 +164,12 @@ export default function AdminUsersPage() {
   const total = data?.total || 0;
   const pages = data?.pages || 1;
 
+  useAdminPageHeader({
+    eyebrow: 'Manage',
+    title: 'Users',
+    subtitle: `${total} user${total === 1 ? '' : 's'} · search, filter, inspect`,
+  });
+
   const hasFilter =
     q.trim().length > 0 ||
     roleFilter !== '' ||
@@ -191,17 +179,6 @@ export default function AdminUsersPage() {
     <>
       <style>{CSS}</style>
       <div className="aup-root">
-        <div className="admin-ph">
-          <div className="admin-ph-left">
-            <span className="admin-ph-eyebrow">Manage</span>
-            <h1 className="admin-ph-title">Users</h1>
-            <p className="admin-ph-sub">
-              {total} user{total === 1 ? '' : 's'} · search, filter, inspect
-            </p>
-          </div>
-        </div>
-
-        {}
         <div className="aup-bar">
           <div className="aup-search">
             <Search size={14} className="aup-search-icon" />
@@ -254,7 +231,6 @@ export default function AdminUsersPage() {
           </div>
         </div>
 
-        {}
         <div className="aup-card">
           {isLoading ? (
             <div className="aup-loading">Loading users…</div>

@@ -1,10 +1,10 @@
-
 import { useState, useEffect, useMemo } from 'react';
 import { Save, Lock, Settings2, Bell } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { useAuth } from '@/app/providers/AuthProvider';
 import { useAdminSettings, useAdminUpdateSettings } from '../api';
+import { useAdminPageHeader } from '../AdminPageHeader';
 
 const CSS = `
   .asg-root { display: flex; flex-direction: column; gap: 18px; }
@@ -62,7 +62,6 @@ const CSS = `
     color: #8892A3;
   }
 
-  /* Toggle switch */
   .asg-switch {
     position: relative;
     width: 42px; height: 24px;
@@ -209,6 +208,14 @@ export default function AdminSettingsPage() {
     }
   }, [server]);
 
+  useAdminPageHeader({
+    eyebrow: 'System',
+    title: 'Site settings',
+    subtitle: isSuper
+      ? 'Runtime configuration · edits take effect immediately'
+      : 'Runtime configuration · read-only — superadmin required to save',
+  });
+
   const updateMutation = useAdminUpdateSettings();
 
   const setField = (key, value) => {
@@ -252,19 +259,6 @@ export default function AdminSettingsPage() {
     <>
       <style>{CSS}</style>
       <div className="asg-root">
-        <div className="admin-ph">
-          <div className="admin-ph-left">
-            <span className="admin-ph-eyebrow">System</span>
-            <h1 className="admin-ph-title">Site settings</h1>
-            <p className="admin-ph-sub">
-              Runtime configuration · {isSuper
-                ? 'edits take effect immediately'
-                : 'read-only — superadmin required to save'}
-            </p>
-          </div>
-        </div>
-
-        {}
         <div className="asg-card">
           <div className="asg-card-head">
             <Settings2 size={14} style={{ color: 'var(--accent)' }} />
@@ -323,7 +317,6 @@ export default function AdminSettingsPage() {
           </div>
         </div>
 
-        {}
         <div className="asg-card">
           <div className="asg-card-head">
             <span className="asg-card-title">Limits</span>
@@ -365,7 +358,6 @@ export default function AdminSettingsPage() {
           </div>
         </div>
 
-        {}
         <div className="asg-card">
           <div className="asg-card-head">
             <Bell size={14} style={{ color: 'var(--accent)' }} />
@@ -392,7 +384,6 @@ export default function AdminSettingsPage() {
           </div>
         </div>
 
-        {}
         <div className="asg-foot">
           <button
             type="button"

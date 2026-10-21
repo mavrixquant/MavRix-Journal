@@ -1,7 +1,7 @@
-
 import { Activity, Database, Cpu, HardDrive, Radio, Clock } from 'lucide-react';
 
 import { useAdminHealth, useAdminStats } from '../api';
+import { useAdminPageHeader } from '../AdminPageHeader';
 
 const CSS = `
   .asy-root { display: flex; flex-direction: column; gap: 18px; }
@@ -86,6 +86,12 @@ export default function AdminSystemPage() {
   const { data: health, isLoading } = useAdminHealth();
   const { data: stats } = useAdminStats();
 
+  useAdminPageHeader({
+    eyebrow: 'System',
+    title: 'System health',
+    subtitle: 'Live diagnostics · auto-refreshes every 30s',
+  });
+
   if (isLoading) return <div className="asy-loading">Loading system health…</div>;
 
   const dbOk = health?.database?.ok;
@@ -95,18 +101,7 @@ export default function AdminSystemPage() {
     <>
       <style>{CSS}</style>
       <div className="asy-root">
-        <div className="admin-ph">
-          <div className="admin-ph-left">
-            <span className="admin-ph-eyebrow">System</span>
-            <h1 className="admin-ph-title">System health</h1>
-            <p className="admin-ph-sub">
-              Live diagnostics · auto-refreshes every 30s
-            </p>
-          </div>
-        </div>
-
         <div className="asy-grid">
-          {}
           <div className="asy-tile">
             <div className="asy-tile-head">
               <span className={`asy-tile-icon ${overallOk ? 'ok' : 'bad'}`}>
@@ -119,7 +114,6 @@ export default function AdminSystemPage() {
             </span>
           </div>
 
-          {}
           <div className="asy-tile">
             <div className="asy-tile-head">
               <span className="asy-tile-icon">
@@ -130,7 +124,6 @@ export default function AdminSystemPage() {
             <span className="asy-tile-value">{fmtUptime(health?.uptimeSeconds)}</span>
           </div>
 
-          {}
           <div className="asy-tile">
             <div className="asy-tile-head">
               <span className={`asy-tile-icon ${dbOk ? 'ok' : 'bad'}`}>
@@ -146,7 +139,6 @@ export default function AdminSystemPage() {
             </span>
           </div>
 
-          {}
           <div className="asy-tile">
             <div className="asy-tile-head">
               <span className="asy-tile-icon">
@@ -158,7 +150,6 @@ export default function AdminSystemPage() {
           </div>
         </div>
 
-        {}
         <div className="asy-tile">
           <div className="asy-tile-head">
             <span className="asy-tile-icon">
@@ -174,7 +165,6 @@ export default function AdminSystemPage() {
           </dl>
         </div>
 
-        {}
         <div className="asy-tile">
           <div className="asy-tile-head">
             <span className="asy-tile-icon">

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
@@ -19,12 +18,36 @@ import {
   useAdminForceLogout,
   useAdminDeleteUser,
 } from '../api';
+import { useAdminPageHeader } from '../AdminPageHeader';
 import RoleBadge from '../components/RoleBadge';
 import ConfirmDangerModal from '../components/ConfirmDangerModal';
 import BanUserModal from '../components/BanUserModal';
 
 const CSS = `
   .aud-root { display: flex; flex-direction: column; gap: 20px; }
+
+  .aud-topbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .aud-topbar-spacer { flex: 1; min-width: 8px; }
+  .aud-banned-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 10px;
+    border-radius: 99px;
+    background: rgba(239,68,68,.1);
+    border: 1px solid rgba(239,68,68,.35);
+    color: #f87171;
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+  }
+
   .aud-back {
     display: inline-flex; align-items: center; gap: 6px;
     color: #8892A3; text-decoration: none;
@@ -89,8 +112,6 @@ const CSS = `
   }
   .aud-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent); }
   .aud-input:disabled { opacity: .5; cursor: not-allowed; }
-  .aud-input-row { display: flex; gap: 10px; }
-  .aud-input-row > * { flex: 1; }
 
   .aud-kv {
     display: grid; grid-template-columns: 130px 1fr;
@@ -179,6 +200,17 @@ export default function AdminUserDetailPage() {
   const { data, isLoading, isError, error } = useAdminUser(id);
   const user = data?.user;
 
+  const headerTitle = user
+    ? ([user.firstName, user.lastName].filter(Boolean).join(' ') || user.email)
+    : 'User detail';
+  const headerSubtitle = user?.email;
+
+  useAdminPageHeader({
+    eyebrow: 'User',
+    title: headerTitle,
+    subtitle: headerSubtitle,
+  });
+
   const [form, setForm] = useState({
     firstName: '', lastName: '', email: '', role: 'user',
   });
@@ -244,35 +276,19 @@ export default function AdminUserDetailPage() {
       <style>{CSS}</style>
       <div className="aud-root">
 
-        <Link to="/admin/users" className="aud-back">
-          <ArrowLeft size={13} /> Back to users
-        </Link>
-
-        <div className="admin-ph">
-          <div className="admin-ph-left">
-            <span className="admin-ph-eyebrow">User</span>
-            <h1 className="admin-ph-title">
-              {[user.firstName, user.lastName].filter(Boolean).join(' ') || user.email}
-            </h1>
-            <p className="admin-ph-sub">{user.email}</p>
-          </div>
-          <div className="admin-ph-right">
-            <RoleBadge role={user.role} />
-            {user.isBanned && (
-              <span style={{
-                padding: '3px 10px', borderRadius: 99,
-                background: 'rgba(239,68,68,.1)',
-                border: '1px solid rgba(239,68,68,.35)',
-                color: '#f87171', fontFamily: "'IBM Plex Mono', monospace",
-                fontSize: 10, fontWeight: 700, letterSpacing: '.08em',
-                textTransform: 'uppercase',
-              }}>Banned</span>
-            )}
-          </div>
+        {/* Topbar — back link + role + banned badge (was in the removed header) */}
+        <div className="aud-topbar">
+          <Link to="/admin/users" className="aud-back">
+            <ArrowLeft size={13} /> Back to users
+          </Link>
+          <div className="aud-topbar-spacer" />
+          <RoleBadge role={user.role} />
+          {user.isBanned && (
+            <span className="aud-banned-badge">Banned</span>
+          )}
         </div>
 
         <div className="aud-grid">
-          {}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             <div className="aud-card">
               <div className="aud-card-head">
@@ -394,7 +410,6 @@ export default function AdminUserDetailPage() {
             )}
           </div>
 
-          {}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             <div className="aud-card">
               <div className="aud-card-head">
@@ -478,7 +493,6 @@ export default function AdminUserDetailPage() {
               </div>
             </div>
 
-            {}
             <div className="aud-card aud-danger-zone">
               <div className="aud-card-head">
                 <Trash2 size={14} />
@@ -513,7 +527,6 @@ export default function AdminUserDetailPage() {
         </div>
       </div>
 
-      {}
       <BanUserModal
         isOpen={showBanModal}
         user={user}

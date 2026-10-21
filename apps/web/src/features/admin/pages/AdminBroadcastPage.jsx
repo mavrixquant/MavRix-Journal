@@ -1,9 +1,9 @@
-
 import { useState } from 'react';
 import { Send, Radio, Mail, AlertTriangle, Info, Siren } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { useAdminBroadcast } from '../api';
+import { useAdminPageHeader } from '../AdminPageHeader';
 
 const CSS = `
   .abp-root { display: flex; flex-direction: column; gap: 18px; }
@@ -160,7 +160,6 @@ const CSS = `
   }
   .abp-btn-primary:hover:not(:disabled) { transform: translateY(-1px); }
 
-  /* Preview card mimics what a user would see */
   .abp-preview {
     padding: 14px 16px;
     border-radius: 10px;
@@ -209,6 +208,12 @@ export default function AdminBroadcastPage() {
 
   const broadcast = useAdminBroadcast();
 
+  useAdminPageHeader({
+    eyebrow: 'Operations',
+    title: 'Broadcast',
+    subtitle: 'Push a message to every connected client · optional email blast',
+  });
+
   const trimmed = message.trim();
   const canSend = trimmed.length > 0 && !broadcast.isPending;
 
@@ -238,23 +243,12 @@ export default function AdminBroadcastPage() {
     <>
       <style>{CSS}</style>
       <div className="abp-root">
-        <div className="admin-ph">
-          <div className="admin-ph-left">
-            <span className="admin-ph-eyebrow">Operations</span>
-            <h1 className="admin-ph-title">Broadcast</h1>
-            <p className="admin-ph-sub">
-              Push a message to every connected client · optional email blast
-            </p>
-          </div>
-        </div>
-
         <div className="abp-card">
           <div className="abp-card-head">
             <Radio size={14} style={{ color: 'var(--accent)' }} />
             <span className="abp-card-title">Compose</span>
           </div>
           <div className="abp-card-body">
-            {}
             <div>
               <div className="abp-preview-label">Severity</div>
               <div className="abp-levels">
@@ -274,7 +268,6 @@ export default function AdminBroadcastPage() {
               </div>
             </div>
 
-            {}
             <div>
               <div className="abp-preview-label" style={{ marginBottom: 8 }}>Message</div>
               <textarea
@@ -290,7 +283,6 @@ export default function AdminBroadcastPage() {
               </div>
             </div>
 
-            {}
             <div className="abp-email-toggle">
               <input
                 type="checkbox"
@@ -311,7 +303,6 @@ export default function AdminBroadcastPage() {
               </label>
             </div>
 
-            {}
             {trimmed && (
               <div>
                 <div className="abp-preview-label">User preview</div>
@@ -321,7 +312,6 @@ export default function AdminBroadcastPage() {
               </div>
             )}
 
-            {}
             {sendEmail && trimmed && (
               <div className="abp-warn">
                 <AlertTriangle size={14} className="abp-warn-icon" />

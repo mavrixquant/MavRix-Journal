@@ -1,10 +1,10 @@
-
 import { useState, useMemo } from 'react';
 import { Search, Trash2, Plus, Hash, Lock, Users } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { useAuth } from '@/app/providers/AuthProvider';
 import { useAdminGroups, useDeleteGroup } from '@/shared/api/chat';
+import { useAdminPageHeader } from '../AdminPageHeader';
 import Pagination from '../components/Pagination';
 import ConfirmDangerModal from '../components/ConfirmDangerModal';
 import AdminGroupModal from '../components/AdminGroupModal';
@@ -188,6 +188,12 @@ export default function AdminGroupsPage() {
   const total = data?.total || 0;
   const pages = data?.pages || 1;
 
+  useAdminPageHeader({
+    eyebrow: 'Manage',
+    title: 'Chat Groups',
+    subtitle: `${total} group${total === 1 ? '' : 's'} visible to you`,
+  });
+
   const hasFilter = q.trim().length > 0 || visibility !== '';
 
   const confirmDelete = async () => {
@@ -205,16 +211,6 @@ export default function AdminGroupsPage() {
     <>
       <style>{CSS}</style>
       <div className="agp-root">
-        <div className="admin-ph">
-          <div className="admin-ph-left">
-            <span className="admin-ph-eyebrow">Manage</span>
-            <h1 className="admin-ph-title">Chat Groups</h1>
-            <p className="admin-ph-sub">
-              {total} group{total === 1 ? '' : 's'} visible to you
-            </p>
-          </div>
-        </div>
-
         <div className="agp-bar">
           <div className="agp-search">
             <Search size={14} className="agp-search-icon" />
@@ -365,20 +361,17 @@ export default function AdminGroupsPage() {
         <Pagination page={page} pages={pages} total={total} onChange={setPage} />
       </div>
 
-      {}
       <AdminGroupModal
         isOpen={creating}
         onClose={() => setCreating(false)}
       />
 
-      {}
       <AdminGroupModal
         isOpen={!!editingId}
         onClose={() => setEditingId(null)}
         groupId={editingId}
       />
 
-      {}
       <ConfirmDangerModal
         isOpen={!!deleteTarget}
         title={deleteTarget ? `Delete "${deleteTarget.name}"?` : ''}

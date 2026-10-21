@@ -1,10 +1,10 @@
-
 import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, Trash2, TrendingUp } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { useAdminTrades, useAdminDeleteTrade } from '../api';
+import { useAdminPageHeader } from '../AdminPageHeader';
 import Pagination from '../components/Pagination';
 import EmptyState from '@/shared/components/EmptyState';
 
@@ -144,6 +144,12 @@ export default function AdminTradesPage() {
   const total = data?.total || 0;
   const pages = data?.pages || 1;
 
+  useAdminPageHeader({
+    eyebrow: 'Manage',
+    title: 'Trades',
+    subtitle: `${total} trade${total === 1 ? '' : 's'} across every account`,
+  });
+
   const deleteTrade = useAdminDeleteTrade();
 
   const hasFilter =
@@ -167,16 +173,6 @@ export default function AdminTradesPage() {
     <>
       <style>{CSS}</style>
       <div className="atp-root">
-        <div className="admin-ph">
-          <div className="admin-ph-left">
-            <span className="admin-ph-eyebrow">Manage</span>
-            <h1 className="admin-ph-title">Trades</h1>
-            <p className="admin-ph-sub">
-              {total} trade{total === 1 ? '' : 's'} across every account
-            </p>
-          </div>
-        </div>
-
         <div className="atp-bar">
           <div className="atp-search">
             <Search size={14} className="atp-search-icon" />

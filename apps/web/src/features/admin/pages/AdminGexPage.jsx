@@ -11,6 +11,7 @@ import {
   useAdminUpsertGex,
   useAdminDeleteGex,
 } from '@/shared/api/gex';
+import { useAdminPageHeader } from '../AdminPageHeader';
 import Alert from '@/shared/components/Alert';
 import {
   convertGexJson,
@@ -19,7 +20,6 @@ import {
   GEX_SYMBOL_META,
   DEFAULT_GEX_SYMBOL,
 } from '@mavrix/shared';
-
 
 function todayIST() {
   const parts = new Intl.DateTimeFormat('en-GB', {
@@ -56,11 +56,9 @@ function relativeTime(iso) {
   return `${days}d ago`;
 }
 
-
 const CSS = `
   .gexp-root { display: flex; flex-direction: column; gap: 20px; }
 
-  /* ---------- Symbol switcher ---------- */
   .gexp-symbar {
     display: flex;
     gap: 10px;
@@ -120,7 +118,6 @@ const CSS = `
     color: rgba(255,255,255,.6);
   }
 
-  /* ---------- Top row ---------- */
   .gexp-top {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -154,7 +151,6 @@ const CSS = `
   }
   .gexp-card-body { padding: 18px; display: flex; flex-direction: column; gap: 16px; }
 
-  /* ---------- Form fields ---------- */
   .gexp-field { display: flex; flex-direction: column; gap: 6px; }
   .gexp-label {
     display: flex; align-items: center; justify-content: space-between;
@@ -205,7 +201,6 @@ const CSS = `
   }
   .gexp-textarea::placeholder { color: #545E6E; }
 
-  /* ---------- Buttons ---------- */
   .gexp-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
   .gexp-row-end { justify-content: flex-end; }
   .gexp-spacer { flex: 1; }
@@ -250,7 +245,6 @@ const CSS = `
     color: rgba(13,17,23,.55); box-shadow: none;
   }
 
-  /* ---------- Preview ---------- */
   .gexp-empty-preview {
     padding: 60px 20px; text-align: center;
     border: 1px dashed rgba(255,255,255,.10);
@@ -354,7 +348,6 @@ const CSS = `
     background: rgba(255,255,255,.08); border-radius: 99px;
   }
 
-  /* ---------- Days table ---------- */
   .gexp-table {
     width: 100%; border-collapse: collapse;
     font-family: 'IBM Plex Mono', ui-monospace, monospace;
@@ -427,7 +420,6 @@ const CSS = `
   }
 `;
 
-
 const EXAMPLE_JSON = JSON.stringify(
   [
     {
@@ -449,7 +441,6 @@ const EXAMPLE_JSON = JSON.stringify(
   2
 );
 
-
 export default function AdminGexPage() {
   const { user: me } = useAuth();
   const isSuper = me?.role === 'superadmin';
@@ -470,6 +461,11 @@ export default function AdminGexPage() {
   const hasPreview = !!preview?.ok;
   const meta = useMemo(() => GEX_SYMBOL_META[symbol] || GEX_SYMBOL_META.NQ, [symbol]);
 
+  useAdminPageHeader({
+    eyebrow: 'Operations',
+    title: 'GEX Levels',
+    subtitle: 'Upload daily gamma-exposure levels — NQ and ES tracked independently.',
+  });
 
   const handleSymbolChange = useCallback((next) => {
     if (next === symbol) return;
@@ -566,24 +562,11 @@ export default function AdminGexPage() {
   const canSave = hasPreview && !!date && !upsert.isPending;
   const counts = preview?.counts;
 
-
   return (
     <>
       <style>{CSS}</style>
       <div className="gexp-root">
 
-        {/* Page header */}
-        <div className="admin-ph">
-          <div className="admin-ph-left">
-            <span className="admin-ph-eyebrow">Operations</span>
-            <h1 className="admin-ph-title">GEX Levels</h1>
-            <p className="admin-ph-sub">
-              Upload daily gamma-exposure levels — NQ and ES tracked independently.
-            </p>
-          </div>
-        </div>
-
-        {/* Symbol switcher */}
         <div className="gexp-symbar" role="tablist" aria-label="Select symbol">
           {GEX_SYMBOLS.map((sym) => {
             const m = GEX_SYMBOL_META[sym];
@@ -606,9 +589,7 @@ export default function AdminGexPage() {
           })}
         </div>
 
-        {/* Top row: upload + preview */}
         <div className="gexp-top">
-
           <div className="gexp-card">
             <div className="gexp-card-head">
               <Wand2 size={14} style={{ color: 'var(--accent)' }} />
@@ -773,7 +754,6 @@ export default function AdminGexPage() {
           </div>
         </div>
 
-        {/* Uploaded days table */}
         <div className="gexp-card">
           <div className="gexp-card-head">
             <span className="gexp-card-title">Uploaded {symbol} Days</span>
@@ -845,7 +825,6 @@ export default function AdminGexPage() {
         </div>
       </div>
 
-      {/* Overwrite confirm */}
       <Alert
         isOpen={!!overwritePrompt}
         type="confirm"
@@ -865,7 +844,6 @@ export default function AdminGexPage() {
         onCancel={() => setOverwritePrompt(null)}
       />
 
-      {/* Delete confirm */}
       <Alert
         isOpen={!!deleteTarget}
         type="confirm"

@@ -1,5 +1,3 @@
-
-
 .admin-shell {
   --ax-bg-0: #07090D;
   --ax-bg-1: #0A0D14;
@@ -30,7 +28,6 @@
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
-
 
 .admin-sidebar {
   height: 100%;
@@ -208,7 +205,6 @@
   background: rgba(255,255,255,.05);
 }
 
-
 .admin-main {
   display: flex;
   flex-direction: column;
@@ -216,7 +212,7 @@
   height: 100%;
   min-height: 0;
   overflow: hidden;
-  }
+}
 
 .admin-header {
   flex-shrink: 0;
@@ -230,27 +226,60 @@
   border-bottom: 1px solid var(--ax-line);
 }
 
-.admin-header-crumbs {
+/* ── New title block (replaces the old breadcrumbs) ── */
+.admin-header-title {
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex-shrink: 1;
+  max-width: min(60%, 560px);
+  overflow: hidden;
+}
+
+.admin-header-title-row {
+  display: flex;
+  align-items: baseline;
   gap: 8px;
   min-width: 0;
+}
+
+.admin-header-eyebrow {
   font-family: 'IBM Plex Mono', ui-monospace, monospace;
-  font-size: 11.5px;
-  color: var(--ax-ink-3);
-}
-.admin-header-crumbs-root {
-  color: var(--ax-ink-2);
-  font-weight: 600;
-  letter-spacing: .02em;
-}
-.admin-header-crumbs-sep {
-  color: var(--ax-ink-3);
-  opacity: .55;
-}
-.admin-header-crumbs-current {
-  color: var(--ax-ink-1);
+  font-size: 9px;
   font-weight: 700;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--ax-accent);
+  opacity: .9;
+  line-height: 1.2;
+  flex-shrink: 0;
+}
+
+.admin-header-title-text {
+  margin: 0;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  font-size: 14.5px;
+  font-weight: 700;
+  letter-spacing: -.015em;
+  color: var(--ax-ink-1);
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.admin-header-sub {
+  margin: 0;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 10.5px;
+  color: var(--ax-ink-2);
+  letter-spacing: .01em;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .admin-header-spacer { flex: 1; }
@@ -267,6 +296,7 @@
   letter-spacing: .08em;
   text-transform: uppercase;
   border: 1px solid;
+  flex-shrink: 0;
 }
 .admin-health.is-ok {
   color: var(--ax-win);
@@ -301,6 +331,14 @@
   border: 1px solid var(--ax-line-soft);
   font-size: 12px;
   color: var(--ax-ink-2);
+  flex-shrink: 0;
+  max-width: 240px;
+  overflow: hidden;
+}
+.admin-header-user > span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .admin-header-avatar {
   width: 26px;
@@ -327,7 +365,8 @@
   width: 100%;
 }
 
-
+/* Shared page-header primitives — still available for pages that need a
+   secondary heading below the sticky bar (e.g. a section title). */
 .admin-ph {
   display: flex;
   align-items: flex-end;
@@ -377,7 +416,6 @@
   flex-wrap: wrap;
 }
 
-
 @media (max-width: 1024px) {
   .admin-shell { grid-template-columns: 1fr; }
   .admin-sidebar {
@@ -393,10 +431,10 @@
     transform: translateX(0);
   }
   .admin-body { padding: 20px 16px 60px; }
-  .admin-header { padding: 0 14px; }
+  .admin-header { padding: 0 14px; gap: 10px; }
+  .admin-header-title { max-width: 55%; }
+  .admin-header-user > span:last-child { display: none; }
 }
-
-
 
 .admin-mobile-menu {
   display: none;

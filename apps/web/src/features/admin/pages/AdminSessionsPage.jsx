@@ -1,9 +1,9 @@
-
 import { useState } from 'react';
 import { Radio, Power, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { useAdminSessions, useAdminDisconnectSession } from '../api';
+import { useAdminPageHeader } from '../AdminPageHeader';
 
 const CSS = `
   .asp-root { display: flex; flex-direction: column; gap: 18px; }
@@ -24,8 +24,9 @@ const CSS = `
     border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
     color: var(--accent);
     box-shadow: 0 0 24px -8px color-mix(in srgb, var(--accent) 55%, transparent);
+    flex-shrink: 0;
   }
-  .asp-stat-meta { display: flex; flex-direction: column; gap: 4px; }
+  .asp-stat-meta { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
   .asp-stat-label {
     font-family: 'IBM Plex Mono', ui-monospace, monospace;
     font-size: 10px; font-weight: 700;
@@ -41,6 +42,12 @@ const CSS = `
   .asp-stat-sub {
     font-family: 'IBM Plex Mono', ui-monospace, monospace;
     font-size: 10.5px; color: #545E6E;
+  }
+  .asp-stat-actions {
+    margin-left: auto;
+    display: inline-flex;
+    gap: 8px;
+    flex-shrink: 0;
   }
 
   .asp-card {
@@ -129,6 +136,12 @@ export default function AdminSessionsPage() {
 
   const totalClients = data?.totalClients ?? 0;
 
+  useAdminPageHeader({
+    eyebrow: 'Operations',
+    title: 'Sessions',
+    subtitle: 'Live Server-Sent Events (SSE) streams · refreshed every 15s',
+  });
+
   const handleDisconnect = async () => {
     const id = userId.trim();
     if (!id) { toast.error('Enter a user ID'); return; }
@@ -146,28 +159,6 @@ export default function AdminSessionsPage() {
     <>
       <style>{CSS}</style>
       <div className="asp-root">
-        <div className="admin-ph">
-          <div className="admin-ph-left">
-            <span className="admin-ph-eyebrow">Operations</span>
-            <h1 className="admin-ph-title">Sessions</h1>
-            <p className="admin-ph-sub">
-              Live Server-Sent Events (SSE) streams · refreshed every 15s
-            </p>
-          </div>
-          <div className="admin-ph-right">
-            <button
-              type="button"
-              className="asp-btn"
-              onClick={() => refetch()}
-              disabled={isFetching}
-            >
-              <RefreshCw size={12} className={isFetching ? 'spin' : ''} />
-              Refresh
-            </button>
-          </div>
-        </div>
-
-        {}
         <div className="asp-stat">
           <div className="asp-stat-icon">
             <Radio size={20} />
@@ -181,9 +172,19 @@ export default function AdminSessionsPage() {
               one stream per open browser tab running the main app
             </span>
           </div>
+          <div className="asp-stat-actions">
+            <button
+              type="button"
+              className="asp-btn"
+              onClick={() => refetch()}
+              disabled={isFetching}
+            >
+              <RefreshCw size={12} className={isFetching ? 'spin' : ''} />
+              Refresh
+            </button>
+          </div>
         </div>
 
-        {}
         <div className="asp-card">
           <div className="asp-card-head">
             <Power size={14} style={{ color: '#ef4444' }} />

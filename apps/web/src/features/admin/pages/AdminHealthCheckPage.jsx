@@ -1,4 +1,3 @@
-
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import {
@@ -17,8 +16,8 @@ import {
 import { toast } from 'sonner';
 
 import { apiJson, apiFetch } from '@/shared/api/client';
+import { useAdminPageHeader } from '../AdminPageHeader';
 import HealthCheckPhasePanel from '../components/HealthCheckPhasePanel';
-
 
 const CSS = `
   .hc-root { display: flex; flex-direction: column; gap: 20px; }
@@ -61,6 +60,38 @@ const CSS = `
   .hc-kpi-value-completed { color: #4ade80; }
   .hc-kpi-value-failed    { color: #f87171; }
   .hc-kpi-dim { font-size: 12px; color: #545E6E; font-weight: 500; }
+
+  /* ---------- Action toolbar (moved from old header) ---------- */
+  .hc-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding: 14px 18px;
+    border-radius: 14px;
+    background: linear-gradient(180deg, rgba(15,18,26,.72), rgba(15,18,26,.55));
+    border: 1px solid rgba(255,255,255,.08);
+    box-shadow: 0 20px 50px -30px rgba(0,0,0,.9);
+  }
+  .hc-toolbar-spacer { flex: 1; min-width: 8px; }
+  .hc-toolbar-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+  .hc-toolbar-info-title {
+    font-size: 12.5px;
+    font-weight: 700;
+    color: #E7E9EE;
+    letter-spacing: -.005em;
+  }
+  .hc-toolbar-info-sub {
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 10.5px;
+    color: #8892A3;
+    letter-spacing: .01em;
+  }
 
   /* ---------- Shared card shell ---------- */
   .hc-card {
@@ -403,7 +434,6 @@ const CSS = `
   }
 `;
 
-
 const IDLE_STATE = {
   runId: null,
   status: 'idle',
@@ -415,17 +445,15 @@ const IDLE_STATE = {
   completedAt: null,
 };
 
-
 export default function AdminHealthCheckPage() {
   const [selected, setSelected] = useState(null);
   const [runState, setRunState] = useState(IDLE_STATE);
 
   const [now, setNow] = useState(0);
 
-
   const phasesQuery = useQuery({
     queryKey: ['admin', 'health-check', 'phases'],
-    queryFn: () => apiJson('/api/admin/health-check/phases'),
+    queryFn: () => apiJson('/admin/health-check/phases'),
     staleTime: 5 * 60_000,
   });
 
@@ -439,10 +467,9 @@ export default function AdminHealthCheckPage() {
     setSelected((prev) => prev ?? new Set(phases.map((p) => p.id)));
   }, [phases]);
 
-
   const startMutation = useMutation({
     mutationFn: (phasesList) =>
-      apiJson('/api/admin/health-check/run', {
+      apiJson('/admin/health-check/run', {
         method: 'POST',
         body: JSON.stringify({ phases: phasesList }),
       }),
@@ -469,7 +496,6 @@ export default function AdminHealthCheckPage() {
       toast.error(err.message || 'Failed to start');
     },
   });
-
 
   const abortRef = useRef(null);
 
@@ -604,7 +630,7 @@ export default function AdminHealthCheckPage() {
     const consume = async () => {
       try {
         const res = await apiFetch(
-          `/api/admin/health-check/stream/${runState.runId}`,
+          `/admin/health-check/stream/${runState.runId}`,
           { signal: controller.signal }
         );
 
@@ -645,7 +671,7 @@ export default function AdminHealthCheckPage() {
         if (!cancelled && err.name !== 'AbortError') {
           try {
             const data = await apiJson(
-              `/api/admin/health-check/status/${runState.runId}`
+              `/admin/health-check/status/${runState.runId}`
             );
             if (data.status !== 'running') {
               setRunState((prev) => ({
@@ -756,79 +782,19 @@ export default function AdminHealthCheckPage() {
     setNow(0);
   }, []);
 
-
   const terminalState =
     runState.status === 'completed' || runState.status === 'failed';
+
+  useAdminPageHeader({
+    eyebrow: 'System',
+    title: 'Health Checkup',
+    subtitle: 'End-to-end API exercise across every route group · fixtures auto-cleaned',
+  });
 
   return (
     <>
       <style>{CSS}</style>
       <div className="hc-root">
-        {}
-        <div className="admin-ph">
-          <div className="admin-ph-left">
-            <span className="admin-ph-eyebrow">System</span>
-            <h1 className="admin-ph-title">Health Checkup</h1>
-            <p className="admin-ph-sub">
-              End-to-end API exercise across every route group — auth, accounts,
-              trades, strategies, users, friends, chat, calendar, market data,
-              GEX, admin, and SSE. Every fixture is created and destroyed in the
-              same run.
-            </p>
-          </div>
-          <div className="admin-ph-right">
-            {isRunning && (
-              <button
-                type="button"
-                className="hc-btn-danger"
-                onClick={handleStop}
-                title="Stop the live stream (backend run continues)"
-              >
-                <StopCircle size={11} style={{ verticalAlign: 'middle', marginRight: 4 }} />
-                Stop stream
-              </button>
-            )}
-            {terminalState && (
-              <button
-                type="button"
-                className="hc-btn-ghost"
-                onClick={handleReset}
-              >
-                Reset
-              </button>
-            )}
-            {terminalState && runState.summary && (
-              <button
-                type="button"
-                className="hc-btn-ghost"
-                onClick={handleDownload}
-              >
-                <Download size={11} style={{ verticalAlign: 'middle', marginRight: 4 }} />
-                Report
-              </button>
-            )}
-            <button
-              type="button"
-              className="hc-btn hc-btn-run"
-              onClick={handleRun}
-              disabled={isRunning || noneSelected || startMutation.isPending}
-            >
-              {isRunning ? (
-                <>
-                  <RefreshCw size={13} className="hc-spin" />
-                  <span>Running…</span>
-                </>
-              ) : (
-                <>
-                  <Play size={13} />
-                  <span>Run Health Check</span>
-                </>
-              )}
-            </button>
-          </div>
-        </div>
-
-        {}
         <div className="hc-kpis">
           <div className="hc-kpi">
             <ListChecks size={14} className="hc-kpi-icon" />
@@ -882,7 +848,67 @@ export default function AdminHealthCheckPage() {
           )}
         </div>
 
-        {}
+        {/* Toolbar — Run / Reset / Report / Stop (moved from removed header) */}
+        <div className="hc-toolbar">
+          <div className="hc-toolbar-info">
+            <span className="hc-toolbar-info-title">Actions</span>
+            <span className="hc-toolbar-info-sub">
+              {noneSelected
+                ? 'Select at least one phase to run'
+                : `~${estimatedTests} test${estimatedTests === 1 ? '' : 's'} · every fixture is created and destroyed in the same run`}
+            </span>
+          </div>
+          <div className="hc-toolbar-spacer" />
+          {isRunning && (
+            <button
+              type="button"
+              className="hc-btn-danger"
+              onClick={handleStop}
+              title="Stop the live stream (backend run continues)"
+            >
+              <StopCircle size={11} style={{ verticalAlign: 'middle', marginRight: 4 }} />
+              Stop stream
+            </button>
+          )}
+          {terminalState && (
+            <button
+              type="button"
+              className="hc-btn-ghost"
+              onClick={handleReset}
+            >
+              Reset
+            </button>
+          )}
+          {terminalState && runState.summary && (
+            <button
+              type="button"
+              className="hc-btn-ghost"
+              onClick={handleDownload}
+            >
+              <Download size={11} style={{ verticalAlign: 'middle', marginRight: 4 }} />
+              Report
+            </button>
+          )}
+          <button
+            type="button"
+            className="hc-btn hc-btn-run"
+            onClick={handleRun}
+            disabled={isRunning || noneSelected || startMutation.isPending}
+          >
+            {isRunning ? (
+              <>
+                <RefreshCw size={13} className="hc-spin" />
+                <span>Running…</span>
+              </>
+            ) : (
+              <>
+                <Play size={13} />
+                <span>Run Health Check</span>
+              </>
+            )}
+          </button>
+        </div>
+
         {!isRunning && !terminalState && (
           <div className="hc-card">
             <div className="hc-card-head">
@@ -941,7 +967,6 @@ export default function AdminHealthCheckPage() {
           </div>
         )}
 
-        {}
         {runState.status === 'idle' && (
           <div className="hc-card hc-results-empty">
             <div className="hc-empty-icon">
@@ -956,7 +981,6 @@ export default function AdminHealthCheckPage() {
           </div>
         )}
 
-        {}
         {isRunning && (
           <div className="hc-card hc-results-running">
             <RefreshCw size={22} className="hc-spin" />
@@ -997,7 +1021,6 @@ export default function AdminHealthCheckPage() {
           </div>
         )}
 
-        {}
         {runState.status === 'failed' && (
           <div className="hc-card hc-results-failed">
             <AlertTriangle size={22} />
@@ -1010,7 +1033,6 @@ export default function AdminHealthCheckPage() {
           </div>
         )}
 
-        {}
         {runState.summary && (
           <div className="hc-card">
             <div className="hc-card-head">
@@ -1051,7 +1073,6 @@ export default function AdminHealthCheckPage() {
           </div>
         )}
 
-        {}
         {runState.cleanup.length > 0 && (
           <div className="hc-card">
             <div className="hc-card-head">
@@ -1078,7 +1099,6 @@ export default function AdminHealthCheckPage() {
           </div>
         )}
 
-        {}
         {phases.length > 0 && (isRunning || terminalState) && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {phases

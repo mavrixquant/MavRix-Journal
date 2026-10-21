@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { RefreshCw, Trash2, Calendar } from 'lucide-react';
 import { toast } from 'sonner';
@@ -9,6 +8,7 @@ import {
   useAdminCalendarSync,
   useAdminCalendarWipe,
 } from '../api';
+import { useAdminPageHeader } from '../AdminPageHeader';
 import ConfirmDangerModal from '../components/ConfirmDangerModal';
 
 const CSS = `
@@ -118,6 +118,12 @@ export default function AdminCalendarPage() {
   const sync = useAdminCalendarSync();
   const wipe = useAdminCalendarWipe();
 
+  useAdminPageHeader({
+    eyebrow: 'Operations',
+    title: 'Calendar',
+    subtitle: 'Biquote economic events cache · auto-syncs every 60s in the background',
+  });
+
   const logs = data?.entries || [];
 
   const handleSync = async () => {
@@ -146,17 +152,6 @@ export default function AdminCalendarPage() {
     <>
       <style>{CSS}</style>
       <div className="acal-root">
-        <div className="admin-ph">
-          <div className="admin-ph-left">
-            <span className="admin-ph-eyebrow">Operations</span>
-            <h1 className="admin-ph-title">Calendar</h1>
-            <p className="admin-ph-sub">
-              Biquote economic events cache · auto-syncs every 60s in the background
-            </p>
-          </div>
-        </div>
-
-        {}
         <div className="acal-actions">
           <button
             type="button"
@@ -181,7 +176,6 @@ export default function AdminCalendarPage() {
           )}
         </div>
 
-        {}
         <div className="acal-card">
           <div className="acal-card-head">
             <Calendar size={14} style={{ color: 'var(--accent)' }} />

@@ -1,4 +1,3 @@
-
 import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, Trash2, Brain } from 'lucide-react';
@@ -6,6 +5,7 @@ import { toast } from 'sonner';
 
 import { useAuth } from '@/app/providers/AuthProvider';
 import { useAdminStrategies, useAdminDeleteStrategy } from '../api';
+import { useAdminPageHeader } from '../AdminPageHeader';
 import Pagination from '../components/Pagination';
 import ConfirmDangerModal from '../components/ConfirmDangerModal';
 import EmptyState from '@/shared/components/EmptyState';
@@ -163,6 +163,12 @@ export default function AdminStrategiesPage() {
   const total = data?.total || 0;
   const pages = data?.pages || 1;
 
+  useAdminPageHeader({
+    eyebrow: 'Manage',
+    title: 'Strategies',
+    subtitle: `${total} strateg${total === 1 ? 'y' : 'ies'} across every user`,
+  });
+
   const hasFilter = q.trim().length > 0 || status !== '';
 
   const confirmDelete = async () => {
@@ -185,16 +191,6 @@ export default function AdminStrategiesPage() {
     <>
       <style>{CSS}</style>
       <div className="asp-root">
-        <div className="admin-ph">
-          <div className="admin-ph-left">
-            <span className="admin-ph-eyebrow">Manage</span>
-            <h1 className="admin-ph-title">Strategies</h1>
-            <p className="admin-ph-sub">
-              {total} strateg{total === 1 ? 'y' : 'ies'} across every user
-            </p>
-          </div>
-        </div>
-
         <div className="asp-bar">
           <div className="asp-search">
             <Search size={14} className="asp-search-icon" />

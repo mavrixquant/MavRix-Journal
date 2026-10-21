@@ -1,30 +1,41 @@
 import { Menu as MenuIcon } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { useAdminHealth } from '../api';
+import { useAdminPageHeaderContext } from '../AdminPageHeader';
 
 const SEGMENT_LABELS = {
-  admin: 'Admin',
+  admin: 'Dashboard',
   users: 'Users',
   accounts: 'Accounts',
   trades: 'Trades',
+  strategies: 'Strategies',
+  groups: 'Groups',
   calendar: 'Calendar',
+  gex: 'GEX Levels',
   sessions: 'Sessions',
   broadcast: 'Broadcast',
   audit: 'Audit log',
   settings: 'Settings',
   system: 'System',
+  'health-check': 'Health Checkup',
 };
 
-function crumbsFromPath(pathname) {
+function currentFromPath(pathname) {
   const segs = pathname.replace(/^\/admin\/?/, '').split('/').filter(Boolean);
-  if (segs.length === 0) return { current: 'Dashboard' };
-  return { current: SEGMENT_LABELS[segs[0]] || segs[0] };
+  if (segs.length === 0) return 'Dashboard';
+  return SEGMENT_LABELS[segs[0]] || segs[0];
 }
 
 export default function AdminHeader({ user, onMobileMenuClick }) {
   const { data: health } = useAdminHealth();
   const location = useLocation();
-  const { current } = crumbsFromPath(location.pathname);
+  const { config } = useAdminPageHeaderContext();
+
+  const fallbackTitle = currentFromPath(location.pathname);
+
+  const eyebrow = config?.eyebrow || 'Admin';
+  const title = config?.title || fallbackTitle;
+  const subtitle = config?.subtitle || null;
 
   const status = health?.status === 'ok' ? 'ok' : 'degraded';
   const initials =
@@ -53,10 +64,18 @@ export default function AdminHeader({ user, onMobileMenuClick }) {
         <MenuIcon size={16} />
       </button>
 
-      <div className="admin-header-crumbs">
-        <span className="admin-header-crumbs-root">Admin</span>
-        <span className="admin-header-crumbs-sep">/</span>
-        <span className="admin-header-crumbs-current">{current}</span>
+      <div className="admin-header-title">
+        <div className="admin-header-title-row">
+          <span className="admin-header-eyebrow">{eyebrow}</span>
+          <h1 className="admin-header-title-text" title={title}>
+            {title}
+          </h1>
+        </div>
+        {subtitle && (
+          <p className="admin-header-sub" title={subtitle}>
+            {subtitle}
+          </p>
+        )}
       </div>
 
       <div className="admin-header-spacer" style={{ flex: 1 }} />
