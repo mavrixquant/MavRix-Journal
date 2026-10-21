@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // Mave AI sidebar — a 40 vw × full-height overlay containing the 3 AI
 // personas (Guide · Trainer · Chat). Opened from the header bar.
 //
@@ -7,16 +7,22 @@
 // The only structural differences from the chat page are:
 //   • Persona tabs replace the conversation list.
 //   • A gear icon opens the existing Settings → Mave AI panel.
+//   • A "Reset memory" button wipes the active persona's chat history.
 //   • The conversation-info panel is disabled (CSS) so the thread always
 //     fills the sidebar.
 // ============================================================================
 
 import { useEffect, useMemo, useState } from 'react';
-import { X, Settings as SettingsIcon, Loader2 } from 'lucide-react';
+import { X, Settings as SettingsIcon, Loader2, RotateCcw } from 'lucide-react';
+import { toast } from 'sonner';
 
 import Portal from '@/shared/components/Portal';
+import Alert from '@/shared/components/Alert';
 import { MAVE_AI_PERSONAS } from '@mavrix/shared';
-import { useChatConversations } from '@/shared/api/chat';
+import {
+  useChatConversations,
+  useResetAiMemory,
+} from '@/shared/api/chat';
 import { useSettingsModal } from '@/app/layout/Settings/SettingsModalContext';
 import MessageThread from '@/features/personal/chats/components/MessageThread';
 import MaveAiAvatar from '@/features/personal/chats/components/MaveAiAvatar';
@@ -76,14 +82,35 @@ export default function MaveAiSidebar({ isOpen = false, onClose }) {
     return () => window.removeEventListener('keydown', onKey);
   }, [isOpen, onClose]);
 
+  // Reset memory confirmation state
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const resetMemory = useResetAiMemory();
+
+  const personaMeta = Object.fromEntries(MAVE_AI_PERSONAS.map((p) => [p.id, p]));
+  const activePersonaLabel =
+    personaMeta[activePersona]?.label || 'AI';
+
+  const handleConfirmReset = async () => {
+    if (!activeConversation) return;
+    const conversationId = activeConversation.id;
+    setShowResetConfirm(false);
+
+    try {
+      await resetMemory.mutateAsync(conversationId);
+      toast.success(`${activePersonaLabel} memory has been reset`, {
+        description: 'The next reply starts with a completely clean context.',
+      });
+    } catch (err) {
+      toast.error(err?.message || 'Could not reset memory');
+    }
+  };
+
   if (!isOpen) return null;
 
   const handleOpenSettings = () => {
     onClose();
     openSettings('mave-ai');
   };
-
-  const personaMeta = Object.fromEntries(MAVE_AI_PERSONAS.map((p) => [p.id, p]));
 
   return (
     <Portal>
@@ -103,6 +130,20 @@ export default function MaveAiSidebar({ isOpen = false, onClose }) {
               <h2 className="mave-sidebar-title">Mave AI</h2>
               <p className="mave-sidebar-sub">Guide · Trainer · Chat</p>
             </div>
+
+            {activeConversation && (
+              <button
+                type="button"
+                className="mave-sidebar-btn is-danger"
+                onClick={() => setShowResetConfirm(true)}
+                disabled={resetMemory.isPending}
+                title={`Reset ${activePersonaLabel} memory`}
+                aria-label={`Reset ${activePersonaLabel} memory`}
+              >
+                <RotateCcw size={15} />
+              </button>
+            )}
+
             <button
               type="button"
               className="mave-sidebar-btn"
@@ -154,7 +195,7 @@ export default function MaveAiSidebar({ isOpen = false, onClose }) {
             {isLoading && !activeConversation ? (
               <div className="mave-sidebar-loading">
                 <Loader2 size={22} className="mave-sidebar-spinner" />
-                <span>Preparing {personaMeta[activePersona]?.label || 'Mave AI'}…</span>
+                <span>Preparing {activePersonaLabel}…</span>
               </div>
             ) : activeConversation ? (
               <MessageThread
@@ -175,6 +216,21 @@ export default function MaveAiSidebar({ isOpen = false, onClose }) {
           </div>
         </aside>
       </div>
+
+      <Alert
+        isOpen={showResetConfirm}
+        type="confirm"
+        title={`Reset ${activePersonaLabel} memory?`}
+        message={
+          `This permanently deletes every message with ${activePersonaLabel} ` +
+          `and gives the assistant a completely fresh start. ` +
+          `This cannot be undone.`
+        }
+        confirmText="Reset memory"
+        cancelText="Cancel"
+        onConfirm={handleConfirmReset}
+        onCancel={() => setShowResetConfirm(false)}
+      />
     </Portal>
   );
 }

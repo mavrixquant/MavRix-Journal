@@ -1,4 +1,4 @@
-/* ==========================================================================
+﻿/* ==========================================================================
    Mave AI sidebar
    ========================================================================== */
 
@@ -85,18 +85,41 @@
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.2, 0.8, 0.25, 1);
 }
-.mave-sidebar-btn:hover {
+.mave-sidebar-btn:hover:not(:disabled) {
   color: var(--accent);
   border-color: var(--accent-soft2);
   background: color-mix(in srgb, var(--accent) 8%, transparent);
   transform: translateY(-1px);
 }
-.mave-sidebar-btn:active {
+.mave-sidebar-btn:active:not(:disabled) {
   transform: translateY(0) scale(0.94);
 }
 .mave-sidebar-btn:focus-visible {
   outline: none;
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 24%, transparent);
+}
+
+/* Danger variant — used by the "Reset memory" button */
+.mave-sidebar-btn.is-danger:hover:not(:disabled) {
+  color: #f87171;
+  border-color: rgba(239, 68, 68, 0.4);
+  background: rgba(239, 68, 68, 0.08);
+}
+.mave-sidebar-btn.is-danger:active:not(:disabled) {
+  background: rgba(239, 68, 68, 0.14);
+}
+.mave-sidebar-btn.is-danger:focus-visible {
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.24);
+}
+
+/* Disabled state */
+.mave-sidebar-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+  color: #8892A3;
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.03);
 }
 
 /* -------------------------- tabs -------------------------- */

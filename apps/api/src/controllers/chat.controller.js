@@ -1,4 +1,4 @@
-import * as svc from '../services/chat.service.js';
+﻿import * as svc from '../services/chat.service.js';
 import { stopAiForConversation } from '../services/ai.service.js';
 
 export async function searchUsers(req, res, next) {
@@ -39,6 +39,18 @@ export async function updateConversation(req, res, next) {
 export async function clearChat(req, res, next) {
   try {
     const result = await svc.clearChat(req.userId, req.params.id);
+    res.json(result);
+  } catch (e) { next(e); }
+}
+
+// ---------------------------------------------------------------------------
+// Reset AI memory — dedicated action for AI conversations only.
+// Delegates to svc.resetAiMemory, which also aborts any in-flight AI
+// generation before wiping the message table.
+// ---------------------------------------------------------------------------
+export async function resetAiMemory(req, res, next) {
+  try {
+    const result = await svc.resetAiMemory(req.userId, req.params.id);
     res.json(result);
   } catch (e) { next(e); }
 }

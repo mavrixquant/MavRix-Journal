@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // Chat service — DMs, groups, friends-aware, Mave AI (Guide / Trainer / Chat).
 //
 // Mave AI is REACHABLE here (via the dedicated sidebar), but AI users are
@@ -9,7 +9,7 @@
 import { prisma } from '../lib/prisma.js';
 import { HttpError } from '../middleware/error.js';
 import { broadcastToUser } from '../lib/broadcaster.js';
-import { triggerAiResponse } from './ai.service.js';
+import { triggerAiResponse, stopAiForConversation } from './ai.service.js';
 import {
   getMaveAiIdForPersona,
   getPersonaForAiId,
@@ -518,6 +518,74 @@ export async function clearChat(userId, conversationId) {
 
   broadcastToUser(userId, 'chat:cleared', { conversationId, scope: 'me' });
   return { ok: true, scope: 'me' };
+}
+
+// ---------------------------------------------------------------------------
+// Reset AI memory
+//
+// Distinct from clearChat: only valid for AI DMs, and additionally aborts
+// any in-flight generation so a stale response can't orphan into the freshly
+// emptied thread. Deletes every message (hard delete) — the AI's context
+// builder reads from `messages`, so an empty table = an empty mind.
+// ---------------------------------------------------------------------------
+
+export async function resetAiMemory(userId, conversationId) {
+  await assertAccessibleConversation(userId, conversationId);
+
+  const conv = await prisma.conversation.findUnique({
+    where: { id: conversationId },
+    select: {
+      type: true,
+      participants: { select: { userId: true } },
+    },
+  });
+  if (!conv) throw new HttpError(404, 'Conversation not found');
+
+  const aiId = conv.participants.find((p) => isAnyMaveAiId(p.userId))?.userId;
+  if (conv.type !== 'dm' || !aiId) {
+    throw new HttpError(400, 'This conversation is not with an AI assistant.');
+  }
+
+  // Cancel any in-flight AI generation so it doesn't create a stray reply
+  // after we wipe the thread. The abort propagates asynchronously via the
+  // fetch reject chain in ai.service.js.
+  let wasRunning = false;
+  try {
+    const stopResult = stopAiForConversation(conversationId, userId);
+    wasRunning = !!stopResult?.wasRunning;
+  } catch {
+    // best-effort
+  }
+
+  // If the AI was mid-generation, give it a beat to persist its
+  // "Interrupted" system message so our delete catches it too.
+  if (wasRunning) {
+    await new Promise((r) => setTimeout(r, 150));
+  }
+
+  const clearedCount = await prisma.$transaction(async (tx) => {
+    const deleted = await tx.message.deleteMany({ where: { conversationId } });
+
+    await tx.conversation.update({
+      where: { id: conversationId },
+      data: {
+        lastMessageText: null,
+        lastMessageById: null,
+        lastMessageAt: new Date(),
+      },
+    });
+
+    await tx.conversationParticipant.update({
+      where: { conversationId_userId: { conversationId, userId } },
+      data: { unreadCount: 0, lastReadAt: new Date(), lastReadMsgId: null },
+    });
+
+    return deleted.count;
+  });
+
+  broadcastToUser(userId, 'chat:cleared', { conversationId, scope: 'all' });
+
+  return { ok: true, clearedCount };
 }
 
 // ---------------------------------------------------------------------------

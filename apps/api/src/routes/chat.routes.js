@@ -1,4 +1,4 @@
-import { Router } from 'express';
+﻿import { Router } from 'express';
 import {
   sendMessageSchema,
   editMessageSchema,
@@ -30,6 +30,7 @@ const deliveredLimiter = rateLimit({ windowMs: 60_000, max: 600, message: 'Too m
 const groupActionLimiter = rateLimit({ windowMs: 60_000, max: 30, message: 'Too many group actions. Slow down.' });
 const clearLimiter = rateLimit({ windowMs: 60_000, max: 5, message: 'Too many clear requests. Slow down.' });
 const stopAiLimiter = rateLimit({ windowMs: 60_000, max: 20, message: 'Too many stop requests. Slow down.' });
+const resetMemoryLimiter = rateLimit({ windowMs: 60_000, max: 5, message: 'Too many memory reset requests. Slow down.' });
 
 chatRoutes.get(
   '/users/search',
@@ -62,6 +63,7 @@ chatRoutes.get('/conversations/:id', ctrl.getConversation);
 chatRoutes.patch('/conversations/:id', validate(updateConversationSchema), ctrl.updateConversation);
 
 chatRoutes.post('/conversations/:id/clear', clearLimiter, ctrl.clearChat);
+chatRoutes.post('/conversations/:id/reset-memory', resetMemoryLimiter, ctrl.resetAiMemory);
 chatRoutes.post('/conversations/:id/stop-ai', stopAiLimiter, ctrl.stopAi);
 
 chatRoutes.get('/conversations/:id/messages', ctrl.listMessages);

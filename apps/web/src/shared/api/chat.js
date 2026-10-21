@@ -1,4 +1,4 @@
-import {
+﻿import {
   useQuery,
   useInfiniteQuery,
   useMutation,
@@ -51,6 +51,18 @@ export async function updateConversation(id, patch) {
 export async function clearChat(conversationId) {
   return apiJson(
     `/api/chat/conversations/${encodeURIComponent(conversationId)}/clear`,
+    { method: 'POST' }
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Reset AI memory — deletes every message in an AI DM and aborts any
+// in-flight generation, giving the assistant a clean slate.
+// Backend rejects non-AI conversations with a 400.
+// ---------------------------------------------------------------------------
+export async function resetAiMemory(conversationId) {
+  return apiJson(
+    `/api/chat/conversations/${encodeURIComponent(conversationId)}/reset-memory`,
     { method: 'POST' }
   );
 }
@@ -344,6 +356,23 @@ export function useClearChat() {
       qc.invalidateQueries({ queryKey: chatKeys.messages(conversationId) });
       qc.invalidateQueries({ queryKey: chatKeys.conversations() });
       qc.invalidateQueries({ queryKey: chatKeys.conversation(conversationId) });
+    },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Reset AI memory — hard-deletes all messages in an AI DM.
+// The SSE `chat:cleared` broadcast also invalidates the same caches, so
+// this onSuccess is belt-and-suspenders for the SSE-fallback path.
+// ---------------------------------------------------------------------------
+export function useResetAiMemory() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (conversationId) => resetAiMemory(conversationId),
+    onSuccess: (_r, conversationId) => {
+      qc.invalidateQueries({ queryKey: chatKeys.messages(conversationId) });
+      qc.invalidateQueries({ queryKey: chatKeys.conversation(conversationId) });
+      qc.invalidateQueries({ queryKey: chatKeys.conversations() });
     },
   });
 }
