@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { Layers, Clipboard, ClipboardCheck, CalendarDays } from 'lucide-react';
+import { Layers, Clipboard, ClipboardCheck, CalendarDays, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { useGexDays, useGexDay } from '@/shared/api/gex';
@@ -11,6 +11,7 @@ import {
   GEX_SYMBOLS,
   GEX_SYMBOL_META,
   DEFAULT_GEX_SYMBOL,
+  GEX_TRADINGVIEW_URL,
 } from '@mavrix/shared';
 
 
@@ -115,6 +116,50 @@ const CSS = `
   .gxp-sym.is-active .gxp-sym-name {
     color: rgba(255,255,255,.6);
   }
+
+  /* ---------- Symbol row (tabs + TradingView link) ---------- */
+  .gxp-symbol-row {
+    display: flex;
+    gap: 10px;
+    align-items: stretch;
+  }
+  .gxp-symbol-row .gxp-symbar {
+    flex: 1;
+  }
+  .gxp-tv-link {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 0 18px;
+    border-radius: 14px;
+    border: 1px solid rgba(255,255,255,.1);
+    background: rgba(255,255,255,.03);
+    color: var(--ink-2);
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    text-decoration: none;
+    cursor: pointer;
+    transition: all .22s cubic-bezier(.2,.8,.25,1);
+    white-space: nowrap;
+  }
+  .gxp-tv-link:hover {
+    color: var(--accent);
+    border-color: var(--accent-soft2);
+    background: color-mix(in srgb, var(--accent) 8%, transparent);
+    box-shadow: 0 0 24px -10px color-mix(in srgb, var(--accent) 50%, transparent);
+    transform: translateY(-1px);
+  }
+  .gxp-tv-link:focus-visible {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
+  }
+  .gxp-tv-link svg { flex-shrink: 0; }
 
   /* ---------- Two-column body ---------- */
   .gxp-body {
@@ -409,8 +454,13 @@ const CSS = `
     background: linear-gradient(180deg, rgba(15,18,26,.72), rgba(15,18,26,.55));
   }
 
+  @media (max-width: 640px) {
+    .gxp-tv-link span { display: none; }
+    .gxp-tv-link { padding: 0 12px; }
+  }
+
   @media (prefers-reduced-motion: reduce) {
-    .gxp-sym, .gxp-date, .gxp-copy-btn { transition: none !important; }
+    .gxp-sym, .gxp-date, .gxp-copy-btn, .gxp-tv-link { transition: none !important; }
   }
 `;
 
@@ -480,27 +530,41 @@ export default function GexPage() {
       <style>{CSS}</style>
       <div className="gxp-root">
 
-        {/* Symbol switcher */}
-        <div className="gxp-symbar" role="tablist" aria-label="Select symbol">
-          {GEX_SYMBOLS.map((sym) => {
-            const m = GEX_SYMBOL_META[sym];
-            const active = symbol === sym;
-            return (
-              <button
-                key={sym}
-                type="button"
-                role="tab"
-                aria-selected={active}
-                className={`gxp-sym${active ? ' is-active' : ''}`}
-                style={{ '--sym-color': m.color }}
-                onClick={() => handleSymbolChange(sym)}
-              >
-                <span className="gxp-sym-dot" aria-hidden />
-                <span className="gxp-sym-code">{m.label}</span>
-                <span className="gxp-sym-name">{m.fullName}</span>
-              </button>
-            );
-          })}
+        {/* Symbol switcher + TradingView indicator link */}
+        <div className="gxp-symbol-row">
+          <div className="gxp-symbar" role="tablist" aria-label="Select symbol">
+            {GEX_SYMBOLS.map((sym) => {
+              const m = GEX_SYMBOL_META[sym];
+              const active = symbol === sym;
+              return (
+                <button
+                  key={sym}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  className={`gxp-sym${active ? ' is-active' : ''}`}
+                  style={{ '--sym-color': m.color }}
+                  onClick={() => handleSymbolChange(sym)}
+                >
+                  <span className="gxp-sym-dot" aria-hidden />
+                  <span className="gxp-sym-code">{m.label}</span>
+                  <span className="gxp-sym-name">{m.fullName}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          <a
+            href={GEX_TRADINGVIEW_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="gxp-tv-link"
+            title="Open the MavRix GEX indicator on TradingView in a new tab"
+            aria-label="Open MavRix GEX indicator on TradingView"
+          >
+            <ExternalLink size={13} />
+            <span>TradingView</span>
+          </a>
         </div>
 
         {/* Empty state for the active symbol */}

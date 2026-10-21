@@ -15,6 +15,12 @@ export const GEX_DEFAULT_TIMEZONE = 'Asia/Kolkata';
 
 export const GEX_TYPES = Object.freeze(['BL', 'GEX', 'OTHER']);
 
+// Public TradingView script URL for the MavRix GEX indicator. Rendered on
+// the GEX Levels page as a quick-access "open in new tab" link next to the
+// NQ / ES symbol tabs.
+export const GEX_TRADINGVIEW_URL =
+  'https://www.tradingview.com/script/NtvxwL0Q-MavRix-GEX/';
+
 
 export function classifyGexLevel(item) {
   const name = String(item?.Name ?? '').toUpperCase();
