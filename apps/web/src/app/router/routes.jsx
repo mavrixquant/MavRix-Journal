@@ -1,4 +1,3 @@
-
 import { lazy, Suspense } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 
@@ -55,6 +54,7 @@ const AdminSettingsPage     = lazy(() => import('@/features/admin/pages/AdminSet
 const AdminBroadcastPage    = lazy(() => import('@/features/admin/pages/AdminBroadcastPage'));
 const AdminGexPage          = lazy(() => import('@/features/admin/pages/AdminGexPage'));
 const AdminHealthCheckPage  = lazy(() => import('@/features/admin/pages/AdminHealthCheckPage'));
+const AdminBugReportsPage   = lazy(() => import('@/features/admin/pages/AdminBugReportsPage'));
 
 const LAST_PATH_KEY = 'mavrix:lastPath';
 
@@ -108,7 +108,6 @@ export function AppRoutes() {
 
       <Route path="/verify-email" element={<RequireAuth><VerifyEmail /></RequireAuth>} />
 
-      {}
       <Route
         path="/admin"
         element={
@@ -125,6 +124,7 @@ export function AppRoutes() {
         <Route path="strategies" element={<AdminStrategiesPage />} />
         <Route path="groups"    element={<AdminGroupsPage />} />
         <Route path="audit"     element={<AdminAuditPage />} />
+        <Route path="bug-reports" element={<AdminBugReportsPage />} />
         <Route path="sessions"  element={<AdminSessionsPage />} />
         <Route path="system"    element={<AdminSystemPage />} />
         <Route path="calendar"  element={<AdminCalendarPage />} />
@@ -137,7 +137,6 @@ export function AppRoutes() {
         />
       </Route>
 
-      {}
       <Route element={<RequireVerified><AppLayout /></RequireVerified>}>
         <Route path="/journal" element={<DashboardPage />} />
         <Route path="/journal/analyse" element={<AnalysePage />} />

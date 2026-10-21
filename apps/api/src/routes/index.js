@@ -11,6 +11,7 @@ import { adminRoutes } from './admin.routes.js';
 import { chatRoutes } from './chat.routes.js';
 import { friendsRoutes } from './friends.routes.js';
 import { aiRoutes } from './ai.routes.js';
+import { bugReportRoutes } from './bugReport.routes.js';
 
 export const apiRouter = Router();
 
@@ -27,4 +28,5 @@ apiRouter.use('/market-data', marketDataRoutes);
 apiRouter.use('/chat', chatRoutes);
 apiRouter.use('/friends', friendsRoutes);
 apiRouter.use('/ai', aiRoutes);
+apiRouter.use('/bug-reports', bugReportRoutes);
 apiRouter.use('/admin', adminRoutes);

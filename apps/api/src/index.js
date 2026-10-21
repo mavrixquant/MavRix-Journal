@@ -21,7 +21,12 @@ app.use(
     credentials: true,
   })
 );
-app.use(express.json({ limit: '5mb' }));
+
+// 12 MB limit accommodates base64-encoded screenshots for the bug-report
+// endpoint (4 MB raw image → ~5.4 MB base64). Other routes rarely exceed
+// a few KB, so this higher ceiling is safe.
+app.use(express.json({ limit: '12mb' }));
+
 app.use(cookieParser());
 app.use(morgan(env.isProd ? 'combined' : 'dev'));
 

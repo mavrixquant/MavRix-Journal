@@ -20,6 +20,7 @@ import * as gexCtrl from '../controllers/adminGex.controller.js';
 import * as strategyCtrl from '../controllers/adminStrategies.controller.js';
 import * as groupCtrl from '../controllers/adminGroups.controller.js';
 import * as hcCtrl from '../controllers/healthCheck.controller.js';
+import * as bugCtrl from '../controllers/adminBugReports.controller.js';
 
 export const adminRoutes = Router();
 
@@ -82,6 +83,11 @@ const broadcastSchema = z.object({
 
 const healthCheckStartSchema = z.object({
   phases: z.array(z.string().min(1)).max(64).optional(),
+});
+
+const bugReportUpdateSchema = z.object({
+  status: z.enum(['open', 'in_progress', 'resolved', 'closed']).optional(),
+  adminNote: z.string().trim().max(2000).nullable().optional(),
 });
 
 const sensitive = rateLimit({
@@ -190,6 +196,11 @@ adminRoutes.get('/calendar/logs', opsCtrl.calendarLogs);
 adminRoutes.get('/gex', validateSymbolQuery, gexCtrl.list);
 adminRoutes.post('/gex', writeLimiter, validate(gexDaySchema), gexCtrl.upsert);
 adminRoutes.delete('/gex/:date', requireSuperadmin, sensitive, validateSymbolQuery, gexCtrl.remove);
+
+// Bug reports — new admin tab.
+adminRoutes.get('/bug-reports', bugCtrl.list);
+adminRoutes.patch('/bug-reports/:id', writeLimiter, validate(bugReportUpdateSchema), bugCtrl.update);
+adminRoutes.delete('/bug-reports/:id', requireSuperadmin, sensitive, bugCtrl.remove);
 
 adminRoutes.get(
   '/health-check/phases',

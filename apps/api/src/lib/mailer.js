@@ -1,9 +1,9 @@
-
 import { BrevoClient } from '@getbrevo/brevo';
 
 const MAIL_FROM      = process.env.MAIL_FROM      || 'onboarding@brevo.dev';
 const MAIL_FROM_NAME = process.env.MAIL_FROM_NAME || 'Mavrix Journal';
 const CLIENT_ORIGIN  = process.env.CLIENT_ORIGIN  || 'http://localhost:5173';
+const SUPPORT_EMAIL  = process.env.SUPPORT_EMAIL  || 'support@mavrixjournal.com';
 
 let _client = null;
 function getClient() {
@@ -12,7 +12,6 @@ function getClient() {
   }
   return _client;
 }
-
 
 function renderEmail({ preheader, title, body, ctaText, ctaUrl, footerNote }) {
   return `<!doctype html>
@@ -87,13 +86,15 @@ function renderEmail({ preheader, title, body, ctaText, ctaUrl, footerNote }) {
 </html>`;
 }
 
-
-async function send({ to, subject, html, text }) {
+async function send({ to, subject, html, text, attachment }) {
   if (!process.env.BREVO_API_KEY) {
     console.log('\n======================== [mailer:console-fallback] ========================');
     console.log(`To:      ${to}`);
     console.log(`From:    ${MAIL_FROM_NAME} <${MAIL_FROM}>`);
     console.log(`Subject: ${subject}`);
+    if (attachment?.length) {
+      console.log(`Attach:  ${attachment.map((a) => a.name).join(', ')}`);
+    }
     console.log('--------------------------------------------------------------------------');
     console.log(text || html);
     console.log('==========================================================================\n');
@@ -102,17 +103,22 @@ async function send({ to, subject, html, text }) {
 
   const client = getClient();
 
-  const result = await client.transactionalEmails.sendTransacEmail({
+  const payload = {
     subject,
     htmlContent: html,
     textContent: text,
     sender: { name: MAIL_FROM_NAME, email: MAIL_FROM },
     to: [{ email: to }],
-  });
+  };
+
+  if (Array.isArray(attachment) && attachment.length > 0) {
+    payload.attachment = attachment;
+  }
+
+  const result = await client.transactionalEmails.sendTransacEmail(payload);
 
   return { ok: true, id: result?.messageId };
 }
-
 
 export async function sendVerificationEmail({ to, token }) {
   const verifyUrl = `${CLIENT_ORIGIN}/verify-email?token=${encodeURIComponent(token)}`;
@@ -190,7 +196,6 @@ export async function sendPasswordResetEmail({ to, token }) {
   });
 }
 
-
 const LEVEL_META = {
   info:     { label: 'Notice',   accent: '#F59E0B', ring: 'rgba(245,158,11,.28)' },
   warning:  { label: 'Warning',  accent: '#F59E0B', ring: 'rgba(245,158,11,.28)' },
@@ -220,4 +225,93 @@ export async function sendBroadcastEmail({ to, message, level = 'info' }) {
     }),
     text,
   });
+}
+
+// ---------------------------------------------------------------------------
+// Bug report email — goes to SUPPORT_EMAIL, includes the submitter's name /
+// email / role, the report body, the page URL and user agent, and (if the
+// user attached one) the screenshot as an inline attachment.
+//
+// The screenshot is NEVER persisted — this is the ONLY place it goes.
+// ---------------------------------------------------------------------------
+export async function sendBugReportEmail({
+  user,
+  report,
+  image,
+  pageUrl,
+  userAgent,
+}) {
+  const to = SUPPORT_EMAIL;
+  const subject = `[Bug Report] ${report.category.toUpperCase()} · ${report.severity.toUpperCase()} · ${report.title.slice(0, 80)}`;
+
+  const submitterName =
+    [user?.firstName, user?.lastName].filter(Boolean).join(' ').trim() ||
+    user?.email ||
+    'Unknown user';
+
+  const submittedAt = new Date(report.createdAt).toLocaleString('en-US', {
+    dateStyle: 'full',
+    timeStyle: 'short',
+  });
+
+  const body = `
+    <p style="margin:0 0 14px;">A new bug report was submitted.</p>
+
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 16px;">
+      <tr><td style="padding:4px 0;color:#545E6E;font-size:12px;width:120px;">Title</td><td style="padding:4px 0;color:#E7E9EE;font-size:13px;font-weight:600;">${escapeHtml(report.title)}</td></tr>
+      <tr><td style="padding:4px 0;color:#545E6E;font-size:12px;">Category</td><td style="padding:4px 0;color:#E7E9EE;font-size:13px;">${escapeHtml(report.category)}</td></tr>
+      <tr><td style="padding:4px 0;color:#545E6E;font-size:12px;">Severity</td><td style="padding:4px 0;color:#E7E9EE;font-size:13px;">${escapeHtml(report.severity)}</td></tr>
+      <tr><td style="padding:4px 0;color:#545E6E;font-size:12px;">Submitted</td><td style="padding:4px 0;color:#E7E9EE;font-size:13px;">${escapeHtml(submittedAt)}</td></tr>
+      <tr><td style="padding:4px 0;color:#545E6E;font-size:12px;">From</td><td style="padding:4px 0;color:#E7E9EE;font-size:13px;">${escapeHtml(submitterName)} &lt;${escapeHtml(user?.email || '—')}&gt; (${escapeHtml(user?.role || 'user')})</td></tr>
+      ${pageUrl ? `<tr><td style="padding:4px 0;color:#545E6E;font-size:12px;">Page</td><td style="padding:4px 0;color:#E7E9EE;font-size:13px;word-break:break-all;">${escapeHtml(pageUrl)}</td></tr>` : ''}
+    </table>
+
+    <p style="margin:0 0 6px;color:#545E6E;font-size:12px;text-transform:uppercase;letter-spacing:.1em;font-weight:700;">Description</p>
+    <pre style="margin:0 0 16px;padding:12px 14px;background:#0A0D13;border:1px solid rgba(255,255,255,.08);border-radius:8px;font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:12px;color:#E7E9EE;line-height:1.6;white-space:pre-wrap;word-break:break-word;">${escapeHtml(report.description)}</pre>
+
+    ${userAgent ? `<p style="margin:0 0 6px;color:#545E6E;font-size:11px;">User agent:</p><p style="margin:0;color:#545E6E;font-size:11px;word-break:break-all;">${escapeHtml(userAgent)}</p>` : ''}
+    ${image ? `<p style="margin:16px 0 0;color:#545E6E;font-size:11px;font-style:italic;">A screenshot is attached to this email.</p>` : ''}
+  `;
+
+  const textLines = [
+    `New Bug Report · ${report.category} · ${report.severity}`,
+    '',
+    `Title:       ${report.title}`,
+    `Submitted:   ${submittedAt}`,
+    `From:        ${submitterName} <${user?.email || '—'}> (${user?.role || 'user'})`,
+    pageUrl ? `Page:        ${pageUrl}` : null,
+    userAgent ? `User agent:  ${userAgent}` : null,
+    '',
+    'Description:',
+    '------------',
+    report.description,
+    '',
+    image ? `[Screenshot "${image.name}" attached]` : null,
+  ].filter(Boolean).join('\n');
+
+  const attachment = image
+    ? [{ content: image.base64, name: image.name }]
+    : undefined;
+
+  return send({
+    to,
+    subject,
+    html: renderEmail({
+      preheader: `${report.category} · ${report.severity}`,
+      title: 'New bug report',
+      body,
+      footerNote: `Reply directly to ${user?.email || 'the submitter'} from your inbox.`,
+    }),
+    text: textLines,
+    attachment,
+  });
+}
+
+function escapeHtml(s) {
+  return String(s ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }

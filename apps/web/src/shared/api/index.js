@@ -1,4 +1,3 @@
-
 export * from './client.js';
 
 export { queryClient } from './queryClient.js';
@@ -13,3 +12,4 @@ export * from './gex.js';
 export * from './marketData.js';
 export * from './chat.js';
 export * from './friends.js';
+export * from './bugReport.js';

@@ -14,6 +14,7 @@ import { useHotkey } from '@/shared/hooks/useHotkey';
 import { useSSEBridge } from '@/shared/api/sse';
 import { PageHeaderProvider } from './PageHeaderProvider';
 import MaveAiSidebar from '@/features/mave-ai/MaveAiSidebar';
+import BugReportModal from '@/features/bug-report/BugReportModal';
 
 const STORAGE_KEY = 'mavrix:sidebar:collapsed';
 const LAST_PATH_KEY = 'mavrix:lastPath';
@@ -38,6 +39,7 @@ export default function AppLayout() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [settings, setSettings] = useState({ open: false, tab: 'account' });
   const [maveAiOpen, setMaveAiOpen] = useState(false);
+  const [bugReportOpen, setBugReportOpen] = useState(false);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, collapsed ? '1' : '0');
@@ -66,6 +68,9 @@ export default function AppLayout() {
 
   const openMaveAi = () => setMaveAiOpen(true);
   const closeMaveAi = () => setMaveAiOpen(false);
+
+  const openBugReport = () => setBugReportOpen(true);
+  const closeBugReport = () => setBugReportOpen(false);
 
   const handleLogout = async () => {
     await logout();
@@ -106,8 +111,8 @@ export default function AppLayout() {
               onMobileMenuClick={() => setMobileOpen(true)}
               onAccountClick={() => openSettings('account')}
               onSettingsClick={() => openSettings('preferences')}
-              onThemeClick={() => openSettings('appearance')}
               onMaveAiClick={openMaveAi}
+              onReportBugClick={openBugReport}
               onLogout={handleLogout}
             />
 
@@ -125,6 +130,11 @@ export default function AppLayout() {
           />
 
           <MaveAiSidebar isOpen={maveAiOpen} onClose={closeMaveAi} />
+
+          <BugReportModal
+            isOpen={bugReportOpen}
+            onClose={closeBugReport}
+          />
         </PageHeaderProvider>
       </SettingsModalProvider>
     </TooltipProvider>

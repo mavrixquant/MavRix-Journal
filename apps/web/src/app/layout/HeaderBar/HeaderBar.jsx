@@ -3,9 +3,8 @@ import { Link } from 'react-router-dom';
 import {
   Menu as MenuIcon,
   LogOut,
-  Palette,
   Settings,
-  FileText,
+  Bug,
   Shield,
   Sparkles,
 } from 'lucide-react';
@@ -55,8 +54,8 @@ export default function HeaderBar({
   onMobileMenuClick,
   onAccountClick,
   onSettingsClick,
-  onThemeClick,
   onMaveAiClick,
+  onReportBugClick,
   onLogout,
 }) {
   const { dispatch } = useAppContext();
@@ -165,24 +164,21 @@ export default function HeaderBar({
         <IconButton
           icon={<Sparkles size={16} />}
           label="Mave AI"
+          text="Mave AI"
           variant="accent"
           onClick={onMaveAiClick}
         />
 
         <IconButton
-          icon={<Palette size={16} />}
-          label="Theme"
-          variant="accent"
-          onClick={onThemeClick}
-        />
-        <IconButton
           icon={<Settings size={16} />}
           label="Settings"
           onClick={onSettingsClick}
         />
+
         <IconButton
-          icon={<FileText size={16} />}
-          label="Report"
+          icon={<Bug size={16} />}
+          label="Report a bug"
+          onClick={onReportBugClick}
         />
 
         <span className="hb-divider" aria-hidden />

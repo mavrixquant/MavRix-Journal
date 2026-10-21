@@ -36,8 +36,6 @@ model User {
 
   preferences Json @default("{}")
 
-  // Mave AI sentinel. Exactly one user has isAi = true (the built-in
-  // assistant). Enforced at the service layer — see maveAiBootstrap.js.
   isAi Boolean @default(false)
 
   accounts      Account[]
@@ -47,26 +45,6 @@ model User {
   messages      Message[]
   ownedGroups   Conversation[]            @relation("GroupOwner")
 
-  // ---------------------------------------------------------------------------
-  // Friends subsystem
-  //
-  // Friendship      — one row per accepted pair. Stored canonically as
-  //                   (userAId, userBId) with userAId < userBId
-  //                   lexicographically. The composite unique key guarantees
-  //                   a single friendship row per pair regardless of who
-  //                   sent the request.
-  //
-  // FriendRequest   — directed from → to. `status` is one of:
-  //                     'pending'   — awaiting response
-  //                     'accepted'  — (kept for audit trail)
-  //                     'declined'  — recipient said no
-  //                     'cancelled' — sender withdrew
-  //                   Only ONE pending request may exist per directed pair;
-  //                   this is enforced at the service layer.
-  //
-  // UserBlock       — directed blocker → blocked. Presence of either
-  //                   direction hides the pair from each other entirely.
-  // ---------------------------------------------------------------------------
   friendshipsAsA     Friendship[]    @relation("FriendshipUserA")
   friendshipsAsB     Friendship[]    @relation("FriendshipUserB")
   friendRequestsSent FriendRequest[] @relation("FriendRequestFrom")
@@ -74,10 +52,9 @@ model User {
   blocksInitiated    UserBlock[]     @relation("UserBlockBlocker")
   blocksReceived     UserBlock[]     @relation("UserBlockBlocked")
 
-  // Per-user BYOK credentials for Mave AI. One row per (userId, provider).
-  // The router rotates across all of a user's credentials using lastUsedAt
-  // as the LRU driver.
   aiCredentials AiCredential[]
+
+  bugReports BugReport[]
 
   @@index([role])
   @@index([isBanned])
@@ -224,13 +201,6 @@ model SiteSetting {
   @@map("site_settings")
 }
 
-// ---------------------------------------------------------------------------
-// GEX days — per-symbol gamma exposure levels.
-//
-// One row per (date, symbol). `symbol` is a plain string ('NQ' | 'ES' today,
-// extensible later). Queries always target a specific symbol; the composite
-// unique key guarantees at most one row per (date, symbol).
-// ---------------------------------------------------------------------------
 model GexDay {
   id        String @id @default(cuid())
   date      String
@@ -277,42 +247,6 @@ model Strategy {
   @@map("strategies")
 }
 
-// ---------------------------------------------------------------------------
-// Chat — Direct Messages + Groups.
-//
-// One Conversation row per DM or per group. The `type` column distinguishes
-// them:
-//
-//   type='dm'    → dmKey = sorted "aId:bId" (unique). Group columns null.
-//   type='group' → dmKey = null. Group columns populated.
-//
-// Read receipts:
-//   - Message.deliveredAt — set by the non-sender's device when it receives
-//     the message (either via POST /messages/:id/delivered for live SSE
-//     delivery, or in bulk by markRead on thread open).
-//   - Message.readAt — set when the non-sender opens the conversation
-//     (markRead). Also triggers a broadcast to the sender.
-//
-// Both columns are nullable. For a fresh conversation, they're null until
-// the peer's device acknowledges.
-//
-// Group-specific columns on Conversation:
-//   name         — display name (# header)
-//   description  — short blurb shown in discovery + settings
-//   visibility   — 'public' | 'private' | null (null = DM)
-//   color        — accent for the avatar + name chip
-//   iconEmoji    — optional emoji shown inside the avatar circle
-//   createdById  — FK to User. Null for DMs.
-//   memberCount  — denormalized participant count. Kept in sync inside the
-//                  same transaction as every membership change.
-//
-// Group-specific columns on ConversationParticipant:
-//   role         — 'owner' | 'moderator' | 'member'. Default 'member'.
-//                  DMs leave this at 'member'.
-//
-// Mave AI DMs are ordinary `type='dm'` rows. The only distinguishing feature
-// is that the peer (User.isAi === true) is the built-in assistant.
-// ---------------------------------------------------------------------------
 model Conversation {
   id              String   @id @default(cuid())
   type            String   @default("dm")
@@ -323,10 +257,9 @@ model Conversation {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  // Group-only metadata. All nullable so existing DMs are unaffected.
   name        String?
   description String?
-  visibility  String? // 'public' | 'private' | null (DM)
+  visibility  String?
   color       String? @default("#F59E0B")
   iconEmoji   String?
   createdById String?
@@ -354,7 +287,6 @@ model ConversationParticipant {
   isMuted        Boolean  @default(false)
   isArchived     Boolean  @default(false)
 
-  // 'owner' | 'moderator' | 'member'. DMs leave this at 'member'.
   role String @default("member")
 
   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
@@ -373,10 +305,6 @@ model Message {
   senderId       String
   body           String
 
-  // 'user'      — normal message written by a human
-  // 'system'    — inline system notice (e.g. "Mave AI is cooling down")
-  // 'ai_switch' — inline notice explaining a provider switch
-  // All kinds render inside the thread; the UI treats them differently.
   kind           String    @default("user")
 
   replyToId      String?
@@ -398,16 +326,6 @@ model Message {
   @@map("messages")
 }
 
-// ---------------------------------------------------------------------------
-// Friendships — accepted pairs.
-//
-// Canonical form: userAId is ALWAYS lexicographically smaller than userBId.
-// The service layer sorts ids before writing. This means a single row exists
-// per friendship regardless of who initiated the request.
-//
-// Uniqueness: composite key on (userAId, userBId). Combined with the sort
-// invariant, this is effectively "one friendship per pair".
-// ---------------------------------------------------------------------------
 model Friendship {
   id        String   @id @default(cuid())
   userAId   String
@@ -423,21 +341,6 @@ model Friendship {
   @@map("friendships")
 }
 
-// ---------------------------------------------------------------------------
-// Friend requests — directed, from sender to recipient.
-//
-// `status` is a plain string (not a Prisma enum) to match the codebase's
-// existing style (Conversation.type, Account.type, etc. all use strings).
-//
-// Lifecycle:
-//   pending  → accepted  (creates a Friendship row in the same transaction)
-//   pending  → declined  (recipient action)
-//   pending  → cancelled (sender withdrew)
-//
-// Only one PENDING request may exist per directed pair. Enforced in the
-// service layer, not the DB (a partial unique index would be Postgres-
-// specific and Prisma doesn't support partial unique constraints yet).
-// ---------------------------------------------------------------------------
 model FriendRequest {
   id          String    @id @default(cuid())
   fromUserId  String
@@ -457,19 +360,6 @@ model FriendRequest {
   @@map("friend_requests")
 }
 
-// ---------------------------------------------------------------------------
-// User blocks — directed. Presence of EITHER direction between two users
-// means they can't see each other in search, in friend lists, in group
-// member cards, or DM each other.
-//
-// On block creation (service layer, single transaction):
-//   1. DELETE any Friendship between the pair (both sort orders).
-//   2. UPDATE any pending FriendRequest (either direction) → 'cancelled'.
-//   3. INSERT the UserBlock row.
-//
-// On unblock: only the UserBlock row is deleted. The friendship is NOT
-// restored — the pair must re-send and re-accept a friend request.
-// ---------------------------------------------------------------------------
 model UserBlock {
   id        String   @id @default(cuid())
   blockerId String
@@ -486,33 +376,16 @@ model UserBlock {
   @@map("user_blocks")
 }
 
-// ---------------------------------------------------------------------------
-// AiCredential — BYOK credentials for Mave AI.
-//
-// ONE ROW PER (userId, provider). The router lists every row for a user
-// ordered by `lastUsedAt` (nulls first) and tries each credential's
-// `models[]` in sequence until one succeeds.
-//
-// Encryption: AES-256-GCM with MAVE_AI_MASTER_KEY. The three hex columns
-// below must all be present to decrypt.
-//
-//   models[]    — ordered list of chat models for this credential. Populated
-//                 by discoverModels() at save time; falls back to the curated
-//                 list from @mavrix/shared on discovery failure.
-//   lastUsedAt  — LRU rotation driver. NULL means never used → first.
-//   model       — legacy "primary model" override. Still respected if
-//                 models[] is empty (backward compat for pre-migration rows).
-// ---------------------------------------------------------------------------
 model AiCredential {
   id           String   @id @default(cuid())
   userId       String
-  provider     String   // 'openrouter' | 'openai' | 'anthropic' | 'gemini' | 'groq' | 'deepseek'
-  encryptedKey String   // hex ciphertext
-  keyIv        String   // hex IV (12 bytes)
-  keyTag       String   // hex GCM tag (16 bytes)
-  model        String?  // legacy primary model override
-  models       Json     @default("[]")  // ordered list of chat models
-  lastUsedAt   DateTime?                // LRU rotation driver
+  provider     String
+  encryptedKey String
+  keyIv        String
+  keyTag       String
+  model        String?
+  models       Json     @default("[]")
+  lastUsedAt   DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -521,4 +394,34 @@ model AiCredential {
   @@unique([userId, provider])
   @@index([userId])
   @@map("ai_credentials")
+}
+
+// ---------------------------------------------------------------------------
+// BugReport — in-app bug reports.
+//
+// The report itself is stored here for admin review; an optional screenshot
+// is NEVER persisted — it is attached only to the email that goes out to
+// SUPPORT_EMAIL. Text only lives here.
+// ---------------------------------------------------------------------------
+model BugReport {
+  id          String   @id @default(cuid())
+  userId      String
+  title       String
+  description String
+  category    String   @default("bug")
+  severity    String   @default("medium")
+  status      String   @default("open")
+  pageUrl     String?
+  userAgent   String?
+  adminNote   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([status, createdAt])
+  @@map("bug_reports")
 }

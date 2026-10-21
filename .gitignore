@@ -14,5 +14,3 @@ coverage/
 
 apps/api/prisma/migrations/dev.db*
 notes.*
-
-backups/

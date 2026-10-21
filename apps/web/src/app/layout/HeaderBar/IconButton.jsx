@@ -18,21 +18,25 @@ export function HBTooltip({ label, children }) {
   );
 }
 
-export function IconButton({ icon, label, onClick, variant }) {
+export function IconButton({ icon, label, onClick, variant, text }) {
   const variantClass =
     variant === 'danger' ? ' is-danger'
     : variant === 'accent' ? ' is-accent'
     : '';
 
+  const hasText = typeof text === 'string' && text.trim().length > 0;
+  const cls = `hb-icon-btn${variantClass}${hasText ? ' has-text' : ''}`;
+
   return (
     <HBTooltip label={label}>
       <button
         type="button"
-        className={`hb-icon-btn${variantClass}`}
+        className={cls}
         onClick={onClick}
         aria-label={label}
       >
         {icon}
+        {hasText && <span className="hb-icon-btn-text">{text}</span>}
       </button>
     </HBTooltip>
   );
