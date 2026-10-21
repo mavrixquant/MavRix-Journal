@@ -110,6 +110,12 @@ export default function AccountPanel() {
           <span className="settings-field-value">{lastName}</span>
         </div>
         <div className="settings-field-row">
+          <span className="settings-field-label">Username</span>
+          <span className="settings-field-value">
+            {user.username ? '@' + user.username : 'Not set'}
+          </span>
+        </div>
+        <div className="settings-field-row">
           <span className="settings-field-label">Email Address</span>
           <span className="settings-field-value">{user.email}</span>
         </div>

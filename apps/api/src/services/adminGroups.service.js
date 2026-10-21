@@ -18,6 +18,7 @@ function serializePublicUser(u) {
   return {
     id: u.id,
     email: u.email,
+    username: u.username,
     firstName: u.firstName,
     lastName: u.lastName,
     photoUrl: u.photoUrl,

@@ -58,6 +58,12 @@ export function getMaveAiId() {
 // Internal helpers
 // ---------------------------------------------------------------------------
 
+const AI_USERNAMES = {
+  guide: 'mave_guide',
+  trainer: 'mave_trainer',
+  chat: 'mave_ai',
+};
+
 async function ensureOnePersona(meta) {
   let user = await prisma.user.findUnique({
     where: { email: meta.email },
@@ -72,6 +78,7 @@ async function ensureOnePersona(meta) {
         isAi: true,
         role: 'ai',
         emailVerified: true,
+        username: AI_USERNAMES[meta.id] || null,
       },
     });
     return user;
@@ -83,6 +90,7 @@ async function ensureOnePersona(meta) {
   if (!user.emailVerified) patch.emailVerified = true;
   if (user.firstName !== meta.firstName) patch.firstName = meta.firstName;
   if (user.lastName !== meta.lastName) patch.lastName = meta.lastName;
+  if (!user.username) patch.username = AI_USERNAMES[meta.id] || null;
 
   if (Object.keys(patch).length > 0) {
     user = await prisma.user.update({

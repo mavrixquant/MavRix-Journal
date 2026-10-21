@@ -39,6 +39,7 @@ function initialsOf(u) {
   const b = (u.lastName || '').trim();
   if (a && b) return (a[0] + b[0]).toUpperCase();
   if (a) return a.slice(0, 2).toUpperCase();
+  if (u.username) return u.username.slice(0, 2).toUpperCase();
   if (u.email) return u.email.slice(0, 2).toUpperCase();
   return '?';
 }
@@ -49,7 +50,7 @@ function displayNameOf(u) {
   const b = (u.lastName || '').trim();
   if (a && b) return `${a} ${b}`;
   if (a) return a;
-  return u.email || 'Unknown';
+  return u.username || 'Unknown';
 }
 
 export default function MemberProfilePopover({
@@ -148,7 +149,7 @@ export default function MemberProfilePopover({
               <div className="mpp-name">{displayNameOf(peer)}</div>
               <div className="mpp-email">
                 <Mail size={10} />
-                <span>{peer.email}</span>
+                <span>{peer.username ? '@' + peer.username : 'â€”'}</span>
               </div>
             </div>
             {roleMeta && (

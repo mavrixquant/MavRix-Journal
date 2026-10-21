@@ -6,6 +6,7 @@ function normalizeUser(u) {
   if (!u) return null;
   const displayName =
     [u.firstName, u.lastName].filter(Boolean).join(' ').trim() ||
+    u.username ||
     u.email ||
     'User';
   const providerData = [];
@@ -14,6 +15,8 @@ function normalizeUser(u) {
     id: u.id,
     uid: u.id,
     email: u.email,
+    username: u.username ?? null,
+    hasUsername: !!u.username,
     firstName: u.firstName,
     lastName: u.lastName,
     displayName,
@@ -36,10 +39,10 @@ export async function signup({ email, password, firstName, lastName }) {
   return { user: normalizeUser(data.user) };
 }
 
-export async function login({ email, password }) {
+export async function login({ identifier, password }) {
   const data = await apiJson('/api/auth/login', {
     method: 'POST',
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({ identifier, password }),
   });
   setAccessToken(data.accessToken);
   return { user: normalizeUser(data.user) };
@@ -136,4 +139,12 @@ export async function resetPassword(token, password) {
     method: 'POST',
     body: JSON.stringify({ token, password }),
   });
+}
+
+export async function setUsername(username) {
+  const data = await apiJson('/api/auth/set-username', {
+    method: 'POST',
+    body: JSON.stringify({ username }),
+  });
+  return normalizeUser(data.user);
 }

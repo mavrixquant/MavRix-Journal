@@ -19,9 +19,25 @@ export const signupSchema = z.object({
 });
 
 export const loginSchema = z.object({
-  email: z.string().trim().toLowerCase().email(),
+  identifier: z.string().trim().min(3).max(320),
   password: z.string().min(1).max(128),
 });
+
+export const setUsernameSchema = z.object({
+  username: z
+    .string()
+    .trim()
+    .min(3, 'Username must be at least 3 characters')
+    .max(30, 'Username must be 30 characters or fewer')
+    .regex(/^[a-zA-Z0-9_]+$/, 'Only letters, digits, and underscores')
+    .transform(function (s) { return s.toLowerCase(); }),
+});
+
+export const usernameSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .regex(/^[a-z0-9_]{3,30}$/, 'Username must be 3-30 chars: a-z, 0-9, _');
 
 
 const columnTypeEnum = z.enum(['text', 'dropdown', 'number']);

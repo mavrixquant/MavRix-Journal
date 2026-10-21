@@ -10,6 +10,7 @@ function initialsOf(user) {
   const b = (user.lastName || '').trim();
   if (a && b) return (a[0] + b[0]).toUpperCase();
   if (a) return a.slice(0, 2).toUpperCase();
+  if (user.username) return user.username.slice(0, 2).toUpperCase();
   if (user.email) return user.email.slice(0, 2).toUpperCase();
   return '?';
 }
@@ -20,7 +21,7 @@ function displayNameOf(user) {
   const b = (user.lastName || '').trim();
   if (a && b) return `${a} ${b}`;
   if (a) return a;
-  return user.email || 'Unknown';
+  return user.username || 'Unknown';
 }
 
 function Ticks({ message }) {

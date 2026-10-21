@@ -212,7 +212,7 @@ export default function AdminUserDetailPage() {
   });
 
   const [form, setForm] = useState({
-    firstName: '', lastName: '', email: '', role: 'user',
+    firstName: '', lastName: '', email: '', username: '', role: 'user',
   });
   useEffect(() => {
     if (user) {
@@ -220,6 +220,7 @@ export default function AdminUserDetailPage() {
         firstName: user.firstName || '',
         lastName:  user.lastName  || '',
         email:     user.email     || '',
+        username:  user.username  || '',
         role:      user.role      || 'user',
       });
     }
@@ -247,7 +248,8 @@ export default function AdminUserDetailPage() {
   const otherFieldsChanged =
     form.firstName !== (user.firstName || '') ||
     form.lastName  !== (user.lastName  || '') ||
-    form.email     !== (user.email     || '');
+    form.email     !== (user.email     || '') ||
+    form.username  !== (user.username  || '');
   const hasChanges = otherFieldsChanged || (isSuper && roleChanged);
 
   const handleSave = async () => {
@@ -256,6 +258,7 @@ export default function AdminUserDetailPage() {
       if (form.firstName !== (user.firstName || '')) patch.firstName = form.firstName;
       if (form.lastName  !== (user.lastName  || '')) patch.lastName  = form.lastName;
       if (form.email     !== (user.email     || '')) patch.email     = form.email;
+      if (form.username  !== (user.username  || '')) patch.username  = form.username;
       if (isSuper && roleChanged)                    patch.role      = form.role;
 
       if (Object.keys(patch).length === 0) { toast.info('No changes.'); return; }
@@ -310,6 +313,16 @@ export default function AdminUserDetailPage() {
                     className="aud-input"
                     value={form.lastName}
                     onChange={(e) => setForm((f) => ({ ...f, lastName: e.target.value }))}
+                  />
+                </div>
+                <div className="aud-field">
+                  <label className="aud-label">Username</label>
+                  <input
+                    className="aud-input"
+                    type="text"
+                    value={form.username}
+                    placeholder="3-30 chars, a-z 0-9 _"
+                    onChange={(e) => setForm((f) => ({ ...f, username: e.target.value }))}
                   />
                 </div>
                 <div className="aud-field">

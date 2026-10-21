@@ -173,6 +173,7 @@ function initialsOf(user) {
   const b = (user.lastName || '').trim();
   if (a && b) return (a[0] + b[0]).toUpperCase();
   if (a) return a.slice(0, 2).toUpperCase();
+  if (user.username) return user.username.slice(0, 2).toUpperCase();
   if (user.email) return user.email.slice(0, 2).toUpperCase();
   return '?';
 }
@@ -183,7 +184,7 @@ function displayNameOf(user) {
   const b = (user.lastName || '').trim();
   if (a && b) return `${a} ${b}`;
   if (a) return a;
-  return user.email || 'Unknown';
+  return user.username || 'Unknown';
 }
 
 export default function NewChatModal({ isOpen, onClose, onCreated, onOpenAddFriend }) {
@@ -254,7 +255,7 @@ export default function NewChatModal({ isOpen, onClose, onCreated, onOpenAddFrie
             <Search size={13} className="ncm-search-icon" />
             <input
               type="text"
-              placeholder="Search friends by name or email…"
+              placeholder="Search friends by username…"
               value={term}
               onChange={(e) => setTerm(e.target.value)}
               autoFocus
@@ -329,7 +330,7 @@ export default function NewChatModal({ isOpen, onClose, onCreated, onOpenAddFrie
                 </span>
                 <span className="ncm-user-body">
                   <span className="ncm-user-name">{displayNameOf(u)}</span>
-                  <span className="ncm-user-email">{u.email}</span>
+                  <span className="ncm-user-email">{u.username ? '@' + u.username : ''}</span>
                 </span>
               </button>
             ))}

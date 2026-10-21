@@ -853,7 +853,7 @@ export default function AdminGroupModal({ isOpen, onClose, groupId = null }) {
                 <div className="agm-search">
                   <input
                     type="text"
-                    placeholder="Search by name or email to add…"
+                    placeholder="Search by username to add…"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     spellCheck={false}

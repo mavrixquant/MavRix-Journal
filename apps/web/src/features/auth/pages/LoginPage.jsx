@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Mail, Lock } from 'lucide-react';
+import { AtSign, Lock } from 'lucide-react';
 import { loginSchema } from '@mavrix/shared/validators';
 
 import { useAuth } from '@/app/providers/AuthProvider';
@@ -43,7 +43,7 @@ export default function Login() {
     formState: { errors, isSubmitting },
   } = useForm({
     resolver: zodResolver(loginSchema),
-    defaultValues: { email: '', password: '' },
+    defaultValues: { identifier: '', password: '' },
   });
 
   const onSubmit = async (data) => {
@@ -83,12 +83,12 @@ export default function Login() {
 
       <form onSubmit={handleSubmit(onSubmit)} noValidate>
         <AuthField
-          icon={Mail}
-          type="email"
-          placeholder="Email address"
-          autoComplete="email"
-          error={errors.email?.message}
-          {...register('email')}
+          icon={AtSign}
+          type="text"
+          placeholder="Email or username"
+          autoComplete="username"
+          error={errors.identifier?.message}
+          {...register('identifier')}
         />
         <AuthField
           icon={Lock}

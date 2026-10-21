@@ -19,6 +19,7 @@ import { ensureAiDmForUser } from './maveAiBootstrap.js';
 const publicUser = (u) => ({
   id: u.id,
   email: u.email,
+  username: u.username ?? null,
   firstName: u.firstName,
   lastName: u.lastName,
   emailVerified: u.emailVerified,
@@ -89,17 +90,21 @@ export async function signup({ email, password, firstName, lastName }) {
   return { user: publicUser(user), ...issueTokens(user) };
 }
 
-export async function login({ email, password }) {
-  const user = await prisma.user.findUnique({ where: { email } });
+export async function login({ identifier, password }) {
+  const id = String(identifier || '').trim().toLowerCase();
+  if (!id) throw new HttpError(400, 'Email or username is required');
+  const user = id.includes('@')
+    ? await prisma.user.findUnique({ where: { email: id } })
+    : await prisma.user.findUnique({ where: { username: id } });
   if (!user || !user.passwordHash) {
-    throw new HttpError(401, 'Invalid email or password');
+    throw new HttpError(401, 'Invalid credentials');
   }
 
   assertNotBanned(user);
   assertNotAi(user);
 
   const ok = await verifyPassword(password, user.passwordHash);
-  if (!ok) throw new HttpError(401, 'Invalid email or password');
+  if (!ok) throw new HttpError(401, 'Invalid credentials');
 
   const updated = await prisma.user.update({
     where: { id: user.id },
@@ -325,4 +330,23 @@ export async function resetPassword(token, newPassword) {
   invalidateSvCache(user.id);
 
   return { ok: true };
+}
+
+export async function setUsername(userId, username) {
+  const clean = String(username || '').trim().toLowerCase();
+  if (!/^[a-z0-9_]{3,30}$/.test(clean)) {
+    throw new HttpError(
+      400,
+      'Username must be 3-30 characters and contain only lowercase letters, digits, or underscores'
+    );
+  }
+  const clash = await prisma.user.findUnique({ where: { username: clean } });
+  if (clash && clash.id !== userId) {
+    throw new HttpError(409, 'That username is already taken');
+  }
+  const user = await prisma.user.update({
+    where: { id: userId },
+    data: { username: clean },
+  });
+  return publicUser(user);
 }

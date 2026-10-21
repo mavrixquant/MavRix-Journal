@@ -15,6 +15,7 @@ function initialsOf(u) {
   const a = (u.firstName || '').trim(); const b = (u.lastName || '').trim();
   if (a && b) return (a[0] + b[0]).toUpperCase();
   if (a) return a.slice(0, 2).toUpperCase();
+  if (u.username) return u.username.slice(0, 2).toUpperCase();
   if (u.email) return u.email.slice(0, 2).toUpperCase();
   return '?';
 }
@@ -24,7 +25,7 @@ function displayNameOf(u) {
   const a = (u.firstName || '').trim(); const b = (u.lastName || '').trim();
   if (a && b) return `${a} ${b}`;
   if (a) return a;
-  return u.email || 'Unknown';
+  return u.username || 'Unknown';
 }
 
 export default function DmProfilePanel({ peer, conversation, onClose }) {
@@ -98,7 +99,7 @@ export default function DmProfilePanel({ peer, conversation, onClose }) {
             </div>
             <div className="panel-name">{displayNameOf(peer)}</div>
             <div className="panel-email">
-              <Mail size={11} /> <span>{peer.email}</span>
+              <Mail size={11} /> <span>{peer.username ? '@' + peer.username : 'no username'}</span>
             </div>
 
             <div className={`panel-status${isFriend ? ' is-friend' : ''}`}>

@@ -1,4 +1,4 @@
-﻿// ============================================================================
+// ============================================================================
 // Chat service — DMs, groups, friends-aware, Mave AI (Guide / Trainer / Chat).
 //
 // Mave AI is REACHABLE here (via the dedicated sidebar), but AI users are
@@ -34,7 +34,7 @@ const NON_FRIEND_MESSAGE_LIMIT = 3;
 
 const PUBLIC_USER_SELECT = {
   id: true,
-  email: true,
+  username: true,
   firstName: true,
   lastName: true,
   photoUrl: true,
@@ -45,7 +45,7 @@ function serializePublicUser(u) {
   if (!u) return null;
   return {
     id: u.id,
-    email: u.email,
+    username: u.username,
     firstName: u.firstName,
     lastName: u.lastName,
     photoUrl: u.photoUrl,
@@ -188,8 +188,8 @@ export async function searchUsers(userId, q) {
   return friends
     .filter((f) => {
       const name = `${f.firstName || ''} ${f.lastName || ''}`.trim().toLowerCase();
-      const email = (f.email || '').toLowerCase();
-      return email.includes(q2) || (name && name.includes(q2));
+      const uname = (f.username || '').toLowerCase();
+      return uname.includes(q2) || (name && name.includes(q2));
     })
     .slice(0, 20);
 }

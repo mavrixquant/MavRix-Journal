@@ -19,7 +19,7 @@ function displayNameOf(user) {
   const b = (user.lastName || '').trim();
   if (a && b) return `${a} ${b}`;
   if (a) return a;
-  return user.email || 'Unknown';
+  return user.username || 'Unknown';
 }
 
 export default function MessageList({

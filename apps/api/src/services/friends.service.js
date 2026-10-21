@@ -13,7 +13,7 @@ import { isAnyMaveAiId } from './maveAiBootstrap.js';
 
 const PUBLIC_USER_SELECT = {
   id: true,
-  email: true,
+  username: true,
   firstName: true,
   lastName: true,
   photoUrl: true,
@@ -23,7 +23,7 @@ function serializePublicUser(u) {
   if (!u) return null;
   return {
     id: u.id,
-    email: u.email,
+    username: u.username,
     firstName: u.firstName,
     lastName: u.lastName,
     photoUrl: u.photoUrl,
@@ -254,17 +254,17 @@ export async function getFriendStatus(userId, otherId) {
   );
 }
 
-export async function sendFriendRequest(userId, { toUserId, email, message }) {
+export async function sendFriendRequest(userId, { toUserId, username, message }) {
   let targetId = toUserId || null;
-  if (!targetId && email) {
-    const byEmail = await prisma.user.findUnique({
-      where: { email: String(email).trim().toLowerCase() },
+  if (!targetId && username) {
+    const byUsername = await prisma.user.findUnique({
+      where: { username: String(username).trim().toLowerCase() },
       select: { id: true },
     });
-    if (!byEmail) throw new HttpError(404, 'No user found with that email address');
-    targetId = byEmail.id;
+    if (!byUsername) throw new HttpError(404, 'No user found with that username');
+    targetId = byUsername.id;
   }
-  if (!targetId) throw new HttpError(400, 'toUserId or email is required');
+  if (!targetId) throw new HttpError(400, 'toUserId or username is required');
   if (targetId === userId) throw new HttpError(400, 'You cannot send a friend request to yourself');
 
   const target = await prisma.user.findUnique({

@@ -116,3 +116,11 @@ export async function resetPassword(req, res, next) {
     res.json(result);
   } catch (e) { next(e); }
 }
+
+export async function setUsername(req, res, next) {
+  try {
+    const { username } = req.body;
+    const user = await authService.setUsername(req.userId, username);
+    res.json({ user });
+  } catch (e) { next(e); }
+}

@@ -38,6 +38,8 @@ model User {
 
   isAi Boolean @default(false)
 
+  username String? @unique
+
   accounts      Account[]
   layouts       UserLayout[]
   strategies    Strategy[]

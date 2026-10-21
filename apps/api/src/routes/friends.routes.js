@@ -19,14 +19,14 @@ const validate = (schema) => (req, _res, next) => {
 const sendRequestSchema = z
   .object({
     toUserId: z.string().min(1).max(64).optional(),
-    email: z.string().trim().toLowerCase().email().max(320).optional(),
+    username: z.string().trim().toLowerCase().min(3).max(30).optional(),
     message: z.string().trim().max(500).optional(),
   })
-  .refine((d) => !!(d.toUserId || d.email), {
-    message: 'Either toUserId or email is required',
+  .refine((d) => !!(d.toUserId || d.username), {
+    message: 'Either toUserId or username is required',
   })
-  .refine((d) => !(d.toUserId && d.email), {
-    message: 'Provide either toUserId or email, not both',
+  .refine((d) => !(d.toUserId && d.username), {
+    message: 'Provide either toUserId or username, not both',
   });
 
 const blockSchema = z.object({

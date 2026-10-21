@@ -40,6 +40,7 @@ function initialsOf(u) {
   const b = (u.lastName || '').trim();
   if (a && b) return (a[0] + b[0]).toUpperCase();
   if (a) return a.slice(0, 2).toUpperCase();
+  if (u.username) return u.username.slice(0, 2).toUpperCase();
   if (u.email) return u.email.slice(0, 2).toUpperCase();
   return '?';
 }
@@ -50,7 +51,7 @@ function displayNameOf(u) {
   const b = (u.lastName || '').trim();
   if (a && b) return `${a} ${b}`;
   if (a) return a;
-  return u.email || 'Unknown';
+  return u.username || 'Unknown';
 }
 
 export default function GroupProfilePanel({
@@ -237,7 +238,7 @@ export default function GroupProfilePanel({
               <div className="panel-add-member">
                 <input
                   type="text"
-                  placeholder="Search by name or email…"
+                  placeholder="Search by username…"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   autoFocus
@@ -274,7 +275,7 @@ export default function GroupProfilePanel({
                           <span className="panel-member-name">
                             {displayNameOf(u)}
                           </span>
-                          <span className="panel-member-email">{u.email}</span>
+                          <span className="panel-member-email">{u.username ? '@' + u.username : ''}</span>
                         </span>
                         <UserPlus
                           size={13}
@@ -329,7 +330,7 @@ export default function GroupProfilePanel({
                         )}
                       </span>
                       <span className="panel-member-email">
-                        {m.user?.email}
+                        {m.user?.username ? '@' + m.user.username : ''}
                       </span>
                     </span>
                   </button>

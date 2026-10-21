@@ -18,6 +18,7 @@ import {
 const adminUserShape = (u) => ({
   id: u.id,
   email: u.email,
+  username: u.username,
   firstName: u.firstName,
   lastName: u.lastName,
   emailVerified: u.emailVerified,
@@ -172,6 +173,7 @@ export async function listUsers({
   if (q) {
     where.OR = [
       { email: { contains: q, mode: 'insensitive' } },
+      { username: { contains: q, mode: 'insensitive' } },
       { firstName: { contains: q, mode: 'insensitive' } },
       { lastName: { contains: q, mode: 'insensitive' } },
     ];
@@ -276,6 +278,18 @@ export async function updateUser(actor, targetId, patch) {
       data.emailVerified = false;
       data.verifyToken = generateSecureToken();
       data.verifyTokenExpiry = new Date(Date.now() + VERIFY_TTL_MS);
+    }
+  }
+
+  if (patch.username !== undefined) {
+    const next = String(patch.username).trim().toLowerCase();
+    if (!/^[a-z0-9_]{3,30}$/.test(next)) {
+      throw new HttpError(400, 'Username must be 3-30 chars: a-z, 0-9, _');
+    }
+    if (next !== target.username) {
+      const clash = await prisma.user.findUnique({ where: { username: next } });
+      if (clash && clash.id !== targetId) throw new HttpError(409, 'Username already taken');
+      data.username = next;
     }
   }
 

@@ -47,6 +47,14 @@ const validateSymbolQuery = (req, _res, next) => {
 const userUpdateSchema = z.object({
   firstName: z.string().trim().max(60).optional(),
   lastName: z.string().trim().max(60).optional(),
+  username: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .min(3)
+    .max(30)
+    .regex(/^[a-z0-9_]+$/)
+    .optional(),
   email: z.string().trim().toLowerCase().email().optional(),
   role: z.enum(['user', 'admin', 'superadmin']).optional(),
 });

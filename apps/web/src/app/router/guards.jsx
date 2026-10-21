@@ -18,6 +18,7 @@ export function RequireVerified({ children }) {
   if (loading) return <BootLoader label="Authenticating" />;
   if (!user) return <Navigate to="/login" replace />;
   if (!user.emailVerified) return <Navigate to="/verify-email" replace />;
+  if (!user.username) return <Navigate to="/set-username" replace />;
 
   return children;
 }

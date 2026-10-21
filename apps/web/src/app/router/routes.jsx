@@ -13,6 +13,7 @@ const LandingPage = lazy(() => import('@/features/landing/LandingPage'));
 const Login = lazy(() => import('@/features/auth/pages/LoginPage'));
 const Signup = lazy(() => import('@/features/auth/pages/SignupPage'));
 const VerifyEmail = lazy(() => import('@/features/auth/pages/VerifyEmailPage'));
+const SetUsername = lazy(() => import('@/features/auth/pages/SetUsernamePage'));
 const ForgotPassword = lazy(() => import('@/features/auth/pages/ForgotPasswordPage'));
 const ResetPassword = lazy(() => import('@/features/auth/pages/ResetPasswordPage'));
 
@@ -73,6 +74,7 @@ function HomeRoute() {
   }
 
   if (!user.emailVerified) return <Navigate to="/verify-email" replace />;
+  if (!user.username) return <Navigate to="/set-username" replace />;
 
   if (user.role === 'admin' || user.role === 'superadmin') {
     return <Navigate to="/admin" replace />;
@@ -107,6 +109,7 @@ export function AppRoutes() {
       <Route path="/reset-password" element={<RequireGuest><ResetPassword /></RequireGuest>} />
 
       <Route path="/verify-email" element={<RequireAuth><VerifyEmail /></RequireAuth>} />
+      <Route path="/set-username" element={<RequireAuth><SetUsername /></RequireAuth>} />
 
       <Route
         path="/admin"

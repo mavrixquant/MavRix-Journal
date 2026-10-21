@@ -107,6 +107,7 @@ export default function HeaderBar({
     return (
       (typeof user.displayName === 'string' && user.displayName.trim()) ||
       fromParts ||
+      user.username ||
       user.email ||
       'User'
     );

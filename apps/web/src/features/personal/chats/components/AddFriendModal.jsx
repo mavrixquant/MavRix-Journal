@@ -184,7 +184,7 @@ const CSS = `
 `;
 
 export default function AddFriendModal({ isOpen, onClose }) {
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [sent, setSent] = useState(false);
@@ -195,7 +195,7 @@ export default function AddFriendModal({ isOpen, onClose }) {
 
   useEffect(() => {
     if (!isOpen) return;
-    setEmail('');
+    setUsername('');
     setMessage('');
     setError('');
     setSent(false);
@@ -203,8 +203,8 @@ export default function AddFriendModal({ isOpen, onClose }) {
 
   if (!isOpen) return null;
 
-  const trimmedEmail = email.trim().toLowerCase();
-  const canSubmit = trimmedEmail.length > 3 && !saving && !sent;
+  const trimmedUsername = username.trim().toLowerCase();
+  const canSubmit = trimmedUsername.length > 2 && !saving && !sent;
 
   const handleSubmit = async (e) => {
     e?.preventDefault?.();
@@ -217,7 +217,7 @@ export default function AddFriendModal({ isOpen, onClose }) {
         message: message.trim() || undefined,
       });
       setSent(true);
-      toast.success(`Friend request sent to ${trimmedEmail}`);
+      toast.success(`Friend request sent to @${trimmedUsername}`);
       setTimeout(() => {
         onClose?.();
       }, 1400);
@@ -240,7 +240,7 @@ export default function AddFriendModal({ isOpen, onClose }) {
             </div>
             <div className="afm2-head-meta">
               <h2 className="afm2-title">Add a friend</h2>
-              <p className="afm2-sub">Send a request by email address</p>
+              <p className="afm2-sub">Send a request by username</p>
             </div>
             <button
               type="button"
@@ -262,21 +262,21 @@ export default function AddFriendModal({ isOpen, onClose }) {
             )}
 
             <div className="afm2-field">
-              <label className="afm2-label" htmlFor="afm2-email">
-                <span>Email address</span>
+              <label className="afm2-label" htmlFor="afm2-username">
+                <span>Username</span>
               </label>
               <input
-                id="afm2-email"
+                id="afm2-username"
                 className="afm2-input"
-                type="email"
-                value={email}
+                type="text"
+                value={username}
                 maxLength={320}
-                placeholder="name@example.com"
+                placeholder="username"
                 autoFocus
                 autoComplete="off"
                 spellCheck={false}
                 disabled={saving || sent}
-                onChange={(e) => { setEmail(e.target.value); setError(''); }}
+                onChange={(e) => { setUsername(e.target.value); setError(''); }}
               />
             </div>
 

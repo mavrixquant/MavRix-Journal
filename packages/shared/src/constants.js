@@ -26,6 +26,9 @@ export const COMMISSION_MODES = ['none', 'flat', 'per_contract'];
 export const DIRECTIONS = ['Long', 'Short'];
 
 
+export const USERNAME_MIN = 3;
+export const USERNAME_MAX = 30;
+export const USERNAME_REGEX = /^[a-z0-9_]{3,30}$/;
 export const MAX_LAYOUTS = 3;
 export const MAX_DROPDOWN_UNIQUES = 10;
 
