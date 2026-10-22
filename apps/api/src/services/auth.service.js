@@ -22,6 +22,9 @@ import {
 import { verifyGoogleAccessToken } from '../lib/google.js';
 import { invalidateSvCache } from '../lib/session.js';
 import { ensureAiDmForUser } from './maveAiBootstrap.js';
+import { signTwoFactorSession } from '../lib/jwt.js';
+import { enabledMethods } from './twoFactor.service.js';
+import { env } from '../config/env.js';
 
 const publicUser = (u) => ({
   id: u.id,
@@ -35,6 +38,7 @@ const publicUser = (u) => ({
   role: u.role || 'user',
   isBanned: !!u.isBanned,
   hasPassword: !!u.passwordHash,
+  twoFactorEnabled: !!u.twoFactorEnabled,
 });
 
 const issueTokens = (user) => {
@@ -114,6 +118,21 @@ export async function login({ identifier, password }) {
   const ok = await verifyPassword(password, user.passwordHash);
   if (!ok) throw new HttpError(401, 'Invalid credentials');
 
+  // 2FA gate — short-circuit before issuing real tokens.
+  if (user.twoFactorEnabled) {
+    const sessionToken = signTwoFactorSession({
+      sub: user.id,
+      purpose: '2fa',
+      sv: user.tokenVersion ?? 0,
+    });
+    return {
+      requiresTwoFactor: true,
+      sessionToken,
+      methods: enabledMethods(user),
+      reason: 'login',
+    };
+  }
+
   const updated = await prisma.user.update({
     where: { id: user.id },
     data: { lastLoginAt: new Date() },
@@ -181,6 +200,27 @@ export async function refresh(refreshToken) {
   const tokenSv = Number.isFinite(payload.sv) ? payload.sv : 0;
   if (tokenSv !== user.tokenVersion) {
     throw new HttpError(401, 'Session revoked');
+  }
+
+  // 12-hour re-auth — same short-circuit as login().
+  if (user.twoFactorEnabled) {
+    const hoursSince = user.twoFactorVerifiedAt
+      ? (Date.now() - user.twoFactorVerifiedAt.getTime()) / (60 * 60 * 1000)
+      : Infinity;
+
+    if (hoursSince >= env.twoFactor.reauthHours) {
+      const sessionToken = signTwoFactorSession({
+        sub: user.id,
+        purpose: '2fa',
+        sv: user.tokenVersion ?? 0,
+      });
+      return {
+        requiresTwoFactor: true,
+        sessionToken,
+        methods: enabledMethods(user),
+        reason: 'reauth',
+      };
+    }
   }
 
   return { user: publicUser(user), ...issueTokens(user) };
@@ -406,8 +446,8 @@ export async function setUsername(userId, username) {
 // ---------------------------------------------------------------------------
 // Password management (Set / Change).
 //
-// setPassword    — only allowed if the user has NO password yet (Google signup).
-// changePassword — requires verifying the current password first.
+// setPassword    Ã¢â‚¬â€ only allowed if the user has NO password yet (Google signup).
+// changePassword Ã¢â‚¬â€ requires verifying the current password first.
 //
 // Both bump tokenVersion so every existing refresh token becomes invalid;
 // we return FRESH tokens so the CALLING session stays logged in.

@@ -3,6 +3,7 @@ const REFRESH_TIMEOUT_MS = 10_000;
 
 let accessToken = null;
 let unauthorizedHandler = null;
+let twoFactorHandler = null;
 let refreshInFlight = null;
 
 export function setAccessToken(token) {
@@ -15,6 +16,10 @@ export function getAccessToken() {
 
 export function setUnauthorizedHandler(fn) {
   unauthorizedHandler = fn;
+}
+
+export function setTwoFactorRequiredHandler(fn) {
+  twoFactorHandler = fn;
 }
 
 /**
@@ -38,6 +43,11 @@ async function doRefresh() {
       });
       if (!res.ok) return null;
       const data = await res.json();
+      if (data.requiresTwoFactor) {
+        accessToken = null;
+        if (twoFactorHandler) twoFactorHandler(data);
+        return { requiresTwoFactor: true, sessionToken: data.sessionToken };
+      }
       accessToken = data.accessToken ?? null;
       return data;
     } catch {

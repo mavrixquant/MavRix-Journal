@@ -190,7 +190,7 @@ export async function sendPasswordResetEmail({ to, token }) {
       body,
       ctaText: 'Reset Password',
       ctaUrl: resetUrl,
-      footerNote: 'If you didn\'t request this, you can ignore this email — your password won\'t change.',
+      footerNote: 'If you didn\'t request this, you can ignore this email â€” your password won\'t change.',
     }),
     text,
   });
@@ -204,7 +204,7 @@ const LEVEL_META = {
 
 export async function sendBroadcastEmail({ to, message, level = 'info' }) {
   const meta = LEVEL_META[level] || LEVEL_META.info;
-  const subject = `${MAIL_FROM_NAME} — ${meta.label}`;
+  const subject = `${MAIL_FROM_NAME} â€” ${meta.label}`;
 
   const body = `
     <p style="margin:0 0 14px;font-size:14.5px;">${String(message).replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>
@@ -228,11 +228,11 @@ export async function sendBroadcastEmail({ to, message, level = 'info' }) {
 }
 
 // ---------------------------------------------------------------------------
-// Bug report email — goes to SUPPORT_EMAIL, includes the submitter's name /
+// Bug report email â€” goes to SUPPORT_EMAIL, includes the submitter's name /
 // email / role, the report body, the page URL and user agent, and (if the
 // user attached one) the screenshot as an inline attachment.
 //
-// The screenshot is NEVER persisted — this is the ONLY place it goes.
+// The screenshot is NEVER persisted â€” this is the ONLY place it goes.
 // ---------------------------------------------------------------------------
 export async function sendBugReportEmail({
   user,
@@ -242,7 +242,7 @@ export async function sendBugReportEmail({
   userAgent,
 }) {
   const to = SUPPORT_EMAIL;
-  const subject = `[Bug Report] ${report.category.toUpperCase()} · ${report.severity.toUpperCase()} · ${report.title.slice(0, 80)}`;
+  const subject = `[Bug Report] ${report.category.toUpperCase()} Â· ${report.severity.toUpperCase()} Â· ${report.title.slice(0, 80)}`;
 
   const submitterName =
     [user?.firstName, user?.lastName].filter(Boolean).join(' ').trim() ||
@@ -262,7 +262,7 @@ export async function sendBugReportEmail({
       <tr><td style="padding:4px 0;color:#545E6E;font-size:12px;">Category</td><td style="padding:4px 0;color:#E7E9EE;font-size:13px;">${escapeHtml(report.category)}</td></tr>
       <tr><td style="padding:4px 0;color:#545E6E;font-size:12px;">Severity</td><td style="padding:4px 0;color:#E7E9EE;font-size:13px;">${escapeHtml(report.severity)}</td></tr>
       <tr><td style="padding:4px 0;color:#545E6E;font-size:12px;">Submitted</td><td style="padding:4px 0;color:#E7E9EE;font-size:13px;">${escapeHtml(submittedAt)}</td></tr>
-      <tr><td style="padding:4px 0;color:#545E6E;font-size:12px;">From</td><td style="padding:4px 0;color:#E7E9EE;font-size:13px;">${escapeHtml(submitterName)} &lt;${escapeHtml(user?.email || '—')}&gt; (${escapeHtml(user?.role || 'user')})</td></tr>
+      <tr><td style="padding:4px 0;color:#545E6E;font-size:12px;">From</td><td style="padding:4px 0;color:#E7E9EE;font-size:13px;">${escapeHtml(submitterName)} &lt;${escapeHtml(user?.email || 'â€”')}&gt; (${escapeHtml(user?.role || 'user')})</td></tr>
       ${pageUrl ? `<tr><td style="padding:4px 0;color:#545E6E;font-size:12px;">Page</td><td style="padding:4px 0;color:#E7E9EE;font-size:13px;word-break:break-all;">${escapeHtml(pageUrl)}</td></tr>` : ''}
     </table>
 
@@ -274,11 +274,11 @@ export async function sendBugReportEmail({
   `;
 
   const textLines = [
-    `New Bug Report · ${report.category} · ${report.severity}`,
+    `New Bug Report Â· ${report.category} Â· ${report.severity}`,
     '',
     `Title:       ${report.title}`,
     `Submitted:   ${submittedAt}`,
-    `From:        ${submitterName} <${user?.email || '—'}> (${user?.role || 'user'})`,
+    `From:        ${submitterName} <${user?.email || 'â€”'}> (${user?.role || 'user'})`,
     pageUrl ? `Page:        ${pageUrl}` : null,
     userAgent ? `User agent:  ${userAgent}` : null,
     '',
@@ -297,7 +297,7 @@ export async function sendBugReportEmail({
     to,
     subject,
     html: renderEmail({
-      preheader: `${report.category} · ${report.severity}`,
+      preheader: `${report.category} Â· ${report.severity}`,
       title: 'New bug report',
       body,
       footerNote: `Reply directly to ${user?.email || 'the submitter'} from your inbox.`,
@@ -334,7 +334,7 @@ export async function sendPasswordResetOtpEmail({ to, otp }) {
     <div style="text-align:center;margin:22px 0;">
       <div style="display:inline-block;padding:16px 26px;background:rgba(245,158,11,.08);border:2px solid rgba(245,158,11,.35);border-radius:14px;font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:34px;font-weight:700;letter-spacing:.35em;color:#F59E0B;text-indent:.35em;">${otp}</div>
     </div>
-    <p style="margin:0;font-size:12px;color:#8892A3;">Don't share it with anyone. If you didn't request a reset, you can safely ignore this email — your password won't change.</p>
+    <p style="margin:0;font-size:12px;color:#8892A3;">Don't share it with anyone. If you didn't request a reset, you can safely ignore this email â€” your password won't change.</p>
   `;
 
   const text = [
@@ -357,6 +357,41 @@ export async function sendPasswordResetOtpEmail({ to, otp }) {
       title: 'Your password reset code',
       body,
       footerNote: 'The code expires in 10 minutes and can only be used once.',
+    }),
+    text,
+  });
+}
+
+// ---------------------------------------------------------------------------
+// 2FA login OTP — sent when the user picks "Email code" as their second factor.
+// ---------------------------------------------------------------------------
+export async function sendTwoFactorOtpEmail({ to, otp, minutes = 10 }) {
+  const subject = `Your ${MAIL_FROM_NAME} verification code`;
+  const body = `
+    <p style="margin:0 0 14px;">Use the code below to finish signing in. It expires in <strong style="color:#E7E9EE;">${minutes} minutes</strong>.</p>
+    <div style="text-align:center;margin:22px 0;">
+      <div style="display:inline-block;padding:16px 26px;background:rgba(245,158,11,.08);border:2px solid rgba(245,158,11,.35);border-radius:14px;font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:34px;font-weight:700;letter-spacing:.35em;color:#F59E0B;text-indent:.35em;">${otp}</div>
+    </div>
+    <p style="margin:0;font-size:12px;color:#8892A3;">If you didn't try to sign in, change your password immediately — someone has your credentials.</p>
+  `;
+  const text = [
+    `Your ${MAIL_FROM_NAME} verification code`,
+    '',
+    otp,
+    '',
+    `Expires in ${minutes} minutes.`,
+    '',
+    'If you did not try to sign in, change your password immediately.',
+  ].join('\n');
+
+  return send({
+    to,
+    subject,
+    html: renderEmail({
+      preheader: `Your code: ${otp} (expires in ${minutes} min)`,
+      title: 'Your verification code',
+      body,
+      footerNote: 'The code expires shortly and can only be used once.',
     }),
     text,
   });

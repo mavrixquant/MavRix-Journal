@@ -75,4 +75,13 @@ export const env = {
     maxTokens:        Number(optional('MAVE_AI_MAX_TOKENS', 1024)),
     requestTimeoutMs: Number(optional('MAVE_AI_TIMEOUT_MS', 30_000)),
   },
-};
+
+  twoFactor: {
+    encryptionKey: optional('TWO_FACTOR_ENCRYPTION_KEY'),
+    issuer: optional('TOTP_ISSUER', 'MavRix Journal'),
+    reauthHours: Number(optional('TWO_FACTOR_REAUTH_HOURS', 12)),
+    sessionTtl: optional('TWO_FACTOR_SESSION_TTL', '10m'),
+    otpTtlMs: Number(optional('TWO_FACTOR_OTP_TTL_MS', 600_000)),
+    otpMaxAttempts: Number(optional('TWO_FACTOR_OTP_MAX_ATTEMPTS', 5)),
+    backupCodeCount: Number(optional('TWO_FACTOR_BACKUP_CODE_COUNT', 10)),
+  },};

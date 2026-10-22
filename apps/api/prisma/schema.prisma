@@ -39,6 +39,22 @@ model User {
 
   isAi Boolean @default(false)
 
+  // --- Two-Factor Authentication ---
+  twoFactorEnabled        Boolean   @default(false)
+  twoFactorEmailEnabled   Boolean   @default(false)
+  twoFactorTotpEnabled    Boolean   @default(false)
+  totpSecret              String?
+  totpSecretIv            String?
+  totpSecretTag           String?
+  totpBackupCodes         Json      @default("[]")
+  twoFactorVerifiedAt     DateTime?
+  pendingTotpSecret       String?
+  pendingTotpSecretIv     String?
+  pendingTotpSecretTag    String?
+  pendingEmailOtp         String?
+  pendingEmailOtpExpiry   DateTime?
+  pendingEmailOtpAttempts Int       @default(0)
+
   username String? @unique
 
   accounts      Account[]
@@ -62,6 +78,7 @@ model User {
   @@index([role])
   @@index([isBanned])
   @@index([isAi])
+  @@index([twoFactorEnabled])
   @@map("users")
 }
 
@@ -400,10 +417,10 @@ model AiCredential {
 }
 
 // ---------------------------------------------------------------------------
-// BugReport — in-app bug reports.
+// BugReport â€” in-app bug reports.
 //
 // The report itself is stored here for admin review; an optional screenshot
-// is NEVER persisted — it is attached only to the email that goes out to
+// is NEVER persisted â€” it is attached only to the email that goes out to
 // SUPPORT_EMAIL. Text only lives here.
 // ---------------------------------------------------------------------------
 model BugReport {

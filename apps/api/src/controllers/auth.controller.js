@@ -29,18 +29,27 @@ export async function signup(req, res, next) {
 
 export async function login(req, res, next) {
   try {
-    const { user, accessToken, refreshToken } = await authService.login(req.body);
-    setRefreshCookie(res, refreshToken);
-    res.json({ user, accessToken });
+    const result = await authService.login(req.body);
+    if (result.requiresTwoFactor) {
+      // Do NOT set the refresh cookie yet.
+      return res.status(200).json(result);
+    }
+    setRefreshCookie(res, result.refreshToken);
+    res.json({ user: result.user, accessToken: result.accessToken });
   } catch (e) { next(e); }
 }
 
 export async function refresh(req, res, next) {
   try {
     const token = req.cookies?.[REFRESH_COOKIE];
-    const { user, accessToken, refreshToken } = await authService.refresh(token);
-    setRefreshCookie(res, refreshToken);
-    res.json({ user, accessToken });
+    const result = await authService.refresh(token);
+    if (result.requiresTwoFactor) {
+      // Do NOT rotate the cookie yet — the current one is still valid
+      // once the user passes the 2FA challenge.
+      return res.status(200).json(result);
+    }
+    setRefreshCookie(res, result.refreshToken);
+    res.json({ user: result.user, accessToken: result.accessToken });
   } catch (e) { next(e); }
 }
 

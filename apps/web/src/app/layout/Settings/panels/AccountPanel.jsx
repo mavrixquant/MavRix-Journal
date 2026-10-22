@@ -7,6 +7,7 @@ import * as authService from '@/features/auth/api';
 import * as google from '@/features/auth/google';
 import Alert from '@/shared/components/Alert';
 import { OtpInput } from '@/shared/ui/otp-input';
+import TwoFactorSection from './TwoFactorSection';
 
 function GoogleMark() {
   return (
@@ -331,7 +332,7 @@ function PasswordModal({
                 disabled={forgotLoading || saving}
               >
                 {forgotLoading
-                  ? <><Loader2 size={11} className="settings-spin" /> Sending…</>
+                  ? <><Loader2 size={11} className="settings-spin" /> SendingÃ¢â‚¬Â¦</>
                   : 'Forgot current password?'}
               </button>
             </div>
@@ -347,7 +348,7 @@ function PasswordModal({
                 disabled={resendLoading || saving}
               >
                 {resendLoading
-                  ? <><Loader2 size={11} className="settings-spin" /> Sending…</>
+                  ? <><Loader2 size={11} className="settings-spin" /> SendingÃ¢â‚¬Â¦</>
                   : 'Resend code'}
               </button>
             </div>
@@ -359,7 +360,7 @@ function PasswordModal({
             Cancel
           </button>
           <button type="submit" className="pw-btn pw-btn-primary" disabled={!canSubmit}>
-            {saving ? 'Saving…' : submitLabel}
+            {saving ? 'SavingÃ¢â‚¬Â¦' : submitLabel}
           </button>
         </div>
       </form>
@@ -391,8 +392,8 @@ export default function AccountPanel() {
 
   const displayName = user.displayName || 'Anonymous User';
   const nameParts = displayName.split(' ');
-  const firstName = nameParts[0] || '—';
-  const lastName = nameParts.slice(1).join(' ') || '—';
+  const firstName = nameParts[0] || 'Ã¢â‚¬â€';
+  const lastName = nameParts.slice(1).join(' ') || 'Ã¢â‚¬â€';
   const initials = (firstName[0] || '') + (lastName[0] || '');
 
   const resetForm = () =>
@@ -559,7 +560,7 @@ export default function AccountPanel() {
               user.emailVerified ? 'is-verified' : 'is-unverified'
             }`}
           >
-            {user.emailVerified ? '✓ Verified' : '✕ Unverified'}
+            {user.emailVerified ? 'Ã¢Å“â€œ Verified' : 'Ã¢Å“â€¢ Unverified'}
           </span>
         </div>
       </section>
@@ -617,7 +618,7 @@ export default function AccountPanel() {
               disabled={unlinking}
             >
               <X size={12} />
-              {unlinking ? 'Unlinking…' : 'Disconnect Google'}
+              {unlinking ? 'UnlinkingÃ¢â‚¬Â¦' : 'Disconnect Google'}
             </button>
           ) : (
             <button
@@ -627,13 +628,15 @@ export default function AccountPanel() {
               disabled={linking}
             >
               <Link size={12} />
-              {linking ? 'Connecting…' : 'Connect Google'}
+              {linking ? 'ConnectingÃ¢â‚¬Â¦' : 'Connect Google'}
             </button>
           )}
         </div>
 
         {error && <div className="settings-error">{error}</div>}
       </section>
+
+      <TwoFactorSection />
 
       <PasswordModal
         mode={passwordModal}

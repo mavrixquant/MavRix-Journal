@@ -12,3 +12,9 @@ export const verifyAccessToken = (token) =>
 
 export const verifyRefreshToken = (token) =>
   jwt.verify(token, env.jwt.refreshSecret);
+// --- 2FA session token (short-lived, purpose-bound) -------------------------
+export const signTwoFactorSession = (payload) =>
+  jwt.sign(payload, env.jwt.accessSecret, { expiresIn: env.twoFactor.sessionTtl });
+
+export const verifyTwoFactorSession = (token) =>
+  jwt.verify(token, env.jwt.accessSecret);

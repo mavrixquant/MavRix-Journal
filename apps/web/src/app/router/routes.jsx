@@ -2,7 +2,7 @@ import { lazy, Suspense } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 
 import AppLayout from '@/app/layout/AppLayout';
-import { RequireAuth, RequireVerified, RequireGuest } from './guards';
+import { RequireAuth, RequireVerified, RequireGuest, RequireTwoFactor } from './guards';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { useSettings } from '@/app/layout/Settings/SettingsProvider';
 import { RequireAdmin, RequireSuperadmin } from '@/features/admin/guards';
@@ -15,6 +15,7 @@ const Signup = lazy(() => import('@/features/auth/pages/SignupPage'));
 const VerifyEmail = lazy(() => import('@/features/auth/pages/VerifyEmailPage'));
 const SetUsername = lazy(() => import('@/features/auth/pages/SetUsernamePage'));
 const ForgotPassword = lazy(() => import('@/features/auth/pages/ForgotPasswordPage'));
+const TwoFactorVerifyPage = lazy(() => import('@/features/auth/pages/TwoFactorVerifyPage'));
 
 
 const DashboardPage = lazy(() => import('@/features/journal/dashboard/DashboardPage'));
@@ -107,6 +108,11 @@ export function AppRoutes() {
       <Route path="/signup" element={<RequireGuest><Signup /></RequireGuest>} />
       <Route path="/forgot-password" element={<RequireGuest><ForgotPassword /></RequireGuest>} />
       <Route path="/reset-password" element={<Navigate to="/forgot-password" replace />} />
+
+      <Route
+        path="/2fa-verify"
+        element={<RequireTwoFactor><TwoFactorVerifyPage /></RequireTwoFactor>}
+      />
 
       <Route path="/verify-email" element={<RequireAuth><VerifyEmail /></RequireAuth>} />
       <Route path="/set-username" element={<RequireAuth><SetUsername /></RequireAuth>} />
