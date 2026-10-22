@@ -35,10 +35,10 @@ export async function fetchFriendStatus(userId) {
   return data.status;
 }
 
-export async function sendFriendRequest({ toUserId, email, message }) {
+export async function sendFriendRequest({ toUserId, username, email, message }) {
   const data = await apiJson('/api/friends/requests', {
     method: 'POST',
-    body: JSON.stringify({ toUserId, email, message }),
+    body: JSON.stringify({ toUserId, username, email, message }),
   });
   return data.request;
 }

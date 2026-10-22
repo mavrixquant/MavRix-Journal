@@ -1,14 +1,13 @@
 import { useEffect, useState } from 'react';
 import {
   ShieldCheck, ShieldOff, Smartphone, Mail, KeyRound, Loader2,
-  Copy, Check, Download,
+  Copy,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import * as authService from '@/features/auth/api';
 import Portal from '@/shared/components/Portal';
 import { OtpInput } from '@/shared/ui/otp-input';
-import Alert from '@/shared/components/Alert';
 
 // ---------------------------------------------------------------------------
 // Small modal shell shared by every 2FA dialog
@@ -72,7 +71,7 @@ function ModalBtn({ children, variant = 'ghost', onClick, disabled, loading }) {
         display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7,
         padding: '9px 16px', borderRadius: 10,
         fontFamily: "'IBM Plex Mono', monospace",
-        fontSize: 11.5, fontWeight: 600, letterSpacing: '.02em',
+        fontSize: 11.5, letterSpacing: '.02em',
         cursor: disabled || loading ? 'not-allowed' : 'pointer',
         opacity: disabled || loading ? 0.5 : 1,
         border: isPrimary ? 'none' : isDanger ? '1px solid rgba(239,68,68,.32)' : '1px solid rgba(255,255,255,.1)',

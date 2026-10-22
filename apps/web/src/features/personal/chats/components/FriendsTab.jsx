@@ -110,8 +110,6 @@ export default function FriendsTab({
     });
   }, [sortedFriends, searchInput]);
 
-  const isSearching = searchInput.trim().length > 0;
-
   const handleMessage = async (friend) => {
     try {
       const conv = await createConversation.mutateAsync(friend.id);

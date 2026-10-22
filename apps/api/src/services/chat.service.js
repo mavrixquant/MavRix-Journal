@@ -11,7 +11,6 @@ import { HttpError } from '../middleware/error.js';
 import { broadcastToUser } from '../lib/broadcaster.js';
 import { triggerAiResponse, stopAiForConversation } from './ai.service.js';
 import {
-  getMaveAiIdForPersona,
   getPersonaForAiId,
   isAnyMaveAiId,
   ensureAiDmForUser,

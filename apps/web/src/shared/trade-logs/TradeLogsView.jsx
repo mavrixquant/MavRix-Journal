@@ -546,12 +546,13 @@ function buildColumns(dynamicKeys, currency, isBacktest, { onEdit, onDelete }) {
 }
 
 
-    param($m)
-    $inner = $m.Groups[1].Value
-    if ($inner -notmatch 'currentR') {
-      $inner + "`r`n  currentR = 1," + $m.Groups[2].Value
-    } else { $m.Value }
-   {
+    export default function TradeLogsView({
+  accountId,
+  currentR = 1,
+  allowedTypes = [],
+  noAccountsTitle,
+  noAccountsMessage,
+}) {
   const { data: accounts = [], isLoading: accountsLoading } = useAccounts();
 
   const [searchParams, setSearchParams] = useSearchParams();

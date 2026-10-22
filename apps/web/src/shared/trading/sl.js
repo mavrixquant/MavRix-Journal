@@ -45,3 +45,19 @@ export function getTradeNetPnl(trade, _accountOrSL) {
 }
 
 export const SL_CONST = { TICKS_PER_POINT };
+
+// ---------------------------------------------------------------------------
+// DEPRECATED — retained for backward compatibility only.
+//
+// Account-level SL was removed in 20261206120000_remove_account_risk_sl.
+// A Backtest trade's risk is defined entirely by its own `slPoints` — there
+// is no account default to fall back to. Legacy callers (useStats.js,
+// useFilters.js) still destructure `SL` from these hooks; returning null
+// preserves their existing shape without reviving the dropped columns.
+//
+// To fully retire this: delete the `SL` field from useStats.js and
+// useFilters.js, then remove this function.
+// ---------------------------------------------------------------------------
+export function resolveSL(_accountOrSL) {
+  return null;
+}

@@ -8,7 +8,6 @@ import {
   ArchiveRestore,
   Loader2,
   StopCircle,
-  Sparkles,
 } from 'lucide-react';
 
 import { useSettings } from '@/app/layout/Settings/SettingsProvider';

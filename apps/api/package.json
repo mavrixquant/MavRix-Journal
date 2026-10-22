@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "node --watch --env-file=.env src/index.js",
     "start": "node src/index.js",
+    "lint": "eslint .",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:deploy": "prisma migrate deploy",
@@ -30,6 +31,9 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.9.0",
+    "globals": "^17.11.0",
     "prisma": "^5.22.0"
   }
 }

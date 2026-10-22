@@ -95,7 +95,8 @@ export async function refresh() {
   } catch (err) {
     if (err?.name === 'AbortError') {
       throw new Error(
-        `Auth refresh timed out after ${REFRESH_TIMEOUT_MS / 1000}s`
+        `Auth refresh timed out after ${REFRESH_TIMEOUT_MS / 1000}s`,
+        { cause: err }
       );
     }
     throw err;

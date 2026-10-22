@@ -159,7 +159,7 @@ export async function getBars(yahooSymbol, interval, rangeOverride) {
     } catch (err) {
       if (err?.status !== 429 || attempt >= 2) throw err;
       attempt += 1;
-      await new Promise((r) => setTimeout(r, 1500 * attempt));
+      await new Promise((r) => { setTimeout(r, 1500 * attempt); });
     }
   }
 

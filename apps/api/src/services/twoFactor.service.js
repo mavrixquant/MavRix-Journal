@@ -29,7 +29,6 @@ import {
   signRefreshToken,
 } from '../lib/jwt.js';
 import { sendTwoFactorOtpEmail } from '../lib/mailer.js';
-import { invalidateSvCache } from '../lib/session.js';
 
 // ---------------------------------------------------------------------------
 // Helpers

@@ -3,7 +3,6 @@ import { prisma } from '../lib/prisma.js';
 import * as adminService from '../services/admin.service.js';
 import { getSettings, updateSettings } from '../lib/settings.js';
 import { writeAudit } from '../lib/audit.js';
-import { getClientCount } from '../lib/broadcaster.js';
 
 async function buildActor(req) {
   const u = await prisma.user.findUnique({

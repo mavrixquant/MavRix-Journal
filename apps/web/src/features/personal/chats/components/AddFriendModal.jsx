@@ -213,7 +213,7 @@ export default function AddFriendModal({ isOpen, onClose }) {
 
     try {
       await sendMutation.mutateAsync({
-        email: trimmedEmail,
+        username: trimmedUsername,
         message: message.trim() || undefined,
       });
       setSent(true);

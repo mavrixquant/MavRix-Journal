@@ -14,7 +14,6 @@ import './AccountFormModal.css';
 const CURRENCIES = ['USD', 'EUR', 'INR', 'GBP'];
 const ACCOUNT_TYPES = ['Backtest', 'Live', 'Demo'];
 
-
 const EMPTY_FORM = {
   name: '',
   balance: '',
@@ -27,10 +26,11 @@ export default function AccountFormModal({ isOpen, account, onClose }) {
   const editingId = account?.id ?? null;
 
   const [formData, setFormData] = useState(EMPTY_FORM);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     if (!isOpen) return;
-
     if (account) {
       setFormData({
         name: account.name ?? '',
@@ -41,6 +41,8 @@ export default function AccountFormModal({ isOpen, account, onClose }) {
     } else {
       setFormData(EMPTY_FORM);
     }
+    setError('');
+    setSubmitting(false);
   }, [isOpen, account]);
 
   if (!isOpen) return null;
@@ -52,16 +54,30 @@ export default function AccountFormModal({ isOpen, account, onClose }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (submitting) return;
+    setError('');
+
     const { name, balance, currency, type } = formData;
-    if (!name.trim() || !balance) return;
+    const trimmed = name.trim();
+    const parsedBalance = parseFloat(balance);
+
+    if (!trimmed) {
+      setError('Account name is required.');
+      return;
+    }
+    if (!Number.isFinite(parsedBalance) || parsedBalance < 0) {
+      setError('Balance must be a non-negative number.');
+      return;
+    }
 
     const accountData = {
-      name: name.trim(),
-      balance: parseFloat(balance),
+      name: trimmed,
+      balance: parsedBalance,
       currency,
       type,
     };
 
+    setSubmitting(true);
     try {
       if (editingId) {
         await updateAccount(editingId, accountData);
@@ -70,19 +86,19 @@ export default function AccountFormModal({ isOpen, account, onClose }) {
       }
       queryClient.invalidateQueries({ queryKey: ['accounts'] });
       onClose();
-    } catch (error) {
-      console.error('Error saving account:', error);
-      alert('Failed to save account. Please try again.');
+    } catch (err) {
+      console.error('Error saving account:', err);
+      setError(err?.message || 'Failed to save account. Please try again.');
+    } finally {
+      setSubmitting(false);
     }
   };
-
-  const currencySymbol = getCurrencySymbol(formData.currency);
 
   return (
     <Portal>
       <div
         className="acc-overlay"
-        onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+        onClick={(e) => { if (e.target === e.currentTarget && !submitting) onClose(); }}
       >
         <div className="acc-modal">
           <div className="acc-modal-head">
@@ -92,14 +108,15 @@ export default function AccountFormModal({ isOpen, account, onClose }) {
               </h2>
               <p className="acc-modal-sub">
                 {editingId
-                  ? 'Update risk rules and account parameters'
-                  : 'Set up a portfolio with default risk rules'}
+                  ? 'Update account details'
+                  : 'Set up a capital container for your trades'}
               </p>
             </div>
             <button
               type="button"
               className="acc-modal-close"
               onClick={onClose}
+              disabled={submitting}
               aria-label="Close"
             >
               <FaTimes />
@@ -111,6 +128,7 @@ export default function AccountFormModal({ isOpen, account, onClose }) {
             style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}
           >
             <div className="acc-modal-body">
+              {error && <div className="acc-error">{error}</div>}
 
               <div>
                 <label className="acc-label">Account Name</label>
@@ -122,6 +140,7 @@ export default function AccountFormModal({ isOpen, account, onClose }) {
                   required
                   className="acc-input"
                   placeholder="e.g., Main Prop Account"
+                  disabled={submitting}
                 />
               </div>
 
@@ -138,6 +157,7 @@ export default function AccountFormModal({ isOpen, account, onClose }) {
                     step="0.01"
                     className="acc-input"
                     placeholder="0.00"
+                    disabled={submitting}
                   />
                 </div>
                 <div>
@@ -147,8 +167,9 @@ export default function AccountFormModal({ isOpen, account, onClose }) {
                     value={formData.currency}
                     onChange={handleChange}
                     className="acc-input"
+                    disabled={submitting}
                   >
-                    {CURRENCIES.map(curr => (
+                    {CURRENCIES.map((curr) => (
                       <option key={curr} value={curr}>{curr}</option>
                     ))}
                   </select>
@@ -160,62 +181,35 @@ export default function AccountFormModal({ isOpen, account, onClose }) {
                     value={formData.type}
                     onChange={handleChange}
                     className="acc-input"
+                    disabled={submitting}
                   >
-                    {ACCOUNT_TYPES.map(type => (
-                      <option key={type} value={type}>{type}</option>
+                    {ACCOUNT_TYPES.map((t) => (
+                      <option key={t} value={t}>{t}</option>
                     ))}
                   </select>
                 </div>
               </div>
-
-                  {riskType === 'fixed' && (
-                    <div>
-                      <label className="acc-label">Per Trade Target</label>
-                      <div style={{ display: 'flex', gap: '6px' }}>
-                        <div className="acc-input-wrap" style={{ flex: 1 }}>
-                          <input
-                            type="number"
-                            value={riskValue}
-                            onChange={(e) => setRiskValue(e.target.value)}
-                            required
-                            min="0"
-                            step="0.01"
-                            className="acc-input has-suffix"
-                            placeholder="0.00"
-                          />
-                          <span className="acc-input-suffix">
-                            {riskUnit === 'percent' ? '%' : currencySymbol}
-                          </span>
-                        </div>
-                        <select
-                          value={riskUnit}
-                          onChange={(e) => setRiskUnit(e.target.value)}
-                          className="acc-input"
-                          style={{ width: 92, flexShrink: 0 }}
-                        >
-                          <option value="percent">%</option>
-                          <option value="amount">{formData.currency}</option>
-                        </select>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {riskType === 'variable' && (
-                  <p className="acc-hint">
-                    ℹ Variable Risk allows individual position sizes per logged trade.
-                  </p>
-                )}
-              </div>
-
             </div>
 
             <div className="acc-modal-foot">
-              <button type="button" className="acc-btn" onClick={onClose}>
+              <button
+                type="button"
+                className="acc-btn"
+                onClick={onClose}
+                disabled={submitting}
+              >
                 Cancel
               </button>
-              <button type="submit" className="acc-btn-primary">
-                {editingId ? 'Save Changes' : 'Create Account'}
+              <button
+                type="submit"
+                className="acc-btn-primary"
+                disabled={submitting}
+              >
+                {submitting
+                  ? 'Saving…'
+                  : editingId
+                    ? 'Save Changes'
+                    : 'Create Account'}
               </button>
             </div>
           </form>

@@ -207,3 +207,104 @@ select.acc-input {
 @media (max-width: 640px) {
   .acc-grid-3 { grid-template-columns: 1fr; }
 }
+/* ------------------------------------------------------------------
+   Buttons + helpers used by the fixed AccountFormModal.jsx
+   ------------------------------------------------------------------ */
+.acc-error {
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(239,68,68,.08);
+  border: 1px solid rgba(239,68,68,.28);
+  color: #fca5a5;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 11.5px;
+  line-height: 1.55;
+  letter-spacing: .01em;
+}
+
+.acc-hint {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(255,255,255,.02);
+  border: 1px solid var(--line-soft);
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 10.5px;
+  line-height: 1.6;
+  color: var(--ink-2);
+  letter-spacing: .01em;
+}
+.acc-hint b { color: var(--ink-1); font-weight: 700; }
+
+.acc-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 9px 16px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,.1);
+  background: rgba(255,255,255,.03);
+  color: var(--ink-2);
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: .02em;
+  cursor: pointer;
+  transition: all .22s cubic-bezier(.2,.8,.25,1);
+  white-space: nowrap;
+}
+.acc-btn:hover:not(:disabled) {
+  color: var(--ink-1);
+  background: rgba(255,255,255,.06);
+  border-color: rgba(255,255,255,.2);
+  transform: translateY(-1px);
+}
+.acc-btn:disabled { opacity: .5; cursor: not-allowed; }
+
+.acc-btn-primary {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 9px 18px;
+  border-radius: 10px;
+  border: none;
+  overflow: hidden;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: #0D1117;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: .02em;
+  cursor: pointer;
+  box-shadow:
+    0 10px 30px -8px color-mix(in srgb, var(--accent) 55%, transparent),
+    inset 0 1px 0 rgba(255,255,255,.4);
+  transition: transform .25s cubic-bezier(.175,.885,.32,1.275), box-shadow .3s;
+  white-space: nowrap;
+}
+.acc-btn-primary::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(105deg, transparent 32%, rgba(255,255,255,.3) 50%, transparent 68%);
+  animation: accShine 4.2s ease-in-out infinite;
+}
+.acc-btn-primary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 42px -10px color-mix(in srgb, var(--accent) 70%, transparent), inset 0 1px 0 rgba(255,255,255,.5);
+}
+.acc-btn-primary:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+
+@keyframes accShine {
+  0%, 100% { transform: translateX(-130%) skewX(-18deg); }
+  55%      { transform: translateX(230%) skewX(-18deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .acc-btn-primary::after { animation: none !important; }
+  .acc-btn, .acc-btn-primary { transition: none !important; }
+}

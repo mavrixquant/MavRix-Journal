@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
-import { Mail, KeyRound, Lock } from 'lucide-react';
+import { Mail, Lock } from 'lucide-react';
 
 import * as authService from '@/features/auth/api';
 import AuthLayout from '../components/AuthLayout';

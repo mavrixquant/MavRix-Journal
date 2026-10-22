@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import {
   FaPlus,
@@ -6,8 +5,6 @@ import {
   FaTrash,
   FaWallet,
   FaChartLine,
-  FaShieldAlt,
-  FaSlidersH,
   FaExchangeAlt,
   FaFolderOpen,
   FaFilter,
@@ -43,10 +40,6 @@ function formatCurrency(amount, currency) {
   }).format(amount || 0);
 }
 
-
-
-
-
 export default function AccountsPage() {
   const { data: accounts = [], isLoading: loading } = useAccounts();
 
@@ -69,7 +62,7 @@ export default function AccountsPage() {
 
   usePageHeader({
     title: 'Portfolio Accounts',
-    subtitle: 'Monitor account capital, risk parameters, and aggregate net return',
+    subtitle: 'Monitor account capital and aggregate net return',
   });
 
   const pnlMap = useQueries({
@@ -187,7 +180,6 @@ export default function AccountsPage() {
     <>
       <div className="acc-root">
 
-        {}
         <div className="acc-toolbar">
           <div className="acc-type-tabs">
             <span className="acc-type-label">
@@ -217,7 +209,6 @@ export default function AccountsPage() {
           </button>
         </div>
 
-        {}
         <div className="acc-kpi-grid">
           <div className="acc-kpi">
             <div className="acc-kpi-icon is-amber"><FaWallet /></div>
@@ -250,7 +241,6 @@ export default function AccountsPage() {
           </div>
         </div>
 
-        {}
         {filteredAccounts.length === 0 ? (
           <EmptyState
             icon={FaFolderOpen}
@@ -286,7 +276,6 @@ export default function AccountsPage() {
 
               return (
                 <div key={acc.id} className="acc-card acc-account">
-                  {}
                   <div className="acc-account-head">
                     <div style={{ minWidth: 0 }}>
                       <h3 className="acc-name">{acc.name}</h3>
@@ -297,7 +286,6 @@ export default function AccountsPage() {
                     </span>
                   </div>
 
-                  {}
                   <div className="acc-metric-bar">
                     <div className="acc-metric">
                       <span className="acc-metric-label">Starting Capital</span>
@@ -313,23 +301,39 @@ export default function AccountsPage() {
                     </div>
                   </div>
 
-                  {}
-                        </div>
-    </div>
+                  <div className="acc-account-footer">
+                    <span className="acc-trades-count">
+                      {tradesCount} {tradesCount === 1 ? 'trade' : 'trades'}
+                    </span>
+                    <div className="acc-account-actions">
+                      <button
+                        type="button"
+                        className="acc-icon-btn"
+                        onClick={() => openEdit(acc)}
+                      >
+                        <FaEdit size={11} /> Edit
+                      </button>
+                      <button
+                        type="button"
+                        className="acc-icon-btn is-danger"
+                        onClick={() => handleDelete(acc)}
+                      >
+                        <FaTrash size={11} /> Delete
+                      </button>
+                    </div>
+                  </div>
                 </div>
               );
             })}
           </div>
         )}
 
-        {}
         <AccountFormModal
           isOpen={modalState.open}
           account={modalState.account}
           onClose={closeModal}
         />
 
-        {}
         <Alert
           isOpen={deleteAlert.show}
           title="Delete Account"

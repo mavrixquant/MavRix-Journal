@@ -174,7 +174,7 @@ export default function MessageThread({
     if (last.kind === 'system' || last.kind === 'ai_switch') return false;
     const createdMs = new Date(last.createdAt).getTime();
     if (!Number.isFinite(createdMs)) return false;
-    const age = Math.max(0, Date.now() - createdMs);
+    const age = Math.max(0, nowTs - createdMs);
     return age < AI_WAITING_WINDOW_MS;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAi, currentUserId, messages, nowTs]);
@@ -467,7 +467,7 @@ export default function MessageThread({
           canEdit={
             ctxMenu.message.senderId === currentUserId &&
             !ctxMenu.message.deleted &&
-            Date.now() - new Date(ctxMenu.message.createdAt).getTime() < EDIT_WINDOW_MS
+            nowTs - new Date(ctxMenu.message.createdAt).getTime() < EDIT_WINDOW_MS
           }
           canDeleteAll={ctxMenu.message.senderId === currentUserId && !ctxMenu.message.deleted}
           onReply={() => handleReply(ctxMenu.message)}

@@ -70,11 +70,6 @@ const accountUpdateSchema = z.object({
   balance: z.number().finite().nonnegative().optional(),
   currency: z.enum(['USD', 'EUR', 'INR', 'GBP']).optional(),
   type: z.enum(['Backtest', 'Live', 'Demo']).optional(),
-  riskType: z.enum(['fixed', 'variable']).optional(),
-  riskValue: z.number().finite().nonnegative().nullable().optional(),
-  riskUnit: z.enum(['percent', 'amount']).nullable().optional(),
-  slValue: z.number().finite().nonnegative().nullable().optional(),
-  slUnit: z.enum(['ticks', 'points']).nullable().optional(),
 });
 
 const reassignSchema = z.object({

@@ -26,7 +26,6 @@ export function RequireAdmin({ children }) {
     if (import.meta.env.PROD) {
       // Helps diagnose slow auth bootstrap in prod console.
       // (Logged only once per render, but React batches, so this is cheap.)
-      // eslint-disable-next-line no-console
       console.info('[admin-guard] waiting for auth bootstrap…');
     }
     return <BootLoader label="Checking admin access" />;
@@ -34,7 +33,6 @@ export function RequireAdmin({ children }) {
 
   if (!user) {
     if (import.meta.env.PROD) {
-      // eslint-disable-next-line no-console
       console.warn('[admin-guard] not logged in → /login');
     }
     return <Navigate to="/login" replace />;
@@ -42,7 +40,6 @@ export function RequireAdmin({ children }) {
 
   if (!user.emailVerified) {
     if (import.meta.env.PROD) {
-      // eslint-disable-next-line no-console
       console.warn('[admin-guard] email not verified → /verify-email');
     }
     return <Navigate to="/verify-email" replace />;
@@ -50,7 +47,6 @@ export function RequireAdmin({ children }) {
 
   if (!ADMIN_ROLES.has(user.role)) {
     if (import.meta.env.PROD) {
-      // eslint-disable-next-line no-console
       console.warn(
         `[admin-guard] role=${user.role} is not admin → /journal`
       );
@@ -70,7 +66,6 @@ export function RequireSuperadmin({ children }) {
 
   if (!user) {
     if (import.meta.env.PROD) {
-      // eslint-disable-next-line no-console
       console.warn('[superadmin-guard] not logged in → /login');
     }
     return <Navigate to="/login" replace />;
@@ -78,7 +73,6 @@ export function RequireSuperadmin({ children }) {
 
   if (!user.emailVerified) {
     if (import.meta.env.PROD) {
-      // eslint-disable-next-line no-console
       console.warn('[superadmin-guard] email not verified → /verify-email');
     }
     return <Navigate to="/verify-email" replace />;
@@ -86,7 +80,6 @@ export function RequireSuperadmin({ children }) {
 
   if (user.role !== 'superadmin') {
     if (import.meta.env.PROD) {
-      // eslint-disable-next-line no-console
       console.warn(
         `[superadmin-guard] role=${user.role} is not superadmin → /admin`
       );

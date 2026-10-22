@@ -10,13 +10,11 @@ import {
   generateSecureToken,
   generateOtp,
   VERIFY_TTL_MS,
-  RESET_TTL_MS,
   OTP_TTL_MS,
   OTP_MAX_ATTEMPTS,
 } from '../lib/tokens.js';
 import {
   sendVerificationEmail,
-  sendPasswordResetEmail,
   sendPasswordResetOtpEmail,
 } from '../lib/mailer.js';
 import { verifyGoogleAccessToken } from '../lib/google.js';

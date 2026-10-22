@@ -9,7 +9,15 @@
     "./constants": "./src/constants.js",
     "./validators": "./src/validators.js"
   },
+  "scripts": {
+    "lint": "eslint ."
+  },
   "dependencies": {
     "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.9.0",
+    "globals": "^17.11.0"
   }
 }

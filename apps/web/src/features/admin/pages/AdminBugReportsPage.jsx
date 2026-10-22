@@ -6,7 +6,6 @@ import {
   ChevronRight,
   Bug,
   Trash2,
-  ExternalLink,
   Save,
 } from 'lucide-react';
 import { toast } from 'sonner';

@@ -9,12 +9,10 @@ import {
   generateSecureToken,
   generateOtp,
   VERIFY_TTL_MS,
-  RESET_TTL_MS,
   OTP_TTL_MS,
 } from '../lib/tokens.js';
 import {
   sendVerificationEmail,
-  sendPasswordResetEmail,
   sendPasswordResetOtpEmail,
 } from '../lib/mailer.js';
 
