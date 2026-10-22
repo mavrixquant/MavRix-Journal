@@ -1,8 +1,6 @@
 import { prisma } from '../lib/prisma.js';
 import { HttpError } from '../middleware/error.js';
-import { hashPassword } from '../lib/password.js';
 import { writeAudit } from '../lib/audit.js';
-import { getSettings, updateSettings } from '../lib/settings.js';
 import { invalidateSvCache } from '../lib/session.js';
 import { getTotalClientCount, getClientCount } from '../lib/broadcaster.js';
 import {

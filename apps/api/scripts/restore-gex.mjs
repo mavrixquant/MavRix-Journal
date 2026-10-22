@@ -130,14 +130,14 @@ async function main() {
   try {
     raw = await fs.readFile(absPath, 'utf8');
   } catch (err) {
-    throw new Error(`Cannot read ${absPath}: ${err.message}`);
+    throw new Error(`Cannot read ${absPath}: ${err.message}`, { cause: err });
   }
 
   let payload;
   try {
     payload = JSON.parse(raw);
   } catch (err) {
-    throw new Error(`Invalid JSON: ${err.message}`);
+    throw new Error(`Invalid JSON: ${err.message}`, { cause: err });
   }
 
   if (payload?.kind !== BACKUP_KIND) {

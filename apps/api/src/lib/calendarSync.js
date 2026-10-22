@@ -70,7 +70,7 @@ async function fetchCalendarRange(fromIso, toIso, baseUrl, timeoutMs) {
     });
   } catch (err) {
     if (err.name === 'AbortError') {
-      throw new Error(`Biquote request timed out after ${timeoutMs}ms`);
+      throw new Error(`Biquote request timed out after ${timeoutMs}ms`, { cause: err });
     }
     throw err;
   } finally {

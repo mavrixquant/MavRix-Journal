@@ -176,7 +176,7 @@ export default function MessageThread({
     if (!Number.isFinite(createdMs)) return false;
     const age = Math.max(0, nowTs - createdMs);
     return age < AI_WAITING_WINDOW_MS;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [isAi, currentUserId, messages, nowTs]);
 
   const handleStopAi = useCallback(() => {

@@ -29,7 +29,7 @@ export async function run(ctx) {
   });
 
   await test('strategies.create · duplicate name → 409', async () => {
-    const res = await ctx.fetch('/api/strategies', {
+    await ctx.fetch('/api/strategies', {
       method: 'POST',
       token: tokens.a,
       body: {

@@ -1,6 +1,6 @@
 
 export async function run(ctx) {
-  const { test, tokens, ids } = ctx;
+  const { test, tokens } = ctx;
 
 
   await test('users.layouts.list · fresh user has 0', async () => {

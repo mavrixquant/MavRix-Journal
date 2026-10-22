@@ -108,7 +108,7 @@ export function startHealthCheck({ phases, requestedBy }) {
       emit(run, { type: 'run:error', error: err?.message || String(err) });
     } finally {
       emit(run, { type: 'cleanup:start' });
-      let cleanupResults = [];
+      let cleanupResults;
       try {
         cleanupResults = await runner.runCleanups();
       } catch (err) {

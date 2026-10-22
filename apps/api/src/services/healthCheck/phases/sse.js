@@ -12,7 +12,7 @@ export async function run(ctx) {
       res = await fetch(url, { signal: controller.signal });
     } catch (err) {
       clearTimeout(timeout);
-      throw new Error(`SSE connect failed: ${err?.message || err}`);
+      throw new Error(`SSE connect failed: ${err?.message || err}`, { cause: err });
     }
 
     if (res.status !== 200) {
