@@ -16,6 +16,8 @@ const RESERVED = new Set([
   'slPoints',
 
   'entryPrice',
+
+  'exitPrice',
   'takeProfit',
   'stopLoss',
 
@@ -71,6 +73,7 @@ function serialize(t) {
     mfe: t.mfe,
     slPoints: t.slPoints,
     entryPrice: t.entryPrice,
+    exitPrice: t.exitPrice,
     takeProfit: t.takeProfit,
     stopLoss: t.stopLoss,
     pnl: t.pnl,

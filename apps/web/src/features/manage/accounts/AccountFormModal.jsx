@@ -14,15 +14,6 @@ import './AccountFormModal.css';
 const CURRENCIES = ['USD', 'EUR', 'INR', 'GBP'];
 const ACCOUNT_TYPES = ['Backtest', 'Live', 'Demo'];
 
-function getCurrencySymbol(currency) {
-  switch (currency) {
-    case 'USD': return '$';
-    case 'EUR': return '€';
-    case 'INR': return '₹';
-    case 'GBP': return '£';
-    default:    return '$';
-  }
-}
 
 const EMPTY_FORM = {
   name: '',
@@ -36,12 +27,6 @@ export default function AccountFormModal({ isOpen, account, onClose }) {
   const editingId = account?.id ?? null;
 
   const [formData, setFormData] = useState(EMPTY_FORM);
-  const [riskType, setRiskType] = useState('fixed');
-  const [riskValue, setRiskValue] = useState('');
-  const [riskUnit, setRiskUnit] = useState('percent');
-
-  const [slValue, setSlValue] = useState('');
-  const [slUnit, setSlUnit] = useState('ticks');
 
   useEffect(() => {
     if (!isOpen) return;
@@ -53,26 +38,8 @@ export default function AccountFormModal({ isOpen, account, onClose }) {
         currency: account.currency ?? 'USD',
         type: account.type || 'Backtest',
       });
-      setRiskType(account.riskType || 'fixed');
-      setRiskValue(
-        account.riskValue !== undefined && account.riskValue !== null
-          ? account.riskValue
-          : ''
-      );
-      setRiskUnit(account.riskUnit || 'percent');
-      setSlValue(
-        account.slValue !== undefined && account.slValue !== null
-          ? account.slValue
-          : ''
-      );
-      setSlUnit(account.slUnit || 'ticks');
     } else {
       setFormData(EMPTY_FORM);
-      setRiskType('fixed');
-      setRiskValue('');
-      setRiskUnit('percent');
-      setSlValue('');
-      setSlUnit('ticks');
     }
   }, [isOpen, account]);
 
@@ -88,19 +55,11 @@ export default function AccountFormModal({ isOpen, account, onClose }) {
     const { name, balance, currency, type } = formData;
     if (!name.trim() || !balance) return;
 
-    const parsedSl = slValue === '' ? null : parseFloat(slValue);
-    const hasSl = parsedSl !== null && !isNaN(parsedSl) && parsedSl > 0;
-
     const accountData = {
       name: name.trim(),
       balance: parseFloat(balance),
       currency,
       type,
-      riskType,
-      riskValue: riskType === 'fixed' ? parseFloat(riskValue) || 0 : null,
-      riskUnit: riskType === 'fixed' ? riskUnit : null,
-      slUnit: type === 'Backtest' ? slUnit : null,
-      slValue: type === 'Backtest' && hasSl ? parsedSl : null,
     };
 
     try {
@@ -209,22 +168,6 @@ export default function AccountFormModal({ isOpen, account, onClose }) {
                 </div>
               </div>
 
-              <div className="acc-field-group">
-                <span className="acc-field-group-title">Risk Strategy</span>
-
-                <div className={riskType === 'fixed' ? 'acc-grid-2' : ''}>
-                  <div>
-                    <label className="acc-label">Risk Model</label>
-                    <select
-                      value={riskType}
-                      onChange={(e) => setRiskType(e.target.value)}
-                      className="acc-input"
-                    >
-                      <option value="fixed">Fixed Risk</option>
-                      <option value="variable">Variable Risk</option>
-                    </select>
-                  </div>
-
                   {riskType === 'fixed' && (
                     <div>
                       <label className="acc-label">Per Trade Target</label>
@@ -264,45 +207,6 @@ export default function AccountFormModal({ isOpen, account, onClose }) {
                   </p>
                 )}
               </div>
-
-              {formData.type === 'Backtest' && (
-                <div className="acc-field-group">
-                  <span className="acc-field-group-title">Stop Loss Settings</span>
-
-                  <div className="acc-grid-2">
-                    <div>
-                      <label className="acc-label">
-                        Default SL <span style={{ color: 'var(--ink-3)', letterSpacing: 0, textTransform: 'none' }}>(optional)</span>
-                      </label>
-                      <input
-                        type="number"
-                        value={slValue}
-                        onChange={(e) => setSlValue(e.target.value)}
-                        min="0"
-                        step="0.01"
-                        className="acc-input"
-                        placeholder="e.g. 12.5"
-                      />
-                    </div>
-                    <div>
-                      <label className="acc-label">Unit</label>
-                      <select
-                        value={slUnit}
-                        onChange={(e) => setSlUnit(e.target.value)}
-                        className="acc-input"
-                      >
-                        <option value="points">Points</option>
-                        <option value="ticks">Ticks</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <p className="acc-hint">
-                    ℹ Stop-loss is read from your trade log's <b>SL</b> column (in the unit above).
-                    The default value is used only for trades whose SL cell is empty.
-                  </p>
-                </div>
-              )}
 
             </div>
 

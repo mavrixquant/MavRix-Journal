@@ -1,112 +1,58 @@
-// ============================================================================
-// Excel template generator for trade logs.
-//
-// Both templates include an optional `Commission` column. Blank = no
-// commission. If filled, net P&L = pnl − commission on the dashboard.
-// ============================================================================
-
 import * as XLSX from 'xlsx';
 
 const SAMPLE_DATE  = '2025-01-15';
 const SAMPLE_ENTRY = '09:35';
 const SAMPLE_EXIT  = '10:15';
 
-function buildBacktestHeaders() {
+function backtestHeaders() {
   return [
-    'Date',
-    'Entry Time',
-    'Exit Time',
-    'Direction',
-    'Symbol',
-    'Strategy',
-    'MAE',
-    'MFE',
-    'SL',
-    'P&L',
-    'Quantity',
-    'Commission',
-    'Notes',
+    'Date', 'Entry Time', 'Exit Time', 'Direction', 'Symbol', 'Strategy',
+    'SL (points)', 'MAE', 'MFE',
+    'Quantity', 'P&L (optional)', 'Commission (optional)', 'Notes',
+    'Custom Columns',
   ];
 }
-
-function buildBacktestSampleRow(account) {
+function backtestSample() {
   return [
-    SAMPLE_DATE,
-    SAMPLE_ENTRY,
-    SAMPLE_EXIT,
-    'Long',
-    'NQ',
+    SAMPLE_DATE, SAMPLE_ENTRY, SAMPLE_EXIT, 'Long', 'NQ', '',
+    12.5, 8.2, 15.4,
+    2, 125.5, 2.5, 'Breakout above VWAP',
     '',
-    account?.slValue != null && account.slValue > 0 ? account.slValue : 8.2,
-    15.4,
-    account?.slValue ?? 12.5,
-    125.5,
-    2,
-    2.5,
-    'Breakout above VWAP',
   ];
 }
 
-function buildJournalHeaders() {
+function journalHeaders() {
   return [
-    'Date',
-    'Entry Time',
-    'Exit Time',
-    'Direction',
-    'Symbol',
-    'Strategy',
-    'Entry Price',
-    'Take Profit',
-    'Stop Loss',
-    'P&L',
-    'Quantity',
-    'Commission',
-    'Notes',
+    'Date', 'Entry Time', 'Exit Time', 'Direction', 'Symbol', 'Strategy',
+    'Entry Price', 'Stop Loss', 'Take Profit', 'Exit Price',
+    'Quantity', 'P&L', 'Commission (optional)', 'Notes',
+    'Custom Columns',
   ];
 }
-
-function buildJournalSampleRow() {
+function journalSample() {
   return [
-    SAMPLE_DATE,
-    SAMPLE_ENTRY,
-    SAMPLE_EXIT,
-    'Long',
-    'NQ',
+    SAMPLE_DATE, SAMPLE_ENTRY, SAMPLE_EXIT, 'Long', 'NQ', '',
+    20150.25, 20120.0, 20200.0, 20200.0,
+    2, 125.5, 2.5, 'Breakout above VWAP',
     '',
-    20150.25,
-    20200.0,
-    20120.0,
-    125.5,
-    2,
-    2.5,
-    'Breakout above VWAP',
   ];
 }
 
 export function downloadTradeTemplate({ account }) {
   const isBacktest = account?.type === 'Backtest';
+  const headers = isBacktest ? backtestHeaders() : journalHeaders();
+  const sample  = isBacktest ? backtestSample()  : journalSample();
 
-  const headers = isBacktest ? buildBacktestHeaders() : buildJournalHeaders();
-  const sampleRow = isBacktest
-    ? buildBacktestSampleRow(account)
-    : buildJournalSampleRow();
-
-  headers.push('Custom Columns');
-  sampleRow.push('');
-
-  const ws = XLSX.utils.aoa_to_sheet([headers, sampleRow]);
-  ws['!cols'] = headers.map((h) => ({
-    wch: Math.max(12, String(h).length + 4),
-  }));
+  const ws = XLSX.utils.aoa_to_sheet([headers, sample]);
+  ws['!cols'] = headers.map((h) => ({ wch: Math.max(12, String(h).length + 4) }));
 
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Trades');
 
   const date = new Date().toISOString().slice(0, 10);
   const safeName = (account?.name || 'account')
-    .replace(/[^a-z0-9-_]+/gi, '_')
-    .slice(0, 40);
-  const kind = isBacktest ? 'test' : 'trade';
+    .replace(/[^a-z0-9-_]+/gi, '_').slice(0, 40);
+  const kind = isBacktest ? 'backtest' : 'journal';
 
   XLSX.writeFile(wb, `${kind}-template-${safeName}-${date}.xlsx`);
 }

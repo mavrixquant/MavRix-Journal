@@ -17,7 +17,6 @@ import { updateAccountColumnConfigs } from '@/shared/api/accounts';
 import { queryClient } from '@/shared/api/queryClient';
 import { normalizeColumnConfigs } from '@mavrix/shared';
 
-const TICKS_PER_POINT = 4;
 const MAX_DROPDOWN_UNIQUES = 10;
 
 const RESERVED_NAMES = new Set([
@@ -39,10 +38,13 @@ const RESERVED_MAP_BACKTEST = {
   'MAE': 'mae',
   'MFE': 'mfe',
   'SL': 'sl',
+  'SL (points)': 'sl',
   'Stop Loss': 'sl',
   'P&L': 'pnl',
+  'P&L (optional)': 'pnl',
   'Quantity': 'quantity',
   'Commission': 'commission',
+  'Commission (optional)': 'commission',
   'Notes': 'notes',
 };
 
@@ -56,9 +58,11 @@ const RESERVED_MAP_JOURNAL = {
   'Entry Price': 'entryPrice',
   'Take Profit': 'takeProfit',
   'Stop Loss': 'stopLoss',
+  'Exit Price': 'exitPrice',
   'P&L': 'pnl',
   'Quantity': 'quantity',
   'Commission': 'commission',
+  'Commission (optional)': 'commission',
   'Notes': 'notes',
 };
 
@@ -67,19 +71,10 @@ function getReservedMap(account) {
 }
 
 
-function resolveSLPoints(rawSl, account) {
-  const raw = (rawSl === '' || rawSl === undefined || rawSl === null) ? null : Number(rawSl);
-  const hasRaw = raw !== null && !isNaN(raw) && raw > 0;
-
-  const acctDefault = (account.slValue !== null && account.slValue !== undefined && Number(account.slValue) > 0)
-    ? Number(account.slValue)
-    : null;
-
-  const effective = hasRaw ? raw : acctDefault;
-  if (effective === null) return null;
-
-  const pts = account.slUnit === 'ticks' ? effective / TICKS_PER_POINT : effective;
-  return +pts.toFixed(4);
+function resolveSLPoints(rawSl) {
+  const raw = (rawSl === '' || rawSl == null) ? null : Number(rawSl);
+  if (raw == null || Number.isNaN(raw) || raw <= 0) return null;
+  return +raw.toFixed(4);
 }
 
 
@@ -227,7 +222,7 @@ function parseFile(workbook, account, existingTrades, strategies) {
       const backtestComm = trade.commission === '' || trade.commission == null ? null : Number(trade.commission);
       trade.commission = Number.isFinite(backtestComm) && backtestComm >= 0 ? backtestComm : null;
 
-      const slPoints = resolveSLPoints(trade.sl, account);
+      const slPoints = resolveSLPoints(trade.sl);
       if (slPoints === null) missingSlRows.push(excelRowNum);
       trade.slPoints = slPoints;
       delete trade.sl;
@@ -235,6 +230,7 @@ function parseFile(workbook, account, existingTrades, strategies) {
       delete trade.entryPrice;
       delete trade.takeProfit;
       delete trade.stopLoss;
+      delete trade.exitPrice;
     } else {
       if (trade.pnl === undefined || trade.pnl === '' || isNaN(parseFloat(trade.pnl))) {
         invalidPnlRows.push(excelRowNum);
@@ -247,9 +243,11 @@ function parseFile(workbook, account, existingTrades, strategies) {
       const ep = trade.entryPrice === '' || trade.entryPrice == null ? null : Number(trade.entryPrice);
       const tp = trade.takeProfit === '' || trade.takeProfit == null ? null : Number(trade.takeProfit);
       const sl = trade.stopLoss === '' || trade.stopLoss == null ? null : Number(trade.stopLoss);
+      const xp = trade.exitPrice === '' || trade.exitPrice == null ? null : Number(trade.exitPrice);
       trade.entryPrice = Number.isFinite(ep) ? ep : null;
       trade.takeProfit = Number.isFinite(tp) ? tp : null;
       trade.stopLoss = Number.isFinite(sl) ? sl : null;
+      trade.exitPrice = Number.isFinite(xp) ? xp : null;
 
       delete trade.mae;
       delete trade.mfe;
@@ -284,7 +282,7 @@ function parseFile(workbook, account, existingTrades, strategies) {
   if (isBacktest && missingSlRows.length > 0) {
     const list = missingSlRows.slice(0, 10).join(', ');
     const extra = missingSlRows.length > 10 ? ` and ${missingSlRows.length - 10} more` : '';
-    errors.push(`Rows ${list}${extra} have no SL value and the account has no default SL set.`);
+    errors.push(`Rows ${list}${extra} are missing SL (points). SL is required for every Backtest row.`);
   }
   if (invalidQuantityRows.length > 0) {
     const list = invalidQuantityRows.slice(0, 10).join(', ');
@@ -1474,7 +1472,7 @@ export default function UploadModal({
           <div className="upl-head">
             <div>
               <h2 className="upl-title">
-                Upload {isBacktest ? 'Test Logs' : 'Trades'}
+                {isBacktest ? 'Upload Backtest Log' : 'Upload Journal Trades'}
               </h2>
               <p className="upl-sub">
                 Import records from your Excel file, then adjust the custom columns below
@@ -1507,7 +1505,7 @@ export default function UploadModal({
                     <>
                       <span className="req-list">MAE</span>
                       <span className="req-list">MFE</span>
-                      <span className="req-list">SL</span>
+                      <span className="req-list">SL (points)</span>
                     </>
                   )}
                   {!isBacktest && (
@@ -1521,7 +1519,7 @@ export default function UploadModal({
                     <>
                       <span className="req-list">Entry Price</span>
                       <span className="req-list">Take Profit</span>
-                      <span className="req-list">Stop Loss</span>
+                      <span className="req-list">Stop Loss</span><span className="req-list">Exit Price</span>
                     </>
                   )}
                   {isBacktest && (

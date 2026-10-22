@@ -9,7 +9,9 @@ export function outcomeFor(trade, R, accountOrSL) {
     return { result, score: netPnl, r: netPnl, rAchieved: null };
   }
 
-  const SL = getTradeSL(trade, accountOrSL);
+  const SL = getTradeSL(trade);
+  if (SL == null) return null;
+
   const target = SL * R;
   const slHit = trade.mae >= SL;
   const rAchieved = slHit ? 0 : +(trade.mfe / SL).toFixed(2);
@@ -35,7 +37,6 @@ export function applyDynamicFilters(trades, filterSelections, dynamicKeys) {
 export function applyStrategyFilter(trades, strategyIds) {
   if (!trades || trades.length === 0) return trades;
   if (!Array.isArray(strategyIds) || strategyIds.length === 0) return trades;
-
   const wanted = new Set(strategyIds);
   return trades.filter(t => t.strategyId != null && wanted.has(t.strategyId));
 }
@@ -44,7 +45,6 @@ export function applySessionTimeFilter(trades, stMode, selectedSessions, selecte
   if (!trades || trades.length === 0) return trades;
   if (stMode === 'session' && selectedSessions.length === 0) return trades;
   if (stMode === 'time' && selectedTimeBlocks.length === 0) return trades;
-
   return trades.filter(t => {
     if (stMode === 'session') return selectedSessions.includes(t.session);
     return selectedTimeBlocks.includes(t.bucket);
@@ -94,11 +94,10 @@ export function applyLimitsFilter(trades, activeFilterType, filterParams, curren
       if (stoppedDays.has(day)) continue;
       const cum = dailyCum.get(day) || 0;
       const outcome = outcomeFor(t, currentR, accountOrSL);
+      if (!outcome) continue;
       const newCum = cum + outcome.score;
       result.push(t);
-      if (newCum >= winLimit || newCum <= -lossLimit) {
-        stoppedDays.add(day);
-      }
+      if (newCum >= winLimit || newCum <= -lossLimit) stoppedDays.add(day);
       dailyCum.set(day, newCum);
     }
     return result;

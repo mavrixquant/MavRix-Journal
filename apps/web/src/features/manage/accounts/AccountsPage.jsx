@@ -43,37 +43,9 @@ function formatCurrency(amount, currency) {
   }).format(amount || 0);
 }
 
-function getCurrencySymbol(currency) {
-  switch (currency) {
-    case 'USD': return '$';
-    case 'EUR': return '€';
-    case 'INR': return '₹';
-    case 'GBP': return '£';
-    default:    return '$';
-  }
-}
 
-function formatRiskValue(account) {
-  if (account.riskType === 'variable' || !account.riskType) return 'Variable';
-  const value =
-    account.riskValue !== undefined && account.riskValue !== null
-      ? account.riskValue
-      : 0;
-  const unit = account.riskUnit === 'percent' ? '%' : getCurrencySymbol(account.currency);
-  return `${value}${unit}`;
-}
 
-function formatSlUnit(account) {
-  if (account.slUnit === 'ticks') return 'Ticks';
-  if (account.slUnit === 'points') return 'Points';
-  return '—';
-}
 
-function formatSlDefault(account) {
-  if (account.slValue === undefined || account.slValue === null) return null;
-  const unit = account.slUnit === 'ticks' ? ' ticks' : ' pts';
-  return `${account.slValue}${unit}`;
-}
 
 export default function AccountsPage() {
   const { data: accounts = [], isLoading: loading } = useAccounts();
@@ -304,7 +276,6 @@ export default function AccountsPage() {
                 : acc.type === 'Demo'
                   ? 'is-demo'
                   : 'is-backtest';
-              const slDefault = formatSlDefault(acc);
               const pnlClass = tradesCount === 0
                 ? 'dim'
                 : accPnl > 0
@@ -343,33 +314,8 @@ export default function AccountsPage() {
                   </div>
 
                   {}
-                  <div className="acc-settings">
-                                      </div>
-
-                  {}
-                  <div className="acc-account-footer">
-                    <span className="acc-trades-count">
-                      {tradesCount} {tradesCount === 1 ? 'trade' : 'trades'}
-                    </span>
-                    <div className="acc-account-actions">
-                      <button
-                        type="button"
-                        className="acc-icon-btn"
-                        onClick={() => openEdit(acc)}
-                        title="Edit Account"
-                      >
-                        <FaEdit size={11} /> Edit
-                      </button>
-                      <button
-                        type="button"
-                        className="acc-icon-btn is-danger"
-                        onClick={() => handleDelete(acc)}
-                        title="Delete Account"
-                      >
-                        <FaTrash size={11} />
-                      </button>
-                    </div>
-                  </div>
+                        </div>
+    </div>
                 </div>
               );
             })}

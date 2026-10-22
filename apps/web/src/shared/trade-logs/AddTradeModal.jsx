@@ -8,35 +8,117 @@ import { useStrategies } from '@/shared/api/strategies';
 import { normalizeColumnConfigs } from '@mavrix/shared';
 import { SymbolSelect } from '@/shared/symbols';
 
-const TICKS_PER_POINT = 4;
 
-
-function resolveSlPoints(rawSl, account) {
+function resolveSLPoints(rawSl) {
   const raw = rawSl === '' || rawSl == null ? null : Number(rawSl);
-  const hasRaw = raw != null && !Number.isNaN(raw) && raw > 0;
-
-  const acctDefault =
-    account?.slValue != null && Number(account.slValue) > 0
-      ? Number(account.slValue)
-      : null;
-
-  const effective = hasRaw ? raw : acctDefault;
-  if (effective == null) return null;
-
-  const pts =
-    account?.slUnit === 'ticks' ? effective / TICKS_PER_POINT : effective;
-  return +pts.toFixed(4);
+  if (raw == null || Number.isNaN(raw) || raw <= 0) return null;
+  return +raw.toFixed(4);
 }
 
-function slPointsToDisplay(slPoints, account) {
+function slPointsToDisplay(slPoints) {
   if (slPoints == null) return '';
   const n = Number(slPoints);
-  if (!Number.isFinite(n)) return '';
-  return account?.slUnit === 'ticks'
-    ? String(+(n * TICKS_PER_POINT).toFixed(4))
-    : String(n);
+  return Number.isFinite(n) ? String(n) : '';
 }
 
+// Live R preview for Backtest trades.
+function RPreview({ form, initialR = 1 }) {
+  const [targetR, setTargetR] = useState(initialR);
+  useEffect(() => { setTargetR(initialR); }, [initialR]);
+
+  const sl = Number(form.sl);
+  const mae = Number(form.mae);
+  const mfe = Number(form.mfe);
+  const ready = Number.isFinite(sl) && sl > 0 && Number.isFinite(mae) && Number.isFinite(mfe);
+
+  return (
+    <div className="at-r-preview">
+      <div className="at-r-head">
+        <span className="at-r-head-label">Live R Preview</span>
+        <div className="at-r-targets">
+          {[1, 2, 3, 4, 5, 6, 7, 8].map((r) => (
+            <button
+              key={r}
+              type="button"
+              className={`at-r-target${targetR === r ? ' is-active' : ''}`}
+              onClick={() => setTargetR(r)}
+              aria-pressed={targetR === r}
+            >
+              1:{r}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {!ready && (
+        <div className="at-r-hint">
+          Fill SL, MAE and MFE to see how this trade scores at each R target.
+        </div>
+      )}
+
+      {ready && (() => {
+        const target = sl * targetR;
+        const slHit = mae >= sl;
+        const win = !slHit && mfe >= target;
+        const rAchieved = slHit ? 0 : +(mfe / sl).toFixed(2);
+        const result = slHit ? 'loss' : win ? 'win' : 'loss';
+        const color = result === 'win' ? '#35C4A1' : '#FF5C5C';
+        return (
+          <div className="at-r-rows">
+            <div className="at-r-row">
+              <span className="at-r-label">At 1:{targetR} target</span>
+              <span className="at-r-badge" style={{ color, borderColor: `${color}66`, background: `${color}15` }}>
+                {result === 'win' ? 'WIN' : 'LOSS'}
+              </span>
+            </div>
+            <div className="at-r-row">
+              <span className="at-r-label">SL hit?</span>
+              <span style={{ color: slHit ? '#FF5C5C' : 'var(--ink-2)' }}>
+                {slHit ? `Yes (MAE ${mae} >= SL ${sl})` : `No (MAE ${mae} < SL ${sl})`}
+              </span>
+            </div>
+            <div className="at-r-row">
+              <span className="at-r-label">R achieved</span>
+              <span style={{ color: 'var(--ink-1)', fontWeight: 700 }}>
+                {rAchieved.toFixed(2)}R
+              </span>
+            </div>
+          </div>
+        );
+      })()}
+    </div>
+  );
+}
+// Auto-computed P&L hint -- shown when entry, exit, quantity and direction
+// are all filled. Clicking copies the computed value into the P&L field.
+function PnlHint({ form, setForm }) {
+  const { entryPrice, exitPrice, quantity, direction, pnl } = form;
+  const ep = Number(entryPrice), xp = Number(exitPrice), q = Number(quantity);
+  if (!Number.isFinite(ep) || !Number.isFinite(xp) || !Number.isFinite(q) || q <= 0) {
+    return null;
+  }
+  const raw = direction === 'Short' ? (ep - xp) * q : (xp - ep) * q;
+  if (!Number.isFinite(raw) || raw === 0) return null;
+  const computed = +raw.toFixed(2);
+  const current = pnl === '' ? null : Number(pnl);
+  const same = current != null && Math.abs(current - computed) < 0.01;
+  const positive = computed > 0;
+  return (
+    <div
+      className="at-pnl-hint"
+      onClick={() => setForm((f) => ({ ...f, pnl: String(computed) }))}
+      title="Click to copy into P&L"
+    >
+      <span style={{ color: 'var(--ink-3)' }}>Computed from prices:</span>{' '}
+      <b style={{ color: positive ? '#35C4A1' : '#FF5C5C' }}>
+        {positive ? '+' : ''}{computed.toFixed(2)}
+      </b>
+      {same
+        ? <span style={{ color: '#35C4A1', marginLeft: 8 }}>matches P&L</span>
+        : <span style={{ color: 'var(--ink-3)', marginLeft: 8 }}>click to fill</span>}
+    </div>
+  );
+}
 const EMPTY = {
   date: '',
   entryTime: '',
@@ -48,6 +130,7 @@ const EMPTY = {
   mfe: '',
   sl: '',
   entryPrice: '',
+  exitPrice: '',
   takeProfit: '',
   stopLoss: '',
   pnl: '',
@@ -170,6 +253,128 @@ const CSS = `
     font-size: 10px; font-weight: 700; letter-spacing: .14em;
     text-transform: uppercase; color: var(--accent);
   }
+  .at-pnl-hint {
+    margin-top: 6px;
+    padding: 8px 11px;
+    border-radius: 8px;
+    background: rgba(255,255,255,.02);
+    border: 1px dashed rgba(255,255,255,.12);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11.5px;
+    color: var(--ink-2);
+    cursor: pointer;
+    transition: border-color .15s, background-color .15s;
+  }
+  .at-pnl-hint:hover {
+    border-color: var(--accent-soft2);
+    background: color-mix(in srgb, var(--accent) 4%, transparent);
+  }
+  .at-field-hint {
+    margin: 6px 0 0;
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 10.5px;
+    color: var(--ink-3);
+    line-height: 1.55;
+    letter-spacing: .01em;
+  }
+  .at-field-hint b { color: var(--ink-2); font-weight: 700; }
+
+  .at-r-preview {
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: rgba(255,255,255,.02);
+    border: 1px solid var(--line-soft);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .at-r-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .at-r-head-label {
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 9.5px;
+    font-weight: 700;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+  .at-r-targets {
+    display: inline-flex;
+    gap: 2px;
+    padding: 2px;
+    border-radius: 8px;
+    background: rgba(0,0,0,.3);
+    border: 1px solid rgba(255,255,255,.06);
+  }
+  .at-r-target {
+    padding: 3px 8px;
+    border-radius: 5px;
+    border: none;
+    background: transparent;
+    color: var(--ink-2);
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 10.5px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .15s;
+    white-space: nowrap;
+  }
+  .at-r-target:hover:not(.is-active) {
+    color: var(--ink-1);
+    background: rgba(255,255,255,.04);
+  }
+  .at-r-target.is-active {
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    color: #0D1117;
+    font-weight: 700;
+    box-shadow: 0 2px 8px -4px color-mix(in srgb, var(--accent) 60%, transparent);
+  }
+  .at-r-hint {
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: rgba(255,255,255,.015);
+    border: 1px dashed rgba(255,255,255,.1);
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 11px;
+    color: var(--ink-3);
+    line-height: 1.55;
+    text-align: center;
+  }
+  .at-r-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 11.5px;
+  }
+  .at-r-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+  }
+  .at-r-label {
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 9.5px;
+    font-weight: 700;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+  .at-r-badge {
+    padding: 3px 10px;
+    border-radius: 99px;
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 10.5px;
+    font-weight: 700;
+    border: 1px solid;
+    letter-spacing: .04em;
+  }
   .at-error {
     padding: 10px 12px; border-radius: 10px;
     background: rgba(239,68,68,.08);
@@ -283,7 +488,7 @@ function CustomColumnField({ name, config, value, onChange, disabled }) {
         aria-label={name}
         onChange={(e) => onChange(e.target.value)}
       >
-        <option value="">—</option>
+        <option value="">â€”</option>
         {config.options.map((opt) => (
           <option key={opt} value={opt}>{opt}</option>
         ))}
@@ -307,7 +512,7 @@ function CustomColumnField({ name, config, value, onChange, disabled }) {
 }
 
 
-export default function AddTradeModal({ isOpen, onClose, account, trade = null }) {
+export default function AddTradeModal({ isOpen, onClose, account, trade = null, currentR = 1 }) {
   const isEdit = !!trade;
   const isBacktest = account?.type === 'Backtest';
 
@@ -357,8 +562,9 @@ export default function AddTradeModal({ isOpen, onClose, account, trade = null }
         strategyId: trade.strategyId || '',
         mae: trade.mae != null ? String(trade.mae) : '',
         mfe: trade.mfe != null ? String(trade.mfe) : '',
-        sl: isBacktest ? slPointsToDisplay(trade.slPoints, account) : '',
+        sl: isBacktest ? slPointsToDisplay(trade.slPoints) : '',
         entryPrice: trade.entryPrice != null ? String(trade.entryPrice) : '',
+        exitPrice: trade.exitPrice != null ? String(trade.exitPrice) : '',
         takeProfit: trade.takeProfit != null ? String(trade.takeProfit) : '',
         stopLoss: trade.stopLoss != null ? String(trade.stopLoss) : '',
         pnl: trade.pnl != null ? String(trade.pnl) : '',
@@ -370,13 +576,13 @@ export default function AddTradeModal({ isOpen, onClose, account, trade = null }
       const initialCustom = {};
       customKeys.forEach((k) => {
         const v = trade.dynamic?.[k];
-        initialCustom[k] = v != null && v !== '—' ? String(v) : '';
+        initialCustom[k] = v != null && v !== 'â€”' ? String(v) : '';
       });
       setCustom(initialCustom);
     } else {
       setForm({
         ...EMPTY,
-        sl: isBacktest && account?.slValue != null ? String(account.slValue) : '',
+        sl: '',
       });
       const initialCustom = {};
       customKeys.forEach((k) => { initialCustom[k] = ''; });
@@ -411,9 +617,9 @@ export default function AddTradeModal({ isOpen, onClose, account, trade = null }
     if (isBacktest) {
       if (form.mae === '' || Number.isNaN(Number(form.mae))) return 'MAE is required.';
       if (form.mfe === '' || Number.isNaN(Number(form.mfe))) return 'MFE is required.';
-      const pts = resolveSlPoints(form.sl, account);
+      const pts = resolveSLPoints(form.sl);
       if (pts == null) {
-        return 'This Backtest account needs an SL value (or set a default in the account).';
+        return 'SL is required for every Backtest trade (in points).';
       }
     } else {
       if (form.pnl === '' || Number.isNaN(Number(form.pnl))) {
@@ -450,12 +656,15 @@ export default function AddTradeModal({ isOpen, onClose, account, trade = null }
           ...base,
           mae: Number(form.mae),
           mfe: Number(form.mfe),
-          slPoints: resolveSlPoints(form.sl, account),
+          slPoints: resolveSLPoints(form.sl),
+          exitPrice: null,
+          pnl: 0,
           commission: commissionValue,
         }
       : {
           ...base,
           entryPrice: form.entryPrice === '' ? null : Number(form.entryPrice),
+          exitPrice: form.exitPrice === '' ? null : Number(form.exitPrice),
           takeProfit: form.takeProfit === '' ? null : Number(form.takeProfit),
           stopLoss: form.stopLoss === '' ? null : Number(form.stopLoss),
           commission: commissionValue,
@@ -476,8 +685,6 @@ export default function AddTradeModal({ isOpen, onClose, account, trade = null }
       setError(err?.message || `Could not ${isEdit ? 'update' : 'save'} trade.`);
     }
   };
-
-  const slUnitLabel = account?.slUnit === 'ticks' ? 'ticks' : 'points';
   const showStrategyPicker = availableStrategies.length > 0;
 
   return (
@@ -516,7 +723,6 @@ export default function AddTradeModal({ isOpen, onClose, account, trade = null }
 
               {error && <div className="at-error">{error}</div>}
 
-              {}
               <div className="at-section">
                 <span className="at-section-title">Execution</span>
 
@@ -577,7 +783,7 @@ export default function AddTradeModal({ isOpen, onClose, account, trade = null }
                       id="at-symbol"
                       value={form.symbol}
                       onChange={(code) => set('symbol', code)}
-                      placeholder="Select symbol…"
+                      placeholder="Select symbol..."
                       disabled={saving}
                     />
                   </div>
@@ -595,7 +801,7 @@ export default function AddTradeModal({ isOpen, onClose, account, trade = null }
                       onChange={(e) => set('strategyId', e.target.value)}
                       disabled={saving}
                     >
-                      <option value="">— None —</option>
+                      <option value="">-- None --</option>
                       {availableStrategies.map((s) => (
                         <option key={s.id} value={s.id}>
                           {s.name}
@@ -608,13 +814,29 @@ export default function AddTradeModal({ isOpen, onClose, account, trade = null }
                 )}
               </div>
 
-              {}
               <div className="at-section">
                 <span className="at-section-title">Outcome</span>
 
                 {isBacktest ? (
                   <>
-                    <div className="at-grid-3">
+                    <div>
+                      <label className="at-label">SL (points)<span className="req">*</span></label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        className="at-input"
+                        placeholder="e.g. 12.5"
+                        value={form.sl}
+                        onChange={(e) => set('sl', e.target.value)}
+                        disabled={saving}
+                      />
+                      <p className="at-field-hint">
+                        Distance to the stop in <b>index points</b>. 1 tick = 0.25 pts on NQ/ES. This defines 1R.
+                      </p>
+                    </div>
+
+                    <div className="at-grid-2">
                       <div>
                         <label className="at-label">MAE<span className="req">*</span></label>
                         <input
@@ -643,23 +865,6 @@ export default function AddTradeModal({ isOpen, onClose, account, trade = null }
                           required
                         />
                       </div>
-                      <div>
-                        <label className="at-label">SL ({slUnitLabel})<span className="req">*</span></label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          className="at-input"
-                          placeholder={
-                            account.slValue != null
-                              ? `default ${account.slValue}`
-                              : 'required'
-                          }
-                          value={form.sl}
-                          onChange={(e) => set('sl', e.target.value)}
-                          disabled={saving}
-                        />
-                      </div>
                     </div>
 
                     <div className="at-grid-2">
@@ -678,39 +883,28 @@ export default function AddTradeModal({ isOpen, onClose, account, trade = null }
                         />
                       </div>
                       <div>
-                        <label className="at-label">P&amp;L</label>
+                        <label className="at-label">
+                          Commission
+                          <span className="opt">optional</span>
+                        </label>
                         <input
                           type="number"
                           step="0.01"
+                          min="0"
                           className="at-input"
                           placeholder="0.00"
-                          value={form.pnl}
-                          onChange={(e) => set('pnl', e.target.value)}
+                          value={form.commission}
+                          onChange={(e) => set('commission', e.target.value)}
                           disabled={saving}
                         />
                       </div>
                     </div>
 
-                    <div>
-                      <label className="at-label">
-                        Commission
-                        <span className="opt">optional</span>
-                      </label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        className="at-input"
-                        placeholder="0.00"
-                        value={form.commission}
-                        onChange={(e) => set('commission', e.target.value)}
-                        disabled={saving}
-                      />
-                    </div>
+                    <RPreview form={form} initialR={currentR} />
                   </>
                 ) : (
                   <>
-                    <div className="at-grid-3">
+                    <div className="at-grid-2">
                       <div>
                         <label className="at-label">Entry Price</label>
                         <input
@@ -720,6 +914,33 @@ export default function AddTradeModal({ isOpen, onClose, account, trade = null }
                           placeholder="0.00"
                           value={form.entryPrice}
                           onChange={(e) => set('entryPrice', e.target.value)}
+                          disabled={saving}
+                        />
+                      </div>
+                      <div>
+                        <label className="at-label">Exit Price</label>
+                        <input
+                          type="number"
+                          step="any"
+                          className="at-input"
+                          placeholder="0.00"
+                          value={form.exitPrice}
+                          onChange={(e) => set('exitPrice', e.target.value)}
+                          disabled={saving}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="at-grid-2">
+                      <div>
+                        <label className="at-label">Stop Loss</label>
+                        <input
+                          type="number"
+                          step="any"
+                          className="at-input"
+                          placeholder="0.00"
+                          value={form.stopLoss}
+                          onChange={(e) => set('stopLoss', e.target.value)}
                           disabled={saving}
                         />
                       </div>
@@ -735,34 +956,9 @@ export default function AddTradeModal({ isOpen, onClose, account, trade = null }
                           disabled={saving}
                         />
                       </div>
-                      <div>
-                        <label className="at-label">Stop Loss</label>
-                        <input
-                          type="number"
-                          step="any"
-                          className="at-input"
-                          placeholder="0.00"
-                          value={form.stopLoss}
-                          onChange={(e) => set('stopLoss', e.target.value)}
-                          disabled={saving}
-                        />
-                      </div>
                     </div>
 
                     <div className="at-grid-2">
-                      <div>
-                        <label className="at-label">P&amp;L<span className="req">*</span></label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          className="at-input"
-                          placeholder="0.00"
-                          value={form.pnl}
-                          onChange={(e) => set('pnl', e.target.value)}
-                          disabled={saving}
-                          required
-                        />
-                      </div>
                       <div>
                         <label className="at-label">Quantity<span className="req">*</span></label>
                         <input
@@ -777,7 +973,22 @@ export default function AddTradeModal({ isOpen, onClose, account, trade = null }
                           required
                         />
                       </div>
+                      <div>
+                        <label className="at-label">P&amp;L<span className="req">*</span></label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          className="at-input"
+                          placeholder="0.00"
+                          value={form.pnl}
+                          onChange={(e) => set('pnl', e.target.value)}
+                          disabled={saving}
+                          required
+                        />
+                      </div>
                     </div>
+
+                    <PnlHint form={form} setForm={setForm} />
 
                     <div>
                       <label className="at-label">
@@ -803,7 +1014,7 @@ export default function AddTradeModal({ isOpen, onClose, account, trade = null }
                 <label className="at-label">Notes</label>
                 <textarea
                   className="at-textarea"
-                  placeholder="Optional — trade context, lessons learned…"
+                  placeholder="Optional - trade context, lessons learned..."
                   value={form.notes}
                   onChange={(e) => set('notes', e.target.value)}
                   disabled={saving}
@@ -849,7 +1060,7 @@ export default function AddTradeModal({ isOpen, onClose, account, trade = null }
                 {saving ? (
                   <>
                     <span className="at-spinner" />
-                    <span>{isEdit ? 'Saving…' : 'Adding…'}</span>
+                    <span>{isEdit ? 'Saving...' : 'Adding...'}</span>
                   </>
                 ) : isEdit ? (
                   <>

@@ -9,7 +9,11 @@ export function computeStats(trades, R, accountOrSL) {
   }
 
   const outcomes = trades
-    .map(t => ({ ...t, ...outcomeFor(t, R, accountOrSL) }))
+    .map((t) => {
+      const o = outcomeFor(t, R, accountOrSL);
+      return o ? { ...t, ...o } : null;
+    })
+    .filter(Boolean)
     .sort((a, b) => a.date.localeCompare(b.date) || a.entryMinutes - b.entryMinutes);
 
   const wins = outcomes.filter(o => o.result === 'win');

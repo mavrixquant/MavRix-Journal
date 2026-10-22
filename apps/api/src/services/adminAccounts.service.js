@@ -11,13 +11,6 @@ const serialize = (a) => ({
   balance: a.balance,
   currency: a.currency,
   type: a.type,
-  riskType: a.riskType,
-  riskValue: a.riskValue,
-  riskUnit: a.riskUnit,
-  slValue: a.slValue,
-  slUnit: a.slUnit,
-  commissionMode: a.commissionMode,
-  commissionValue: a.commissionValue,
   createdAt: a.createdAt,
   updatedAt: a.updatedAt,
   user: a.user ? {
@@ -89,12 +82,7 @@ export async function updateAccount(actor, accountId, patch) {
   if (!existing) throw new HttpError(404, 'Account not found');
 
   const data = {};
-  const allowed = [
-    'name', 'balance', 'currency', 'type',
-    'riskType', 'riskValue', 'riskUnit',
-    'slValue', 'slUnit',
-    'commissionMode', 'commissionValue',
-  ];
+  const allowed = ['name', 'balance', 'currency', 'type'];
 
   for (const k of allowed) {
     if (patch[k] !== undefined) data[k] = patch[k];

@@ -1,4 +1,4 @@
-# =====================================================================
+﻿# =====================================================================
 # MAVRIX DEPLOYMENT SCRIPT
 # 1. Nukes the Aiven Database (via Prisma) and reapplies migrations.
 # 2. Merges `dev` into `prod` (making dev changes live) without losing 

@@ -264,7 +264,7 @@ const CSS = `
 `;
 
 function formatTimeWithAMPM(timeStr) {
-  if (!timeStr) return '—';
+  if (!timeStr) return 'â€”';
   if (/^\d{2}:\d{2}/.test(timeStr)) {
     const [h, m] = timeStr.split(':').map(Number);
     const ampm = h >= 12 ? 'PM' : 'AM';
@@ -275,7 +275,7 @@ function formatTimeWithAMPM(timeStr) {
 }
 
 function formatMoney(v, currency = 'USD') {
-  if (v == null || Number.isNaN(Number(v))) return '—';
+  if (v == null || Number.isNaN(Number(v))) return 'â€”';
   const n = Number(v);
   try {
     return new Intl.NumberFormat('en-US', {
@@ -289,19 +289,19 @@ function formatMoney(v, currency = 'USD') {
 }
 
 function formatNum(v, decimals = 2) {
-  if (v == null || Number.isNaN(Number(v))) return '—';
+  if (v == null || Number.isNaN(Number(v))) return 'â€”';
   return Number(v).toFixed(decimals);
 }
 
 function DirText({ value }) {
-  if (!value) return '—';
+  if (!value) return 'â€”';
   const color = value === 'Long' ? '#35C4A1' : '#FF5C5C';
   return <span style={{ color, fontWeight: 600 }}>{value}</span>;
 }
 
 function StrategyCell({ strategy }) {
   if (!strategy) {
-    return <span style={{ color: 'var(--ink-3)' }}>—</span>;
+    return <span style={{ color: 'var(--ink-3)' }}>â€”</span>;
   }
   const color = strategy.color || '#8892A3';
   return (
@@ -334,7 +334,7 @@ function buildColumns(dynamicKeys, currency, isBacktest, { onEdit, onDelete }) {
       header: 'Date',
       meta: { label: 'Date' },
       size: 110,
-      cell: (ctx) => ctx.getValue() || '—',
+      cell: (ctx) => ctx.getValue() || 'â€”',
     },
     {
       id: 'entry',
@@ -366,7 +366,7 @@ function buildColumns(dynamicKeys, currency, isBacktest, { onEdit, onDelete }) {
       header: 'Symbol',
       meta: { label: 'Symbol' },
       size: 90,
-      cell: (ctx) => ctx.getValue() || '—',
+      cell: (ctx) => ctx.getValue() || 'â€”',
     },
     {
       id: 'strategy',
@@ -414,7 +414,7 @@ function buildColumns(dynamicKeys, currency, isBacktest, { onEdit, onDelete }) {
           size: 110,
           cell: (ctx) => {
             const v = ctx.getValue();
-            return v == null ? '—' : Number(v).toLocaleString('en-US', { maximumFractionDigits: 6 });
+            return v == null ? 'â€”' : Number(v).toLocaleString('en-US', { maximumFractionDigits: 6 });
           },
         },
         {
@@ -425,7 +425,7 @@ function buildColumns(dynamicKeys, currency, isBacktest, { onEdit, onDelete }) {
           size: 110,
           cell: (ctx) => {
             const v = ctx.getValue();
-            return v == null ? '—' : Number(v).toLocaleString('en-US', { maximumFractionDigits: 6 });
+            return v == null ? 'â€”' : Number(v).toLocaleString('en-US', { maximumFractionDigits: 6 });
           },
         },
         {
@@ -433,6 +433,17 @@ function buildColumns(dynamicKeys, currency, isBacktest, { onEdit, onDelete }) {
           accessorKey: 'stopLoss',
           header: 'Stop Loss',
           meta: { label: 'Stop Loss' },
+          size: 110,
+          cell: (ctx) => {
+            const v = ctx.getValue();
+            return v == null ? 'â€”' : Number(v).toLocaleString('en-US', { maximumFractionDigits: 6 });
+          },
+        },
+        {
+          id: 'exitPrice',
+          accessorKey: 'exitPrice',
+          header: 'Exit Price',
+          meta: { label: 'Exit Price' },
           size: 110,
           cell: (ctx) => {
             const v = ctx.getValue();
@@ -462,7 +473,7 @@ function buildColumns(dynamicKeys, currency, isBacktest, { onEdit, onDelete }) {
       size: 110,
       cell: (ctx) => {
         const v = ctx.getValue();
-        if (v == null) return <span style={{ color: 'var(--ink-3)' }}>—</span>;
+        if (v == null) return <span style={{ color: 'var(--ink-3)' }}>â€”</span>;
         return <span style={{ color: '#8892A3' }}>{formatMoney(Number(v), currency)}</span>;
       },
     },
@@ -474,7 +485,7 @@ function buildColumns(dynamicKeys, currency, isBacktest, { onEdit, onDelete }) {
       size: 70,
       cell: (ctx) => {
         const v = ctx.getValue();
-        return v == null ? '—' : String(v);
+        return v == null ? 'â€”' : String(v);
       },
     },
     {
@@ -483,17 +494,17 @@ function buildColumns(dynamicKeys, currency, isBacktest, { onEdit, onDelete }) {
       header: 'Notes',
       meta: { label: 'Notes' },
       size: 200,
-      cell: (ctx) => ctx.getValue() || '—',
+      cell: (ctx) => ctx.getValue() || 'â€”',
     },
   ];
 
   const dynamicCols = dynamicKeys.map((key) => ({
     id: key,
-    accessorFn: (row) => row.dynamic?.[key] ?? '—',
+    accessorFn: (row) => row.dynamic?.[key] ?? 'â€”',
     header: key,
     meta: { label: key },
     size: 130,
-    cell: (ctx) => String(ctx.getValue() ?? '—'),
+    cell: (ctx) => String(ctx.getValue() ?? 'â€”'),
   }));
 
   const actionsCol = {
@@ -534,12 +545,13 @@ function buildColumns(dynamicKeys, currency, isBacktest, { onEdit, onDelete }) {
   return [...common, ...modeSpecific, ...common2, ...dynamicCols, actionsCol];
 }
 
-export default function TradeLogsView({
-  accountId,
-  allowedTypes = [],
-  noAccountsTitle,
-  noAccountsMessage,
-}) {
+
+    param($m)
+    $inner = $m.Groups[1].Value
+    if ($inner -notmatch 'currentR') {
+      $inner + "`r`n  currentR = 1," + $m.Groups[2].Value
+    } else { $m.Value }
+   {
   const { data: accounts = [], isLoading: accountsLoading } = useAccounts();
 
   const [searchParams, setSearchParams] = useSearchParams();
@@ -765,7 +777,7 @@ export default function TradeLogsView({
             getRowId={(row, idx) =>
               row.id ?? `${row.date}-${row.entry}-${idx}`
             }
-            searchPlaceholder={`Search ${isBacktest ? 'tests' : 'trades'}…`}
+            searchPlaceholder={`Search ${isBacktest ? 'tests' : 'trades'}â€¦`}
             searchableColumnIds={searchableIds}
             initialSort={[{ id: 'date', desc: true }]}
             estimateRowHeight={36}
@@ -816,6 +828,7 @@ export default function TradeLogsView({
           onClose={handleAddModalClose}
           account={selectedAccount}
           trade={editingTrade}
+          currentR={currentR}
         />
 
         <ColumnManagerModal

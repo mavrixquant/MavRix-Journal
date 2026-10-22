@@ -60,11 +60,6 @@ export const accountSchema = z.object({
   balance: decimal.nonnegative(),
   currency: z.enum(CURRENCIES),
   type: z.enum(ACCOUNT_TYPES),
-  riskType: z.enum(RISK_TYPES).default('fixed'),
-  riskValue: decimal.nonnegative().nullable().optional(),
-  riskUnit: z.enum(RISK_UNITS).nullable().optional(),
-  slValue: decimal.nonnegative().nullable().optional(),
-  slUnit: z.enum(SL_UNITS).nullable().optional(),
   columnConfigs: columnConfigsSchema,
 });
 
@@ -140,6 +135,7 @@ export const tradeSchema = z.object({
   slPoints: z.number().finite().nonnegative().nullable().optional(),
 
   entryPrice: z.number().finite().nullable().optional(),
+exitPrice: z.number().finite().nullable().optional(),
   takeProfit: z.number().finite().nullable().optional(),
   stopLoss: z.number().finite().nullable().optional(),
 
