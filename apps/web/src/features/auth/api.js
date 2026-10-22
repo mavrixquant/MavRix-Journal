@@ -28,6 +28,9 @@ function normalizeUser(u) {
     hasPassword: !!u.hasPassword,
     role: u.role || 'user',
     isBanned: !!u.isBanned,
+    twoFactorEnabled: !!u.twoFactorEnabled,
+    twoFactorEmailEnabled: !!u.twoFactorEmailEnabled,
+    twoFactorTotpEnabled: !!u.twoFactorTotpEnabled,
   };
 }
 
@@ -45,6 +48,16 @@ export async function login({ identifier, password }) {
     method: 'POST',
     body: JSON.stringify({ identifier, password }),
   });
+
+  if (data.requiresTwoFactor) {
+    return {
+      requiresTwoFactor: true,
+      sessionToken: data.sessionToken,
+      methods: data.methods || [],
+      reason: data.reason || 'login',
+    };
+  }
+
   setAccessToken(data.accessToken);
   return { user: normalizeUser(data.user) };
 }
@@ -66,6 +79,16 @@ export async function refresh() {
       method: 'POST',
       signal: controller.signal,
     });
+
+    if (data.requiresTwoFactor) {
+      return {
+        requiresTwoFactor: true,
+        sessionToken: data.sessionToken,
+        methods: data.methods || [],
+        reason: data.reason || 'reauth',
+      };
+    }
+
     setAccessToken(data.accessToken);
     return { user: normalizeUser(data.user) };
   } catch (err) {
@@ -111,6 +134,16 @@ export async function googleLogin(googleAccessToken) {
     method: 'POST',
     body: JSON.stringify({ accessToken: googleAccessToken }),
   });
+
+  if (data.requiresTwoFactor) {
+    return {
+      requiresTwoFactor: true,
+      sessionToken: data.sessionToken,
+      methods: data.methods || [],
+      reason: data.reason || 'login',
+    };
+  }
+
   setAccessToken(data.accessToken);
   return { user: normalizeUser(data.user) };
 }

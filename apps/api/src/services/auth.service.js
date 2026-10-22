@@ -235,6 +235,21 @@ export async function loginWithGoogle(accessToken) {
   if (byGoogle) {
     assertNotAi(byGoogle);
     assertNotBanned(byGoogle);
+
+    if (byGoogle.twoFactorEnabled) {
+      const sessionToken = signTwoFactorSession({
+        sub: byGoogle.id,
+        purpose: '2fa',
+        sv: byGoogle.tokenVersion ?? 0,
+      });
+      return {
+        requiresTwoFactor: true,
+        sessionToken,
+        methods: enabledMethods(byGoogle),
+        reason: 'login',
+      };
+    }
+
     const updated = await prisma.user.update({
       where: { id: byGoogle.id },
       data: { lastLoginAt: new Date() },
@@ -253,6 +268,21 @@ export async function loginWithGoogle(accessToken) {
         'An account with this email already exists and is not verified. Verify it first or log in with your password.'
       );
     }
+
+    if (byEmail.twoFactorEnabled) {
+      const sessionToken = signTwoFactorSession({
+        sub: byEmail.id,
+        purpose: '2fa',
+        sv: byEmail.tokenVersion ?? 0,
+      });
+      return {
+        requiresTwoFactor: true,
+        sessionToken,
+        methods: enabledMethods(byEmail),
+        reason: 'login',
+      };
+    }
+
     const linked = await prisma.user.update({
       where: { id: byEmail.id },
       data: {

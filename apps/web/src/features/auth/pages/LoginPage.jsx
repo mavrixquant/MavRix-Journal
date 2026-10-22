@@ -49,8 +49,12 @@ export default function Login() {
   const onSubmit = async (data) => {
     setError('');
     try {
-      const user = await login(data);
-      navigate(landingFor(user), { replace: true });
+      const result = await login(data);
+      if (result?.requiresTwoFactor) {
+        navigate('/2fa-verify', { replace: true });
+        return;
+      }
+      navigate(landingFor(result), { replace: true });
     } catch (err) {
       setError(err.message || 'Sign in failed. Please try again.');
     }
@@ -61,8 +65,12 @@ export default function Login() {
     setGoogleLoading(true);
     try {
       const accessToken = await google.signIn();
-      const user = await googleLogin(accessToken);
-      navigate(landingFor(user), { replace: true });
+      const result = await googleLogin(accessToken);
+      if (result?.requiresTwoFactor) {
+        navigate('/2fa-verify', { replace: true });
+        return;
+      }
+      navigate(landingFor(result), { replace: true });
     } catch (err) {
       setError(err.message || 'Google sign-in failed');
     } finally {

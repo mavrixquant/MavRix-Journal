@@ -75,8 +75,12 @@ export default function Signup() {
     setGoogleLoading(true);
     try {
       const accessToken = await google.signIn();
-      const user = await googleLogin(accessToken);
-      navigate(user.emailVerified ? '/journal' : '/verify-email');
+      const result = await googleLogin(accessToken);
+      if (result?.requiresTwoFactor) {
+        navigate('/2fa-verify', { replace: true });
+        return;
+      }
+      navigate(result.emailVerified ? '/journal' : '/verify-email');
     } catch (err) {
       setError(err.message || 'Google sign-up failed');
     } finally {

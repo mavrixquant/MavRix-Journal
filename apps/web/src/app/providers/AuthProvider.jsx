@@ -99,9 +99,17 @@ export function AuthProvider({ children }) {
   }, []);
 
   const googleLogin = useCallback(async (googleAccessToken) => {
-    const { user: u } = await authService.googleLogin(googleAccessToken);
-    setUser(u);
-    return u;
+    const result = await authService.googleLogin(googleAccessToken);
+    if (result.requiresTwoFactor) {
+      setPending2FA({
+        sessionToken: result.sessionToken,
+        methods: result.methods || [],
+        reason: result.reason || 'login',
+      });
+      return result;
+    }
+    setUser(result.user);
+    return result.user;
   }, []);
 
   const verifyTwoFactor = useCallback(
@@ -117,6 +125,10 @@ export function AuthProvider({ children }) {
     },
     [pending2FA]
   );
+
+  const clearTwoFactor = useCallback(() => {
+    setPending2FA(null);
+  }, []);
 
   const logout = useCallback(async () => {
     await authService.logout();
@@ -145,6 +157,7 @@ export function AuthProvider({ children }) {
         login,
         googleLogin,
         verifyTwoFactor,
+        clearTwoFactor,
         logout,
         refreshUser,
       }}

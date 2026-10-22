@@ -86,9 +86,17 @@ export async function googleLogin(req, res, next) {
   try {
     const { accessToken } = req.body;
     if (!accessToken) return res.status(400).json({ error: 'accessToken required' });
-    const { user, accessToken: jwt, refreshToken } = await authService.loginWithGoogle(accessToken);
-    setRefreshCookie(res, refreshToken);
-    res.json({ user, accessToken: jwt });
+    const result = await authService.loginWithGoogle(accessToken);
+    if (result.requiresTwoFactor) {
+      return res.status(200).json({
+        requiresTwoFactor: true,
+        sessionToken: result.sessionToken,
+        methods: result.methods,
+        reason: result.reason,
+      });
+    }
+    setRefreshCookie(res, result.refreshToken);
+    res.json({ user: result.user, accessToken: result.accessToken });
   } catch (e) { next(e); }
 }
 

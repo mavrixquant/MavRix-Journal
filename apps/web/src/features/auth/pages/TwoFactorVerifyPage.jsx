@@ -13,7 +13,7 @@ import { OtpInput } from '@/shared/ui/otp-input';
 
 export default function TwoFactorVerifyPage() {
   const navigate = useNavigate();
-  const { pending2FA, verifyTwoFactor } = useAuth();
+  const { pending2FA, verifyTwoFactor, clearTwoFactor } = useAuth();
 
   const methods = pending2FA?.methods || [];
   const hasTotp  = methods.includes('totp');
@@ -66,6 +66,10 @@ export default function TwoFactorVerifyPage() {
       const user = await verifyTwoFactor({ method, code });
       navigate(landingFor(user), { replace: true });
     } catch (err) {
+      if (err?.status === 401 && /(session|revoked|expired)/i.test(err.message || '')) {
+        clearTwoFactor();
+        return;
+      }
       setError(err?.message || 'Incorrect code');
     } finally {
       setSubmitting(false);
