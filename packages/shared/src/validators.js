@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import {
   ACCOUNT_TYPES, CURRENCIES, RISK_TYPES, RISK_UNITS,
-  SL_UNITS, COMMISSION_MODES, DIRECTIONS,
+  SL_UNITS, DIRECTIONS,
   STRATEGY_STATUSES, STRATEGY_DIRECTIONS, STRATEGY_COLORS,
   GROUP_VISIBILITIES, GROUP_ROLES, GROUP_COLORS,
   GROUP_NAME_MAX, GROUP_DESCRIPTION_MAX, GROUP_ICON_EMOJI_MAX,
@@ -65,8 +65,6 @@ export const accountSchema = z.object({
   riskUnit: z.enum(RISK_UNITS).nullable().optional(),
   slValue: decimal.nonnegative().nullable().optional(),
   slUnit: z.enum(SL_UNITS).nullable().optional(),
-  commissionMode: z.enum(COMMISSION_MODES).default('none'),
-  commissionValue: decimal.nonnegative().nullable().optional(),
   columnConfigs: columnConfigsSchema,
 });
 
@@ -147,6 +145,7 @@ export const tradeSchema = z.object({
 
   pnl: z.number().finite().default(0),
   quantity: z.number().finite().positive().nullable().optional(),
+  commission: z.number().finite().nonnegative().nullable().optional(),
   notes: z.string().max(2000).optional().default(''),
 }).passthrough();
 

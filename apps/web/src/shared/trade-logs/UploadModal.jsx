@@ -42,6 +42,7 @@ const RESERVED_MAP_BACKTEST = {
   'Stop Loss': 'sl',
   'P&L': 'pnl',
   'Quantity': 'quantity',
+  'Commission': 'commission',
   'Notes': 'notes',
 };
 
@@ -57,6 +58,7 @@ const RESERVED_MAP_JOURNAL = {
   'Stop Loss': 'stopLoss',
   'P&L': 'pnl',
   'Quantity': 'quantity',
+  'Commission': 'commission',
   'Notes': 'notes',
 };
 
@@ -222,6 +224,9 @@ function parseFile(workbook, account, existingTrades, strategies) {
       trade.mfe = mfeOk ? mfeNum : null;
       trade.pnl = (trade.pnl !== undefined && trade.pnl !== '') ? (parseFloat(trade.pnl) || 0) : 0;
 
+      const backtestComm = trade.commission === '' || trade.commission == null ? null : Number(trade.commission);
+      trade.commission = Number.isFinite(backtestComm) && backtestComm >= 0 ? backtestComm : null;
+
       const slPoints = resolveSLPoints(trade.sl, account);
       if (slPoints === null) missingSlRows.push(excelRowNum);
       trade.slPoints = slPoints;
@@ -235,6 +240,9 @@ function parseFile(workbook, account, existingTrades, strategies) {
         invalidPnlRows.push(excelRowNum);
       }
       trade.pnl = (trade.pnl !== undefined && trade.pnl !== '') ? (parseFloat(trade.pnl) || 0) : 0;
+
+      const journalComm = trade.commission === '' || trade.commission == null ? null : Number(trade.commission);
+      trade.commission = Number.isFinite(journalComm) && journalComm >= 0 ? journalComm : null;
 
       const ep = trade.entryPrice === '' || trade.entryPrice == null ? null : Number(trade.entryPrice);
       const tp = trade.takeProfit === '' || trade.takeProfit == null ? null : Number(trade.takeProfit);
@@ -1508,6 +1516,7 @@ export default function UploadModal({
                   <br />
                   Optional:
                   <span className="req-list">Strategy</span>
+                  <span className="req-list">Commission</span>
                   {!isBacktest && (
                     <>
                       <span className="req-list">Entry Price</span>

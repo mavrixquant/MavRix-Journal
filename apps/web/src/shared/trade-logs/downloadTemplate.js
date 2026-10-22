@@ -1,3 +1,9 @@
+// ============================================================================
+// Excel template generator for trade logs.
+//
+// Both templates include an optional `Commission` column. Blank = no
+// commission. If filled, net P&L = pnl − commission on the dashboard.
+// ============================================================================
 
 import * as XLSX from 'xlsx';
 
@@ -18,6 +24,7 @@ function buildBacktestHeaders() {
     'SL',
     'P&L',
     'Quantity',
+    'Commission',
     'Notes',
   ];
 }
@@ -35,6 +42,7 @@ function buildBacktestSampleRow(account) {
     account?.slValue ?? 12.5,
     125.5,
     2,
+    2.5,
     'Breakout above VWAP',
   ];
 }
@@ -52,6 +60,7 @@ function buildJournalHeaders() {
     'Stop Loss',
     'P&L',
     'Quantity',
+    'Commission',
     'Notes',
   ];
 }
@@ -69,6 +78,7 @@ function buildJournalSampleRow() {
     20120.0,
     125.5,
     2,
+    2.5,
     'Breakout above VWAP',
   ];
 }

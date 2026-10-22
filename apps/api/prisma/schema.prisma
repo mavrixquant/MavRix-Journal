@@ -95,8 +95,6 @@ model Account {
   riskUnit        String?
   slValue         Float?
   slUnit          String?
-  commissionMode  String   @default("none")
-  commissionValue Float?
   columnConfigs   Json     @default("{}")
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -127,8 +125,9 @@ model Trade {
   takeProfit Float?
   stopLoss   Float?
 
-  pnl       Float    @default(0)
-  quantity  Float?
+  pnl        Float    @default(0)
+  quantity   Float?
+  commission Float?
   notes     String   @default("")
   dynamic   Json     @default("{}")
   createdAt DateTime @default(now())

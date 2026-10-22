@@ -35,6 +35,7 @@ const STANDARD_KEYS = new Set([
 
   'pnl',
   'quantity',
+  'commission',
   'notes',
 
   'commission',
@@ -80,6 +81,10 @@ export function enrichTradesFromDB(rawTrades) {
       : null;
     const quantity = trade.quantity !== undefined && trade.quantity !== null
       ? Number(trade.quantity)
+      : null;
+
+    const commission = trade.commission !== undefined && trade.commission !== null
+      ? Number(trade.commission)
       : null;
 
     const entryPrice = trade.entryPrice !== undefined && trade.entryPrice !== null
@@ -128,6 +133,7 @@ export function enrichTradesFromDB(rawTrades) {
       stopLoss,
 
       quantity,
+      commission,
 
       dow: dateObj.getDay(),
       dowName: DOW_NAMES[dateObj.getDay()],

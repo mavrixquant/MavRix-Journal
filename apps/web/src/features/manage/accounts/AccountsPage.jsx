@@ -11,7 +11,6 @@ import {
   FaExchangeAlt,
   FaFolderOpen,
   FaFilter,
-  FaCoins,
 } from 'react-icons/fa';
 import { useQueries } from '@tanstack/react-query';
 
@@ -74,17 +73,6 @@ function formatSlDefault(account) {
   if (account.slValue === undefined || account.slValue === null) return null;
   const unit = account.slUnit === 'ticks' ? ' ticks' : ' pts';
   return `${account.slValue}${unit}`;
-}
-
-function formatCommission(account) {
-  const mode = account.commissionMode || 'none';
-  if (mode === 'none') return 'None';
-  const val = account.commissionValue;
-  if (val === undefined || val === null) return 'None';
-  const sym = getCurrencySymbol(account.currency);
-  if (mode === 'flat') return `${sym}${val} flat`;
-  if (mode === 'per_contract') return `${sym}${val}/contract`;
-  return 'None';
 }
 
 export default function AccountsPage() {
@@ -356,37 +344,7 @@ export default function AccountsPage() {
 
                   {}
                   <div className="acc-settings">
-                    <div className="acc-setting">
-                      <span className="acc-setting-icon"><FaShieldAlt /></span>
-                      <div className="acc-setting-text">
-                        <span className="acc-setting-label">Risk Model</span>
-                        <span className="acc-setting-value" style={{ textTransform: 'capitalize' }}>
-                          {acc.riskType || '—'} <span className="dim">({formatRiskValue(acc)})</span>
-                        </span>
-                      </div>
-                    </div>
-
-                    {acc.type === 'Backtest' && (
-                      <div className="acc-setting">
-                        <span className="acc-setting-icon"><FaSlidersH /></span>
-                        <div className="acc-setting-text">
-                          <span className="acc-setting-label">SL Column</span>
-                          <span className="acc-setting-value">
-                            {formatSlUnit(acc)}
-                            {slDefault && <span className="dim"> · default {slDefault}</span>}
-                          </span>
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="acc-setting">
-                      <span className="acc-setting-icon"><FaCoins /></span>
-                      <div className="acc-setting-text">
-                        <span className="acc-setting-label">Commission</span>
-                        <span className="acc-setting-value">{formatCommission(acc)}</span>
-                      </div>
-                    </div>
-                  </div>
+                                      </div>
 
                   {}
                   <div className="acc-account-footer">

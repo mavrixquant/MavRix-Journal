@@ -21,6 +21,7 @@ const RESERVED = new Set([
 
   'pnl',
   'quantity',
+  'commission',
   'notes',
 ]);
 
@@ -74,6 +75,7 @@ function serialize(t) {
     stopLoss: t.stopLoss,
     pnl: t.pnl,
     quantity: t.quantity,
+    commission: t.commission,
     notes: t.notes,
     ...dyn,
     createdAt: t.createdAt,

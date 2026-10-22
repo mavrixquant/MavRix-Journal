@@ -43,9 +43,6 @@ export default function AccountFormModal({ isOpen, account, onClose }) {
   const [slValue, setSlValue] = useState('');
   const [slUnit, setSlUnit] = useState('ticks');
 
-  const [commissionMode, setCommissionMode] = useState('none');
-  const [commissionValue, setCommissionValue] = useState('');
-
   useEffect(() => {
     if (!isOpen) return;
 
@@ -69,12 +66,6 @@ export default function AccountFormModal({ isOpen, account, onClose }) {
           : ''
       );
       setSlUnit(account.slUnit || 'ticks');
-      setCommissionMode(account.commissionMode || 'none');
-      setCommissionValue(
-        account.commissionValue !== undefined && account.commissionValue !== null
-          ? account.commissionValue
-          : ''
-      );
     } else {
       setFormData(EMPTY_FORM);
       setRiskType('fixed');
@@ -82,8 +73,6 @@ export default function AccountFormModal({ isOpen, account, onClose }) {
       setRiskUnit('percent');
       setSlValue('');
       setSlUnit('ticks');
-      setCommissionMode('none');
-      setCommissionValue('');
     }
   }, [isOpen, account]);
 
@@ -102,10 +91,6 @@ export default function AccountFormModal({ isOpen, account, onClose }) {
     const parsedSl = slValue === '' ? null : parseFloat(slValue);
     const hasSl = parsedSl !== null && !isNaN(parsedSl) && parsedSl > 0;
 
-    const parsedCommission = commissionValue === '' ? null : parseFloat(commissionValue);
-    const hasCommission =
-      parsedCommission !== null && !isNaN(parsedCommission) && parsedCommission >= 0;
-
     const accountData = {
       name: name.trim(),
       balance: parseFloat(balance),
@@ -116,9 +101,6 @@ export default function AccountFormModal({ isOpen, account, onClose }) {
       riskUnit: riskType === 'fixed' ? riskUnit : null,
       slUnit: type === 'Backtest' ? slUnit : null,
       slValue: type === 'Backtest' && hasSl ? parsedSl : null,
-      commissionMode: commissionMode,
-      commissionValue:
-        commissionMode !== 'none' && hasCommission ? parsedCommission : null,
     };
 
     try {
@@ -171,7 +153,6 @@ export default function AccountFormModal({ isOpen, account, onClose }) {
           >
             <div className="acc-modal-body">
 
-              {}
               <div>
                 <label className="acc-label">Account Name</label>
                 <input
@@ -185,7 +166,6 @@ export default function AccountFormModal({ isOpen, account, onClose }) {
                 />
               </div>
 
-              {}
               <div className="acc-grid-3">
                 <div>
                   <label className="acc-label">Balance</label>
@@ -229,7 +209,6 @@ export default function AccountFormModal({ isOpen, account, onClose }) {
                 </div>
               </div>
 
-              {}
               <div className="acc-field-group">
                 <span className="acc-field-group-title">Risk Strategy</span>
 
@@ -286,7 +265,6 @@ export default function AccountFormModal({ isOpen, account, onClose }) {
                 )}
               </div>
 
-              {}
               {formData.type === 'Backtest' && (
                 <div className="acc-field-group">
                   <span className="acc-field-group-title">Stop Loss Settings</span>
@@ -325,63 +303,6 @@ export default function AccountFormModal({ isOpen, account, onClose }) {
                   </p>
                 </div>
               )}
-
-              {}
-              <div className="acc-field-group">
-                <span className="acc-field-group-title">Commission</span>
-
-                <div className={commissionMode === 'none' ? '' : 'acc-grid-2'}>
-                  <div>
-                    <label className="acc-label">Mode</label>
-                    <select
-                      value={commissionMode}
-                      onChange={(e) => setCommissionMode(e.target.value)}
-                      className="acc-input"
-                    >
-                      <option value="none">None</option>
-                      <option value="flat">Flat per trade</option>
-                      <option value="per_contract">Per contract</option>
-                    </select>
-                  </div>
-
-                  {commissionMode !== 'none' && (
-                    <div>
-                      <label className="acc-label">
-                        {commissionMode === 'per_contract' ? 'Per Contract' : 'Per Trade'}
-                      </label>
-                      <div className="acc-input-wrap">
-                        <input
-                          type="number"
-                          value={commissionValue}
-                          onChange={(e) => setCommissionValue(e.target.value)}
-                          min="0"
-                          step="0.01"
-                          className="acc-input has-suffix"
-                          placeholder="0.00"
-                        />
-                        <span className="acc-input-suffix">{currencySymbol}</span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {commissionMode === 'per_contract' && (
-                  <p className="acc-hint">
-                    ℹ Your Excel must include a <b>Contracts</b> column.
-                    Commission per trade = value × contracts.
-                  </p>
-                )}
-                {commissionMode === 'flat' && (
-                  <p className="acc-hint">
-                    ℹ Same amount charged on every trade.
-                  </p>
-                )}
-                {commissionMode === 'none' && (
-                  <p className="acc-hint">
-                    ℹ No fees — net P&L will equal gross P&L.
-                  </p>
-                )}
-              </div>
 
             </div>
 

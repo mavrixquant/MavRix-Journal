@@ -455,6 +455,18 @@ function buildColumns(dynamicKeys, currency, isBacktest, { onEdit, onDelete }) {
       },
     },
     {
+      id: 'commission',
+      accessorKey: 'commission',
+      header: 'Commission',
+      meta: { label: 'Commission' },
+      size: 110,
+      cell: (ctx) => {
+        const v = ctx.getValue();
+        if (v == null) return <span style={{ color: 'var(--ink-3)' }}>—</span>;
+        return <span style={{ color: '#8892A3' }}>{formatMoney(Number(v), currency)}</span>;
+      },
+    },
+    {
       id: 'quantity',
       accessorKey: 'quantity',
       header: 'Qty',

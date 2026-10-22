@@ -13,8 +13,6 @@ const serialize = (a) => ({
   riskUnit: a.riskUnit,
   slValue: a.slValue,
   slUnit: a.slUnit,
-  commissionMode: a.commissionMode,
-  commissionValue: a.commissionValue,
   columnConfigs: a.columnConfigs ?? {},
   createdAt: a.createdAt,
   updatedAt: a.updatedAt,

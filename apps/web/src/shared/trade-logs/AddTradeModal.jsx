@@ -52,6 +52,7 @@ const EMPTY = {
   stopLoss: '',
   pnl: '',
   quantity: '',
+  commission: '',
   notes: '',
 };
 
@@ -362,6 +363,7 @@ export default function AddTradeModal({ isOpen, onClose, account, trade = null }
         stopLoss: trade.stopLoss != null ? String(trade.stopLoss) : '',
         pnl: trade.pnl != null ? String(trade.pnl) : '',
         quantity: trade.quantity != null ? String(trade.quantity) : '',
+        commission: trade.commission != null ? String(trade.commission) : '',
         notes: trade.notes || '',
       });
 
@@ -439,6 +441,9 @@ export default function AddTradeModal({ isOpen, onClose, account, trade = null }
       quantity: Number(form.quantity),
       notes: form.notes.trim(),
     };
+    const parsedCommission = form.commission === '' ? null : Number(form.commission);
+    const commissionValue = Number.isFinite(parsedCommission) && parsedCommission >= 0 ? parsedCommission : null;
+
 
     const payload = isBacktest
       ? {
@@ -446,12 +451,14 @@ export default function AddTradeModal({ isOpen, onClose, account, trade = null }
           mae: Number(form.mae),
           mfe: Number(form.mfe),
           slPoints: resolveSlPoints(form.sl, account),
+          commission: commissionValue,
         }
       : {
           ...base,
           entryPrice: form.entryPrice === '' ? null : Number(form.entryPrice),
           takeProfit: form.takeProfit === '' ? null : Number(form.takeProfit),
           stopLoss: form.stopLoss === '' ? null : Number(form.stopLoss),
+          commission: commissionValue,
         };
 
     Object.entries(custom).forEach(([k, v]) => {
@@ -683,6 +690,23 @@ export default function AddTradeModal({ isOpen, onClose, account, trade = null }
                         />
                       </div>
                     </div>
+
+                    <div>
+                      <label className="at-label">
+                        Commission
+                        <span className="opt">optional</span>
+                      </label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        className="at-input"
+                        placeholder="0.00"
+                        value={form.commission}
+                        onChange={(e) => set('commission', e.target.value)}
+                        disabled={saving}
+                      />
+                    </div>
                   </>
                 ) : (
                   <>
@@ -753,6 +777,23 @@ export default function AddTradeModal({ isOpen, onClose, account, trade = null }
                           required
                         />
                       </div>
+                    </div>
+
+                    <div>
+                      <label className="at-label">
+                        Commission
+                        <span className="opt">optional</span>
+                      </label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        className="at-input"
+                        placeholder="0.00"
+                        value={form.commission}
+                        onChange={(e) => set('commission', e.target.value)}
+                        disabled={saving}
+                      />
                     </div>
                   </>
                 )}

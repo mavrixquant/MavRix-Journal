@@ -75,8 +75,6 @@ const accountUpdateSchema = z.object({
   riskUnit: z.enum(['percent', 'amount']).nullable().optional(),
   slValue: z.number().finite().nonnegative().nullable().optional(),
   slUnit: z.enum(['ticks', 'points']).nullable().optional(),
-  commissionMode: z.enum(['none', 'flat', 'per_contract']).optional(),
-  commissionValue: z.number().finite().nonnegative().nullable().optional(),
 });
 
 const reassignSchema = z.object({

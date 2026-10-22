@@ -1,4 +1,10 @@
-
+// ============================================================================
+// SL / metric helpers.
+//
+// Commission is now a per-trade field (optional). Net P&L = pnl − commission.
+// Backtest accounts keep R-mode scoring; commission is stored for reference
+// but does not affect the R metric.
+// ============================================================================
 
 export const TICKS_PER_POINT = 4;
 export const FALLBACK_SL_POINTS = 12.5;
@@ -40,24 +46,24 @@ export function getTradeSL(trade, accountOrSL) {
   return FALLBACK_SL_POINTS;
 }
 
-export function getTradeCommission(trade, accountOrSL) {
-  const acc = normalizeAccount(accountOrSL);
-  const mode = acc?.commissionMode || 'none';
-  if (mode === 'none') return 0;
-  const value = Number(acc?.commissionValue) || 0;
-  if (value <= 0) return 0;
-  if (mode === 'flat') return value;
-  if (mode === 'per_contract') {
-    const q = Number(trade?.quantity);
-    if (!q || q <= 0) return 0;
-    return value * q;
-  }
-  return 0;
+/**
+ * Commission on a trade. Returns 0 if not provided.
+ * Accepts and ignores a second arg for backward-compat with old call sites
+ * that used to pass the account object.
+ */
+export function getTradeCommission(trade, _accountOrSL) {
+  const raw = Number(trade?.commission);
+  if (!Number.isFinite(raw) || raw <= 0) return 0;
+  return raw;
 }
 
-export function getTradeNetPnl(trade, accountOrSL) {
+/**
+ * Net P&L = gross pnl − commission.
+ * Only meaningful in $ mode (Live / Demo). R mode ignores this for scoring.
+ */
+export function getTradeNetPnl(trade, _accountOrSL) {
   const gross = Number(trade?.pnl) || 0;
-  const comm = getTradeCommission(trade, accountOrSL);
+  const comm = getTradeCommission(trade);
   return +(gross - comm).toFixed(4);
 }
 
