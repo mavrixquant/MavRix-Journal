@@ -728,7 +728,7 @@ h1 {
     gap: 6px;
 }
 .ms-btn:after {
-    content: 'â–¾';
+    content: '▾';
     font-size: 9px;
     color: var(--text-faint);
 }

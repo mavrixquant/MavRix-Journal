@@ -4,7 +4,7 @@ import { useStats } from '@/features/dashboard/hooks/useStats';
 import DataTable from '@/shared/ui/data-table';
 
 function formatTimeWithAMPM(timeStr) {
-  if (!timeStr) return 'Ã¢â‚¬â€';
+  if (!timeStr) return '—';
   if (/^\d{2}:\d{2}/.test(timeStr)) {
     const [hours, minutes] = timeStr.split(':').map(Number);
     const ampm = hours >= 12 ? 'PM' : 'AM';
@@ -15,21 +15,21 @@ function formatTimeWithAMPM(timeStr) {
 }
 
 function formatMoney(v) {
-  if (v == null || Number.isNaN(Number(v))) return 'Ã¢â‚¬â€';
+  if (v == null || Number.isNaN(Number(v))) return '—';
   const n = Number(v);
   const sign = n < 0 ? '-' : '+';
   return `${sign}$${Math.abs(n).toFixed(2)}`;
 }
 
 function ResultTag({ value }) {
-  if (!value) return 'Ã¢â‚¬â€';
+  if (!value) return '—';
   const cls =
     value === 'win' ? 'dt-tag-win' : value === 'loss' ? 'dt-tag-loss' : 'dt-tag-be';
   return <span className={`dt-tag ${cls}`}>{String(value).toUpperCase()}</span>;
 }
 
 function DirText({ value }) {
-  if (!value) return 'Ã¢â‚¬â€';
+  if (!value) return '—';
   const color = value === 'Long' ? '#35C4A1' : '#FF5C5C';
   return <span style={{ color, fontWeight: 600 }}>{value}</span>;
 }
@@ -42,7 +42,7 @@ function buildColumns(dynamicKeys, isMoney) {
       header: 'Date',
       meta: { label: 'Date' },
       size: 110,
-      cell: (ctx) => ctx.getValue() || 'Ã¢â‚¬â€',
+      cell: (ctx) => ctx.getValue() || '—',
     },
     {
       id: 'entry',
@@ -114,7 +114,7 @@ function buildColumns(dynamicKeys, isMoney) {
       size: 90,
       cell: (ctx) => {
         const v = ctx.getValue();
-        if (v == null) return 'Ã¢â‚¬â€';
+        if (v == null) return '—';
         return `${Number(v).toFixed(2)}R`;
       },
     });
@@ -131,11 +131,11 @@ function buildColumns(dynamicKeys, isMoney) {
 
   const dynamicCols = dynamicKeys.map((key) => ({
     id: key,
-    accessorFn: (row) => row.dynamic?.[key] ?? 'Ã¢â‚¬â€',
+    accessorFn: (row) => row.dynamic?.[key] ?? '—',
     header: key,
     meta: { label: key },
     size: 120,
-    cell: (ctx) => String(ctx.getValue() ?? 'Ã¢â‚¬â€'),
+    cell: (ctx) => String(ctx.getValue() ?? '—'),
   }));
 
   return [...base, ...dynamicCols];
@@ -182,7 +182,7 @@ export default function TradeTable() {
       data={outcomes}
       columns={columns}
       getRowId={(row, idx) => row.id ?? `${row.date}-${row.entry}-${idx}`}
-      searchPlaceholder="Search tradesÃ¢â‚¬Â¦"
+      searchPlaceholder="Search trades…"
       searchableColumnIds={searchableIds}
       initialSort={[{ id: 'date', desc: true }]}
       estimateRowHeight={36}

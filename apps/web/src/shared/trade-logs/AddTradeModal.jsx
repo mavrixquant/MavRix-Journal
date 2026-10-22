@@ -488,7 +488,7 @@ function CustomColumnField({ name, config, value, onChange, disabled }) {
         aria-label={name}
         onChange={(e) => onChange(e.target.value)}
       >
-        <option value="">â€”</option>
+        <option value="">—</option>
         {config.options.map((opt) => (
           <option key={opt} value={opt}>{opt}</option>
         ))}
@@ -576,7 +576,7 @@ export default function AddTradeModal({ isOpen, onClose, account, trade = null, 
       const initialCustom = {};
       customKeys.forEach((k) => {
         const v = trade.dynamic?.[k];
-        initialCustom[k] = v != null && v !== 'â€”' ? String(v) : '';
+        initialCustom[k] = v != null && v !== '—' ? String(v) : '';
       });
       setCustom(initialCustom);
     } else {

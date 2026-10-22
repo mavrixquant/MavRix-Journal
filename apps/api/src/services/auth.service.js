@@ -487,8 +487,8 @@ export async function setUsername(userId, username) {
 // ---------------------------------------------------------------------------
 // Password management (Set / Change).
 //
-// setPassword    Ã¢â‚¬â€ only allowed if the user has NO password yet (Google signup).
-// changePassword Ã¢â‚¬â€ requires verifying the current password first.
+// setPassword    — only allowed if the user has NO password yet (Google signup).
+// changePassword — requires verifying the current password first.
 //
 // Both bump tokenVersion so every existing refresh token becomes invalid;
 // we return FRESH tokens so the CALLING session stays logged in.

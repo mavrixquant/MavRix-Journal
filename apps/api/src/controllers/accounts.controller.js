@@ -1,4 +1,4 @@
-﻿import * as accountsService from '../services/accounts.service.js';
+import * as accountsService from '../services/accounts.service.js';
 
 export async function list(req, res, next) {
   try {

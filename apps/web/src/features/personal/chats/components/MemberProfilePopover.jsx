@@ -149,7 +149,7 @@ export default function MemberProfilePopover({
               <div className="mpp-name">{displayNameOf(peer)}</div>
               <div className="mpp-email">
                 <Mail size={10} />
-                <span>{peer.username ? '@' + peer.username : 'â€”'}</span>
+                <span>{peer.username ? '@' + peer.username : '—'}</span>
               </div>
             </div>
             {roleMeta && (

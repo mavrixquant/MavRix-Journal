@@ -413,10 +413,10 @@ model AiCredential {
 }
 
 // ---------------------------------------------------------------------------
-// BugReport â€” in-app bug reports.
+// BugReport — in-app bug reports.
 //
 // The report itself is stored here for admin review; an optional screenshot
-// is NEVER persisted â€” it is attached only to the email that goes out to
+// is NEVER persisted — it is attached only to the email that goes out to
 // SUPPORT_EMAIL. Text only lives here.
 // ---------------------------------------------------------------------------
 model BugReport {

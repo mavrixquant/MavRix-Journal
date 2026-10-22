@@ -1,4 +1,4 @@
-﻿
+
 import TradeLogsView from '@/shared/trade-logs/TradeLogsView';
 import { useDashboardAccount } from '@/app/providers/useDashboardAccount';
 import { useAppContext } from '@/app/providers/AppProvider';
@@ -22,7 +22,7 @@ export default function TestLogsPage() {
       currentR={currentR}
       allowedTypes={ALLOWED_TYPES}
       noAccountsTitle="No Backtest accounts"
-      noAccountsMessage="Test Logs only track Backtest accounts. Create one in Manage â†’ Accounts to get started."
+      noAccountsMessage="Test Logs only track Backtest accounts. Create one in Manage → Accounts to get started."
     />
   );
 }

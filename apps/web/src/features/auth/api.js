@@ -67,7 +67,7 @@ export async function login({ identifier, password }) {
  * Refresh access token using the httpOnly cookie.
  *
  * HARD TIMEOUT: on Render free tier cold starts, the initial request can hang
- * for 30â€“60 s. Without a timeout the whole app would show a blank screen for
+ * for 30–60 s. Without a timeout the whole app would show a blank screen for
  * that entire duration while `AuthProvider.loading` stays `true`. Ten seconds
  * is long enough for any legitimate response but short enough to fail fast.
  */

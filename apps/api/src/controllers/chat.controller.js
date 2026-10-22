@@ -1,4 +1,4 @@
-﻿import * as svc from '../services/chat.service.js';
+import * as svc from '../services/chat.service.js';
 import { stopAiForConversation } from '../services/ai.service.js';
 
 export async function searchUsers(req, res, next) {

@@ -1,4 +1,4 @@
-﻿// ============================================================================
+// ============================================================================
 // Mave AI sidebar — a 40 vw × full-height overlay containing the 3 AI
 // personas (Guide · Trainer · Chat). Opened from the header bar.
 //

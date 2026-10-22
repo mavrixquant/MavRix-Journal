@@ -3,14 +3,14 @@ import { useStats } from '@/features/dashboard/hooks/useStats';
 import DataTable from '@/shared/ui/data-table';
 
 function formatMoney(v) {
-  if (v == null || Number.isNaN(Number(v))) return 'Ã¢â‚¬â€';
+  if (v == null || Number.isNaN(Number(v))) return '—';
   const n = Number(v);
   const sign = n < 0 ? '-' : '+';
   return `${sign}$${Math.abs(n).toFixed(2)}`;
 }
 
 function formatPct(v) {
-  if (v == null || Number.isNaN(Number(v))) return 'Ã¢â‚¬â€';
+  if (v == null || Number.isNaN(Number(v))) return '—';
   return `${Number(v).toFixed(1)}%`;
 }
 
@@ -120,7 +120,7 @@ export default function SymbolBreakdownTable() {
       data={symbolBreakdown}
       columns={columns}
       getRowId={(row) => row.symbol}
-      searchPlaceholder="Search symbolsÃ¢â‚¬Â¦"
+      searchPlaceholder="Search symbols…"
       initialSort={[{ id: 'total', desc: true }]}
       estimateRowHeight={38}
       maxHeight={360}
