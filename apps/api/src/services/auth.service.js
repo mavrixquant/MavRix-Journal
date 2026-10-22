@@ -8,10 +8,17 @@ import {
 import { HttpError } from '../middleware/error.js';
 import {
   generateSecureToken,
+  generateOtp,
   VERIFY_TTL_MS,
   RESET_TTL_MS,
+  OTP_TTL_MS,
+  OTP_MAX_ATTEMPTS,
 } from '../lib/tokens.js';
-import { sendVerificationEmail, sendPasswordResetEmail } from '../lib/mailer.js';
+import {
+  sendVerificationEmail,
+  sendPasswordResetEmail,
+  sendPasswordResetOtpEmail,
+} from '../lib/mailer.js';
 import { verifyGoogleAccessToken } from '../lib/google.js';
 import { invalidateSvCache } from '../lib/session.js';
 import { ensureAiDmForUser } from './maveAiBootstrap.js';
@@ -289,45 +296,88 @@ export async function requestPasswordReset(email) {
   if (!user) return { ok: true };
   if (user.isAi) return { ok: true };
 
-  const resetToken = generateSecureToken();
-  const resetTokenExpiry = new Date(Date.now() + RESET_TTL_MS);
+  const otp = generateOtp();
+  const resetTokenExpiry = new Date(Date.now() + OTP_TTL_MS);
 
   await prisma.user.update({
     where: { id: user.id },
-    data: { resetToken, resetTokenExpiry },
+    data: { resetToken: otp, resetTokenExpiry, resetOtpAttempts: 0 },
   });
 
-  await sendPasswordResetEmail({ to: user.email, token: resetToken });
+  await sendPasswordResetOtpEmail({ to: user.email, otp });
   return { ok: true };
 }
 
-export async function resetPassword(token, newPassword) {
-  if (!token || !newPassword) {
-    throw new HttpError(400, 'Token and new password are required');
+export async function verifyResetOtp(email, otp) {
+  const id = String(email || '').trim().toLowerCase();
+  const code = String(otp || '').trim();
+  if (!id || !/^\d{6}$/.test(code)) {
+    throw new HttpError(400, 'Invalid or expired code');
   }
-  if (newPassword.length < 6) {
+
+  const user = await prisma.user.findUnique({ where: { email: id } });
+  if (!user || user.isAi) throw new HttpError(400, 'Invalid or expired code');
+  if (!user.resetToken || !user.resetTokenExpiry) {
+    throw new HttpError(400, 'Invalid or expired code');
+  }
+  if (user.resetTokenExpiry < new Date()) {
+    throw new HttpError(400, 'Code expired. Request a new one.');
+  }
+  if ((user.resetOtpAttempts ?? 0) >= OTP_MAX_ATTEMPTS) {
+    throw new HttpError(429, 'Too many attempts. Request a new code.');
+  }
+  if (user.resetToken !== code) {
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { resetOtpAttempts: { increment: 1 } },
+    });
+    throw new HttpError(401, 'Incorrect code');
+  }
+
+  return { ok: true };
+}
+
+export async function confirmPasswordReset(email, otp, newPassword) {
+  if (!newPassword || String(newPassword).length < 6) {
     throw new HttpError(400, 'Password must be at least 6 characters');
   }
 
-  const user = await prisma.user.findUnique({ where: { resetToken: token } });
-  if (!user) throw new HttpError(400, 'Invalid reset token');
-  if (user.isAi) throw new HttpError(400, 'Invalid reset token');
-  if (user.resetTokenExpiry && user.resetTokenExpiry < new Date()) {
-    throw new HttpError(400, 'Reset token expired');
+  const id = String(email || '').trim().toLowerCase();
+  const code = String(otp || '').trim();
+  if (!id || !/^\d{6}$/.test(code)) {
+    throw new HttpError(400, 'Invalid or expired code');
+  }
+
+  const user = await prisma.user.findUnique({ where: { email: id } });
+  if (!user || user.isAi) throw new HttpError(400, 'Invalid or expired code');
+  if (!user.resetToken || !user.resetTokenExpiry) {
+    throw new HttpError(400, 'Invalid or expired code');
+  }
+  if (user.resetTokenExpiry < new Date()) {
+    throw new HttpError(400, 'Code expired. Request a new one.');
+  }
+  if ((user.resetOtpAttempts ?? 0) >= OTP_MAX_ATTEMPTS) {
+    throw new HttpError(429, 'Too many attempts. Request a new code.');
+  }
+  if (user.resetToken !== code) {
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { resetOtpAttempts: { increment: 1 } },
+    });
+    throw new HttpError(401, 'Incorrect code');
   }
 
   const passwordHash = await hashPassword(newPassword);
-
   await prisma.user.update({
     where: { id: user.id },
     data: {
       passwordHash,
       resetToken: null,
       resetTokenExpiry: null,
+      resetOtpAttempts: 0,
       tokenVersion: { increment: 1 },
     },
   });
-
   invalidateSvCache(user.id);
 
   return { ok: true };

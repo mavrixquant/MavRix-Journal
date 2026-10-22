@@ -262,3 +262,18 @@ export const changePasswordSchema = z.object({
   oldPassword: z.string().min(1, 'Current password is required').max(128),
   newPassword: z.string().min(6, 'Password must be at least 6 characters').max(128),
 });
+
+
+// ---------------------------------------------------------------------------
+// OTP-based password reset
+// ---------------------------------------------------------------------------
+export const verifyResetOtpSchema = z.object({
+  email: z.string().trim().toLowerCase().email(),
+  otp: z.string().trim().regex(/^\d{6}$/, 'Enter the 6-digit code'),
+});
+
+export const confirmPasswordResetSchema = z.object({
+  email: z.string().trim().toLowerCase().email(),
+  otp: z.string().trim().regex(/^\d{6}$/, 'Enter the 6-digit code'),
+  newPassword: z.string().min(6, 'Password must be at least 6 characters').max(128),
+});

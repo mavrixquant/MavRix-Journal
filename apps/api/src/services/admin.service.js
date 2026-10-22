@@ -7,12 +7,15 @@ import { invalidateSvCache } from '../lib/session.js';
 import { getTotalClientCount, getClientCount } from '../lib/broadcaster.js';
 import {
   generateSecureToken,
+  generateOtp,
   VERIFY_TTL_MS,
   RESET_TTL_MS,
+  OTP_TTL_MS,
 } from '../lib/tokens.js';
 import {
   sendVerificationEmail,
   sendPasswordResetEmail,
+  sendPasswordResetOtpEmail,
 } from '../lib/mailer.js';
 
 const adminUserShape = (u) => ({
@@ -393,15 +396,15 @@ export async function triggerUserPasswordReset(actor, targetId) {
   if (!target) throw new HttpError(404, 'User not found');
   assertNotAiTarget(target, 'reset the password of');
 
-  const resetToken = generateSecureToken();
-  const resetTokenExpiry = new Date(Date.now() + RESET_TTL_MS);
+  const otp = generateOtp();
+  const resetTokenExpiry = new Date(Date.now() + OTP_TTL_MS);
 
   await prisma.user.update({
     where: { id: targetId },
-    data: { resetToken, resetTokenExpiry },
+    data: { resetToken: otp, resetTokenExpiry, resetOtpAttempts: 0 },
   });
 
-  await sendPasswordResetEmail({ to: target.email, token: resetToken });
+  await sendPasswordResetOtpEmail({ to: target.email, otp });
 
   await writeAudit({
     actorId: actor.id,

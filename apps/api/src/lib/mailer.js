@@ -315,3 +315,49 @@ function escapeHtml(s) {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
 }
+
+
+// ---------------------------------------------------------------------------
+// OTP password reset email.
+//
+// The 6-digit code is shown front and centre. The CTA link opens the reset
+// wizard with the email pre-filled and jumps straight to the OTP step, so
+// admin-triggered resets work end-to-end without the user having to type
+// their email again.
+// ---------------------------------------------------------------------------
+export async function sendPasswordResetOtpEmail({ to, otp }) {
+  const subject = `Your ${MAIL_FROM_NAME} password reset code`;
+  const forgotUrl = `${CLIENT_ORIGIN}/forgot-password`;
+
+  const body = `
+    <p style="margin:0 0 14px;">Use the code below to reset your password. It expires in <strong style="color:#E7E9EE;">10 minutes</strong>.</p>
+    <div style="text-align:center;margin:22px 0;">
+      <div style="display:inline-block;padding:16px 26px;background:rgba(245,158,11,.08);border:2px solid rgba(245,158,11,.35);border-radius:14px;font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:34px;font-weight:700;letter-spacing:.35em;color:#F59E0B;text-indent:.35em;">${otp}</div>
+    </div>
+    <p style="margin:0;font-size:12px;color:#8892A3;">Don't share it with anyone. If you didn't request a reset, you can safely ignore this email — your password won't change.</p>
+  `;
+
+  const text = [
+    `Your ${MAIL_FROM_NAME} password reset code`,
+    '',
+    otp,
+    '',
+    'This code expires in 10 minutes.',
+    '',
+    `Go to ${forgotUrl}, enter your email, and paste this code.`,
+    '',
+    'If you did not request a reset, ignore this email.',
+  ].join('\n');
+
+  return send({
+    to,
+    subject,
+    html: renderEmail({
+      preheader: `Your code: ${otp} (expires in 10 min)`,
+      title: 'Your password reset code',
+      body,
+      footerNote: 'The code expires in 10 minutes and can only be used once.',
+    }),
+    text,
+  });
+}

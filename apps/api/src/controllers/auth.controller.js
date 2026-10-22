@@ -111,8 +111,8 @@ export async function requestPasswordReset(req, res, next) {
 
 export async function resetPassword(req, res, next) {
   try {
-    const { token, password } = req.body;
-    const result = await authService.resetPassword(token, password);
+    const { email, otp, newPassword } = req.body;
+    const result = await authService.confirmPasswordReset(email, otp, newPassword);
     res.json(result);
   } catch (e) { next(e); }
 }
@@ -141,5 +141,14 @@ export async function changePassword(req, res, next) {
     const result = await authService.changePassword(req.userId, oldPassword, newPassword);
     if (result.refreshToken) setRefreshCookie(res, result.refreshToken);
     res.json({ user: result.user, accessToken: result.accessToken });
+  } catch (e) { next(e); }
+}
+
+
+export async function verifyResetOtp(req, res, next) {
+  try {
+    const { email, otp } = req.body;
+    const result = await authService.verifyResetOtp(email, otp);
+    res.json(result);
   } catch (e) { next(e); }
 }

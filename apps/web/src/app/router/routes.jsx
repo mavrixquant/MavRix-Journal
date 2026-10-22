@@ -15,7 +15,7 @@ const Signup = lazy(() => import('@/features/auth/pages/SignupPage'));
 const VerifyEmail = lazy(() => import('@/features/auth/pages/VerifyEmailPage'));
 const SetUsername = lazy(() => import('@/features/auth/pages/SetUsernamePage'));
 const ForgotPassword = lazy(() => import('@/features/auth/pages/ForgotPasswordPage'));
-const ResetPassword = lazy(() => import('@/features/auth/pages/ResetPasswordPage'));
+
 
 const DashboardPage = lazy(() => import('@/features/journal/dashboard/DashboardPage'));
 const AnalysePage = lazy(() => import('@/features/journal/analyse/AnalysePage'));
@@ -106,7 +106,7 @@ export function AppRoutes() {
       <Route path="/login" element={<RequireGuest><Login /></RequireGuest>} />
       <Route path="/signup" element={<RequireGuest><Signup /></RequireGuest>} />
       <Route path="/forgot-password" element={<RequireGuest><ForgotPassword /></RequireGuest>} />
-      <Route path="/reset-password" element={<RequireGuest><ResetPassword /></RequireGuest>} />
+      <Route path="/reset-password" element={<Navigate to="/forgot-password" replace />} />
 
       <Route path="/verify-email" element={<RequireAuth><VerifyEmail /></RequireAuth>} />
       <Route path="/set-username" element={<RequireAuth><SetUsername /></RequireAuth>} />

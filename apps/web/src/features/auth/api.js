@@ -135,13 +135,19 @@ export async function requestPasswordReset(email) {
   });
 }
 
-export async function resetPassword(token, password) {
-  return apiJson('/api/auth/reset-password', {
+export async function verifyResetOtp(email, otp) {
+  return apiJson('/api/auth/verify-reset-otp', {
     method: 'POST',
-    body: JSON.stringify({ token, password }),
+    body: JSON.stringify({ email, otp }),
   });
 }
 
+export async function resetPassword(email, otp, newPassword) {
+  return apiJson('/api/auth/reset-password', {
+    method: 'POST',
+    body: JSON.stringify({ email, otp, newPassword }),
+  });
+}
 export async function setUsername(username) {
   const data = await apiJson('/api/auth/set-username', {
     method: 'POST',
