@@ -25,6 +25,7 @@ function normalizeUser(u) {
     photoURL: u.photoUrl ?? null,
     providerData,
     hasGoogle: !!u.hasGoogle,
+    hasPassword: !!u.hasPassword,
     role: u.role || 'user',
     isBanned: !!u.isBanned,
   };
@@ -146,5 +147,24 @@ export async function setUsername(username) {
     method: 'POST',
     body: JSON.stringify({ username }),
   });
+  return normalizeUser(data.user);
+}
+
+
+export async function setPassword(password) {
+  const data = await apiJson('/api/auth/set-password', {
+    method: 'POST',
+    body: JSON.stringify({ password }),
+  });
+  if (data.accessToken) setAccessToken(data.accessToken);
+  return normalizeUser(data.user);
+}
+
+export async function changePassword(oldPassword, newPassword) {
+  const data = await apiJson('/api/auth/change-password', {
+    method: 'POST',
+    body: JSON.stringify({ oldPassword, newPassword }),
+  });
+  if (data.accessToken) setAccessToken(data.accessToken);
   return normalizeUser(data.user);
 }

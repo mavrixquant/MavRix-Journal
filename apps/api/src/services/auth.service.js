@@ -27,6 +27,7 @@ const publicUser = (u) => ({
   hasGoogle: !!u.googleId,
   role: u.role || 'user',
   isBanned: !!u.isBanned,
+  hasPassword: !!u.passwordHash,
 });
 
 const issueTokens = (user) => {
@@ -349,4 +350,62 @@ export async function setUsername(userId, username) {
     data: { username: clean },
   });
   return publicUser(user);
+}
+
+
+// ---------------------------------------------------------------------------
+// Password management (Set / Change).
+//
+// setPassword    — only allowed if the user has NO password yet (Google signup).
+// changePassword — requires verifying the current password first.
+//
+// Both bump tokenVersion so every existing refresh token becomes invalid;
+// we return FRESH tokens so the CALLING session stays logged in.
+// ---------------------------------------------------------------------------
+
+export async function setPassword(userId, newPassword) {
+  if (!newPassword || String(newPassword).length < 6) {
+    throw new HttpError(400, 'Password must be at least 6 characters');
+  }
+
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) throw new HttpError(404, 'User not found');
+  if (user.isAi) throw new HttpError(403, 'Cannot set password for AI accounts');
+  if (user.passwordHash) {
+    throw new HttpError(409, 'Password already set. Use change-password instead.');
+  }
+
+  const passwordHash = await hashPassword(newPassword);
+  const updated = await prisma.user.update({
+    where: { id: userId },
+    data: { passwordHash, tokenVersion: { increment: 1 } },
+  });
+  invalidateSvCache(userId);
+
+  return { user: publicUser(updated), ...issueTokens(updated) };
+}
+
+export async function changePassword(userId, oldPassword, newPassword) {
+  if (!newPassword || String(newPassword).length < 6) {
+    throw new HttpError(400, 'New password must be at least 6 characters');
+  }
+
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) throw new HttpError(404, 'User not found');
+  if (user.isAi) throw new HttpError(403, 'Cannot change password for AI accounts');
+  if (!user.passwordHash) {
+    throw new HttpError(400, 'No password set. Use set-password instead.');
+  }
+
+  const ok = await verifyPassword(oldPassword, user.passwordHash);
+  if (!ok) throw new HttpError(401, 'Current password is incorrect');
+
+  const passwordHash = await hashPassword(newPassword);
+  const updated = await prisma.user.update({
+    where: { id: userId },
+    data: { passwordHash, tokenVersion: { increment: 1 } },
+  });
+  invalidateSvCache(userId);
+
+  return { user: publicUser(updated), ...issueTokens(updated) };
 }

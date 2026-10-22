@@ -1,5 +1,11 @@
 import { Router } from 'express';
-import { signupSchema, loginSchema, setUsernameSchema } from '@mavrix/shared/validators';
+import {
+  signupSchema,
+  loginSchema,
+  setUsernameSchema,
+  setPasswordSchema,
+  changePasswordSchema,
+} from '@mavrix/shared/validators';
 import { requireAuth } from '../middleware/auth.js';
 import * as authController from '../controllers/auth.controller.js';
 
@@ -17,6 +23,8 @@ const validate = (schema) => (req, _res, next) => {
 authRoutes.post('/signup', validate(signupSchema), authController.signup);
 authRoutes.post('/login', validate(loginSchema), authController.login);
 authRoutes.post('/set-username', requireAuth, validate(setUsernameSchema), authController.setUsername);
+authRoutes.post('/set-password', requireAuth, validate(setPasswordSchema), authController.setPassword);
+authRoutes.post('/change-password', requireAuth, validate(changePasswordSchema), authController.changePassword);
 authRoutes.post('/refresh', authController.refresh);
 authRoutes.post('/logout', authController.logout);
 authRoutes.get('/me', requireAuth, authController.me);

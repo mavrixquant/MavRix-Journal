@@ -251,3 +251,14 @@ export const aiCredentialSchema = z.object({
   apiKey: z.string().trim().min(10).max(500),
   model: z.string().trim().max(100).optional().nullable(),
 });
+
+
+// Password management schemas
+export const setPasswordSchema = z.object({
+  password: z.string().min(6, 'Password must be at least 6 characters').max(128),
+});
+
+export const changePasswordSchema = z.object({
+  oldPassword: z.string().min(1, 'Current password is required').max(128),
+  newPassword: z.string().min(6, 'Password must be at least 6 characters').max(128),
+});

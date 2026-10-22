@@ -124,3 +124,22 @@ export async function setUsername(req, res, next) {
     res.json({ user });
   } catch (e) { next(e); }
 }
+
+
+export async function setPassword(req, res, next) {
+  try {
+    const { password } = req.body;
+    const result = await authService.setPassword(req.userId, password);
+    if (result.refreshToken) setRefreshCookie(res, result.refreshToken);
+    res.json({ user: result.user, accessToken: result.accessToken });
+  } catch (e) { next(e); }
+}
+
+export async function changePassword(req, res, next) {
+  try {
+    const { oldPassword, newPassword } = req.body;
+    const result = await authService.changePassword(req.userId, oldPassword, newPassword);
+    if (result.refreshToken) setRefreshCookie(res, result.refreshToken);
+    res.json({ user: result.user, accessToken: result.accessToken });
+  } catch (e) { next(e); }
+}
