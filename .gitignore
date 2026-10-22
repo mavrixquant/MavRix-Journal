@@ -14,3 +14,7 @@ coverage/
 
 apps/api/prisma/migrations/dev.db*
 notes.*
+
+
+apply.ps1
+verify.ps1
