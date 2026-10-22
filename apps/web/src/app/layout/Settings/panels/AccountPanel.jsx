@@ -560,7 +560,7 @@ export default function AccountPanel() {
               user.emailVerified ? 'is-verified' : 'is-unverified'
             }`}
           >
-            {user.emailVerified ? 'Ã¢Å“â€œ Verified' : 'Ã¢Å“â€¢ Unverified'}
+            {user.emailVerified ? '✓ Verified' : '✕ Unverified'}
           </span>
         </div>
       </section>
