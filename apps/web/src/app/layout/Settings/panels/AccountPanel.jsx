@@ -1,520 +1,123 @@
-import { useState } from 'react';
-import { Link, X, CheckCircle2, KeyRound, Loader2 } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Pencil, Save, X, Loader2, Clock } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { useAuth } from '@/app/providers/AuthProvider';
 import * as authService from '@/features/auth/api';
-import * as google from '@/features/auth/google';
-import Alert from '@/shared/components/Alert';
-import { OtpInput } from '@/shared/ui/otp-input';
-import TwoFactorSection from './TwoFactorSection';
 
-function GoogleMark() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden>
-      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-      <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
-      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
-    </svg>
-  );
-}
+const USERNAME_COOLDOWN_MS = 3 * 24 * 60 * 60 * 1000;
 
-const PASSWORD_CSS = `
-  .pw-modal-overlay {
-    position: fixed; inset: 0; z-index: 2000;
-    background: rgba(4,6,9,.72);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    display: flex; align-items: center; justify-content: center;
-    padding: 16px;
-    animation: pwFade .18s ease;
-  }
-  .pw-modal {
-    --line: rgba(255,255,255,.085);
-    --line-soft: rgba(255,255,255,.05);
-    --ink-1: #E7E9EE; --ink-2: #8892A3; --ink-3: #545E6E;
-    width: 100%; max-width: 440px;
-    max-height: calc(100vh - 32px);
-    display: flex; flex-direction: column;
-    background: linear-gradient(180deg, #12161F, #0C1017);
-    border: 1px solid var(--line);
-    border-radius: 16px;
-    box-shadow: 0 40px 100px -30px rgba(0,0,0,.95), 0 0 0 1px var(--accent-soft);
-    color: var(--ink-1); overflow: hidden; position: relative;
-    animation: pwPop .28s cubic-bezier(.2,.8,.25,1);
-    font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
-  }
-  .pw-modal::before {
-    content: '';
-    position: absolute; left: 0; right: 0; top: 0; height: 2px;
-    background: linear-gradient(90deg, transparent, var(--accent), var(--accent-2), var(--accent), transparent);
-    background-size: 200% 100%;
-    animation: pwGrad 4s linear infinite;
-  }
-  .pw-modal-head {
-    padding: 18px 22px 14px;
-    border-bottom: 1px solid var(--line-soft);
-    display: flex; align-items: center; gap: 12px; flex-shrink: 0;
-  }
-  .pw-modal-head-icon {
-    width: 38px; height: 38px; border-radius: 11px;
-    display: inline-flex; align-items: center; justify-content: center;
-    background: color-mix(in srgb, var(--accent) 12%, transparent);
-    border: 1px solid var(--accent-soft2);
-    color: var(--accent); flex-shrink: 0;
-  }
-  .pw-modal-head-meta { flex: 1; min-width: 0; }
-  .pw-modal-title {
-    margin: 0; font-size: 15px; font-weight: 700; letter-spacing: -.01em;
-  }
-  .pw-modal-sub {
-    margin: 3px 0 0;
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    font-size: 10.5px; color: var(--ink-3);
-    letter-spacing: .02em; line-height: 1.5;
-  }
-  .pw-modal-close {
-    width: 30px; height: 30px; padding: 0;
-    display: inline-flex; align-items: center; justify-content: center;
-    border-radius: 8px; border: none; background: transparent;
-    color: var(--ink-2); cursor: pointer;
-    transition: all .2s; flex-shrink: 0;
-  }
-  .pw-modal-close:hover:not(:disabled) {
-    color: var(--accent);
-    background: color-mix(in srgb, var(--accent) 8%, transparent);
-  }
-  .pw-modal-close:disabled { opacity: .35; cursor: not-allowed; }
-
-  .pw-modal-body {
-    padding: 20px 22px;
-    display: flex; flex-direction: column; gap: 14px;
-    overflow-y: auto;
-  }
-  .pw-field { display: flex; flex-direction: column; gap: 6px; }
-  .pw-label {
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    font-size: 10px; font-weight: 700; letter-spacing: .14em;
-    text-transform: uppercase; color: var(--ink-3);
-  }
-  .pw-input {
-    width: 100%; padding: 10px 12px;
-    background: rgba(10,13,19,.6);
-    border: 1px solid rgba(255,255,255,.1);
-    border-radius: 10px; color: var(--ink-1);
-    font-size: 13px;
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    outline: none; box-sizing: border-box;
-    transition: all .2s;
-  }
-  .pw-input::placeholder { color: var(--ink-3); }
-  .pw-input:hover:not(:disabled) { border-color: rgba(255,255,255,.2); }
-  .pw-input:focus {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent);
-  }
-  .pw-input:disabled { opacity: .55; cursor: not-allowed; }
-
-  .pw-error {
-    padding: 10px 12px; border-radius: 10px;
-    background: rgba(239,68,68,.08);
-    border: 1px solid rgba(239,68,68,.28);
-    color: #fca5a5;
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    font-size: 11.5px; line-height: 1.55;
-  }
-
-  .pw-forgot-row {
-    display: flex; justify-content: space-between; align-items: center;
-    gap: 8px; margin-top: -4px;
-  }
-  .pw-forgot-btn {
-    display: inline-flex; align-items: center; gap: 5px;
-    background: none; border: none;
-    color: var(--ink-2);
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    font-size: 11px; cursor: pointer;
-    padding: 2px 4px; border-radius: 5px;
-    transition: color .18s;
-  }
-  .pw-forgot-btn:hover:not(:disabled) { color: var(--accent); }
-  .pw-forgot-btn:disabled { opacity: .5; cursor: not-allowed; }
-
-  .pw-modal-foot {
-    padding: 14px 22px;
-    border-top: 1px solid var(--line-soft);
-    display: flex; justify-content: flex-end; gap: 10px;
-    background: rgba(0,0,0,.15); flex-shrink: 0;
-  }
-  .pw-btn {
-    display: inline-flex; align-items: center; gap: 7px;
-    padding: 9px 18px; border-radius: 10px;
-    border: 1px solid rgba(255,255,255,.1);
-    background: rgba(255,255,255,.03);
-    color: var(--ink-2);
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    font-size: 11.5px; font-weight: 600; letter-spacing: .02em;
-    cursor: pointer; transition: all .2s; white-space: nowrap;
-  }
-  .pw-btn:hover:not(:disabled) {
-    color: var(--ink-1); background: rgba(255,255,255,.06);
-    border-color: rgba(255,255,255,.2);
-  }
-  .pw-btn:disabled { opacity: .45; cursor: not-allowed; }
-  .pw-btn-primary {
-    background: linear-gradient(135deg, var(--accent), var(--accent-2));
-    color: #0D1117; border: none; font-weight: 700;
-    box-shadow: 0 10px 30px -8px color-mix(in srgb, var(--accent) 55%, transparent), inset 0 1px 0 rgba(255,255,255,.4);
-  }
-  .pw-btn-primary:hover:not(:disabled) {
-    transform: translateY(-1px);
-    box-shadow: 0 16px 42px -10px color-mix(in srgb, var(--accent) 70%, transparent), inset 0 1px 0 rgba(255,255,255,.5);
-  }
-  .pw-btn-primary:disabled {
-    background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 32%, transparent), color-mix(in srgb, var(--accent-2) 28%, transparent));
-    color: rgba(13,17,23,.55); box-shadow: none;
-  }
-  @keyframes pwFade { from { opacity: 0; } to { opacity: 1; } }
-  @keyframes pwPop {
-    from { opacity: 0; transform: translateY(-10px) scale(.97); }
-    to   { opacity: 1; transform: none; }
-  }
-  @keyframes pwGrad {
-    0%   { background-position: 0% 50%; }
-    100% { background-position: 200% 50%; }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .pw-modal, .pw-modal::before { animation: none !important; }
-    .pw-btn, .pw-btn-primary, .pw-modal-close, .pw-forgot-btn { transition: none !important; }
-  }
-`;
-
-function PasswordModal({
-  mode, email,
-  form, setForm,
-  error, saving,
-  onClose, onSubmit, onForgot, onResend,
-  forgotLoading, resendLoading,
-}) {
-  if (!mode) return null;
-
-  const isSet       = mode === 'set';
-  const isChange    = mode === 'change';
-  const isForgotOtp = mode === 'forgot-otp';
-  const isForgotNew = mode === 'forgot-new';
-
-  const title =
-    isSet ? 'Set Password'
-    : isChange ? 'Change Password'
-    : isForgotOtp ? 'Verify Email'
-    : 'Set New Password';
-
-  const subtitle =
-    isSet ? 'You signed up with Google. Set a password to sign in with email too.'
-    : isChange ? 'Enter your current password and choose a new one.'
-    : isForgotOtp ? `We sent a 6-digit code to ${email}. Enter it below.`
-    : 'Enter a new password for your account. You will be signed out after.';
-
-  const submitLabel =
-    isForgotOtp ? 'Verify Code'
-    : isSet || isForgotNew ? 'Set Password'
-    : 'Change Password';
-
-  const canSubmit = (() => {
-    if (saving) return false;
-    if (isForgotOtp) return /^\d{6}$/.test(form.otp);
-    if (isSet || isForgotNew) return form.newPassword.length >= 6 && form.newPassword === form.confirmPassword;
-    if (isChange) return form.oldPassword.length > 0 && form.newPassword.length >= 6 && form.newPassword === form.confirmPassword;
-    return false;
-  })();
-
-  return (
-    <div
-      className="pw-modal-overlay"
-      onClick={(e) => { if (e.target === e.currentTarget && !saving) onClose(); }}
-    >
-      <style>{PASSWORD_CSS}</style>
-      <form
-        className="pw-modal"
-        onSubmit={(e) => { e.preventDefault(); onSubmit(); }}
-        role="dialog"
-        aria-modal="true"
-      >
-        <div className="pw-modal-head">
-          <div className="pw-modal-head-icon">
-            {isForgotOtp ? <KeyRound size={17} /> : <KeyRound size={17} />}
-          </div>
-          <div className="pw-modal-head-meta">
-            <h3 className="pw-modal-title">{title}</h3>
-            <p className="pw-modal-sub">{subtitle}</p>
-          </div>
-          <button
-            type="button"
-            className="pw-modal-close"
-            onClick={onClose}
-            disabled={saving}
-            aria-label="Close"
-          >
-            <X size={15} />
-          </button>
-        </div>
-
-        <div className="pw-modal-body">
-          {error && <div className="pw-error">{error}</div>}
-
-          {isChange && (
-            <div className="pw-field">
-              <label className="pw-label" htmlFor="pw-old">Current Password</label>
-              <input
-                id="pw-old"
-                type="password"
-                className="pw-input"
-                value={form.oldPassword}
-                autoComplete="current-password"
-                disabled={saving}
-                autoFocus
-                onChange={(e) => setForm({ ...form, oldPassword: e.target.value })}
-              />
-            </div>
-          )}
-
-          {isForgotOtp && (
-            <div className="pw-field">
-              <label className="pw-label" htmlFor="pw-otp">6-digit code</label>
-              <OtpInput
-                value={form.otp}
-                onChange={(v) => setForm({ ...form, otp: v })}
-                length={6}
-                disabled={saving}
-                autoFocus
-              />
-            </div>
-          )}
-
-          {(isSet || isChange || isForgotNew) && (
-            <>
-              <div className="pw-field">
-                <label className="pw-label" htmlFor="pw-new">New Password</label>
-                <input
-                  id="pw-new"
-                  type="password"
-                  className="pw-input"
-                  value={form.newPassword}
-                  autoComplete="new-password"
-                  placeholder="At least 6 characters"
-                  disabled={saving}
-                  autoFocus={isForgotNew || isSet}
-                  onChange={(e) => setForm({ ...form, newPassword: e.target.value })}
-                />
-              </div>
-              <div className="pw-field">
-                <label className="pw-label" htmlFor="pw-confirm">Confirm New Password</label>
-                <input
-                  id="pw-confirm"
-                  type="password"
-                  className="pw-input"
-                  value={form.confirmPassword}
-                  autoComplete="new-password"
-                  disabled={saving}
-                  onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
-                />
-              </div>
-            </>
-          )}
-
-          {isChange && (
-            <div className="pw-forgot-row">
-              <button
-                type="button"
-                className="pw-forgot-btn"
-                onClick={onForgot}
-                disabled={forgotLoading || saving}
-              >
-                {forgotLoading
-                  ? <><Loader2 size={11} className="settings-spin" /> SendingÃ¢â‚¬Â¦</>
-                  : 'Forgot current password?'}
-              </button>
-            </div>
-          )}
-
-          {isForgotOtp && (
-            <div className="pw-forgot-row">
-              <span />
-              <button
-                type="button"
-                className="pw-forgot-btn"
-                onClick={onResend}
-                disabled={resendLoading || saving}
-              >
-                {resendLoading
-                  ? <><Loader2 size={11} className="settings-spin" /> SendingÃ¢â‚¬Â¦</>
-                  : 'Resend code'}
-              </button>
-            </div>
-          )}
-        </div>
-
-        <div className="pw-modal-foot">
-          <button type="button" className="pw-btn" onClick={onClose} disabled={saving}>
-            Cancel
-          </button>
-          <button type="submit" className="pw-btn pw-btn-primary" disabled={!canSubmit}>
-            {saving ? 'SavingÃ¢â‚¬Â¦' : submitLabel}
-          </button>
-        </div>
-      </form>
-    </div>
-  );
+function formatRemaining(ms) {
+  if (ms <= 0) return null;
+  const totalMin = Math.ceil(ms / 60000);
+  const days  = Math.floor(totalMin / (60 * 24));
+  const hours = Math.floor((totalMin % (60 * 24)) / 60);
+  const mins  = totalMin % 60;
+  if (days > 0) return hours > 0 ? `${days}d ${hours}h` : `${days}d`;
+  if (hours > 0) return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+  return `${mins}m`;
 }
 
 export default function AccountPanel() {
-  const { user, refreshUser, logout } = useAuth();
+  const { user, refreshUser } = useAuth();
 
-  const [showUnlinkAlert, setShowUnlinkAlert] = useState(false);
-  const [linking, setLinking] = useState(false);
-  const [unlinking, setUnlinking] = useState(false);
-  const [error, setError] = useState('');
+  const [editing, setEditing]   = useState(false);
+  const [firstName, setFirstName] = useState('');
+  const [lastName,  setLastName]  = useState('');
+  const [username,  setUsername]  = useState('');
+  const [saving, setSaving]     = useState(false);
+  const [error, setError]       = useState('');
+  const [now, setNow]           = useState(() => Date.now());
 
-  const [passwordModal, setPasswordModal] = useState(null);
-  const [passwordForm, setPasswordForm] = useState({
-    oldPassword: '', newPassword: '', confirmPassword: '', otp: '',
-  });
-  const [passwordError, setPasswordError] = useState('');
-  const [passwordSaving, setPasswordSaving] = useState(false);
-  const [resetLoading, setResetLoading] = useState(false);
-  const [resendLoading, setResendLoading] = useState(false);
+  // Keep the cooldown countdown live.
+  useEffect(() => {
+    const iv = setInterval(() => setNow(Date.now()), 30_000);
+    return () => clearInterval(iv);
+  }, []);
+
+  // Seed the form whenever the user changes.
+  useEffect(() => {
+    if (!user) return;
+    setFirstName(user.firstName || '');
+    setLastName(user.lastName || '');
+    setUsername(user.username || '');
+  }, [user]);
+
+  const usernameLockedUntil = useMemo(() => {
+    if (!user?.usernameChangedAt) return null;
+    const t = new Date(user.usernameChangedAt).getTime() + USERNAME_COOLDOWN_MS;
+    return t > now ? t : null;
+  }, [user?.usernameChangedAt, now]);
+
+  const usernameLocked = !!usernameLockedUntil;
+  const remaining = usernameLockedUntil
+    ? formatRemaining(usernameLockedUntil - now)
+    : null;
 
   if (!user) return null;
 
-  const isGoogleLinked = user.providerData.some((p) => p.providerId === 'google.com');
-  const hasPassword = !!user.hasPassword;
+  const initials =
+    ((user.firstName?.[0] || '') + (user.lastName?.[0] || '')).toUpperCase() || 'U';
+  const displayName =
+    [user.firstName, user.lastName].filter(Boolean).join(' ') ||
+    user.email ||
+    'Anonymous';
 
-  const displayName = user.displayName || 'Anonymous User';
-  const nameParts = displayName.split(' ');
-  const firstName = nameParts[0] || 'Ã¢â‚¬â€';
-  const lastName = nameParts.slice(1).join(' ') || 'Ã¢â‚¬â€';
-  const initials = (firstName[0] || '') + (lastName[0] || '');
-
-  const resetForm = () =>
-    setPasswordForm({ oldPassword: '', newPassword: '', confirmPassword: '', otp: '' });
-
-  const handleLinkGoogle = async () => {
+  const enterEdit = () => {
+    setFirstName(user.firstName || '');
+    setLastName(user.lastName || '');
+    setUsername(user.username || '');
     setError('');
-    setLinking(true);
-    try {
-      const accessToken = await google.signIn();
-      await authService.linkGoogle(accessToken);
-      window.location.reload();
-    } catch (err) {
-      setError(err?.message || 'Could not link Google account');
-    } finally {
-      setLinking(false);
-    }
+    setEditing(true);
   };
 
-  const handleUnlinkGoogle = async () => {
-    setShowUnlinkAlert(false);
+  const cancelEdit = () => {
+    if (saving) return;
+    setFirstName(user.firstName || '');
+    setLastName(user.lastName || '');
+    setUsername(user.username || '');
     setError('');
-    setUnlinking(true);
-    try {
-      await authService.unlinkGoogle();
-      window.location.reload();
-    } catch (err) {
-      setError(err?.message || 'Could not unlink Google account');
-    } finally {
-      setUnlinking(false);
-    }
+    setEditing(false);
   };
 
-  const openSetPassword = () => {
-    resetForm(); setPasswordError(''); setPasswordModal('set');
-  };
-  const openChangePassword = () => {
-    resetForm(); setPasswordError(''); setPasswordModal('change');
-  };
+  const handleSave = async () => {
+    setError('');
 
-  const closePasswordModal = () => {
-    if (passwordSaving) return;
-    setPasswordModal(null);
-    setPasswordError('');
-  };
+    if (!firstName.trim()) { setError('First name is required.'); return; }
+    if (!lastName.trim())  { setError('Last name is required.');  return; }
 
-  const handleForgotPassword = async () => {
-    if (!user?.email) return;
-    setPasswordError('');
-    setResetLoading(true);
-    try {
-      await authService.requestPasswordReset(user.email);
-      setPasswordForm((f) => ({ ...f, otp: '', newPassword: '', confirmPassword: '' }));
-      setPasswordModal('forgot-otp');
-    } catch (err) {
-      setPasswordError(err?.message || 'Could not send reset email.');
-    } finally {
-      setResetLoading(false);
-    }
-  };
+    const cleanUsername = username.trim().toLowerCase();
+    const isUsernameChange = cleanUsername && cleanUsername !== (user.username || '');
 
-  const handleResendCode = async () => {
-    if (!user?.email) return;
-    setPasswordError('');
-    setResendLoading(true);
-    try {
-      await authService.requestPasswordReset(user.email);
-      setPasswordForm((f) => ({ ...f, otp: '' }));
-      toast.success('A new code is on its way.');
-    } catch (err) {
-      setPasswordError(err?.message || 'Could not resend code.');
-    } finally {
-      setResendLoading(false);
-    }
-  };
-
-  const handlePasswordSubmit = async () => {
-    setPasswordError('');
-
-    if (passwordModal === 'set' || passwordModal === 'change' || passwordModal === 'forgot-new') {
-      if (passwordForm.newPassword.length < 6) {
-        setPasswordError('Password must be at least 6 characters.'); return;
+    if (isUsernameChange) {
+      if (!/^[a-z0-9_]{3,30}$/.test(cleanUsername)) {
+        setError('Username must be 3-30 characters: a-z, 0-9, _.');
+        return;
       }
-      if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-        setPasswordError('Passwords do not match.'); return;
+      if (usernameLocked) {
+        setError(
+          `Username can only be changed once every 3 days. Try again in ${remaining}.`
+        );
+        return;
       }
     }
-    if (passwordModal === 'change' && !passwordForm.oldPassword) {
-      setPasswordError('Current password is required.'); return;
-    }
-    if (passwordModal === 'forgot-otp' && !/^\d{6}$/.test(passwordForm.otp)) {
-      setPasswordError('Enter the 6-digit code.'); return;
-    }
 
-    setPasswordSaving(true);
+    const payload = {
+      firstName: firstName.trim(),
+      lastName:  lastName.trim(),
+    };
+    if (isUsernameChange) payload.username = cleanUsername;
+
+    setSaving(true);
     try {
-      if (passwordModal === 'set') {
-        await authService.setPassword(passwordForm.newPassword);
-        toast.success('Password set successfully');
-        await refreshUser();
-        setPasswordModal(null);
-      } else if (passwordModal === 'change') {
-        await authService.changePassword(passwordForm.oldPassword, passwordForm.newPassword);
-        toast.success('Password changed successfully');
-        await refreshUser();
-        setPasswordModal(null);
-      } else if (passwordModal === 'forgot-otp') {
-        await authService.verifyResetOtp(user.email, passwordForm.otp);
-        setPasswordForm((f) => ({ ...f, newPassword: '', confirmPassword: '' }));
-        setPasswordModal('forgot-new');
-      } else if (passwordModal === 'forgot-new') {
-        await authService.resetPassword(user.email, passwordForm.otp, passwordForm.newPassword);
-        toast.success('Password reset. Please sign in with your new password.');
-        setPasswordModal(null);
-        await logout();
-        // RequireVerified will redirect to /login on next render.
-      }
+      await authService.updateProfile(payload);
+      await refreshUser();
+      toast.success('Profile updated');
+      setEditing(false);
     } catch (err) {
-      setPasswordError(err?.message || 'Something went wrong. Please try again.');
+      setError(err?.message || 'Could not update profile.');
     } finally {
-      setPasswordSaving(false);
+      setSaving(false);
     }
   };
 
@@ -524,7 +127,7 @@ export default function AccountPanel() {
         {user.photoURL ? (
           <img src={user.photoURL} alt={displayName} className="settings-account-avatar" />
         ) : (
-          <div className="settings-account-avatar">{initials || 'U'}</div>
+          <div className="settings-account-avatar">{initials}</div>
         )}
         <div className="settings-account-headmeta">
           <span className="settings-account-name">{displayName}</span>
@@ -533,138 +136,170 @@ export default function AccountPanel() {
       </div>
 
       <section className="settings-section">
-        <h4 className="settings-section-title">Profile</h4>
-
-        <div className="settings-field-row">
-          <span className="settings-field-label">First Name</span>
-          <span className="settings-field-value">{firstName}</span>
-        </div>
-        <div className="settings-field-row">
-          <span className="settings-field-label">Last Name</span>
-          <span className="settings-field-value">{lastName}</span>
-        </div>
-        <div className="settings-field-row">
-          <span className="settings-field-label">Username</span>
-          <span className="settings-field-value">
-            {user.username ? '@' + user.username : 'Not set'}
-          </span>
-        </div>
-        <div className="settings-field-row">
-          <span className="settings-field-label">Email Address</span>
-          <span className="settings-field-value">{user.email}</span>
-        </div>
-        <div className="settings-field-row">
-          <span className="settings-field-label">Email Verification</span>
-          <span
-            className={`settings-verified-badge ${
-              user.emailVerified ? 'is-verified' : 'is-unverified'
-            }`}
-          >
-            {user.emailVerified ? '✓ Verified' : '✕ Unverified'}
-          </span>
-        </div>
-      </section>
-
-      <section className="settings-section">
-        <h4 className="settings-section-title">Password</h4>
-
-        <div className="settings-options-row">
-          <div className="settings-options-text">
-            <span className="settings-options-label">
-              {hasPassword ? 'Change your password' : 'Set a password'}
-            </span>
-            <span className="settings-options-desc">
-              {hasPassword
-                ? 'Update the password used to sign in with email.'
-                : 'You signed up with Google. Set a password to also sign in with email.'}
-            </span>
-          </div>
-          <button
-            type="button"
-            className={hasPassword ? 'settings-btn' : 'settings-btn settings-btn-primary'}
-            onClick={hasPassword ? openChangePassword : openSetPassword}
-          >
-            <KeyRound size={12} />
-            {hasPassword ? 'Change Password' : 'Set Password'}
-          </button>
-        </div>
-      </section>
-
-      <section className="settings-section">
-        <h4 className="settings-section-title">Connected Accounts</h4>
-
-        <div className="settings-provider-card">
-          <div className="settings-provider-head">
-            <GoogleMark />
-            <span className="settings-provider-name">Google</span>
-            {isGoogleLinked && (
-              <span className="settings-provider-pill is-connected">
-                <CheckCircle2 size={11} /> Connected
-              </span>
-            )}
-          </div>
-
-          <p className="settings-provider-desc">
-            {isGoogleLinked
-              ? 'Your Google account is linked. You can sign in using single sign-on.'
-              : 'Connect your Google account to enable 1-click authentication.'}
-          </p>
-
-          {isGoogleLinked ? (
-            <button
-              type="button"
-              className="settings-btn settings-btn-danger"
-              onClick={() => setShowUnlinkAlert(true)}
-              disabled={unlinking}
-            >
-              <X size={12} />
-              {unlinking ? 'UnlinkingÃ¢â‚¬Â¦' : 'Disconnect Google'}
-            </button>
-          ) : (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 12,
+            marginBottom: 4,
+          }}
+        >
+          <h4 className="settings-section-title" style={{ margin: 0 }}>
+            Profile
+          </h4>
+          {!editing && (
             <button
               type="button"
               className="settings-btn settings-btn-primary"
-              onClick={handleLinkGoogle}
-              disabled={linking}
+              onClick={enterEdit}
             >
-              <Link size={12} />
-              {linking ? 'ConnectingÃ¢â‚¬Â¦' : 'Connect Google'}
+              <Pencil size={12} />
+              Edit Profile
             </button>
           )}
         </div>
 
         {error && <div className="settings-error">{error}</div>}
+
+        {!editing ? (
+          <>
+            {/* -------- read-only view -------- */}
+            <div className="settings-field-row">
+              <span className="settings-field-label">First Name</span>
+              <span className="settings-field-value">{user.firstName || '—'}</span>
+            </div>
+
+            <div className="settings-field-row">
+              <span className="settings-field-label">Last Name</span>
+              <span className="settings-field-value">{user.lastName || '—'}</span>
+            </div>
+
+            <div className="settings-field-row">
+              <span className="settings-field-label">Username</span>
+              <span className="settings-field-value">
+                {user.username ? '@' + user.username : 'Not set'}
+              </span>
+            </div>
+
+            <div className="settings-field-row">
+              <span className="settings-field-label">Email Address</span>
+              <span className="settings-field-value">{user.email}</span>
+            </div>
+
+            <div className="settings-field-row">
+              <span className="settings-field-label">Email Verification</span>
+              <span
+                className={`settings-verified-badge ${
+                  user.emailVerified ? 'is-verified' : 'is-unverified'
+                }`}
+              >
+                {user.emailVerified ? '✓ Verified' : '✕ Unverified'}
+              </span>
+            </div>
+          </>
+        ) : (
+          <>
+            {/* -------- edit mode -------- */}
+            <div className="settings-field-row stacked">
+              <label className="settings-field-label" htmlFor="profile-first-name">
+                First Name
+              </label>
+              <input
+                id="profile-first-name"
+                type="text"
+                className="settings-text-input"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value.slice(0, 60))}
+                disabled={saving}
+                maxLength={60}
+                autoFocus
+              />
+            </div>
+
+            <div className="settings-field-row stacked">
+              <label className="settings-field-label" htmlFor="profile-last-name">
+                Last Name
+              </label>
+              <input
+                id="profile-last-name"
+                type="text"
+                className="settings-text-input"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value.slice(0, 60))}
+                disabled={saving}
+                maxLength={60}
+              />
+            </div>
+
+            <div className="settings-field-row stacked">
+              <label className="settings-field-label" htmlFor="profile-username">
+                Username
+              </label>
+              <input
+                id="profile-username"
+                type="text"
+                className="settings-text-input"
+                value={username}
+                onChange={(e) => setUsername(e.target.value.slice(0, 30).toLowerCase())}
+                disabled={saving || usernameLocked}
+                placeholder="3-30 chars, a-z 0-9 _"
+                maxLength={30}
+                spellCheck={false}
+                autoComplete="off"
+              />
+              <span className="settings-inline-hint">
+                {usernameLocked ? (
+                  <>
+                    <Clock size={10} style={{ verticalAlign: 'middle', marginRight: 4 }} />
+                    You can change your username again in <strong>{remaining}</strong>{' '}
+                    (once every 3 days).
+                  </>
+                ) : (
+                  'Lowercase letters, digits, and underscores only. You can change this once every 3 days.'
+                )}
+              </span>
+            </div>
+
+            <div className="settings-field-row">
+              <span className="settings-field-label">Email Address</span>
+              <span className="settings-field-value">{user.email}</span>
+            </div>
+
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'flex-end',
+                gap: 8,
+                marginTop: 12,
+              }}
+            >
+              <button
+                type="button"
+                className="settings-btn"
+                onClick={cancelEdit}
+                disabled={saving}
+              >
+                <X size={12} />
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="settings-btn settings-btn-primary"
+                onClick={handleSave}
+                disabled={saving}
+              >
+                {saving ? (
+                  <Loader2 size={12} className="settings-spin" />
+                ) : (
+                  <Save size={12} />
+                )}
+                {saving ? 'Saving…' : 'Save'}
+              </button>
+            </div>
+          </>
+        )}
       </section>
-
-      <TwoFactorSection />
-
-      <PasswordModal
-        mode={passwordModal}
-        email={user.email}
-        form={passwordForm}
-        setForm={setPasswordForm}
-        error={passwordError}
-        saving={passwordSaving}
-        onClose={closePasswordModal}
-        onSubmit={handlePasswordSubmit}
-        onForgot={handleForgotPassword}
-        onResend={handleResendCode}
-        forgotLoading={resetLoading}
-        resendLoading={resendLoading}
-      />
-
-      {showUnlinkAlert && (
-        <Alert
-          isOpen={showUnlinkAlert}
-          type="confirm"
-          title="Unlink Google Account?"
-          message="Are you sure you want to unlink your Google account? You can link it again later."
-          confirmText="Unlink"
-          cancelText="Cancel"
-          onConfirm={handleUnlinkGoogle}
-          onCancel={() => setShowUnlinkAlert(false)}
-        />
-      )}
     </div>
   );
 }

@@ -1135,3 +1135,47 @@
   .settings-tz-item { transition: none !important; }
 }
 
+
+
+/* ------------------------------------------------------------------
+   Text input used by the Account panel (profile editing)
+   ------------------------------------------------------------------ */
+.settings-text-input {
+  width: 100%;
+  padding: 9px 12px;
+  background: rgba(10,13,19,.6);
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 10px;
+  color: var(--ink-1);
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 13px;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color .18s ease, box-shadow .18s ease;
+}
+.settings-text-input:hover:not(:disabled) {
+  border-color: rgba(255,255,255,.22);
+}
+.settings-text-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.settings-text-input:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+}
+.settings-field-row.stacked {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+}
+.settings-field-row.stacked .settings-field-label {
+  text-align: left;
+}
+.settings-inline-hint {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 10.5px;
+  color: var(--ink-3);
+  letter-spacing: .01em;
+  line-height: 1.5;
+}

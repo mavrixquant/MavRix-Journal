@@ -6,7 +6,7 @@ import {
   setPasswordSchema,
   changePasswordSchema,
 } from '@mavrix/shared/validators';
-import { verifyResetOtpSchema, confirmPasswordResetSchema } from '@mavrix/shared/validators';
+import { verifyResetOtpSchema, confirmPasswordResetSchema, updateProfileSchema } from '@mavrix/shared/validators';
 import { requireAuth } from '../middleware/auth.js';
 import * as authController from '../controllers/auth.controller.js';
 import { rateLimit } from '../lib/rateLimit.js';
@@ -34,6 +34,7 @@ authRoutes.post('/login', validate(loginSchema), authController.login);
 authRoutes.post('/set-username', requireAuth, validate(setUsernameSchema), authController.setUsername);
 authRoutes.post('/set-password', requireAuth, validate(setPasswordSchema), authController.setPassword);
 authRoutes.post('/change-password', requireAuth, validate(changePasswordSchema), authController.changePassword);
+authRoutes.patch('/profile', requireAuth, validate(updateProfileSchema), authController.updateProfile);
 authRoutes.post('/refresh', authController.refresh);
 authRoutes.post('/logout', authController.logout);
 authRoutes.get('/me', requireAuth, authController.me);

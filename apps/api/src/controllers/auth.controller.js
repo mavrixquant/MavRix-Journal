@@ -169,3 +169,9 @@ export async function verifyResetOtp(req, res, next) {
     res.json(result);
   } catch (e) { next(e); }
 }
+export async function updateProfile(req, res, next) {
+  try {
+    const user = await authService.updateProfile(req.userId, req.body);
+    res.json({ user });
+  } catch (e) { next(e); }
+}

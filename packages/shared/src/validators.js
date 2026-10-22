@@ -277,3 +277,22 @@ export const confirmPasswordResetSchema = z.object({
   otp: z.string().trim().regex(/^\d{6}$/, 'Enter the 6-digit code'),
   newPassword: z.string().min(6, 'Password must be at least 6 characters').max(128),
 });
+
+// ---------------------------------------------------------------------------
+// Profile update (Settings → Account). All fields optional; at least one
+// required. Username cooldown is enforced server-side, not here.
+// ---------------------------------------------------------------------------
+export const updateProfileSchema = z
+  .object({
+    firstName: z.string().trim().min(1).max(60).optional(),
+    lastName:  z.string().trim().min(1).max(60).optional(),
+    username:  z
+      .string()
+      .trim()
+      .toLowerCase()
+      .regex(/^[a-z0-9_]{3,30}$/, 'Username must be 3-30 chars: a-z, 0-9, _')
+      .optional(),
+  })
+  .refine((d) => Object.keys(d).length > 0, {
+    message: 'At least one field is required',
+  });

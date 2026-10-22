@@ -506,8 +506,8 @@ export default function TwoFactorSection() {
             {/* Authenticator App */}
             <div className="settings-options-row">
               <div className="settings-options-text">
-                <span className="settings-options-label">
-                  <Smartphone size={12} style={{ verticalAlign: 'middle', marginRight: 6 }} />
+                <span className="settings-options-label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Smartphone size={12} />
                   Authenticator app
                 </span>
                 <span className="settings-options-desc">
@@ -535,8 +535,8 @@ export default function TwoFactorSection() {
             {/* Email OTP */}
             <div className="settings-options-row">
               <div className="settings-options-text">
-                <span className="settings-options-label">
-                  <Mail size={12} style={{ verticalAlign: 'middle', marginRight: 6 }} />
+                <span className="settings-options-label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Mail size={12} />
                   Email one-time code
                 </span>
                 <span className="settings-options-desc">

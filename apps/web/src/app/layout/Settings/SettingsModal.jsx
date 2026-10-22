@@ -1,7 +1,7 @@
-
 import { useEffect, useState } from 'react';
 import {
   User,
+  Shield,
   Palette,
   SlidersHorizontal,
   Bell,
@@ -15,6 +15,7 @@ import {
 import Portal from '@/shared/components/Portal';
 
 import AccountPanel       from './panels/AccountPanel';
+import SecurityPanel      from './panels/SecurityPanel';
 import AppearancePanel    from './panels/AppearancePanel';
 import PreferencesPanel   from './panels/PreferencesPanel';
 import NotificationsPanel from './panels/NotificationsPanel';
@@ -31,8 +32,15 @@ const TABS = [
     id: 'account',
     label: 'Account',
     title: 'Account Settings',
-    subtitle: 'Your profile, email verification, and connected accounts.',
+    subtitle: 'Your profile and email verification.',
     icon: User,
+  },
+  {
+    id: 'security',
+    label: 'Security',
+    title: 'Security',
+    subtitle: 'Password, two-factor authentication, and connected accounts.',
+    icon: Shield,
   },
   {
     id: 'mave-ai',
@@ -89,6 +97,7 @@ const TABS = [
 function renderPanel(id) {
   switch (id) {
     case 'account':       return <AccountPanel />;
+    case 'security':      return <SecurityPanel />;
     case 'mave-ai':       return <MaveAiPanel />;
     case 'appearance':    return <AppearancePanel />;
     case 'preferences':   return <PreferencesPanel />;
@@ -139,7 +148,6 @@ export default function SettingsModal({
           aria-modal="true"
           aria-label="Settings"
         >
-          {}
           <aside className="settings-rail">
             <div className="settings-rail-head">
               <span className="settings-rail-eyebrow">Preferences</span>
@@ -166,7 +174,6 @@ export default function SettingsModal({
             </nav>
           </aside>
 
-          {}
           <section className="settings-pane">
             <header className="settings-pane-head">
               <div className="settings-pane-headtext">

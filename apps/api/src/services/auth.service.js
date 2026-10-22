@@ -39,6 +39,7 @@ const publicUser = (u) => ({
   isBanned: !!u.isBanned,
   hasPassword: !!u.passwordHash,
   twoFactorEnabled: !!u.twoFactorEnabled,
+  usernameChangedAt: u.usernameChangedAt ? u.usernameChangedAt.toISOString() : null,
 });
 
 const issueTokens = (user) => {
@@ -461,6 +462,18 @@ export async function setUsername(userId, username) {
       'Username must be 3-30 characters and contain only lowercase letters, digits, or underscores'
     );
   }
+  const existing = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true, username: true, isAi: true },
+  });
+  if (!existing) throw new HttpError(404, 'User not found');
+  if (existing.isAi) throw new HttpError(403, 'Cannot modify AI accounts');
+  if (existing.username) {
+    throw new HttpError(
+      409,
+      'Username already set. Use the profile update endpoint to change it.'
+    );
+  }
   const clash = await prisma.user.findUnique({ where: { username: clean } });
   if (clash && clash.id !== userId) {
     throw new HttpError(409, 'That username is already taken');
@@ -528,4 +541,66 @@ export async function changePassword(userId, oldPassword, newPassword) {
   invalidateSvCache(userId);
 
   return { user: publicUser(updated), ...issueTokens(updated) };
+}
+// ---------------------------------------------------------------------------
+// updateProfile — edit firstName, lastName, and username.
+// Username changes are throttled to once every 3 days via usernameChangedAt.
+// setUsername (initial setup) does NOT stamp the cooldown — the first change
+// from Settings is free.
+// ---------------------------------------------------------------------------
+
+const USERNAME_COOLDOWN_MS = 3 * 24 * 60 * 60 * 1000;
+
+export async function updateProfile(userId, { firstName, lastName, username }) {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) throw new HttpError(404, 'User not found');
+  if (user.isAi) throw new HttpError(403, 'Cannot modify AI accounts');
+
+  const data = {};
+
+  if (firstName !== undefined) {
+    const clean = String(firstName).trim();
+    if (!clean) throw new HttpError(400, 'First name cannot be empty');
+    data.firstName = clean.slice(0, 60);
+  }
+
+  if (lastName !== undefined) {
+    const clean = String(lastName).trim();
+    if (!clean) throw new HttpError(400, 'Last name cannot be empty');
+    data.lastName = clean.slice(0, 60);
+  }
+
+  if (username !== undefined) {
+    const clean = String(username).trim().toLowerCase();
+    if (!/^[a-z0-9_]{3,30}$/.test(clean)) {
+      throw new HttpError(400, 'Username must be 3-30 characters: a-z, 0-9, _');
+    }
+
+    if (clean !== user.username) {
+      if (user.usernameChangedAt) {
+        const since = Date.now() - user.usernameChangedAt.getTime();
+        if (since < USERNAME_COOLDOWN_MS) {
+          const remainingMs = USERNAME_COOLDOWN_MS - since;
+          const days = Math.ceil(remainingMs / (24 * 60 * 60 * 1000));
+          throw new HttpError(
+            429,
+            `Username can only be changed once every 3 days. Try again in ${days} day(s).`
+          );
+        }
+      }
+
+      const clash = await prisma.user.findUnique({ where: { username: clean } });
+      if (clash && clash.id !== userId) {
+        throw new HttpError(409, 'That username is already taken');
+      }
+
+      data.username = clean;
+      data.usernameChangedAt = new Date();
+    }
+  }
+
+  if (Object.keys(data).length === 0) return publicUser(user);
+
+  const updated = await prisma.user.update({ where: { id: userId }, data });
+  return publicUser(updated);
 }

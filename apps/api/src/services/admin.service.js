@@ -293,6 +293,7 @@ export async function updateUser(actor, targetId, patch) {
       const clash = await prisma.user.findUnique({ where: { username: next } });
       if (clash && clash.id !== targetId) throw new HttpError(409, 'Username already taken');
       data.username = next;
+      data.usernameChangedAt = null;
     }
   }
 

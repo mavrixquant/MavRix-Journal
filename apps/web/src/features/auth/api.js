@@ -16,6 +16,7 @@ function normalizeUser(u) {
     uid: u.id,
     email: u.email,
     username: u.username ?? null,
+    usernameChangedAt: u.usernameChangedAt ?? null,
     hasUsername: !!u.username,
     firstName: u.firstName,
     lastName: u.lastName,
@@ -181,6 +182,14 @@ export async function resetPassword(email, otp, newPassword) {
     body: JSON.stringify({ email, otp, newPassword }),
   });
 }
+export async function updateProfile(payload) {
+  const data = await apiJson('/api/auth/profile', {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
+  return normalizeUser(data.user);
+}
+
 export async function setUsername(username) {
   const data = await apiJson('/api/auth/set-username', {
     method: 'POST',
