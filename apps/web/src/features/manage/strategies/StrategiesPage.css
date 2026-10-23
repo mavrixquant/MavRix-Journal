@@ -482,7 +482,7 @@
   position: relative;
   width: 100%;
   max-width: 560px;
-  max-height: calc(100vh - 32px);
+  max-height: calc(100vh - 32px); max-height: calc(100dvh - 32px);
   display: flex;
   flex-direction: column;
   background: linear-gradient(180deg, #12161F, #0C1017);

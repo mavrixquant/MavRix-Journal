@@ -34,7 +34,7 @@ const ALERT_CSS = `
   .alert-modal {
     width: 100%;
     max-width: 420px;
-    max-height: calc(100vh - 32px);
+    max-height: calc(100vh - 32px); max-height: calc(100dvh - 32px);
     margin: auto;
     background: linear-gradient(180deg, #12161F, #0C1017);
     border: 1px solid var(--line);

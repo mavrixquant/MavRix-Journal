@@ -431,7 +431,7 @@ const UPL_CSS = `
 
     width: 100%;
     max-width: 720px;
-    max-height: 90vh;
+    max-height: 90vh; max-height: 90dvh;
     display: flex;
     flex-direction: column;
     background: linear-gradient(180deg, #12161F, #0C1017);

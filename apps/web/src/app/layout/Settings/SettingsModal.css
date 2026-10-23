@@ -28,7 +28,7 @@
   position: relative;
   width: 100%;
   max-width: 960px;
-  height: min(640px, calc(100vh - 40px));
+  height: min(640px, calc(100vh - 40px)); height: min(640px, calc(100dvh - 40px));
   display: grid;
   grid-template-columns: 220px 1fr;
   background: linear-gradient(180deg, #12161F, #0C1017);

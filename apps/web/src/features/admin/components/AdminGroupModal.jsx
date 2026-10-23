@@ -34,7 +34,7 @@ const CSS = `
 
     width: 100%;
     max-width: 560px;
-    max-height: 88vh;
+    max-height: 88vh; max-height: 88dvh;
     display: flex;
     flex-direction: column;
     background: linear-gradient(180deg, #12161F, #0C1017);

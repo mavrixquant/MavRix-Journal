@@ -25,7 +25,7 @@ export default function AdminLayout() {
       style={{
         display: 'block',
         width: '100%',
-        height: '100vh',
+        height: 'var(--app-vh, 100vh)',
         overflow: 'hidden',
         background: '#07090D',
         position: 'relative',

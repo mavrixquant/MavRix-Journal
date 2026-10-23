@@ -58,7 +58,7 @@ const SIM_CSS = `
 
   /* Empty / info states. */
   .sim-empty-wrap {
-    min-height: calc(100vh - 160px); display: flex;
+    min-height: calc(100vh - 160px); min-height: calc(100dvh - 160px); display: flex;
     align-items: center; justify-content: center; padding: 40px 16px;
   }
   .sim-empty {
@@ -597,7 +597,7 @@ export default function SimulatorPage() {
       <>
         <style>{SIM_CSS}</style>
         <div className="sim-page page-fade-in" key="loading">
-          <div className="sim-loading" style={{ minHeight: 'calc(100vh - 120px)', justifyContent: 'center' }}>
+          <div className="sim-loading" style={{ minHeight: 'calc(var(--app-vh, 100vh) - 120px)', justifyContent: 'center' }}>
             <div className="sim-spinner" />
             <span>Fetching market execution history…</span>
           </div>

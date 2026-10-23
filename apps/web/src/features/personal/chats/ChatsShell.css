@@ -2383,7 +2383,7 @@
   --ink-1: #E7E9EE; --ink-2: #8892A3; --ink-3: #545E6E;
   width: 100%;
   max-width: 520px;
-  max-height: 88vh;
+  max-height: 88vh; max-height: 88dvh;
   display: flex;
   flex-direction: column;
   background: linear-gradient(180deg, #12161F, #0C1017);
@@ -2735,7 +2735,7 @@
 
   .chat-body {
     flex-direction: column;
-    min-height: calc(100vh - 220px);
+    min-height: calc(100vh - 220px); min-height: calc(100dvh - 220px);
     border-radius: 14px;
     position: relative;
     overflow: hidden;

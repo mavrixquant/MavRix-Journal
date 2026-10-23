@@ -153,7 +153,7 @@ const CSS = `
     --line: rgba(255,255,255,.085);
     --line-soft: rgba(255,255,255,.05);
     --ink-1: #E7E9EE; --ink-2: #8892A3; --ink-3: #545E6E;
-    width: 100%; max-width: 620px; max-height: 90vh;
+    width: 100%; max-width: 620px; max-height: 90vh; max-height: 90dvh;
     display: flex; flex-direction: column;
     background: linear-gradient(180deg, #12161F, #0C1017);
     border: 1px solid var(--line);
