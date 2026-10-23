@@ -407,7 +407,7 @@ export default function AnalysePage() {
   const hasAnyTrades = totalCount > 0;
 
   return (
-    <div className="analyse-root">
+    <div className="analyse-root page-fade-in">
       <style>{CSS}</style>
 
       <AnalyseFilters />

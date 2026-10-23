@@ -75,9 +75,7 @@ export default function AdminLayout() {
                     padding: 24,
                   }}
                 >
-                  <Suspense key={location.pathname} fallback={<PageSkeleton />}>
-                    <Outlet />
-                  </Suspense>
+                  <Suspense key={location.pathname} fallback={<PageSkeleton />}><div className="page-fade-in"><Outlet /></div></Suspense>
                 </main>
               </div>
             </div>

@@ -664,7 +664,7 @@ function buildColumns(dynamicKeys, currency, isBacktest, { onEdit, onDelete }) {
     return (
       <>
         <style>{CSS}</style>
-        <div className="jm-root">
+        <div className="jm-root page-fade-in">
           <EmptyState
             icon={FaFolderOpen}
             eyebrow="No accounts"
@@ -691,7 +691,7 @@ function buildColumns(dynamicKeys, currency, isBacktest, { onEdit, onDelete }) {
   return (
     <>
       <style>{CSS}</style>
-      <div className="jm-root">
+      <div className="jm-root page-fade-in">
 
         {}
         <div className="jm-top-row">

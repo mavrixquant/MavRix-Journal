@@ -528,7 +528,7 @@ export default function GexPage() {
   return (
     <>
       <style>{CSS}</style>
-      <div className="gxp-root">
+      <div className="gxp-root page-fade-in">
 
         {/* Symbol switcher + TradingView indicator link */}
         <div className="gxp-symbol-row">

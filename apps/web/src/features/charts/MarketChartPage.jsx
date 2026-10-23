@@ -440,7 +440,7 @@ export default function MarketChartPage() {
   return (
     <>
       <style>{CSS}</style>
-      <div className="chart-root">
+      <div className="chart-root page-fade-in">
         <div className="chart-layout">
           <WatchlistSidebar
             catalog={symbols}

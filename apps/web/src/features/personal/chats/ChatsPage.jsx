@@ -117,7 +117,7 @@ export default function ChatsPage() {
 
   if (isLoading) return <PageSkeleton />;
 
-  let shellClass = 'chat-shell';
+  let shellClass = 'chat-shell page-fade-in';
   if (activeTab === 'dms' || activeTab === 'groups') {
     if (!selectedId) shellClass += ' is-mobile-sidebar';
     else if (mobileThreadOpen) shellClass += ' is-mobile-thread';

@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { Responsive, WidthProvider } from 'react-grid-layout/legacy';
+import MeasuredGrid from '@/features/dashboard/components/MeasuredGrid';
 import BacktesterDashboardHeader from './BacktesterDashboardHeader';
 import DashboardFooter from '@/features/dashboard/components/DashboardFooter';
 import DashboardFab from '@/features/dashboard/components/DashboardFab';
@@ -48,7 +48,6 @@ import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 import '@/features/dashboard/dashboardShell.css';
 
-const ResponsiveGridLayout = WidthProvider(Responsive);
 
 const MAX_NAME_LEN = 24;
 const DEFAULT_NAME_PATTERN = /^Layout \d+$/;
@@ -58,7 +57,6 @@ export default function BacktesterDashboardPage() {
   const { accountId } = useDashboardAccount();
 
   const enriched = useEnrichedTrades(accountId);
-  void enriched;
 
   const { stats } = useStats();
 
@@ -298,10 +296,10 @@ export default function BacktesterDashboardPage() {
     );
   };
 
-  if (!user) return <PageSkeleton />;
+  if (!user || layouts.length === 0 || enriched.isLoading || !enriched.isSynced) return <PageSkeleton />;
 
   return (
-    <div className="dash-root">
+    <div className="dash-root is-ready">
       {!editMode && <BacktesterDashboardHeader />}
 
       {!hasData ? (
@@ -433,7 +431,7 @@ export default function BacktesterDashboardPage() {
             </div>
           ) : (
             <div className={`dash-grid ${editMode ? 'dash-editing' : ''}`}>
-              <ResponsiveGridLayout
+              <MeasuredGrid
                 breakpoints={GRID_BREAKPOINTS}
                 cols={GRID_COLS_BY_BP}
                 rowHeight={GRID_ROW_HEIGHT}
@@ -506,7 +504,7 @@ export default function BacktesterDashboardPage() {
                     </div>
                   );
                 })}
-              </ResponsiveGridLayout>
+              </MeasuredGrid>
             </div>
           )}
 

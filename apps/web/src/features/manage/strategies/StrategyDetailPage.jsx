@@ -214,7 +214,7 @@ export default function StrategyDetailPage() {
 
   if (stratError || !strategy) {
     return (
-      <div className="strat-detail-root">
+      <div className="strat-detail-root page-fade-in">
         <Link to="/manage/strategies" className="strat-back">
           <FaArrowLeft size={11} /> Back to Strategies
         </Link>
@@ -236,7 +236,7 @@ export default function StrategyDetailPage() {
 
   return (
     <>
-      <div className="strat-detail-root">
+      <div className="strat-detail-root page-fade-in">
 
         <Link to="/manage/strategies" className="strat-back">
           <FaArrowLeft size={11} /> Back to Strategies

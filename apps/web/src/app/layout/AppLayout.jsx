@@ -117,9 +117,7 @@ export default function AppLayout() {
             />
 
             <main className="box-border w-full px-4 py-5 lg:px-7 lg:py-6">
-              <Suspense key={location.pathname} fallback={<PageSkeleton />}>
-                <Outlet />
-              </Suspense>
+              <Suspense key={location.pathname} fallback={<PageSkeleton />}><div className="page-fade-in"><Outlet /></div></Suspense>
             </main>
           </div>
 

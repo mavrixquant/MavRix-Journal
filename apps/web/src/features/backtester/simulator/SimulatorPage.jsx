@@ -571,7 +571,7 @@ export default function SimulatorPage() {
     return (
       <>
         <style>{SIM_CSS}</style>
-        <div className="sim-page">
+        <div className="sim-page page-fade-in" key="empty">
           <div className="sim-empty-wrap">
             <div className="sim-empty">
               <div className="sim-empty-icon">
@@ -596,7 +596,7 @@ export default function SimulatorPage() {
     return (
       <>
         <style>{SIM_CSS}</style>
-        <div className="sim-page">
+        <div className="sim-page page-fade-in" key="loading">
           <div className="sim-loading" style={{ minHeight: 'calc(100vh - 120px)', justifyContent: 'center' }}>
             <div className="sim-spinner" />
             <span>Fetching market execution history…</span>
@@ -610,7 +610,7 @@ export default function SimulatorPage() {
     return (
       <>
         <style>{SIM_CSS}</style>
-        <div className="sim-page">
+        <div className="sim-page page-fade-in" key="insufficient">
           <div className="sim-info">
             <div className="sim-info-icon">📊</div>
             <div className="sim-info-title">
@@ -629,7 +629,7 @@ export default function SimulatorPage() {
   return (
     <>
       <style>{SIM_CSS}</style>
-      <div className="sim-page">
+      <div className="sim-page page-fade-in" key="ready">
 
         <SimulatorControls
           method={method}

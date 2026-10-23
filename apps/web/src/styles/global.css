@@ -1639,3 +1639,17 @@ footer b { color: var(--text-dim); }
     margin-left: 68px;
   }
 }
+
+/* ==== SMOOTH PAGE FADE (matches Journal Dashboard dashGridFade) ==== */
+.page-fade-in {
+  animation: pageFadeIn 200ms ease-out;
+}
+
+@keyframes pageFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-fade-in { animation: none !important; }
+}

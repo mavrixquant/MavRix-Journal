@@ -96,7 +96,7 @@ export default function StrategiesPage() {
 
   return (
     <>
-      <div className="strat-root">
+      <div className="strat-root page-fade-in">
 
         {}
         <div className="strat-toolbar">

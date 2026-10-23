@@ -167,18 +167,12 @@ export default function AccountsPage() {
   );
 
   if (loading) {
-    return (
-      <div className="acc-root">
-        <div style={{ padding: '80px 20px', textAlign: 'center' }}>
-          <LoadingOverlay message="Loading account metrics..." />
-        </div>
-      </div>
-    );
+    return <LoadingOverlay message="Loading account metrics..." />;
   }
 
   return (
     <>
-      <div className="acc-root">
+      <div className="acc-root page-fade-in">
 
         <div className="acc-toolbar">
           <div className="acc-type-tabs">

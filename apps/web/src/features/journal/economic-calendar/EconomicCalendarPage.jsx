@@ -148,7 +148,7 @@ export default function EconomicCalendarPage() {
   return (
     <>
       <style>{CSS}</style>
-      <div className="ec-root">
+      <div className="ec-root page-fade-in">
 
         {}
         <div className="ec-card" style={{ padding: '18px 22px' }}>
