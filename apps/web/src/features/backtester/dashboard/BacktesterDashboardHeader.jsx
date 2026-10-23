@@ -27,70 +27,8 @@ const HDR_CSS = `
     padding: 2px 0 20px;
   }
 
-  /* ---------- Top actions row ---------- */
-  .hdr-actions-row {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding-bottom: 14px;
-    border-bottom: 1px solid var(--line-soft);
-  }
-  .hdr-spacer { flex: 1; min-width: 8px; }
 
-  /* ---------- Collapse chevron ---------- */
-  .hdr-collapse {
-    width: 30px;
-    height: 30px;
-    border-radius: 9px;
-    border: 1px solid rgba(255,255,255,.1);
-    background: rgba(255,255,255,.03);
-    color: var(--ink-2);
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    padding: 0;
-    transition: all .22s cubic-bezier(.2,.8,.25,1);
-  }
-  .hdr-collapse svg {
-    width: 14px;
-    height: 14px;
-    transition: transform .38s cubic-bezier(.2,.8,.25,1);
-    transform: rotate(0deg);
-  }
-  .hdr-collapse.is-closed svg {
-    transform: rotate(180deg);
-  }
-  .hdr-collapse:hover {
-    color: var(--accent);
-    border-color: var(--accent-soft2);
-    background: color-mix(in srgb, var(--accent) 6%, transparent);
-    box-shadow: 0 0 16px -6px color-mix(in srgb, var(--accent) 45%, transparent);
-  }
-  .hdr-collapse:active { transform: scale(.94); }
-  .hdr-collapse:focus-visible {
-    outline: none;
-    border-color: var(--accent);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
-  }
 
-  /* ---------- Collapsible toolbar wrapper ---------- */
-  .hdr-toolbar-wrap {
-    display: grid;
-    grid-template-rows: 1fr;
-    opacity: 1;
-    transition:
-      grid-template-rows .38s cubic-bezier(.2,.8,.25,1),
-      opacity .28s ease;
-  }
-  .hdr-toolbar-wrap.is-closed {
-    grid-template-rows: 0fr;
-    opacity: 0;
-    pointer-events: none;
-  }
-  .hdr-toolbar-inner { min-height: 0; }
-  .hdr-toolbar-wrap.is-closed .hdr-toolbar-inner { overflow: hidden; }
 
   /* ---------- Toolbar row ---------- */
   .hdr-toolbar {
@@ -188,9 +126,7 @@ const HDR_CSS = `
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .hdr-btn, .hdr-btn-reset,
-    .hdr-collapse, .hdr-collapse svg,
-    .hdr-toolbar-wrap { transition: none !important; }
+    .hdr-btn, .hdr-btn-reset { transition: none !important; }
   }
 
   @media (max-width: 768px) {
@@ -209,8 +145,6 @@ export default function BacktesterDashboardHeader() {
   const [showLimitsModal, setShowLimitsModal] = useState(false);
   const [showOptimizeModal, setShowOptimizeModal] = useState(false);
 
-  const [toolbarOpen, setToolbarOpen] = useState(true);
-
   const selectedAccount =
     state.accounts.find((acc) => acc.id === accountId) || null;
 
@@ -224,36 +158,7 @@ export default function BacktesterDashboardHeader() {
     <>
       <style>{HDR_CSS}</style>
       <div className="hdr-root">
-        {}
-        <div className="hdr-actions-row">
-          <button
-            type="button"
-            className={`hdr-collapse ${toolbarOpen ? '' : 'is-closed'}`}
-            onClick={() => setToolbarOpen((v) => !v)}
-            aria-expanded={toolbarOpen}
-            aria-controls="hdr-toolbar"
-            title={toolbarOpen ? 'Hide filters' : 'Show filters'}
-          >
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.4"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <polyline points="6 15 12 9 18 15" />
-            </svg>
-          </button>
-
-          <div className="hdr-spacer" />
-        </div>
-
-        {}
-        <div className={`hdr-toolbar-wrap ${toolbarOpen ? '' : 'is-closed'}`}>
-          <div className="hdr-toolbar-inner">
-            <div className="hdr-toolbar" id="hdr-toolbar">
+        <div className="hdr-toolbar" id="hdr-toolbar">
               <div className="hdr-toolbar-section">
                 <span className="hdr-rr-label">Target R:R</span>
                 <RRTabs />
@@ -313,8 +218,6 @@ export default function BacktesterDashboardHeader() {
                 </button>
               </div>
             </div>
-          </div>
-        </div>
       </div>
 
       {showSessionModal && (

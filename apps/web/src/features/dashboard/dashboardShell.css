@@ -16,7 +16,8 @@
   width: 100%;
   box-sizing: border-box;
   overflow-x: hidden;
-  min-height: 100vh;
+  min-height: calc(100vh - 108px);
+  min-height: calc(100dvh - 108px);
   padding: 0 0 40px;
   color: var(--ink-1);
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
@@ -719,4 +720,12 @@
 @keyframes dashGridFade {
   from { opacity: 0; }
   to   { opacity: 1; }
+}
+
+/* ==== viewport-fit fix (kills 116px body scroll) ==== */
+@media (min-width: 1024px) {
+  .dash-root {
+    min-height: calc(100vh - 116px);
+    min-height: calc(100dvh - 116px);
+  }
 }

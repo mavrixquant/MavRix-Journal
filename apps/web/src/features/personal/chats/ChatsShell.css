@@ -11,7 +11,8 @@
   max-width: 1600px;
   margin: 0 auto;
   box-sizing: border-box;
-  height: calc(100vh - 120px);
+  height: calc(100vh - 108px);
+  height: calc(100dvh - 108px);
   min-height: 520px;
 }
 
@@ -2956,4 +2957,12 @@
 @keyframes typingDot {
   0%, 80%, 100% { transform: translateY(0); opacity: .35; }
   40% { transform: translateY(-3px); opacity: 1; }
+}
+
+/* ==== viewport-fit fix: mobile = 108px, lg = 116px overhead ==== */
+@media (min-width: 1024px) {
+  .chat-shell {
+    height: calc(100vh - 116px);
+    height: calc(100dvh - 116px);
+  }
 }

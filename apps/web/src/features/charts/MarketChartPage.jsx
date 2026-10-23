@@ -247,7 +247,7 @@ const CSS = `
 
   /* ---------- Chart shell ---------- */
   .chart-shell {
-    position: relative; width: 100%; height: 640px; min-height: 420px;
+    position: relative; width: 100%; height: 640px;     max-height: calc(100vh - 280px);     max-height: calc(100dvh - 280px);     min-height: 400px;
     border-radius: 14px; border: 1px solid var(--line);
     background: linear-gradient(180deg, rgba(15,18,25,.72), rgba(15,18,25,.55));
     box-shadow: 0 20px 50px -30px rgba(0,0,0,.9); overflow: hidden;
