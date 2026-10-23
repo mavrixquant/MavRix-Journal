@@ -89,36 +89,6 @@ function RPreview({ form, initialR = 1 }) {
     </div>
   );
 }
-// Auto-computed P&L hint -- shown when entry, exit, quantity and direction
-// are all filled. Clicking copies the computed value into the P&L field.
-function PnlHint({ form, setForm }) {
-  const { entryPrice, exitPrice, quantity, direction, pnl } = form;
-  const ep = Number(entryPrice), xp = Number(exitPrice), q = Number(quantity);
-  if (!Number.isFinite(ep) || !Number.isFinite(xp) || !Number.isFinite(q) || q <= 0) {
-    return null;
-  }
-  const raw = direction === 'Short' ? (ep - xp) * q : (xp - ep) * q;
-  if (!Number.isFinite(raw) || raw === 0) return null;
-  const computed = +raw.toFixed(2);
-  const current = pnl === '' ? null : Number(pnl);
-  const same = current != null && Math.abs(current - computed) < 0.01;
-  const positive = computed > 0;
-  return (
-    <div
-      className="at-pnl-hint"
-      onClick={() => setForm((f) => ({ ...f, pnl: String(computed) }))}
-      title="Click to copy into P&L"
-    >
-      <span style={{ color: 'var(--ink-3)' }}>Computed from prices:</span>{' '}
-      <b style={{ color: positive ? '#35C4A1' : '#FF5C5C' }}>
-        {positive ? '+' : ''}{computed.toFixed(2)}
-      </b>
-      {same
-        ? <span style={{ color: '#35C4A1', marginLeft: 8 }}>matches P&L</span>
-        : <span style={{ color: 'var(--ink-3)', marginLeft: 8 }}>click to fill</span>}
-    </div>
-  );
-}
 const EMPTY = {
   date: '',
   entryTime: '',
@@ -130,7 +100,6 @@ const EMPTY = {
   mfe: '',
   sl: '',
   entryPrice: '',
-  exitPrice: '',
   takeProfit: '',
   stopLoss: '',
   pnl: '',
@@ -564,7 +533,6 @@ export default function AddTradeModal({ isOpen, onClose, account, trade = null, 
         mfe: trade.mfe != null ? String(trade.mfe) : '',
         sl: isBacktest ? slPointsToDisplay(trade.slPoints) : '',
         entryPrice: trade.entryPrice != null ? String(trade.entryPrice) : '',
-        exitPrice: trade.exitPrice != null ? String(trade.exitPrice) : '',
         takeProfit: trade.takeProfit != null ? String(trade.takeProfit) : '',
         stopLoss: trade.stopLoss != null ? String(trade.stopLoss) : '',
         pnl: trade.pnl != null ? String(trade.pnl) : '',
@@ -657,14 +625,12 @@ export default function AddTradeModal({ isOpen, onClose, account, trade = null, 
           mae: Number(form.mae),
           mfe: Number(form.mfe),
           slPoints: resolveSLPoints(form.sl),
-          exitPrice: null,
           pnl: 0,
           commission: commissionValue,
         }
       : {
           ...base,
           entryPrice: form.entryPrice === '' ? null : Number(form.entryPrice),
-          exitPrice: form.exitPrice === '' ? null : Number(form.exitPrice),
           takeProfit: form.takeProfit === '' ? null : Number(form.takeProfit),
           stopLoss: form.stopLoss === '' ? null : Number(form.stopLoss),
           commission: commissionValue,
@@ -917,18 +883,6 @@ export default function AddTradeModal({ isOpen, onClose, account, trade = null, 
                           disabled={saving}
                         />
                       </div>
-                      <div>
-                        <label className="at-label">Exit Price</label>
-                        <input
-                          type="number"
-                          step="any"
-                          className="at-input"
-                          placeholder="0.00"
-                          value={form.exitPrice}
-                          onChange={(e) => set('exitPrice', e.target.value)}
-                          disabled={saving}
-                        />
-                      </div>
                     </div>
 
                     <div className="at-grid-2">
@@ -988,7 +942,6 @@ export default function AddTradeModal({ isOpen, onClose, account, trade = null, 
                       </div>
                     </div>
 
-                    <PnlHint form={form} setForm={setForm} />
 
                     <div>
                       <label className="at-label">

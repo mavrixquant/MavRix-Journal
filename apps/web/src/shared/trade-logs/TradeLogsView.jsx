@@ -439,17 +439,6 @@ function buildColumns(dynamicKeys, currency, isBacktest, { onEdit, onDelete }) {
             return v == null ? '—' : Number(v).toLocaleString('en-US', { maximumFractionDigits: 6 });
           },
         },
-        {
-          id: 'exitPrice',
-          accessorKey: 'exitPrice',
-          header: 'Exit Price',
-          meta: { label: 'Exit Price' },
-          size: 110,
-          cell: (ctx) => {
-            const v = ctx.getValue();
-            return v == null ? '—' : Number(v).toLocaleString('en-US', { maximumFractionDigits: 6 });
-          },
-        },
       ];
 
   const common2 = [

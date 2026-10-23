@@ -134,7 +134,6 @@ export const tradeSchema = z.object({
   slPoints: z.number().finite().nonnegative().nullable().optional(),
 
   entryPrice: z.number().finite().nullable().optional(),
-exitPrice: z.number().finite().nullable().optional(),
   takeProfit: z.number().finite().nullable().optional(),
   stopLoss: z.number().finite().nullable().optional(),
 
