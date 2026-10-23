@@ -1,11 +1,8 @@
-
-import { useEffect, useRef } from 'react';
+﻿import { useEffect, useRef, useState } from 'react';
 import { BarChart3 } from 'lucide-react';
 import {
   createChart,
   CandlestickSeries,
-  HistogramSeries,
-  LineSeries,
   CrosshairMode,
   ColorType,
   LineStyle,
@@ -14,46 +11,113 @@ import {
 import EmptyState from '@/shared/components/EmptyState';
 import { chartTheme } from '../lib/chartTheme';
 
-const INDICATOR_COLORS = {
-  ema20: '#F59E0B',
-  ema50: '#4C8BF5',
-  vwap:  '#A78BFA',
-  bb:    '#8892A3',
-};
-
-
-function ascendingByTime(a, b) {
-  if (a.time === b.time) return 0;
-  return a.time < b.time ? -1 : 1;
+function fmtPrice(n) {
+  if (n == null || Number.isNaN(Number(n))) return '—';
+  return Number(n).toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 4,
+  });
 }
 
-export default function CandlestickChart({
-  bars,
-  interval,
-  isLoading,
-  indicators,
-  indicatorData,
-  drawings = [],
-  drawingMode = 'none',
-  onChartClick,
-}) {
+function OhlcLegend({ ohlc, interval }) {
+  if (!ohlc) return null;
+  const up = ohlc.close >= ohlc.open;
+  const dirClass = up ? 'is-up' : 'is-down';
+
+  return (
+    <div className="cl-ohlc" aria-hidden>
+      <span className="cl-ohlc-item"><em>O</em><b className={dirClass}>{fmtPrice(ohlc.open)}</b></span>
+      <span className="cl-ohlc-item"><em>H</em><b className={dirClass}>{fmtPrice(ohlc.high)}</b></span>
+      <span className="cl-ohlc-item"><em>L</em><b className={dirClass}>{fmtPrice(ohlc.low)}</b></span>
+      <span className="cl-ohlc-item"><em>C</em><b className={dirClass}>{fmtPrice(ohlc.close)}</b></span>
+      {interval && <span className="cl-ohlc-tf">{interval.toUpperCase()}</span>}
+    </div>
+  );
+}
+
+const CSS = `
+  .cl-root {
+    position: relative;
+    width: 100%;
+    height: 100%;
+  }
+  .cl-canvas {
+    width: 100%;
+    height: 100%;
+  }
+  .cl-ohlc {
+    position: absolute;
+    top: 12px;
+    left: 16px;
+    z-index: 3;
+    display: inline-flex;
+    align-items: center;
+    gap: 14px;
+    padding: 6px 12px;
+    border-radius: 8px;
+    background: rgba(12, 16, 23, 0.72);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,.06);
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 11px;
+    letter-spacing: .02em;
+    pointer-events: none;
+    animation: clFadeIn .35s ease;
+  }
+  .cl-ohlc-item { display: inline-flex; gap: 5px; align-items: center; }
+  .cl-ohlc-item em {
+    font-style: normal;
+    color: #545E6E;
+    font-weight: 700;
+    font-size: 9.5px;
+    letter-spacing: .12em;
+  }
+  .cl-ohlc-item b {
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+  .cl-ohlc-item b.is-up   { color: #35C4A1; }
+  .cl-ohlc-item b.is-down { color: #FF5C5C; }
+  .cl-ohlc-tf {
+    margin-left: 4px;
+    padding: 1px 7px;
+    border-radius: 4px;
+    background: rgba(255,255,255,.04);
+    border: 1px solid rgba(255,255,255,.06);
+    color: #8892A3;
+    font-size: 9.5px;
+    font-weight: 700;
+    letter-spacing: .08em;
+  }
+  .cl-empty-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+  }
+  @keyframes clFadeIn { from { opacity: 0; transform: translateY(-2px); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) {
+    .cl-ohlc { animation: none; }
+  }
+`;
+
+export default function CandlestickChart({ bars, interval, onReady }) {
   const containerRef = useRef(null);
   const chartRef = useRef(null);
   const candleRef = useRef(null);
-  const volumeRef = useRef(null);
 
-  const indicatorRefs = useRef(new Map());
-  const drawingRefs = useRef(new Map());
+  const [ohlc, setOhlc] = useState(null);
 
-  const clickHandlerRef = useRef(onChartClick);
-  useEffect(() => { clickHandlerRef.current = onChartClick; }, [onChartClick]);
+  const onReadyRef = useRef(onReady);
+  useEffect(() => { onReadyRef.current = onReady; }, [onReady]);
 
+  // ---- mount chart once ----
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return undefined;
-
-    const indicatorMap = indicatorRefs.current;
-    const drawingMap = drawingRefs.current;
 
     const chart = createChart(el, {
       layout: {
@@ -69,12 +133,23 @@ export default function CandlestickChart({
       },
       crosshair: {
         mode: CrosshairMode.Normal,
-        vertLine: { color: chartTheme.crosshair, width: 1, style: LineStyle.Dashed, labelBackgroundColor: chartTheme.accent },
-        horzLine: { color: chartTheme.crosshair, width: 1, style: LineStyle.Dashed, labelBackgroundColor: chartTheme.accent },
+        vertLine: {
+          color: chartTheme.crosshair,
+          width: 1,
+          style: LineStyle.Dashed,
+          labelBackgroundColor: chartTheme.accent,
+        },
+        horzLine: {
+          color: chartTheme.crosshair,
+          width: 1,
+          style: LineStyle.Dashed,
+          labelBackgroundColor: chartTheme.accent,
+        },
       },
       rightPriceScale: {
         borderColor: chartTheme.border,
-        scaleMargins: { top: 0.08, bottom: 0.24 },
+        // No volume → reclaim the bottom 15% for candles.
+        scaleMargins: { top: 0.06, bottom: 0.06 },
       },
       timeScale: {
         borderColor: chartTheme.border,
@@ -99,210 +174,83 @@ export default function CandlestickChart({
       lastValueVisible: true,
     });
 
-    const volume = chart.addSeries(HistogramSeries, {
-      priceFormat: { type: 'volume' },
-      priceScaleId: 'volume',
-      color: chartTheme.volumeUp,
-      priceLineVisible: false,
-      lastValueVisible: false,
-    });
-    chart.priceScale('volume').applyOptions({ scaleMargins: { top: 0.85, bottom: 0 } });
-
     chartRef.current = chart;
     candleRef.current = candle;
-    volumeRef.current = volume;
 
-    const handleClick = (param) => {
-      const cb = clickHandlerRef.current;
-      if (!cb || !param?.time || !param?.point || !candleRef.current) return;
-      const price = candleRef.current.coordinateToPrice(param.point.y);
-      if (!Number.isFinite(price)) return;
-      cb({ time: param.time, price });
+    // Crosshair → OHLC legend
+    const handleCrosshair = (param) => {
+      if (!param.time || !param.point) {
+        const lastBar = (bars && bars.length > 0) ? bars[bars.length - 1] : null;
+        setOhlc(lastBar ? { open: lastBar.open, high: lastBar.high, low: lastBar.low, close: lastBar.close } : null);
+        return;
+      }
+      const barData = param.seriesData.get(candle);
+      if (barData && barData.open != null) {
+        setOhlc({ open: barData.open, high: barData.high, low: barData.low, close: barData.close });
+      }
     };
-    chart.subscribeClick(handleClick);
+    chart.subscribeCrosshairMove(handleCrosshair);
 
     return () => {
-      chart.unsubscribeClick(handleClick);
+      chart.unsubscribeCrosshairMove(handleCrosshair);
       chart.remove();
       chartRef.current = null;
       candleRef.current = null;
-      volumeRef.current = null;
-      indicatorMap.clear();
-      drawingMap.clear();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // ---- time axis: show times on intraday ----
   useEffect(() => {
     const chart = chartRef.current;
     if (!chart) return;
     chart.timeScale().applyOptions({ timeVisible: interval !== '1d' });
   }, [interval]);
 
+  // ---- feed data ----
   useEffect(() => {
     const candle = candleRef.current;
-    const volume = volumeRef.current;
     const chart = chartRef.current;
-    if (!candle || !volume || !chart) return;
+    if (!candle || !chart) return;
     if (!Array.isArray(bars) || bars.length === 0) return;
 
     candle.setData(bars.map((b) => ({
       time: b.time, open: b.open, high: b.high, low: b.low, close: b.close,
     })));
 
-    volume.setData(bars.map((b) => ({
-      time: b.time,
-      value: b.volume,
-      color: b.close >= b.open ? chartTheme.volumeUp : chartTheme.volumeDown,
-    })));
-
     chart.timeScale().fitContent();
+
+    const last = bars[bars.length - 1];
+    setOhlc({ open: last.open, high: last.high, low: last.low, close: last.close });
+
+    // Signal ready to the parent after the next paint
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        onReadyRef.current?.();
+      });
+    });
   }, [bars, interval]);
 
-  useEffect(() => {
-    const chart = chartRef.current;
-    if (!chart || !indicators || !indicatorData) return;
-
-    const refs = indicatorRefs.current;
-
-    const createLine = (color, width = 2, dashed = false) =>
-      chart.addSeries(LineSeries, {
-        color,
-        lineWidth: width,
-        lineStyle: dashed ? LineStyle.Dashed : LineStyle.Solid,
-        priceLineVisible: false,
-        lastValueVisible: false,
-        crosshairMarkerVisible: false,
-      });
-
-    if (indicators.ema20 && !refs.has('ema20')) {
-      refs.set('ema20', createLine(INDICATOR_COLORS.ema20, 2));
-    } else if (!indicators.ema20 && refs.has('ema20')) {
-      chart.removeSeries(refs.get('ema20'));
-      refs.delete('ema20');
-    }
-
-    if (indicators.ema50 && !refs.has('ema50')) {
-      refs.set('ema50', createLine(INDICATOR_COLORS.ema50, 2));
-    } else if (!indicators.ema50 && refs.has('ema50')) {
-      chart.removeSeries(refs.get('ema50'));
-      refs.delete('ema50');
-    }
-
-    if (indicators.vwap && !refs.has('vwap')) {
-      refs.set('vwap', createLine(INDICATOR_COLORS.vwap, 2, true));
-    } else if (!indicators.vwap && refs.has('vwap')) {
-      chart.removeSeries(refs.get('vwap'));
-      refs.delete('vwap');
-    }
-
-    if (indicators.bb && !refs.has('bbUpper')) {
-      refs.set('bbUpper', createLine(INDICATOR_COLORS.bb, 1));
-      refs.set('bbMiddle', createLine(INDICATOR_COLORS.bb, 1, true));
-      refs.set('bbLower', createLine(INDICATOR_COLORS.bb, 1));
-    } else if (!indicators.bb && refs.has('bbUpper')) {
-      chart.removeSeries(refs.get('bbUpper'));
-      chart.removeSeries(refs.get('bbMiddle'));
-      chart.removeSeries(refs.get('bbLower'));
-      refs.delete('bbUpper');
-      refs.delete('bbMiddle');
-      refs.delete('bbLower');
-    }
-
-    if (refs.has('ema20')) refs.get('ema20').setData(indicatorData.ema20 || []);
-    if (refs.has('ema50')) refs.get('ema50').setData(indicatorData.ema50 || []);
-    if (refs.has('vwap')) refs.get('vwap').setData(indicatorData.vwap || []);
-    if (refs.has('bbUpper')) {
-      refs.get('bbUpper').setData(indicatorData.bb?.upper || []);
-      refs.get('bbMiddle').setData(indicatorData.bb?.middle || []);
-      refs.get('bbLower').setData(indicatorData.bb?.lower || []);
-    }
-  }, [indicators, indicatorData]);
-
-  useEffect(() => {
-    const chart = chartRef.current;
-    const candle = candleRef.current;
-    if (!chart || !candle) return;
-
-    const refs = drawingRefs.current;
-    const incomingIds = new Set(drawings.map((d) => d.id));
-
-    for (const [id, entry] of refs.entries()) {
-      if (incomingIds.has(id)) continue;
-      if (entry.kind === 'priceLine') candle.removePriceLine(entry.handle);
-      else if (entry.kind === 'lineSeries') chart.removeSeries(entry.handle);
-      refs.delete(id);
-    }
-
-    for (const d of drawings) {
-      if (d.mode === 'hline') {
-        if (refs.has(d.id)) continue;
-        const handle = candle.createPriceLine({
-          price: d.points[0].price,
-          color: d.color,
-          lineWidth: 2,
-          lineStyle: LineStyle.Solid,
-          axisLabelVisible: true,
-          title: '',
-        });
-        refs.set(d.id, { kind: 'priceLine', handle });
-        continue;
-      }
-
-      if (d.mode === 'trendline') {
-        const sortedPoints = [...d.points]
-          .map((p) => ({ time: p.time, value: p.price }))
-          .sort(ascendingByTime);
-
-        if (sortedPoints.length < 2 || sortedPoints[0].time === sortedPoints[1].time) {
-          continue;
-        }
-
-        const existing = refs.get(d.id);
-        if (existing && existing.kind === 'lineSeries') {
-          existing.handle.setData(sortedPoints);
-          continue;
-        }
-
-        const handle = chart.addSeries(LineSeries, {
-          color: d.color,
-          lineWidth: 2,
-          priceLineVisible: false,
-          lastValueVisible: false,
-          crosshairMarkerVisible: false,
-        });
-        handle.setData(sortedPoints);
-        refs.set(d.id, { kind: 'lineSeries', handle });
-      }
-    }
-  }, [drawings]);
-
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    el.style.cursor = drawingMode !== 'none' ? 'crosshair' : 'default';
-  }, [drawingMode]);
-
-  const showEmpty = !isLoading && (!bars || bars.length === 0);
+  const showEmpty = (!bars || bars.length === 0);
 
   return (
-    <div className="cx-root">
-      <div ref={containerRef} className="cx-canvas" />
-
-      {isLoading && (
-        <div className="cx-overlay"><div className="cx-spinner" /></div>
-      )}
-
-      {showEmpty && (
-        <div className="cx-empty-overlay">
-          <EmptyState
-            size="sm"
-            icon={BarChart3}
-            eyebrow="No data"
-            title="No chart data"
-            description="No data for this symbol and interval. Try a different timeframe or symbol."
-          />
-        </div>
-      )}
-    </div>
+    <>
+      <style>{CSS}</style>
+      <div className="cl-root">
+        <div ref={containerRef} className="cl-canvas" />
+        {!showEmpty && <OhlcLegend ohlc={ohlc} interval={interval} />}
+        {showEmpty && (
+          <div className="cl-empty-overlay">
+            <EmptyState
+              size="sm"
+              icon={BarChart3}
+              eyebrow="No data"
+              title="No chart data"
+              description="No data for this symbol and interval. Try a different timeframe or symbol."
+            />
+          </div>
+        )}
+      </div>
+    </>
   );
 }

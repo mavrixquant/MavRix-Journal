@@ -1,17 +1,16 @@
-
-export const chartTheme = {
+﻿export const chartTheme = {
   background: 'transparent',
 
   text: '#8892A3',
   textLight: '#E7E9EE',
-  border: 'rgba(255,255,255,.085)',
-  grid: 'rgba(255,255,255,.045)',
-  crosshair: 'rgba(255,255,255,.28)',
+  border: 'rgba(255,255,255,.09)',
+  grid: 'rgba(255,255,255,.04)',
+  crosshair: 'rgba(255,255,255,.30)',
 
   up: '#35C4A1',
   down: '#FF5C5C',
-  upWick: '#35C4A1',
-  downWick: '#FF5C5C',
+  upWick: '#2BB392',
+  downWick: '#F04747',
 
   volumeUp: 'rgba(53, 196, 161, 0.42)',
   volumeDown: 'rgba(255, 92, 92, 0.42)',
@@ -23,7 +22,7 @@ export const chartTheme = {
         .getPropertyValue('--accent')
         .trim() || '#F59E0B'
     );
-  }
+  },
 };
 
 export const baseChartOptions = {

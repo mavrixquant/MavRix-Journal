@@ -50,7 +50,7 @@ function fmtPrice(n) {
 const CSS = `
   .wl-root {
     position: sticky; top: 12px;
-    max-height: 100vh;
+    max-height: calc(100vh - 120px);
     display: flex; flex-direction: column;
     border-radius: 12px;
     background: rgba(15,18,25,.55);
