@@ -47,6 +47,7 @@ const CSS = `
     align-items: center;
     gap: 10px;
     margin-bottom: 12px;
+    margin-top: 10px;
     flex-wrap: wrap;
   }
   .dt-search {
