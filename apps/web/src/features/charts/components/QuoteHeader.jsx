@@ -1,4 +1,4 @@
-﻿import {
+import {
   ArrowDown,
   ArrowUp,
   Clock,
@@ -28,30 +28,46 @@ function fmtPrice(n, decimals = 2) {
 
 // Chart-relative time: mirrors the last candle's time so that when the
 // data feed is delayed, the display is delayed too (never shows fake "now").
-function formatChartTime(lastBarTime, interval) {
+function formatChartTime(lastBarTime, interval, tz) {
   if (lastBarTime == null) return null;
 
+  const safeTz = tz || undefined; // undefined => browser TZ (fallback)
+
   if (interval === '1d') {
-    const d = new Date(`${lastBarTime}T00:00:00`);
+    const d = new Date(`$${lastBarTime}T00:00:00`);
     if (Number.isNaN(d.getTime())) return String(lastBarTime);
-    return d.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    });
+    try {
+      return d.toLocaleDateString('en-US', {
+        timeZone: safeTz,
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      });
+    } catch {
+      return d.toLocaleDateString('en-US', {
+        month: 'short', day: 'numeric', year: 'numeric',
+      });
+    }
   }
 
   const d = new Date(Number(lastBarTime) * 1000);
   if (Number.isNaN(d.getTime())) return null;
-  return d.toLocaleString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  });
+  try {
+    return d.toLocaleString('en-US', {
+      timeZone: safeTz,
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    });
+  } catch {
+    return d.toLocaleString('en-US', {
+      month: 'short', day: 'numeric',
+      hour: '2-digit', minute: '2-digit', hour12: false,
+    });
+  }
 }
-
 const CSS = `
   .qh2-root {
     position: relative;
@@ -373,6 +389,7 @@ export default function QuoteHeader({
   displayName,
   interval,
   onIntervalChange,
+  displayTz,
   lastBarTime,
   onRefresh,
   isRefreshing = false,
@@ -415,7 +432,7 @@ export default function QuoteHeader({
       ? `${changePct >= 0 ? '+' : ''}${changePct.toFixed(2)}%`
       : '—';
 
-  const chartTime = formatChartTime(lastBarTime, interval);
+  const chartTime = formatChartTime(lastBarTime, interval, displayTz);
   const isDelayed = interval !== '1d';
 
   return (

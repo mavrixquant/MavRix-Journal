@@ -1,0 +1,347 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+
+import { useMarketCatalog, useMarketBars } from '@/shared/api/marketData';
+import { queryClient } from '@/shared/api/queryClient';
+import { useJournalTrades } from '@/shared/api/journalTrades';
+import { tradeTimeToUtcSeconds } from '@/shared/trading/tradeTime';
+import { usePageHeader } from '@/app/layout/PageHeaderProvider';
+
+import CandlestickChart from './components/CandlestickChart';
+import QuoteHeader from './components/QuoteHeader';
+import WatchlistSidebar from './components/WatchlistSidebar';
+import ChartLoadingOverlay from './components/ChartLoadingOverlay';
+import TradeFocusPanel from './components/TradeFocusPanel';
+
+const DEFAULT_SYMBOL = 'NQ';
+const DEFAULT_INTERVAL = '5m';
+
+const CSS = `
+  .chart2-root {
+    --line: rgba(255,255,255,.085);
+    --line-soft: rgba(255,255,255,.05);
+    --ink-1: #E7E9EE;
+    --ink-2: #8892A3;
+    --ink-3: #545E6E;
+    width: 100%;
+    max-width: 1800px;
+    margin: 0 auto;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    color: var(--ink-1);
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .chart2-layout {
+    display: grid;
+    grid-template-columns: 280px minmax(0, 1fr) 300px;
+    gap: 16px;
+    align-items: start;
+  }
+  @media (max-width: 1100px) {
+    .chart2-layout { grid-template-columns: minmax(0, 1fr); }
+  }
+
+  /* The fullscreen target: header + chart live here.
+     The watchlist sibling is automatically excluded from fullscreen. */
+  .chart2-stage {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-width: 0;
+    position: relative;
+  }
+  .chart2-stage:fullscreen,
+  .chart2-stage:-webkit-full-screen {
+    background: #07090D;
+    padding: 16px;
+    gap: 12px;
+    width: 100vw;
+    height: 100vh;
+    box-sizing: border-box;
+    overflow: hidden;
+  }
+  .chart2-stage:fullscreen .chart2-shell,
+  .chart2-stage:-webkit-full-screen .chart2-shell {
+    flex: 1 1 auto;
+    height: auto;
+    max-height: none;
+    min-height: 0;
+  }
+
+  .chart2-shell {
+    position: relative;
+    width: 100%;
+    height: 720px;
+    max-height: calc(100dvh - 200px);
+    min-height: 400px;
+    border-radius: 16px;
+    border: 1px solid var(--line);
+    background:
+      linear-gradient(180deg, rgba(15,18,25,.72), rgba(15,18,25,.55));
+    box-shadow:
+      0 20px 50px -30px rgba(0,0,0,.9),
+      inset 0 1px 0 rgba(255,255,255,.03);
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+`;
+
+export default function MarketChartPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const symbol = (searchParams.get('symbol') || DEFAULT_SYMBOL).toUpperCase();
+  const interval = searchParams.get('interval') || DEFAULT_INTERVAL;
+
+  const setSymbol = useCallback(
+    (next) => {
+      const sp = new URLSearchParams(searchParams);
+      sp.set('symbol', next);
+      setSearchParams(sp, { replace: true });
+    },
+    [searchParams, setSearchParams]
+  );
+
+  const setInterval = useCallback(
+    (next) => {
+      const sp = new URLSearchParams(searchParams);
+      sp.set('interval', next);
+      setSearchParams(sp, { replace: true });
+    },
+    [searchParams, setSearchParams]
+  );
+
+    const [focusTime, setFocusTime] = useState(null);
+
+  // Apply focusTs from URL once (e.g. arriving from Journal Logs "View on Chart")
+  useEffect(() => {
+    const raw = searchParams.get('focusTs');
+    if (!raw) return;
+    const ts = Number(raw);
+    if (Number.isFinite(ts)) setFocusTime(ts);
+  }, [searchParams]);
+const { data: catalog } = useMarketCatalog();
+  const {
+    data: barPayload,
+    isFetching: barsFetching,
+  } = useMarketBars({ symbol, interval, enabled: !!catalog });
+
+  
+  const { trades: journalTrades, isLoading: journalLoading } = useJournalTrades();
+
+    const symbolTrades = useMemo(() => {
+    if (!journalTrades || !Array.isArray(journalTrades)) return [];
+    const upper = String(symbol || '').toUpperCase();
+    return journalTrades.filter(
+      (t) => String(t.symbol || '').toUpperCase() === upper
+    );
+  }, [journalTrades, symbol]);
+const tradeMarkers = useMemo(() => {
+    if (!journalTrades || journalTrades.length === 0) return [];
+    if (!bars || bars.length === 0) return [];
+
+    const upperSymbol = String(symbol || '').toUpperCase();
+    const symbolTrades = journalTrades.filter(
+      (t) => String(t.symbol || '').toUpperCase() === upperSymbol
+    );
+    if (symbolTrades.length === 0) return [];
+
+    const isDaily = interval === '1d';
+    const first = bars[0].time;
+    const last = bars[bars.length - 1].time;
+
+    const markers = [];
+    for (const t of symbolTrades) {
+      const isLong = String(t.direction || '').toLowerCase() === 'long';
+
+      if (isDaily) {
+        const dateStr = String(t.date || '');
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) continue;
+        if (dateStr < first || dateStr > last) continue;
+        markers.push({
+          time: dateStr,
+          position: isLong ? 'belowBar' : 'aboveBar',
+          color: isLong ? '#35C4A1' : '#FF5C5C',
+          shape: isLong ? 'arrowUp' : 'arrowDown',
+          text: '',
+          size: 1,
+        });
+        continue;
+      }
+
+      const ts = tradeTimeToUtcSeconds(t.date, t.entryTime);
+      if (ts == null) continue;
+      if (ts < first || ts > last) continue;
+
+      const net = (Number(t.pnl) || 0) - (Number(t.commission) || 0);
+      const label = net > 0
+        ? `+${net.toFixed(0)}`
+        : net < 0
+          ? `${net.toFixed(0)}`
+          : '';
+
+      markers.push({
+        time: ts,
+        position: isLong ? 'belowBar' : 'aboveBar',
+        color: isLong ? '#35C4A1' : '#FF5C5C',
+        shape: isLong ? 'arrowUp' : 'arrowDown',
+        text: label,
+        size: 1.2,
+      });
+    }
+
+    markers.sort((a, b) => {
+      const ta = typeof a.time === 'number'
+        ? a.time
+        : new Date(a.time).getTime() / 1000;
+      const tb = typeof b.time === 'number'
+        ? b.time
+        : new Date(b.time).getTime() / 1000;
+      return ta - tb;
+    });
+
+    return markers;
+  }, [journalTrades, symbol, interval, bars]);
+const symbols = useMemo(() => catalog?.symbols ?? [], [catalog]);
+  const currentSymbol = useMemo(
+    () => symbols.find((s) => s.code === symbol),
+    [symbols, symbol]
+  );
+
+  // Only expose bars that belong to the CURRENT symbol + interval.
+  // During a switch, React Query keeps the previous payload as placeholder Ã¢â‚¬â€
+  // filtering prevents stale renders.
+  const bars = useMemo(() => {
+    if (!barPayload) return [];
+    if (String(barPayload.symbol || '').toUpperCase() !== symbol) return [];
+    if (barPayload.interval !== interval) return [];
+    return barPayload.bars ?? [];
+  }, [barPayload, symbol, interval]);
+
+  // Chart-relative time source for the header pill.
+  const lastBarTime = useMemo(() => {
+    if (!bars || bars.length === 0) return null;
+    return bars[bars.length - 1].time;
+  }, [bars]);
+
+  // ---- loading phase orchestration ----
+  const [chartReady, setChartReady] = useState(false);
+
+  useEffect(() => {
+    setChartReady(false);
+  }, [symbol, interval]);
+
+  const handleChartReady = useCallback(() => {
+    setChartReady(true);
+  }, []);
+
+  const [finalizeDone, setFinalizeDone] = useState(false);
+  useEffect(() => {
+    if (!chartReady) { setFinalizeDone(false); return undefined; }
+    const t = setTimeout(() => setFinalizeDone(true), 400);
+    return () => clearTimeout(t);
+  }, [chartReady]);
+
+  const loadingPhase = useMemo(() => {
+    if (!catalog) return 'symbols';
+    if (barsFetching || bars.length === 0) return 'data';
+    if (journalLoading) return 'trades';
+    if (!chartReady) return 'render';
+    if (!finalizeDone) return 'finalize';
+    return 'done';
+  }, [catalog, barsFetching, bars.length, journalLoading, chartReady, finalizeDone]);
+
+  const showLoading = loadingPhase !== 'done';
+
+  // ---- fullscreen (on the stage = header + chart) ----
+  const stageRef = useRef(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    const onChange = () =>
+      setIsFullscreen(document.fullscreenElement === stageRef.current);
+    document.addEventListener('fullscreenchange', onChange);
+    return () => document.removeEventListener('fullscreenchange', onChange);
+  }, []);
+
+  const toggleFullscreen = useCallback(async () => {
+    const stage = stageRef.current;
+    if (!stage) return;
+    try {
+      if (document.fullscreenElement === stage) await document.exitFullscreen();
+      else if (stage.requestFullscreen) await stage.requestFullscreen();
+    } catch (err) {
+      console.warn('[chart] fullscreen rejected:', err);
+    }
+  }, []);
+
+  // ---- manual refresh ----
+  const handleRefresh = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ['market-data', 'bars'] });
+    queryClient.invalidateQueries({ queryKey: ['market-data', 'quote'] });
+  }, []);
+
+  // ---- page header ----
+  usePageHeader({
+    title: 'Chart',
+    subtitle: `${symbol} Ã‚Â· ${interval.toUpperCase()}`,
+  });
+
+  return (
+    <>
+      <style>{CSS}</style>
+      <div className="chart2-root page-fade-in">
+        <div className="chart2-layout">
+          <WatchlistSidebar
+            catalog={symbols}
+            activeSymbol={symbol}
+            onChange={setSymbol}
+          />
+
+          <div className="chart2-stage" ref={stageRef}>
+            <QuoteHeader
+              symbol={symbol}
+              displayName={currentSymbol?.label || ''}
+              interval={interval}
+              onIntervalChange={setInterval}
+              lastBarTime={lastBarTime}
+              onRefresh={handleRefresh}
+              isRefreshing={barsFetching}
+              onToggleFullscreen={toggleFullscreen}
+              isFullscreen={isFullscreen}
+            />
+
+            <div className="chart2-shell">
+              <CandlestickChart
+                bars={bars}
+                interval={interval}
+                markers={tradeMarkers}
+                focusTime={focusTime}
+                onReady={handleChartReady}
+              />
+            </div>
+
+            {showLoading && (
+              <ChartLoadingOverlay
+                phase={loadingPhase}
+                symbol={symbol}
+                interval={interval}
+              />
+            )}
+          </div>
+        
+
+          <TradeFocusPanel
+            trades={symbolTrades}
+            symbol={symbol}
+            activeTs={focusTime}
+            onFocus={setFocusTime}
+          />
+</div>
+      </div>
+    </>
+  );
+}

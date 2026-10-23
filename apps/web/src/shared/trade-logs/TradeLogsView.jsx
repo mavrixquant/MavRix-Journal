@@ -1,6 +1,6 @@
 
 import { useState, useMemo, useCallback, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   FaFileUpload,
   FaFolderOpen,
@@ -9,6 +9,7 @@ import {
   FaColumns,
   FaEdit,
   FaTrash,
+  FaChartLine,
 } from 'react-icons/fa';
 import { toast } from 'sonner';
 
@@ -16,6 +17,9 @@ import { useAccounts } from '@/shared/api/accounts';
 import { useTrades, useDeleteTrade } from '@/shared/api/trades';
 import { useStrategies } from '@/shared/api/strategies';
 import { enrichTradesFromDB } from '@/shared/trading/enrich';
+import { tradeTimeToUtcSeconds } from '@/shared/trading/tradeTime';
+import { resolveTimezone } from '@/shared/format/datetime';
+import { useSettings } from '@/app/layout/Settings/SettingsProvider';
 import UploadModal from './UploadModal';
 import AddTradeModal from './AddTradeModal';
 import ColumnManagerModal from './ColumnManagerModal';
@@ -264,7 +268,7 @@ const CSS = `
 `;
 
 function formatTimeWithAMPM(timeStr) {
-  if (!timeStr) return '—';
+  if (!timeStr) return 'â€”';
   if (/^\d{2}:\d{2}/.test(timeStr)) {
     const [h, m] = timeStr.split(':').map(Number);
     const ampm = h >= 12 ? 'PM' : 'AM';
@@ -275,7 +279,7 @@ function formatTimeWithAMPM(timeStr) {
 }
 
 function formatMoney(v, currency = 'USD') {
-  if (v == null || Number.isNaN(Number(v))) return '—';
+  if (v == null || Number.isNaN(Number(v))) return 'â€”';
   const n = Number(v);
   try {
     return new Intl.NumberFormat('en-US', {
@@ -289,19 +293,19 @@ function formatMoney(v, currency = 'USD') {
 }
 
 function formatNum(v, decimals = 2) {
-  if (v == null || Number.isNaN(Number(v))) return '—';
+  if (v == null || Number.isNaN(Number(v))) return 'â€”';
   return Number(v).toFixed(decimals);
 }
 
 function DirText({ value }) {
-  if (!value) return '—';
+  if (!value) return 'â€”';
   const color = value === 'Long' ? '#35C4A1' : '#FF5C5C';
   return <span style={{ color, fontWeight: 600 }}>{value}</span>;
 }
 
 function StrategyCell({ strategy }) {
   if (!strategy) {
-    return <span style={{ color: 'var(--ink-3)' }}>—</span>;
+    return <span style={{ color: 'var(--ink-3)' }}>â€”</span>;
   }
   const color = strategy.color || '#8892A3';
   return (
@@ -326,7 +330,7 @@ function StrategyCell({ strategy }) {
   );
 }
 
-function buildColumns(dynamicKeys, currency, isBacktest, { onEdit, onDelete }) {
+function buildColumns(dynamicKeys, currency, isBacktest, { onEdit, onDelete, onViewChart }) {
   const common = [
     {
       id: 'date',
@@ -334,7 +338,7 @@ function buildColumns(dynamicKeys, currency, isBacktest, { onEdit, onDelete }) {
       header: 'Date',
       meta: { label: 'Date' },
       size: 110,
-      cell: (ctx) => ctx.getValue() || '—',
+      cell: (ctx) => ctx.getValue() || 'â€”',
     },
     {
       id: 'entry',
@@ -366,7 +370,7 @@ function buildColumns(dynamicKeys, currency, isBacktest, { onEdit, onDelete }) {
       header: 'Symbol',
       meta: { label: 'Symbol' },
       size: 90,
-      cell: (ctx) => ctx.getValue() || '—',
+      cell: (ctx) => ctx.getValue() || 'â€”',
     },
     {
       id: 'strategy',
@@ -414,7 +418,7 @@ function buildColumns(dynamicKeys, currency, isBacktest, { onEdit, onDelete }) {
           size: 110,
           cell: (ctx) => {
             const v = ctx.getValue();
-            return v == null ? '—' : Number(v).toLocaleString('en-US', { maximumFractionDigits: 6 });
+            return v == null ? 'â€”' : Number(v).toLocaleString('en-US', { maximumFractionDigits: 6 });
           },
         },
         {
@@ -425,7 +429,7 @@ function buildColumns(dynamicKeys, currency, isBacktest, { onEdit, onDelete }) {
           size: 110,
           cell: (ctx) => {
             const v = ctx.getValue();
-            return v == null ? '—' : Number(v).toLocaleString('en-US', { maximumFractionDigits: 6 });
+            return v == null ? 'â€”' : Number(v).toLocaleString('en-US', { maximumFractionDigits: 6 });
           },
         },
         {
@@ -436,7 +440,7 @@ function buildColumns(dynamicKeys, currency, isBacktest, { onEdit, onDelete }) {
           size: 110,
           cell: (ctx) => {
             const v = ctx.getValue();
-            return v == null ? '—' : Number(v).toLocaleString('en-US', { maximumFractionDigits: 6 });
+            return v == null ? 'â€”' : Number(v).toLocaleString('en-US', { maximumFractionDigits: 6 });
           },
         },
       ];
@@ -462,7 +466,7 @@ function buildColumns(dynamicKeys, currency, isBacktest, { onEdit, onDelete }) {
       size: 110,
       cell: (ctx) => {
         const v = ctx.getValue();
-        if (v == null) return <span style={{ color: 'var(--ink-3)' }}>—</span>;
+        if (v == null) return <span style={{ color: 'var(--ink-3)' }}>â€”</span>;
         return <span style={{ color: '#8892A3' }}>{formatMoney(Number(v), currency)}</span>;
       },
     },
@@ -474,7 +478,7 @@ function buildColumns(dynamicKeys, currency, isBacktest, { onEdit, onDelete }) {
       size: 70,
       cell: (ctx) => {
         const v = ctx.getValue();
-        return v == null ? '—' : String(v);
+        return v == null ? 'â€”' : String(v);
       },
     },
     {
@@ -483,17 +487,17 @@ function buildColumns(dynamicKeys, currency, isBacktest, { onEdit, onDelete }) {
       header: 'Notes',
       meta: { label: 'Notes' },
       size: 200,
-      cell: (ctx) => ctx.getValue() || '—',
+      cell: (ctx) => ctx.getValue() || 'â€”',
     },
   ];
 
   const dynamicCols = dynamicKeys.map((key) => ({
     id: key,
-    accessorFn: (row) => row.dynamic?.[key] ?? '—',
+    accessorFn: (row) => row.dynamic?.[key] ?? 'â€”',
     header: key,
     meta: { label: key },
     size: 130,
-    cell: (ctx) => String(ctx.getValue() ?? '—'),
+    cell: (ctx) => String(ctx.getValue() ?? 'â€”'),
   }));
 
   const actionsCol = {
@@ -508,6 +512,17 @@ function buildColumns(dynamicKeys, currency, isBacktest, { onEdit, onDelete }) {
       const row = ctx.row.original;
       return (
         <div className="jm-row-actions">
+          {onViewChart && (
+            <button
+              type="button"
+              className="jm-row-btn"
+              onClick={() => onViewChart(row)}
+              title="View on Chart"
+              aria-label="View on Chart"
+            >
+              <FaChartLine size={11} />
+            </button>
+          )}
           <button
             type="button"
             className="jm-row-btn"
@@ -542,7 +557,13 @@ function buildColumns(dynamicKeys, currency, isBacktest, { onEdit, onDelete }) {
   noAccountsTitle,
   noAccountsMessage,
 }) {
-  const { data: accounts = [], isLoading: accountsLoading } = useAccounts();
+  const navigate = useNavigate();
+  const { settings } = useSettings();
+  const userTz = useMemo(
+    () => resolveTimezone(settings?.preferences?.timezone || 'auto'),
+    [settings?.preferences?.timezone]
+  );
+const { data: accounts = [], isLoading: accountsLoading } = useAccounts();
 
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -610,13 +631,26 @@ function buildColumns(dynamicKeys, currency, isBacktest, { onEdit, onDelete }) {
     setEditingTrade(null);
   }, []);
 
-  const columns = useMemo(
+  
+  const handleViewOnChart = useCallback((row) => {
+    if (!row || !row.symbol) {
+      toast.error('This trade has no symbol — cannot open chart.');
+      return;
+    }
+    const ts = tradeTimeToUtcSeconds(row.date, row.entry, userTz);
+    const params = new URLSearchParams();
+    params.set('symbol', String(row.symbol).toUpperCase());
+    if (ts != null) params.set('focusTs', String(ts));
+    navigate(`/backtester/chart?${params.toString()}`);
+  }, [navigate, userTz]);
+const columns = useMemo(
     () =>
       buildColumns(dynamicKeys, currency, isBacktest, {
         onEdit: handleEdit,
         onDelete: handleDeleteRequest,
+        onViewChart: isBacktest ? null : handleViewOnChart,
       }),
-    [dynamicKeys, currency, isBacktest, handleEdit, handleDeleteRequest]
+    [dynamicKeys, currency, isBacktest, handleEdit, handleDeleteRequest, handleViewOnChart]
   );
 
   const kpis = useMemo(() => {
@@ -767,7 +801,7 @@ function buildColumns(dynamicKeys, currency, isBacktest, { onEdit, onDelete }) {
             getRowId={(row, idx) =>
               row.id ?? `${row.date}-${row.entry}-${idx}`
             }
-            searchPlaceholder={`Search ${isBacktest ? 'tests' : 'trades'}…`}
+            searchPlaceholder={`Search ${isBacktest ? 'tests' : 'trades'}â€¦`}
             searchableColumnIds={searchableIds}
             initialSort={[{ id: 'date', desc: true }]}
             estimateRowHeight={36}

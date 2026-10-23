@@ -1,8 +1,9 @@
-﻿import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { BarChart3 } from 'lucide-react';
 import {
   createChart,
   CandlestickSeries,
+  createSeriesMarkers,
   CrosshairMode,
   ColorType,
   LineStyle,
@@ -104,10 +105,17 @@ const CSS = `
   }
 `;
 
-export default function CandlestickChart({ bars, interval, onReady }) {
+export default function CandlestickChart({
+  bars,
+  interval,
+  markers = [],
+  focusTime = null,
+  onReady,
+}) {
   const containerRef = useRef(null);
   const chartRef = useRef(null);
   const candleRef = useRef(null);
+  const markersPluginRef = useRef(null);
 
   const [ohlc, setOhlc] = useState(null);
 
@@ -148,7 +156,6 @@ export default function CandlestickChart({ bars, interval, onReady }) {
       },
       rightPriceScale: {
         borderColor: chartTheme.border,
-        // No volume → reclaim the bottom 15% for candles.
         scaleMargins: { top: 0.06, bottom: 0.06 },
       },
       timeScale: {
@@ -174,10 +181,18 @@ export default function CandlestickChart({ bars, interval, onReady }) {
       lastValueVisible: true,
     });
 
+    // v5: markers live in a plugin attached to the series.
+    let markersPlugin = null;
+    try {
+      markersPlugin = createSeriesMarkers(candle, []);
+    } catch (err) {
+      console.warn('[chart] createSeriesMarkers failed — markers disabled:', err);
+    }
+
     chartRef.current = chart;
     candleRef.current = candle;
+    markersPluginRef.current = markersPlugin;
 
-    // Crosshair → OHLC legend
     const handleCrosshair = (param) => {
       if (!param.time || !param.point) {
         const lastBar = (bars && bars.length > 0) ? bars[bars.length - 1] : null;
@@ -196,6 +211,7 @@ export default function CandlestickChart({ bars, interval, onReady }) {
       chart.remove();
       chartRef.current = null;
       candleRef.current = null;
+      markersPluginRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -207,7 +223,7 @@ export default function CandlestickChart({ bars, interval, onReady }) {
     chart.timeScale().applyOptions({ timeVisible: interval !== '1d' });
   }, [interval]);
 
-  // ---- feed data ----
+  // ---- feed data + markers ----
   useEffect(() => {
     const candle = candleRef.current;
     const chart = chartRef.current;
@@ -218,18 +234,71 @@ export default function CandlestickChart({ bars, interval, onReady }) {
       time: b.time, open: b.open, high: b.high, low: b.low, close: b.close,
     })));
 
+    // Re-apply markers AFTER setData.
+    const plugin = markersPluginRef.current;
+    if (plugin) {
+      try {
+        plugin.setMarkers(Array.isArray(markers) ? markers : []);
+      } catch (err) {
+        console.warn('[chart] markers set (after data) failed:', err);
+      }
+    }
+
     chart.timeScale().fitContent();
 
     const last = bars[bars.length - 1];
     setOhlc({ open: last.open, high: last.high, low: last.low, close: last.close });
 
-    // Signal ready to the parent after the next paint
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         onReadyRef.current?.();
       });
     });
   }, [bars, interval]);
+
+  // ---- markers can change independently ----
+  useEffect(() => {
+    const plugin = markersPluginRef.current;
+    if (!plugin) return;
+    try {
+      plugin.setMarkers(Array.isArray(markers) ? markers : []);
+      if (import.meta.env.DEV) {
+        // eslint-disable-next-line no-console
+        console.debug('[chart] markers applied:', markers.length);
+      }
+    } catch (err) {
+      console.warn('[chart] markers update failed:', err);
+    }
+  }, [markers]);
+
+  // ---- focus a specific timestamp ----
+  useEffect(() => {
+    if (focusTime == null) return;
+    const chart = chartRef.current;
+    if (!chart) return;
+
+    requestAnimationFrame(() => {
+      try {
+        if (typeof focusTime === 'number') {
+          chart.timeScale().setVisibleRange({
+            from: focusTime - 3600 * 6,
+            to: focusTime + 3600 * 6,
+          });
+        } else {
+          const d = new Date(focusTime);
+          if (Number.isNaN(d.getTime())) return;
+          const from = new Date(d.getTime() - 7 * 86400000);
+          const to = new Date(d.getTime() + 7 * 86400000);
+          chart.timeScale().setVisibleRange({
+            from: from.toISOString().slice(0, 10),
+            to: to.toISOString().slice(0, 10),
+          });
+        }
+      } catch (err) {
+        console.warn('[chart] focusTime scroll failed:', err);
+      }
+    });
+  }, [focusTime]);
 
   const showEmpty = (!bars || bars.length === 0);
 
