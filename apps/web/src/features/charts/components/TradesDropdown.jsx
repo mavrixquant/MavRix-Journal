@@ -7,7 +7,7 @@ const CSS = `
   .td-root {
     position: absolute;
     top: 12px;
-    right: 12px;
+    right: 82px;
     z-index: 30;
     display: inline-flex;
     align-items: center;
