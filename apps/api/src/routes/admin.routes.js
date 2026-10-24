@@ -245,12 +245,16 @@ const marketDataWipeSchema = z.object({
 });
 
 adminRoutes.get('/market-data/stats', marketDataCtrl.stats);
+adminRoutes.get('/market-data/stats', marketDataCtrl.stats);
 adminRoutes.post(
   '/market-data/import',
   writeLimiter,
   validate(marketDataImportSchema),
-  marketDataCtrl.importData
+  marketDataCtrl.startJob
 );
+adminRoutes.get('/market-data/jobs', marketDataCtrl.listJobs);
+adminRoutes.get('/market-data/jobs/:id', marketDataCtrl.getJob);
+adminRoutes.post('/market-data/jobs/:id/stop', writeLimiter, marketDataCtrl.stopJob);
 adminRoutes.delete(
   '/market-data/cache',
   requireSuperadmin,

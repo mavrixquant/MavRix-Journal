@@ -484,3 +484,35 @@ model MarketBarCoverage {
   @@unique([symbol, interval])
   @@map("market_bar_coverage")
 }
+
+// ---------------------------------------------------------------------------
+// MarketImportJob — async import tracking.
+//
+// Rows are created when an admin clicks Import. The runner loop writes
+// progress fields (chunksDone / fetched / inserted) at every chunk boundary.
+// On server restart, markInterruptedJobs() flips any running rows to
+// `interrupted`; data already committed to market_bars is preserved.
+//
+// status ∈ running | completed | stopped | failed | interrupted
+// ---------------------------------------------------------------------------
+model MarketImportJob {
+  id            String    @id @default(cuid())
+  symbol        String
+  interval      String
+  fromTime      DateTime
+  toTime        DateTime
+  status        String    @default("running")
+  totalChunks   Int       @default(0)
+  chunksDone    Int       @default(0)
+  fetched       Int       @default(0)
+  inserted      Int       @default(0)
+  lastError     String?
+  stopRequested Boolean   @default(false)
+  startedById   String
+  startedAt     DateTime  @default(now())
+  finishedAt    DateTime?
+
+  @@index([symbol, interval, status])
+  @@index([startedAt])
+  @@map("market_import_jobs")
+}

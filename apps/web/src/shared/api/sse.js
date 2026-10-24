@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+﻿import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { ensureFreshAccessToken, apiJson } from './client';
 import { setTypingState } from '@/shared/chat/chatStream';
@@ -324,6 +324,23 @@ export function useSSEBridge({ enabled = true, currentUserId = null } = {}) {
       es.addEventListener('block:removed', () => {
         queryClient.invalidateQueries({ queryKey: ['friends'] });
         queryClient.invalidateQueries({ queryKey: ['chat'] });
+      });
+
+      // Market-data import job updates — invalidate admin queries on every
+      // job state change. Invalidate the stats query only on terminal states
+      // (cheap — no point refetching coverage mid-run).
+      es.addEventListener('market-data:job:update', (e) => {
+        queryClient.invalidateQueries({ queryKey: ['admin', 'market-data', 'jobs'] });
+        try {
+          const payload = JSON.parse(e.data);
+          if (
+            payload?.status &&
+            payload.status !== 'running' &&
+            payload.status !== 'stopping'
+          ) {
+            queryClient.invalidateQueries({ queryKey: ['admin', 'market-data', 'stats'] });
+          }
+        } catch {}
       });
 
       es.addEventListener('error', () => {

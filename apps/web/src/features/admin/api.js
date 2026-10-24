@@ -392,7 +392,11 @@ export function useAdminCalendarWipe() {
   });
 }
 // ---------------------------------------------------------------------------
-// Market data cache — coverage stats, bulk import, wipe.
+// Market data cache — coverage stats, async import jobs, wipe.
+//
+// Imports are async: POST /import returns 202 { jobId }. Progress is polled
+// via GET /jobs (fast when a job is running, slow otherwise) and pushed via
+// the `market-data:job:update` SSE event (see shared/api/sse.js).
 // ---------------------------------------------------------------------------
 export function useAdminMarketDataStats() {
   return useQuery({
@@ -402,7 +406,26 @@ export function useAdminMarketDataStats() {
   });
 }
 
-export function useAdminMarketDataImport() {
+export function useAdminMarketDataJobs({ enabled = true } = {}) {
+  return useQuery({
+    queryKey: ['admin', 'market-data', 'jobs'],
+    queryFn: () => apiJson('/api/admin/market-data/jobs'),
+    enabled,
+    // Fast poll while a job is running; slow idle poll to catch jobs started
+    // from another tab (or after this tab reloaded).
+    refetchInterval: (query) => {
+      const data = query.state.data;
+      if (!data?.jobs) return false;
+      const anyRunning = data.jobs.some(
+        (j) => j.status === 'running' || j.status === 'stopping'
+      );
+      return anyRunning ? 1500 : 10_000;
+    },
+    refetchOnWindowFocus: true,
+  });
+}
+
+export function useAdminStartMarketDataImport() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (payload) =>
@@ -411,7 +434,21 @@ export function useAdminMarketDataImport() {
         body: JSON.stringify(payload),
       }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['admin', 'market-data', 'stats'] });
+      qc.invalidateQueries({ queryKey: ['admin', 'market-data', 'jobs'] });
+      qc.invalidateQueries({ queryKey: ['admin', 'audit'] });
+    },
+  });
+}
+
+export function useAdminStopMarketDataImport() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (jobId) =>
+      apiJson(`/api/admin/market-data/jobs/${encodeURIComponent(jobId)}/stop`, {
+        method: 'POST',
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'market-data', 'jobs'] });
       qc.invalidateQueries({ queryKey: ['admin', 'audit'] });
     },
   });
@@ -427,6 +464,7 @@ export function useAdminMarketDataWipe() {
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin', 'market-data', 'stats'] });
+      qc.invalidateQueries({ queryKey: ['admin', 'market-data', 'jobs'] });
       qc.invalidateQueries({ queryKey: ['admin', 'audit'] });
     },
   });

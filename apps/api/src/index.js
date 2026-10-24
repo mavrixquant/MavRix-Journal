@@ -1,4 +1,4 @@
-import express from 'express';
+﻿import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
@@ -12,6 +12,7 @@ import { errorHandler, notFound } from './middleware/error.js';
 import { startCalendarSync, stopCalendarSync } from './lib/calendarSync.js';
 import { ensureSuperadmin } from './lib/adminBootstrap.js';
 import { ensureMaveAi } from './services/maveAiBootstrap.js';
+import { markInterruptedJobs } from './services/adminMarketData.service.js';
 
 const app = express();
 
@@ -35,13 +36,14 @@ const server = app.listen(env.port, async () => {
   console.log(`[api] listening on http://localhost:${env.port} (${env.nodeEnv})`);
   try { await ensureSuperadmin(); } catch (err) { console.error('[admin] bootstrap failed:', err); }
   try { await ensureMaveAi(); } catch (err) { console.error('[mave-ai] bootstrap failed:', err); }
+  try { await markInterruptedJobs(); } catch (err) { console.error('[market-data] boot sweep failed:', err); }
   if (env.calendar.syncEnabled) startCalendarSync();
   
   // Background market sync removed. We rely strictly on lazy loading.
 });
 
 const shutdown = (signal) => {
-  console.log(`[api] received ${signal}, shutting down…`);
+  console.log(`[api] received ${signal}, shutting downâ€¦`);
   stopCalendarSync();
   server.close(() => process.exit(0));
 };
