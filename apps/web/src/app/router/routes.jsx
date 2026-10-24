@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react';
+﻿import { lazy, Suspense } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 
 import AppLayout from '@/app/layout/AppLayout';
@@ -150,12 +150,12 @@ export function AppRoutes() {
         <Route path="/journal" element={<DashboardPage />} />
         <Route path="/journal/analyse" element={<AnalysePage />} />
         <Route path="/journal/logs" element={<TradeLogsPage />} />
-        <Route path="/journal/calendar" element={<EconomicCalendarPage />} />
+        <Route path="/utilities/calendar" element={<EconomicCalendarPage />} />
 
         <Route path="/backtester" element={<BacktesterDashboardPage />} />
         <Route path="/backtester/logs" element={<TestLogsPage />} />
         <Route path="/backtester/simulator" element={<SimulatorPage />} />
-        <Route path="/backtester/chart" element={<MarketChartPage />} />
+        <Route path="/utilities/chart" element={<MarketChartPage />} />
 
         <Route path="/manage/accounts" element={<AccountsPage />} />
         <Route path="/manage/strategies" element={<StrategiesPage />} />
