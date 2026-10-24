@@ -268,7 +268,7 @@ const CSS = `
 `;
 
 function formatTimeWithAMPM(timeStr) {
-  if (!timeStr) return 'â€”';
+  if (!timeStr) return '—';
   if (/^\d{2}:\d{2}/.test(timeStr)) {
     const [h, m] = timeStr.split(':').map(Number);
     const ampm = h >= 12 ? 'PM' : 'AM';
@@ -279,7 +279,7 @@ function formatTimeWithAMPM(timeStr) {
 }
 
 function formatMoney(v, currency = 'USD') {
-  if (v == null || Number.isNaN(Number(v))) return 'â€”';
+  if (v == null || Number.isNaN(Number(v))) return '—';
   const n = Number(v);
   try {
     return new Intl.NumberFormat('en-US', {
@@ -293,19 +293,19 @@ function formatMoney(v, currency = 'USD') {
 }
 
 function formatNum(v, decimals = 2) {
-  if (v == null || Number.isNaN(Number(v))) return 'â€”';
+  if (v == null || Number.isNaN(Number(v))) return '—';
   return Number(v).toFixed(decimals);
 }
 
 function DirText({ value }) {
-  if (!value) return 'â€”';
+  if (!value) return '—';
   const color = value === 'Long' ? '#35C4A1' : '#FF5C5C';
   return <span style={{ color, fontWeight: 600 }}>{value}</span>;
 }
 
 function StrategyCell({ strategy }) {
   if (!strategy) {
-    return <span style={{ color: 'var(--ink-3)' }}>â€”</span>;
+    return <span style={{ color: 'var(--ink-3)' }}>—</span>;
   }
   const color = strategy.color || '#8892A3';
   return (
@@ -338,7 +338,7 @@ function buildColumns(dynamicKeys, currency, isBacktest, { onEdit, onDelete, onV
       header: 'Date',
       meta: { label: 'Date' },
       size: 110,
-      cell: (ctx) => ctx.getValue() || 'â€”',
+      cell: (ctx) => ctx.getValue() || '—',
     },
     {
       id: 'entry',
@@ -370,7 +370,7 @@ function buildColumns(dynamicKeys, currency, isBacktest, { onEdit, onDelete, onV
       header: 'Symbol',
       meta: { label: 'Symbol' },
       size: 90,
-      cell: (ctx) => ctx.getValue() || 'â€”',
+      cell: (ctx) => ctx.getValue() || '—',
     },
     {
       id: 'strategy',
@@ -418,7 +418,7 @@ function buildColumns(dynamicKeys, currency, isBacktest, { onEdit, onDelete, onV
           size: 110,
           cell: (ctx) => {
             const v = ctx.getValue();
-            return v == null ? 'â€”' : Number(v).toLocaleString('en-US', { maximumFractionDigits: 6 });
+            return v == null ? '—' : Number(v).toLocaleString('en-US', { maximumFractionDigits: 6 });
           },
         },
         {
@@ -429,7 +429,7 @@ function buildColumns(dynamicKeys, currency, isBacktest, { onEdit, onDelete, onV
           size: 110,
           cell: (ctx) => {
             const v = ctx.getValue();
-            return v == null ? 'â€”' : Number(v).toLocaleString('en-US', { maximumFractionDigits: 6 });
+            return v == null ? '—' : Number(v).toLocaleString('en-US', { maximumFractionDigits: 6 });
           },
         },
         {
@@ -440,7 +440,7 @@ function buildColumns(dynamicKeys, currency, isBacktest, { onEdit, onDelete, onV
           size: 110,
           cell: (ctx) => {
             const v = ctx.getValue();
-            return v == null ? 'â€”' : Number(v).toLocaleString('en-US', { maximumFractionDigits: 6 });
+            return v == null ? '—' : Number(v).toLocaleString('en-US', { maximumFractionDigits: 6 });
           },
         },
       ];
@@ -466,7 +466,7 @@ function buildColumns(dynamicKeys, currency, isBacktest, { onEdit, onDelete, onV
       size: 110,
       cell: (ctx) => {
         const v = ctx.getValue();
-        if (v == null) return <span style={{ color: 'var(--ink-3)' }}>â€”</span>;
+        if (v == null) return <span style={{ color: 'var(--ink-3)' }}>—</span>;
         return <span style={{ color: '#8892A3' }}>{formatMoney(Number(v), currency)}</span>;
       },
     },
@@ -478,7 +478,7 @@ function buildColumns(dynamicKeys, currency, isBacktest, { onEdit, onDelete, onV
       size: 70,
       cell: (ctx) => {
         const v = ctx.getValue();
-        return v == null ? 'â€”' : String(v);
+        return v == null ? '—' : String(v);
       },
     },
     {
@@ -487,17 +487,17 @@ function buildColumns(dynamicKeys, currency, isBacktest, { onEdit, onDelete, onV
       header: 'Notes',
       meta: { label: 'Notes' },
       size: 200,
-      cell: (ctx) => ctx.getValue() || 'â€”',
+      cell: (ctx) => ctx.getValue() || '—',
     },
   ];
 
   const dynamicCols = dynamicKeys.map((key) => ({
     id: key,
-    accessorFn: (row) => row.dynamic?.[key] ?? 'â€”',
+    accessorFn: (row) => row.dynamic?.[key] ?? '—',
     header: key,
     meta: { label: key },
     size: 130,
-    cell: (ctx) => String(ctx.getValue() ?? 'â€”'),
+    cell: (ctx) => String(ctx.getValue() ?? '—'),
   }));
 
   const actionsCol = {
@@ -801,7 +801,7 @@ const columns = useMemo(
             getRowId={(row, idx) =>
               row.id ?? `${row.date}-${row.entry}-${idx}`
             }
-            searchPlaceholder={`Search ${isBacktest ? 'tests' : 'trades'}â€¦`}
+            searchPlaceholder={`Search ${isBacktest ? 'tests' : 'trades'}…`}
             searchableColumnIds={searchableIds}
             initialSort={[{ id: 'date', desc: true }]}
             estimateRowHeight={36}

@@ -319,7 +319,7 @@ function parseFile(workbook, account, existingTrades, strategies) {
     const unionVals = [...fileVals, ...existingVals].filter(hasAnyValue);
 
     if (unionVals.length === 0) {
-      return { name: col, type: 'text', locked: true, reason: 'No data Ã¢â‚¬â€ defaults to Text', uniqueCount: 0, sampleValues: [], options: [] };
+      return { name: col, type: 'text', locked: true, reason: 'No data — defaults to Text', uniqueCount: 0, sampleValues: [], options: [] };
     }
 
     const allNumeric = unionVals.every(isNumericValue);
@@ -331,7 +331,7 @@ function parseFile(workbook, account, existingTrades, strategies) {
     const uniqueCount = uniqueSet.size;
 
     if (uniqueCount > MAX_DROPDOWN_UNIQUES) {
-      return { name: col, type: 'text', locked: true, reason: `${uniqueCount} unique values (over ${MAX_DROPDOWN_UNIQUES}) Ã¢â‚¬â€ Text required`, uniqueCount, sampleValues: [...uniqueSet].slice(0, 5), options: [] };
+      return { name: col, type: 'text', locked: true, reason: `${uniqueCount} unique values (over ${MAX_DROPDOWN_UNIQUES}) — Text required`, uniqueCount, sampleValues: [...uniqueSet].slice(0, 5), options: [] };
     }
 
     const stored = storedConfigs[col];
@@ -1221,7 +1221,7 @@ function ColumnCard({
       <div className="upl-col-types">
         {draft.locked ? (
           <span className="upl-locked-pill">
-            Ã°Å¸â€â€™ {draft.type === 'number' ? 'Number' : draft.type === 'dropdown' ? 'Dropdown' : 'Text'} (locked)
+             {draft.type === 'number' ? 'Number' : draft.type === 'dropdown' ? 'Dropdown' : 'Text'} (locked)
           </span>
         ) : (
           <>
@@ -1282,7 +1282,7 @@ function ColumnCard({
           <div className="upl-options-add">
             <input
               type="text"
-              placeholder="Add new optionÃ¢â‚¬Â¦"
+              placeholder="Add new option…"
               value={newOption}
               maxLength={60}
               disabled={disabled}
@@ -1542,7 +1542,7 @@ export default function UploadModal({
             {isParsing && (
               <div className="upl-parsing">
                 <div className="upl-spinner" />
-                <div>Parsing fileÃ¢â‚¬Â¦</div>
+                <div>Parsing file…</div>
               </div>
             )}
 
@@ -1602,7 +1602,7 @@ export default function UploadModal({
                 {!hasErrors && drafts.length === 0 && (
                   <div className="upl-ready">
                     <FaCheckCircle />
-                    No custom columns to configure Ã¢â‚¬â€ ready to upload.
+                    No custom columns to configure — ready to upload.
                   </div>
                 )}
               </>
@@ -1632,7 +1632,7 @@ export default function UploadModal({
                   onClick={handleUpload}
                   disabled={!canUpload}
                 >
-                  {isSaving ? 'UploadingÃ¢â‚¬Â¦' : `Upload ${parseResult.tradesCount || 0} ${isBacktest ? 'Tests' : 'Trades'}`}
+                  {isSaving ? 'Uploading…' : `Upload ${parseResult.tradesCount || 0} ${isBacktest ? 'Tests' : 'Trades'}`}
                 </button>
               </>
             )}
