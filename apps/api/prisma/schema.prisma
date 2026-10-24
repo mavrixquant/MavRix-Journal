@@ -440,3 +440,47 @@ model BugReport {
   @@index([status, createdAt])
   @@map("bug_reports")
 }
+// ---------------------------------------------------------------------------
+// Market data cache — server-wide OHLC bar storage.
+//
+// The provider (Yahoo / Biquote) is the source of truth but we NEVER serve it
+// directly to clients. Every read goes through market_bars. The provider is
+// only touched to (a) keep the tail fresh via marketDataSync, and (b) fill
+// historical gaps requested by a date-range or scroll-back.
+// ---------------------------------------------------------------------------
+model MarketBar {
+  id        String   @id @default(cuid())
+  symbol    String
+  interval  String
+  time      DateTime
+  open      Float
+  high      Float
+  low       Float
+  close     Float
+  volume    Float    @default(0)
+  provider  String
+  fetchedAt DateTime @default(now())
+
+  @@unique([symbol, interval, time])
+  @@index([symbol, interval, time])
+  @@map("market_bars")
+}
+
+// Tracks the contiguous time window we currently have in market_bars for a
+// given (symbol, interval). Also carries provider backoff state so cold starts
+// never hammer the provider with 429s.
+model MarketBarCoverage {
+  id             String    @id @default(cuid())
+  symbol         String
+  interval       String
+  provider       String
+  providerSymbol String
+  fromTime       DateTime
+  toTime         DateTime
+  lastFetchedAt  DateTime  @default(now())
+  lastError      String?
+  backoffUntil   DateTime?
+
+  @@unique([symbol, interval])
+  @@map("market_bar_coverage")
+}

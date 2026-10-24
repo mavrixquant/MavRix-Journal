@@ -1,151 +1,91 @@
+﻿// ============================================================================
+// Biquote provider.
+//
+// getBars() accepts { from, to } (preferred) or the legacy no-opts form.
+// Biquote's OHLC endpoint is limited to ~2000 candles/request; upstream
+// gap-filler chunks ranges that exceed the cap.
+// ============================================================================
 
 import Biquote from 'biquote';
-
 import { HttpError } from '../../middleware/error.js';
 import { enqueue } from './queue.js';
 import { get as cacheGet, set as cacheSet } from './cache.js';
 
-
 let _client = null;
-
 function getClient() {
-  if (!_client) {
-    _client = new Biquote();
-  }
+  if (!_client) _client = new Biquote();
   return _client;
 }
 
-
 const BIQUOTE_INTERVAL_MAP = {
-  '1m':  '1m',
-  '5m':  '5m',
-  '15m': '15m',
-  '1h':  '1h',
-  '4h':  '4h',
-  '1d':  '1d',
-};
-
-const DEFAULT_LIMIT = {
-  '1m':  500,
-  '5m':  500,
-  '15m': 500,
-  '1h':  500,
-  '4h':  500,
-  '1d':  500,
+  '1m': '1m', '5m': '5m', '15m': '15m',
+  '1h': '1h', '4h': '4h', '1d': '1d',
 };
 
 const CACHE_TTL = {
-  '1m':  60_000,
-  '5m':  5 * 60_000,
+  '1m': 60_000,
+  '5m': 5 * 60_000,
   '15m': 15 * 60_000,
-  '1h':  30 * 60_000,
-  '4h':  60 * 60_000,
-  '1d':  60 * 60_000,
+  '1h': 30 * 60_000,
+  '4h': 60 * 60_000,
+  '1d': 60 * 60_000,
 };
 
+const MAX_BARS_PER_REQUEST = 5000;
 
 function normalizeTime(isoString, isDaily) {
   if (!isoString) return null;
   const d = new Date(isoString);
   if (Number.isNaN(d.getTime())) return null;
-
-  if (isDaily) {
-    return d.toISOString().slice(0, 10);
-  }
+  if (isDaily) return d.toISOString().slice(0, 10);
   return Math.floor(d.getTime() / 1000);
 }
 
-
 function normalizeBars(raw, interval) {
-  if (!Array.isArray(raw) || raw.length === 0) {
-    console.warn('[biquote] normalizeBars: empty or non-array response');
-    return [];
-  }
-
+  if (!Array.isArray(raw) || raw.length === 0) return [];
   const isDaily = interval === '1d';
   const bars = [];
-  let dropped = 0;
-
   for (const c of raw) {
-    if (!c || typeof c !== 'object') { dropped++; continue; }
-
+    if (!c || typeof c !== 'object') continue;
     const time = normalizeTime(c.openTime, isDaily);
-
-    const o = Number(c.open);
-    const h = Number(c.high);
-    const l = Number(c.low);
-    const cl = Number(c.close);
-
-    if (
-      time == null ||
-      !Number.isFinite(o) ||
-      !Number.isFinite(h) ||
-      !Number.isFinite(l) ||
-      !Number.isFinite(cl)
-    ) {
-      dropped++;
-      continue;
-    }
-
+    const o = Number(c.open), h = Number(c.high), l = Number(c.low), cl = Number(c.close);
+    if (time == null || ![o, h, l, cl].every(Number.isFinite)) continue;
     const tickVol = Number(c.tickVolume);
     const realVol = Number(c.volume);
-    const volume = Number.isFinite(tickVol) && tickVol > 0
-      ? tickVol
+    const volume = Number.isFinite(tickVol) && tickVol > 0 ? tickVol
       : (Number.isFinite(realVol) && realVol > 0 ? realVol : 0);
-
-    bars.push({
-      time,
-      open: o,
-      high: h,
-      low: l,
-      close: cl,
-      volume,
-    });
+    bars.push({ time, open: o, high: h, low: l, close: cl, volume });
   }
-
-  if (bars.length === 0) {
-    console.warn(
-      '[biquote] normalizeBars: dropped all %d records. First record: %s',
-      dropped,
-      JSON.stringify(raw[0]).slice(0, 400)
-    );
-  }
-
   bars.sort((a, b) => (a.time < b.time ? -1 : a.time > b.time ? 1 : 0));
-
   return bars;
 }
 
-
-export async function getBars(symbol, interval) {
+export async function getBars(symbol, interval, opts = {}) {
   const biqInterval = BIQUOTE_INTERVAL_MAP[interval];
-  if (!biqInterval) {
-    throw new HttpError(400, `Biquote: unsupported interval "${interval}"`);
-  }
+  if (!biqInterval) throw new HttpError(400, `Biquote: unsupported interval "${interval}"`);
 
-  const cacheKey = `biquote:${symbol}:${biqInterval}`;
+  const { from, to } = opts;
+  const cacheKey = from && to
+    ? `biquote:${symbol}:${biqInterval}:${from.getTime()}:${to.getTime()}`
+    : `biquote:${symbol}:${biqInterval}`;
   const cached = cacheGet(cacheKey);
   if (cached) return cached;
 
-  const limit = DEFAULT_LIMIT[interval] || 500;
+  const params = { interval: biqInterval, limit: MAX_BARS_PER_REQUEST };
+  if (from) params.from = from.toISOString();
+  if (to) params.to = to.toISOString();
 
   let raw;
   try {
-    raw = await enqueue(() =>
-      getClient().ohlc(symbol, { interval: biqInterval, limit })
-    );
+    raw = await enqueue(() => getClient().ohlc(symbol, params));
   } catch (err) {
-    throw new HttpError(
-      502,
-      `Biquote OHLC failed for ${symbol}: ${err.message || 'unknown error'}`
-    );
+    throw new HttpError(502, `Biquote OHLC failed for ${symbol}: ${err.message || 'unknown'}`);
   }
 
   const bars = normalizeBars(raw, interval);
-  cacheSet(cacheKey, bars, CACHE_TTL[interval] || 60_000);
+  cacheSet(cacheKey, bars, Math.min(CACHE_TTL[interval] ?? 60_000, 5 * 60_000));
   return bars;
 }
-
 
 const QUOTE_TTL_MS = 30_000;
 
@@ -158,10 +98,7 @@ export async function getQuote(symbol) {
   try {
     tick = await enqueue(() => getClient().tick(symbol));
   } catch (err) {
-    throw new HttpError(
-      502,
-      `Biquote tick failed for ${symbol}: ${err.message || 'unknown error'}`
-    );
+    throw new HttpError(502, `Biquote tick failed for ${symbol}: ${err.message || 'unknown'}`);
   }
 
   if (!tick || typeof tick !== 'object') {
