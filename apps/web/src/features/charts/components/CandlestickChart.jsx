@@ -16,10 +16,11 @@ import { chartTheme } from '../lib/chartTheme';
 // TradeBoxesPrimitive: Renders TradingView-style position boxes
 // ---------------------------------------------------------------------------
 class TradeBoxesPrimitive {
-  constructor(trades, series, chart) {
+  constructor(trades, series, chart, showLabels) {
     this._trades = trades;
     this._series = series;
     this._chart = chart;
+    this._showLabels = showLabels;
     this._paneViews = [{ renderer: () => this }];
   }
 
@@ -120,39 +121,41 @@ class TradeBoxesPrimitive {
         }
 
         // Draw Labels
-        ctx.font = '11px "IBM Plex Mono", monospace';
-        ctx.textBaseline = 'middle';
+        if (this._showLabels) {
+          ctx.font = '11px "IBM Plex Mono", monospace';
+          ctx.textBaseline = 'middle';
 
-        function drawPill(text, x, y, bg, color) {
-          const padding = 4;
-          const textW = ctx.measureText(text).width;
-          const pw = textW + padding * 2;
-          const ph = 16;
+          function drawPill(text, x, y, bg, color) {
+            const padding = 4;
+            const textW = ctx.measureText(text).width;
+            const pw = textW + padding * 2;
+            const ph = 16;
 
-          ctx.fillStyle = bg;
-          ctx.beginPath();
-          if (ctx.roundRect) {
-            ctx.roundRect(x, y - ph / 2, pw, ph, 4);
-          } else {
-            ctx.rect(x, y - ph / 2, pw, ph);
+            ctx.fillStyle = bg;
+            ctx.beginPath();
+            if (ctx.roundRect) {
+              ctx.roundRect(x, y - ph / 2, pw, ph, 4);
+            } else {
+              ctx.rect(x, y - ph / 2, pw, ph);
+            }
+            ctx.fill();
+
+            ctx.fillStyle = color;
+            ctx.textAlign = 'left';
+            ctx.fillText(text, x + padding, y);
           }
-          ctx.fill();
 
-          ctx.fillStyle = color;
-          ctx.textAlign = 'left';
-          ctx.fillText(text, x + padding, y);
-        }
+          if (trade.takeProfit && yTp !== null) {
+            drawPill(`TP ${Number(trade.takeProfit).toFixed(2)}`, x1 + 6, yTp - 12, '#22c55e', '#0D1117');
+          }
 
-        if (trade.takeProfit && yTp !== null) {
-          drawPill(`TP ${Number(trade.takeProfit).toFixed(2)}`, x1 + 6, yTp - 12, '#22c55e', '#0D1117');
-        }
+          if (trade.stopLoss && ySl !== null) {
+            drawPill(`SL ${Number(trade.stopLoss).toFixed(2)}`, x1 + 6, ySl + 12, '#ef4444', '#0D1117');
+          }
 
-        if (trade.stopLoss && ySl !== null) {
-          drawPill(`SL ${Number(trade.stopLoss).toFixed(2)}`, x1 + 6, ySl + 12, '#ef4444', '#0D1117');
-        }
-
-        if (trade.entryPrice && yEntry !== null) {
-          drawPill(`Entry ${Number(trade.entryPrice).toFixed(2)}`, x1 + 6, yEntry - 12, '#f59e0b', '#0D1117');
+          if (trade.entryPrice && yEntry !== null) {
+            drawPill(`Entry ${Number(trade.entryPrice).toFixed(2)}`, x1 + 6, yEntry - 12, '#f59e0b', '#0D1117');
+          }
         }
       }
     });
@@ -257,6 +260,7 @@ export default function CandlestickChart({
   interval,
   markers = [],
   trades = [],
+  showLabels = false,
   focusTime = null,
   onReady,
 }) {
@@ -419,7 +423,7 @@ export default function CandlestickChart({
     const chart = chartRef.current;
     if (!candle || !chart) return;
 
-    const primitive = new TradeBoxesPrimitive(trades, candle, chart);
+    const primitive = new TradeBoxesPrimitive(trades, candle, chart, showLabels);
     candle.attachPrimitive(primitive);
 
     return () => {
@@ -427,7 +431,7 @@ export default function CandlestickChart({
         try { candleRef.current.detachPrimitive(primitive); } catch (e) { }
       }
     };
-  }, [trades]);
+  }, [trades, showLabels]);
 
   // ---- focus a specific timestamp ----
   useEffect(() => {

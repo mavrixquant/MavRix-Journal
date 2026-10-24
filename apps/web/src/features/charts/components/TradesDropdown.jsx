@@ -7,7 +7,7 @@ const CSS = `
   .td-root {
     position: absolute;
     top: 12px;
-    right: 82px;
+    right: 12px;
     z-index: 30;
     display: inline-flex;
     align-items: center;
@@ -127,6 +127,10 @@ const CSS = `
     padding-top: 6px;
     border-top: 1px dashed rgba(255,255,255,.06);
   }
+  .td-toggle-row.is-disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
 
   .td-switch {
     position: relative;
@@ -156,6 +160,9 @@ const CSS = `
   .td-toggle-row input:checked + .td-switch::after {
     transform: translateX(12px);
     background: #0D1117;
+  }
+  .td-toggle-row.is-disabled input:checked + .td-switch {
+    background: rgba(255,255,255,.1);
   }
 
   .td-list {
@@ -282,6 +289,8 @@ export default function TradesDropdown({
   onSelect,
   showPositions,
   onTogglePositions,
+  showLabels,
+  onToggleLabels,
 }) {
   const [open, setOpen] = useState(false);
   const [panelPos, setPanelPos] = useState({ top: 0, right: 0 });
@@ -381,6 +390,17 @@ export default function TradesDropdown({
                   type="checkbox"
                   checked={showPositions}
                   onChange={(e) => onTogglePositions(e.target.checked)}
+                />
+                <span className="td-switch" />
+              </label>
+
+              <label className={`td-toggle-row ${!showPositions ? 'is-disabled' : ''}`}>
+                <span>Show Position Labels</span>
+                <input
+                  type="checkbox"
+                  checked={showLabels}
+                  disabled={!showPositions}
+                  onChange={(e) => onToggleLabels(e.target.checked)}
                 />
                 <span className="td-switch" />
               </label>

@@ -199,14 +199,22 @@ export default function MarketChartPage() {
     );
   }, [journalTrades, symbol]);
 
-  // Focused trade state & Toggle
+  // Focused trade state & Toggles
   const [focusedTradeId, setFocusedTradeId] = useState(null);
   const [showPositions, setShowPositions] = useState(true);
+  const [showLabels, setShowLabels] = useState(false);
 
   // Reset focus when symbol changes
   useEffect(() => {
     setFocusedTradeId(null);
   }, [symbol]);
+
+  // Auto-off labels if positions are hidden
+  useEffect(() => {
+    if (!showPositions) {
+      setShowLabels(false);
+    }
+  }, [showPositions]);
 
   // Compute mapped trades with Unix timestamps for the chart
   const chartTrades = useMemo(() => {
@@ -512,6 +520,7 @@ export default function MarketChartPage() {
                 interval={interval}
                 markers={tradeMarkers}
                 trades={showPositions ? chartTrades : []}
+                showLabels={showLabels}
                 focusTime={focusTime}
                 onReady={handleChartReady}
               />
@@ -522,6 +531,8 @@ export default function MarketChartPage() {
                 onSelect={handleSelectTrade}
                 showPositions={showPositions}
                 onTogglePositions={setShowPositions}
+                showLabels={showLabels}
+                onToggleLabels={setShowLabels}
               />
             </div>
 
