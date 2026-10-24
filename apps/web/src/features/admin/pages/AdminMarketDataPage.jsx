@@ -1,8 +1,8 @@
-﻿import { Fragment, useEffect, useMemo, useState } from 'react';
+﻿import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Database, RefreshCw, Download, Trash2, Play,
   AlertTriangle, CheckCircle2, Clock, Loader2,
-  ChevronDown, ChevronRight, Square,
+  ChevronDown, ChevronRight, Square, List,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -17,6 +17,7 @@ import {
   useAdminMarketDataWipe,
 } from '../api';
 import ConfirmDangerModal from '../components/ConfirmDangerModal';
+import ImportChunksModal from '../components/ImportChunksModal';
 import EmptyState from '@/shared/components/EmptyState';
 
 const INTERVALS = ['1m', '5m', '15m', '1h', '4h', '1d'];
@@ -170,6 +171,25 @@ const CSS = `
     color: #fca5a5;
     background: rgba(239,68,68,.12);
     border-color: rgba(239,68,68,.55);
+  }
+  .mdp-job-chunks {
+    flex-shrink: 0;
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 8px 14px;
+    border-radius: 9px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11.5px; font-weight: 700; letter-spacing: .02em;
+    border: 1px solid rgba(255,255,255,.10);
+    background: rgba(255,255,255,.03);
+    color: #8892A3;
+    cursor: pointer;
+    transition: all .18s cubic-bezier(.2,.8,.25,1);
+    white-space: nowrap;
+  }
+  .mdp-job-chunks:hover {
+    color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 8%, transparent);
+    border-color: var(--accent-soft2);
   }
   .mdp-job-resume {
     color: var(--accent);
@@ -466,11 +486,36 @@ export default function AdminMarketDataPage() {
   const { user } = useAuth();
   const isSuper = user?.role === 'superadmin';
 
-  const { data: statsData, isLoading, refetch: refetchStats, isFetching: statsFetching } = useAdminMarketDataStats();
   const { data: jobsData } = useAdminMarketDataJobs();
   const startMutation = useAdminStartMarketDataImport();
   const stopMutation = useAdminStopMarketDataImport();
   const wipeMutation = useAdminMarketDataWipe();
+
+  const allJobs = jobsData?.jobs ?? [];
+  
+  // Classify jobs
+  const runningJobs = useMemo(
+    () => allJobs.filter((j) => j.status === 'running' || j.status === 'stopping'),
+    [allJobs]
+  );
+
+  const {
+    data: statsData,
+    isLoading,
+    refetch: refetchStats,
+    isFetching: statsFetching,
+  } = useAdminMarketDataStats({
+    refetchInterval: runningJobs.length > 0 ? 3000 : false,
+  });
+
+  // Refetch the table one final time when the job finishes
+  const prevRunningCount = useRef(runningJobs.length);
+  useEffect(() => {
+    if (prevRunningCount.current > 0 && runningJobs.length === 0) {
+      refetchStats();
+    }
+    prevRunningCount.current = runningJobs.length;
+  }, [runningJobs.length, refetchStats]);
 
   const [symbol, setSymbol] = useState('NQ');
   const [interval, setInterval] = useState('5m');
@@ -479,6 +524,7 @@ export default function AdminMarketDataPage() {
 
   const [wipeTarget, setWipeTarget] = useState(null);
   const [collapsedGroups, setCollapsedGroups] = useState(() => new Set());
+  const [chunksModalJobId, setChunksModalJobId] = useState(null);
 
   useAdminPageHeader({
     eyebrow: 'Operations',
@@ -490,13 +536,6 @@ export default function AdminMarketDataPage() {
 
   const rows = statsData?.rows ?? [];
   const totals = statsData?.totals ?? { totalBars: 0, symbolCount: 0, intervalCount: 0, coverageRows: 0 };
-  const allJobs = jobsData?.jobs ?? [];
-
-  // ---- Classify jobs ----
-  const runningJobs = useMemo(
-    () => allJobs.filter((j) => j.status === 'running' || j.status === 'stopping'),
-    [allJobs]
-  );
 
   // Interrupted jobs that have NOT been superseded by a newer job for the same
   // (symbol, interval) pair — the ones worth offering a "Start again".
@@ -521,6 +560,12 @@ export default function AdminMarketDataPage() {
     for (const j of runningJobs) map.set(`${j.symbol}:${j.interval}`, j);
     return map;
   }, [runningJobs]);
+
+  // The modal receives a live job object so isJobRunning tracks the real state.
+  const chunksModalJob = useMemo(
+    () => allJobs.find((j) => j.id === chunksModalJobId) || null,
+    [allJobs, chunksModalJobId]
+  );
 
   const formKey = `${symbol}:${interval}`;
   const formActiveJob = activeJobByPair.get(formKey);
@@ -566,6 +611,9 @@ export default function AdminMarketDataPage() {
       if (res.alreadyComplete) {
         toast.info('Range already covered — nothing to import.');
       } else {
+        // AUTOMATICALLY OPEN THE CHUNKS MODAL
+        setChunksModalJobId(res.jobId);
+        
         const skippedNote = res.skippedChunks > 0
           ? ` (${res.skippedChunks} chunk${res.skippedChunks === 1 ? '' : 's'} skipped)`
           : '';
@@ -742,6 +790,14 @@ export default function AdminMarketDataPage() {
                   </div>
                   <button
                     type="button"
+                    className="mdp-job-chunks"
+                    onClick={() => setChunksModalJobId(job.id)}
+                    title="View individual chunks"
+                  >
+                    <List size={12} /> Chunks
+                  </button>
+                  <button
+                    type="button"
                     className="mdp-job-stop"
                     onClick={() => handleStop(job.id)}
                     disabled={stopMutation.isPending || stopping}
@@ -769,6 +825,14 @@ export default function AdminMarketDataPage() {
                     {job.lastError ? ` · ${String(job.lastError).slice(0, 90)}` : ''}
                   </div>
                 </div>
+                <button
+                  type="button"
+                  className="mdp-job-chunks"
+                  onClick={() => setChunksModalJobId(job.id)}
+                  title="View individual chunks"
+                >
+                  <List size={12} /> Chunks
+                </button>
                 <button
                   type="button"
                   className="mdp-job-resume"
@@ -1001,12 +1065,12 @@ export default function AdminMarketDataPage() {
                               <td className="mdp-td right">{fmtNum(row.barCount)}</td>
                               <td className="mdp-td muted">
                                 {row.dbFromTime && row.dbToTime
-                                  ? `${fmtDate(row.dbFromTime)} → ${fmtDate(row.dbToTime)}`
+                                  ? `${fmtDate(row.dbFromTime)} ? ${fmtDate(row.dbToTime)}`
                                   : '—'}
                               </td>
                               <td className="mdp-td muted">
                                 {row.coverageFrom && row.coverageTo
-                                  ? `${fmtDate(row.coverageFrom)} → ${fmtDate(row.coverageTo)}`
+                                  ? `${fmtDate(row.coverageFrom)} ? ${fmtDate(row.coverageTo)}`
                                   : '—'}
                               </td>
                               <td className="mdp-td muted">{ago(row.lastFetchedAt)}</td>
@@ -1068,6 +1132,11 @@ export default function AdminMarketDataPage() {
           </div>
         </div>
       </div>
+
+      <ImportChunksModal
+        job={chunksModalJob}
+        onClose={() => setChunksModalJobId(null)}
+      />
 
       <ConfirmDangerModal
         isOpen={!!wipeTarget}

@@ -1,11 +1,10 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { AlertTriangle, Loader2 } from 'lucide-react';
 
 import { useMarketCatalog, useMarketBars } from '@/shared/api/marketData';
 import { queryClient } from '@/shared/api/queryClient';
 import { useJournalTrades } from '@/shared/api/journalTrades';
-import { tradeTimeToUtcSeconds, getTimezoneOffsetSeconds } from '@/shared/trading/tradeTime';
+import { getTimezoneOffsetSeconds } from '@/shared/trading/tradeTime';
 import { resolveTimezone } from '@/shared/format/datetime';
 import { useSettings } from '@/app/layout/Settings/SettingsProvider';
 import { usePageHeader } from '@/app/layout/PageHeaderProvider';
@@ -17,9 +16,6 @@ import ChartLoadingOverlay from './components/ChartLoadingOverlay';
 
 const DEFAULT_SYMBOL = 'NQ';
 const DEFAULT_INTERVAL = '5m';
-const PAGE_SIZE = 1000;
-
-const BAR_DURATION_SEC = { '1m': 60, '5m': 300, '15m': 900, '1h': 3600, '4h': 14400, '1d': 86400 };
 
 const CSS = `
   .chart2-root { width: 100%; max-width: 1800px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
@@ -64,7 +60,6 @@ export default function MarketChartPage() {
 
   const displayTz = useMemo(() => resolveTimezone(settings?.preferences?.timezone || 'auto'), [settings]);
   const { data: catalog } = useMarketCatalog();
-  const { trades: journalTrades } = useJournalTrades();
 
   const barsQuery = useMarketBars({ symbol, interval, from: fromParam, to: toParam, enabled: !!catalog });
   
@@ -79,14 +74,6 @@ export default function MarketChartPage() {
 
   const filling = barsQuery.data?.pages?.[0]?.filling;
   const hasMoreOlder = barsQuery.data?.pages?.[barsQuery.data.pages.length - 1]?.hasMoreOlder;
-
-  // Preserve scroll on prepend
-  const prevFirstBarRef = useRef(null);
-  useEffect(() => {
-    if (!bars.length) return;
-    const chart = document.querySelector('.cl-canvas canvas'); // Not ideal, but we use fitContentKey instead.
-    // Lightweight charts handles setData prepends gracefully without jumping if we don't call fitContent.
-  }, [bars.length]);
 
   const displayOffset = useMemo(() => {
     if (interval === '1d') return 0;

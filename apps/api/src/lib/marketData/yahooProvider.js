@@ -1,4 +1,4 @@
-import { env } from '../../config/env.js';
+﻿import { env } from '../../config/env.js';
 import { HttpError } from '../../middleware/error.js';
 import { enqueue } from './queue.js';
 import { get as cacheGet, set as cacheSet } from './cache.js';
@@ -17,7 +17,20 @@ async function fetchChart(url) {
     });
     if (res.status === 429) throw new HttpError(429, 'Yahoo rate limit reached');
     if (res.status === 404) throw new HttpError(404, 'Yahoo: no data');
-    if (!res.ok) throw new HttpError(502, `Yahoo HTTP ${res.status}`);
+    
+    if (!res.ok) {
+      let errorMsg = `Yahoo HTTP ${res.status}`;
+      try {
+        const body = await res.json();
+        if (body?.chart?.error?.description) {
+          errorMsg = `Yahoo: ${body.chart.error.description}`;
+        } else if (body?.finance?.error?.description) {
+          errorMsg = `Yahoo: ${body.finance.error.description}`;
+        }
+      } catch { /* ignore */ }
+      throw new HttpError(res.status, errorMsg);
+    }
+    
     const body = await res.json();
     if (body?.chart?.error) throw new HttpError(400, `Yahoo: ${body.chart.error.description}`);
     if (!body?.chart?.result?.length) throw new HttpError(404, 'Yahoo no series');

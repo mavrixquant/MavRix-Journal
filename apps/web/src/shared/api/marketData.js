@@ -101,7 +101,6 @@ export function useMarketBars({ symbol, interval, from, to, enabled = true }) {
     placeholderData: (prev) => prev,
     refetchInterval: (data) => {
       // Poll while the server is still filling in the background.
-      const lastPage = data?.pages?.[data.pages.length - 1];
       const firstPage = data?.pages?.[0];
       if (firstPage?.filling) return 2000;
       return false;

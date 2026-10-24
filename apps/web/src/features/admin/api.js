@@ -398,11 +398,31 @@ export function useAdminCalendarWipe() {
 // via GET /jobs (fast when a job is running, slow otherwise) and pushed via
 // the `market-data:job:update` SSE event (see shared/api/sse.js).
 // ---------------------------------------------------------------------------
-export function useAdminMarketDataStats() {
+export function useAdminMarketDataStats({ refetchInterval } = {}) {
   return useQuery({
     queryKey: ['admin', 'market-data', 'stats'],
     queryFn: () => apiJson('/api/admin/market-data/stats'),
-    staleTime: 15_000,
+    staleTime: 5_000,
+    refetchInterval,
+  });
+}
+
+export function useAdminMarketDataJobChunks(jobId, { enabled = true } = {}) {
+  return useQuery({
+    queryKey: ['admin', 'market-data', 'job-chunks', jobId],
+    queryFn: () =>
+      apiJson(`/api/admin/market-data/jobs/${encodeURIComponent(jobId)}/chunks?limit=2000`),
+    enabled: enabled && !!jobId,
+    // Self-driving poll: keep fetching as long as ANY chunk is active.
+    // This guarantees the table updates even if the job completes exactly
+    // between two polls.
+    refetchInterval: (query) => {
+      const chunks = query.state.data?.chunks || [];
+      const hasActive = chunks.some(c => c.status === 'running' || c.status === 'pending');
+      return hasActive ? 1500 : false;
+    },
+    refetchOnWindowFocus: false,
+    staleTime: 0,
   });
 }
 

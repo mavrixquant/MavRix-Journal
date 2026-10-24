@@ -1,4 +1,4 @@
-﻿import { Router } from 'express';
+import { Router } from 'express';
 import { z } from 'zod';
 import {
   gexDaySchema,
@@ -194,12 +194,12 @@ adminRoutes.post('/calendar/sync', sensitive, opsCtrl.calendarSync);
 adminRoutes.delete('/calendar/cache', requireSuperadmin, sensitive, opsCtrl.calendarWipe);
 adminRoutes.get('/calendar/logs', opsCtrl.calendarLogs);
 
-// GEX â€” symbol-aware. GET/DELETE take ?symbol=..., POST takes symbol in body.
+// GEX — symbol-aware. GET/DELETE take ?symbol=..., POST takes symbol in body.
 adminRoutes.get('/gex', validateSymbolQuery, gexCtrl.list);
 adminRoutes.post('/gex', writeLimiter, validate(gexDaySchema), gexCtrl.upsert);
 adminRoutes.delete('/gex/:date', requireSuperadmin, sensitive, validateSymbolQuery, gexCtrl.remove);
 
-// Bug reports â€” new admin tab.
+// Bug reports — new admin tab.
 adminRoutes.get('/bug-reports', bugCtrl.list);
 adminRoutes.patch('/bug-reports/:id', writeLimiter, validate(bugReportUpdateSchema), bugCtrl.update);
 adminRoutes.delete('/bug-reports/:id', requireSuperadmin, sensitive, bugCtrl.remove);
@@ -228,7 +228,7 @@ adminRoutes.get(
 );
 
 // ---------------------------------------------------------------------------
-// Market data cache — read stats, force import chunks, wipe per (symbol, interval).
+// Market data cache � read stats, force import chunks, wipe per (symbol, interval).
 // ---------------------------------------------------------------------------
 const marketDataIntervalEnum = z.enum(['1m', '5m', '15m', '1h', '4h', '1d']);
 
@@ -254,6 +254,7 @@ adminRoutes.post(
 );
 adminRoutes.get('/market-data/jobs', marketDataCtrl.listJobs);
 adminRoutes.get('/market-data/jobs/:id', marketDataCtrl.getJob);
+adminRoutes.get('/market-data/jobs/:id/chunks', marketDataCtrl.getChunks);
 adminRoutes.post('/market-data/jobs/:id/stop', writeLimiter, marketDataCtrl.stopJob);
 adminRoutes.delete(
   '/market-data/cache',

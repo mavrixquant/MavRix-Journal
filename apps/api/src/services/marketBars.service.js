@@ -94,7 +94,7 @@ export async function getBars({ symbol, interval, from: rawFrom, to: rawTo, befo
   };
 }
 
-function computeGaps({ coverage, now, interval, effectiveFrom, effectiveTo, isScrollBack, isScrollForward, isExplicitRange, before, after }) {
+function computeGaps({ coverage, now, interval, effectiveFrom, effectiveTo, isScrollBack, isExplicitRange, before }) {
   const gaps = [];
   if (!coverage) {
     const to = effectiveTo ?? now;

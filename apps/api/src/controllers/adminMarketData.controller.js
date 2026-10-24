@@ -1,4 +1,4 @@
-﻿import { prisma } from '../lib/prisma.js';
+import { prisma } from '../lib/prisma.js';
 import * as svc from '../services/adminMarketData.service.js';
 
 async function buildActor(req) {
@@ -13,7 +13,7 @@ export async function stats(_req, res, next) {
   try { res.json(await svc.getStats()); } catch (e) { next(e); }
 }
 
-// 202 Accepted — the actual work runs async; poll GET /jobs/:id or /jobs.
+// 202 Accepted � the actual work runs async; poll GET /jobs/:id or /jobs.
 export async function startJob(req, res, next) {
   try {
     const actor = await buildActor(req);
@@ -34,6 +34,16 @@ export async function getJob(req, res, next) {
   try {
     const job = await svc.getJob(req.params.id);
     res.json({ job });
+  } catch (e) { next(e); }
+}
+
+export async function getChunks(req, res, next) {
+  try {
+    const result = await svc.listJobChunks(req.params.id, {
+      page: req.query.page,
+      limit: req.query.limit,
+    });
+    res.json(result);
   } catch (e) { next(e); }
 }
 

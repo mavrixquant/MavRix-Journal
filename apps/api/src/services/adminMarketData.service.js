@@ -1,17 +1,17 @@
-ï»¿// ============================================================================
-// Admin market-data service â€” async import jobs + coverage stats + wipe.
+// ============================================================================
+// Admin market-data service — async import jobs + coverage stats + wipe.
 //
 // Import design:
-//   â€¢ POST /import creates a MarketImportJob row + registers an in-memory
+//   • POST /import creates a MarketImportJob row + registers an in-memory
 //     runner; returns 202 immediately with the jobId.
-//   â€¢ The runner is a setImmediate() loop â€” OUTSIDE the HTTP lifecycle â€”
+//   • The runner is a setImmediate() loop — OUTSIDE the HTTP lifecycle —
 //     that writes progress at every chunk boundary.
-//   â€¢ On boot, markInterruptedJobs() flips any leftover `running` rows to
+//   • On boot, markInterruptedJobs() flips any leftover `running` rows to
 //     `interrupted` (data already committed to market_bars is preserved).
-//   â€¢ POST /jobs/:id/stop sets stopRequested; the runner exits at the next
+//   • POST /jobs/:id/stop sets stopRequested; the runner exits at the next
 //     chunk boundary (current chunk always finishes).
-//   â€¢ SSE broadcast (`market-data:job:update`) fires at every state change so
-//     the UI updates without polling â€” polling is the fallback.
+//   • SSE broadcast (`market-data:job:update`) fires at every state change so
+//     the UI updates without polling — polling is the fallback.
 //
 // Providers: Yahoo (futures, crypto) and Biquote (forex, metals), resolved
 // via lib/marketData/symbolMap.js.
@@ -42,7 +42,7 @@ const CHUNK_RETRY_BACKOFF_MS = [2000, 5000, 15000];
 const DB_STOP_CHECK_EVERY_N_CHUNKS = 10;
 const KEEPALIVE_INTERVAL_MS = 4 * 60 * 1000;
 
-// In-memory registry â€” cleared on process restart (boot sweep handles
+// In-memory registry — cleared on process restart (boot sweep handles
 // the DB side; the map only holds live runners in THIS process).
 const running = new Map();   // jobId -> { stopped: boolean }
 const activeKeys = new Map(); // `${symbol}:${interval}` -> jobId
@@ -89,6 +89,22 @@ function serializeJob(j) {
     startedById: j.startedById,
     startedAt: j.startedAt,
     finishedAt: j.finishedAt,
+  };
+}
+
+function serializeChunk(c) {
+  return {
+    id: c.id,
+    index: c.index,
+    fromTime: c.fromTime,
+    toTime: c.toTime,
+    status: c.status,
+    attempt: c.attempt,
+    fetched: c.fetched,
+    inserted: c.inserted,
+    error: c.error,
+    startedAt: c.startedAt,
+    finishedAt: c.finishedAt,
   };
 }
 
@@ -155,7 +171,7 @@ async function recomputeCoverage(symbol, interval, provider, providerSymbol) {
 }
 
 // ---------------------------------------------------------------------------
-// getStats â€” unchanged shape from the previous version.
+// getStats — unchanged shape from the previous version.
 // ---------------------------------------------------------------------------
 
 export async function getStats() {
@@ -240,14 +256,14 @@ async function computeMissingChunks(symbol, interval, from, to) {
   const covTo = coverage.toTime.getTime();
 
   // Front/back gap detection: only skips chunks that sit entirely outside
-  // the already-covered range. Interior gaps (rare â€” job aborts on first
+  // the already-covered range. Interior gaps (rare — job aborts on first
   // hard failure) are not filled. To refill interior gaps, wipe + reimport.
   const missing = allChunks.filter((c) => {
     const cFrom = c.from.getTime();
     const cTo = c.to.getTime();
     if (cTo <= covFrom) return true;  // entirely before coverage
     if (cFrom >= covTo) return true;  // entirely after coverage
-    return false;                     // overlaps coverage â†’ skip
+    return false;                     // overlaps coverage ? skip
   });
 
   return { missing, skipped: allChunks.length - missing.length };
@@ -277,7 +293,7 @@ export async function startImportJob({ symbol, interval, from, to, actor }) {
 
   // One job per (symbol, interval) at a time.
   if (activeKeys.has(key)) {
-    throw new HttpError(409, `An import for ${sym} Â· ${interval} is already running.`);
+    throw new HttpError(409, `An import for ${sym} · ${interval} is already running.`);
   }
   // Global cap.
   if (running.size >= MAX_CONCURRENT_JOBS) {
@@ -289,7 +305,7 @@ export async function startImportJob({ symbol, interval, from, to, actor }) {
   if (missing.length > MAX_CHUNKS_PER_JOB) {
     throw new HttpError(
       400,
-      `Range too large â€” ${missing.length} chunks needed (max ${MAX_CHUNKS_PER_JOB}). Split the range.`
+      `Range too large — ${missing.length} chunks needed (max ${MAX_CHUNKS_PER_JOB}). Split the range.`
     );
   }
 
@@ -331,6 +347,18 @@ export async function startImportJob({ symbol, interval, from, to, actor }) {
 
   broadcastJob(job);
 
+  if (!alreadyComplete && missing.length > 0) {
+    await prisma.marketImportChunk.createMany({
+      data: missing.map((chunk, i) => ({
+        jobId: job.id,
+        index: i,
+        fromTime: chunk.from,
+        toTime: chunk.to,
+        status: 'pending',
+      })),
+    });
+  }
+
   if (alreadyComplete) {
     return { jobId: job.id, totalChunks: 0, skippedChunks: skipped, alreadyComplete: true };
   }
@@ -358,13 +386,20 @@ async function runImportJob(jobId, chunks, resolved, fetchFn) {
   const { symbol, interval } = initial;
   const startedAt = Date.now();
 
+  // Chunk rows — created in startImportJob, matched 1:1 with the chunks array.
+  const chunkRows = await prisma.marketImportChunk.findMany({
+    where: { jobId },
+    orderBy: { index: 'asc' },
+    select: { id: true },
+  });
+
   let chunksDone = initial.chunksDone;
   let fetched = initial.fetched;
   let inserted = initial.inserted;
   let finalStatus = 'completed';
   let lastError = null;
 
-  // Self-ping â€” keeps Render free tier awake during long imports. Opt-in.
+  // Self-ping — keeps Render free tier awake during long imports. Opt-in.
   const keepAliveHandle = setInterval(() => {
     if (process.env.MARKET_DATA_KEEPALIVE !== 'true') return;
     const port = process.env.PORT || 4000;
@@ -379,7 +414,7 @@ async function runImportJob(jobId, chunks, resolved, fetchFn) {
       // ---- Stop check (in-memory fast path) ----
       if (reg.stopped) { finalStatus = 'stopped'; break; }
 
-      // ---- Stop check (DB, every N chunks â€” multi-instance safety) ----
+      // ---- Stop check (DB, every N chunks — multi-instance safety) ----
       if (chunksDone - lastDbStopCheck >= DB_STOP_CHECK_EVERY_N_CHUNKS) {
         lastDbStopCheck = chunksDone;
         const fresh = await prisma.marketImportJob.findUnique({
@@ -397,20 +432,37 @@ async function runImportJob(jobId, chunks, resolved, fetchFn) {
       }
 
       const chunk = chunks[i];
+      const chunkRow = chunkRows[i] || null;
+
       let chunkOk = false;
       let chunkError = null;
+      let chunkFetched = 0;
+      let chunkInserted = 0;
+      let chunkStopped = false;
 
-      // Retry chain per chunk.
+      // Retry chain per chunk — increment attempt per try.
       for (let attempt = 0; attempt <= CHUNK_RETRY_BACKOFF_MS.length; attempt++) {
-        if (reg.stopped) break;
+        if (reg.stopped) { chunkStopped = true; break; }
+
+        if (chunkRow) {
+          await prisma.marketImportChunk.update({
+            where: { id: chunkRow.id },
+            data: {
+              status: 'running',
+              attempt: { increment: 1 },
+              startedAt: attempt === 0 ? new Date() : undefined,
+            },
+          });
+        }
+
         try {
           const rawBars = await fetchFn(resolved.providerSymbol, interval, {
             from: chunk.from,
             to: chunk.to,
           });
-          fetched += rawBars.length;
+          chunkFetched = rawBars.length;
           if (rawBars.length > 0) {
-            inserted += await bulkUpsertBars(symbol, interval, resolved.provider, rawBars);
+            chunkInserted = await bulkUpsertBars(symbol, interval, resolved.provider, rawBars);
           }
           await recomputeCoverage(symbol, interval, resolved.provider, resolved.providerSymbol);
           chunkOk = true;
@@ -427,7 +479,7 @@ async function runImportJob(jobId, chunks, resolved, fetchFn) {
             continue;
           }
 
-          // Out of retries â€” write provider cooldown, mark job failed.
+          // Out of retries — write provider cooldown, mark job failed.
           const backoffUntil = new Date(Date.now() + (isRate ? 5 * 60_000 : 60_000));
           await prisma.marketBarCoverage.upsert({
             where: { symbol_interval: { symbol, interval } },
@@ -444,13 +496,56 @@ async function runImportJob(jobId, chunks, resolved, fetchFn) {
         }
       }
 
+      // ---- Chunk stopped mid-flight ----
+      if (chunkStopped) {
+        if (chunkRow) {
+          await prisma.marketImportChunk.update({
+            where: { id: chunkRow.id },
+            data: {
+              status: 'stopped',
+              error: 'Stopped before completion',
+              finishedAt: new Date(),
+            },
+          });
+        }
+        finalStatus = 'stopped';
+        break;
+      }
+
+      // ---- Chunk failed after retries ----
       if (!chunkOk) {
+        if (chunkRow) {
+          await prisma.marketImportChunk.update({
+            where: { id: chunkRow.id },
+            data: {
+              status: 'failed',
+              error: chunkError?.message || 'Unknown chunk error',
+              finishedAt: new Date(),
+            },
+          });
+        }
         finalStatus = 'failed';
         lastError = chunkError?.message || 'Unknown chunk error';
         break;
       }
 
+      // ---- Chunk succeeded ----
+      fetched += chunkFetched;
+      inserted += chunkInserted;
       chunksDone += 1;
+
+      if (chunkRow) {
+        await prisma.marketImportChunk.update({
+          where: { id: chunkRow.id },
+          data: {
+            status: 'succeeded',
+            fetched: chunkFetched,
+            inserted: chunkInserted,
+            finishedAt: new Date(),
+            error: null,
+          },
+        });
+      }
 
       const updated = await prisma.marketImportJob.update({
         where: { id: jobId },
@@ -463,6 +558,20 @@ async function runImportJob(jobId, chunks, resolved, fetchFn) {
     lastError = err?.message || String(err);
   } finally {
     clearInterval(keepAliveHandle);
+
+    // Safety sweep — resolve any chunk still flagged 'running' after a crash.
+    try {
+      await prisma.marketImportChunk.updateMany({
+        where: { jobId, status: 'running' },
+        data: {
+          status: 'failed',
+          error: 'Aborted before completion',
+          finishedAt: new Date(),
+        },
+      });
+    } catch (err) {
+      console.error(`[market-data] chunk safety sweep failed for ${jobId}:`, err);
+    }
 
     let final = null;
     try {
@@ -502,7 +611,6 @@ async function runImportJob(jobId, chunks, resolved, fetchFn) {
     } catch {}
   }
 }
-
 export async function listJobs({ limit = 50 } = {}) {
   const take = Math.min(Math.max(1, Number(limit) || 50), 200);
   const rows = await prisma.marketImportJob.findMany({
@@ -515,7 +623,52 @@ export async function listJobs({ limit = 50 } = {}) {
 export async function getJob(jobId) {
   const row = await prisma.marketImportJob.findUnique({ where: { id: jobId } });
   if (!row) throw new HttpError(404, 'Job not found');
-  return serializeJob(row);
+
+  const grouped = await prisma.marketImportChunk.groupBy({
+    by: ['status'],
+    where: { jobId },
+    _count: { _all: true },
+  });
+
+  const chunkCounts = {
+    pending: 0,
+    running: 0,
+    succeeded: 0,
+    failed: 0,
+    stopped: 0,
+    skipped: 0,
+  };
+  for (const g of grouped) {
+    if (g.status in chunkCounts) chunkCounts[g.status] = g._count._all;
+  }
+
+  return { ...serializeJob(row), chunkCounts };
+}
+
+export async function listJobChunks(jobId, { page = 1, limit = 500 } = {}) {
+  const job = await prisma.marketImportJob.findUnique({ where: { id: jobId } });
+  if (!job) throw new HttpError(404, 'Job not found');
+
+  const take = Math.min(Math.max(1, Number(limit) || 500), 5000);
+  const skip = (Math.max(1, Number(page) || 1) - 1) * take;
+
+  const [rows, total] = await Promise.all([
+    prisma.marketImportChunk.findMany({
+      where: { jobId },
+      orderBy: { index: 'asc' },
+      skip,
+      take,
+    }),
+    prisma.marketImportChunk.count({ where: { jobId } }),
+  ]);
+
+  return {
+    chunks: rows.map(serializeChunk),
+    total,
+    page: Math.max(1, Number(page) || 1),
+    limit: take,
+    pages: Math.ceil(total / take),
+  };
 }
 
 export async function stopJob(jobId, actor) {
@@ -553,14 +706,27 @@ export async function markInterruptedJobs() {
     where: { status: { in: ['running', 'stopping'] } },
     data: { status: 'interrupted', finishedAt: new Date() },
   });
-  if (res.count > 0) {
-    console.log(`[market-data] boot sweep: marked ${res.count} stale job(s) as interrupted`);
+
+  const chunkRes = await prisma.marketImportChunk.updateMany({
+    where: { status: 'running' },
+    data: {
+      status: 'failed',
+      error: 'Interrupted by server restart',
+      finishedAt: new Date(),
+    },
+  });
+
+  if (res.count > 0 || chunkRes.count > 0) {
+    console.log(
+      `[market-data] boot sweep: marked ${res.count} stale job(s) as interrupted, ` +
+      `${chunkRes.count} running chunk(s) as failed`
+    );
   }
   return res.count;
 }
 
 // ---------------------------------------------------------------------------
-// wipeCache â€” unchanged behavior. Group wipe passes interval=undefined.
+// wipeCache — unchanged behavior. Group wipe passes interval=undefined.
 // ---------------------------------------------------------------------------
 
 export async function wipeCache({ symbol, interval, actor }) {
