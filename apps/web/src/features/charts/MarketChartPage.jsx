@@ -17,21 +17,10 @@ import CandlestickChart from './components/CandlestickChart';
 import QuoteHeader from './components/QuoteHeader';
 import WatchlistSidebar from './components/WatchlistSidebar';
 import ChartLoadingOverlay from './components/ChartLoadingOverlay';
-import TradeFocusPanel from './components/TradeFocusPanel';
+import TradesDropdown from './components/TradesDropdown';
 
 const DEFAULT_SYMBOL = 'NQ';
 const DEFAULT_INTERVAL = '5m';
-
-/**
- * Trade times are entered as the trader's local wall clock and interpreted
- * in the user's current display timezone (Settings -> Preferences). The
- * "Sessions (ET)" line in the dashboard footer describes how the dashboard
- * buckets trades by session, NOT how trade times are read for chart display.
- *
- * One-bar buffer at each range edge tolerates normal provider lag: Yahoo's
- * last 5 m candle trails the wall clock by a few minutes, so a trade
- * entered "just now" would otherwise be filtered out.
- */
 
 const BAR_DURATION_SEC = {
   '1m': 60,
@@ -63,18 +52,13 @@ const CSS = `
 
   .chart2-layout {
     display: grid;
-    grid-template-columns: 280px minmax(0, 1fr) 300px;
+    grid-template-columns: 280px minmax(0, 1fr);
     gap: 16px;
     align-items: start;
   }
-  @media (max-width: 1200px) {
-    .chart2-layout { grid-template-columns: 280px minmax(0, 1fr); }
-    .chart2-layout > :nth-child(3) { display: none; }
-  }
   @media (max-width: 1100px) {
     .chart2-layout { grid-template-columns: minmax(0, 1fr); }
-    .chart2-layout > :nth-child(1),
-    .chart2-layout > :nth-child(3) { display: none; }
+    .chart2-layout > :nth-child(1) { display: none; }
   }
 
   .chart2-stage {
@@ -164,13 +148,11 @@ export default function MarketChartPage() {
     [searchParams, setSearchParams]
   );
 
-  // ---- display timezone from settings ------------------------------------
   const displayTz = useMemo(
     () => resolveTimezone(settings?.preferences?.timezone || 'auto'),
     [settings?.preferences?.timezone]
   );
 
-  // ---- data hooks ---------------------------------------------------------
   const { data: catalog } = useMarketCatalog();
   const {
     data: barPayload,
@@ -178,14 +160,12 @@ export default function MarketChartPage() {
   } = useMarketBars({ symbol, interval, enabled: !!catalog });
   const { trades: journalTrades, isLoading: journalLoading } = useJournalTrades();
 
-  // ---- derived: symbol catalog --------------------------------------------
   const symbols = useMemo(() => catalog?.symbols ?? [], [catalog]);
   const currentSymbol = useMemo(
     () => symbols.find((s) => s.code === symbol),
     [symbols, symbol]
   );
 
-  // ---- derived: raw bars (unshifted) --------------------------------------
   const bars = useMemo(() => {
     if (!barPayload) return [];
     if (String(barPayload.symbol || '').toUpperCase() !== symbol) return [];
@@ -211,7 +191,6 @@ export default function MarketChartPage() {
     [bars]
   );
 
-  // ---- derived: journal trades for this symbol ----------------------------
   const symbolTrades = useMemo(() => {
     if (!journalTrades || !Array.isArray(journalTrades)) return [];
     const upper = String(symbol || '').toUpperCase();
@@ -220,7 +199,29 @@ export default function MarketChartPage() {
     );
   }, [journalTrades, symbol]);
 
-  // ---- per-trade analysis (used by markers + banner + diagnostics) ------
+  // Focused trade state & Toggle
+  const [focusedTradeId, setFocusedTradeId] = useState(null);
+  const [showPositions, setShowPositions] = useState(true);
+
+  // Reset focus when symbol changes
+  useEffect(() => {
+    setFocusedTradeId(null);
+  }, [symbol]);
+
+  // Compute mapped trades with Unix timestamps for the chart
+  const chartTrades = useMemo(() => {
+    return symbolTrades.map(t => {
+      const entrySec = tradeTimeToUtcSeconds(t.date, t.entryTime, displayTz);
+      const exitSec = tradeTimeToUtcSeconds(t.date, t.exitTime, displayTz);
+      return {
+        ...t,
+        entryTimeSec: entrySec !== null ? entrySec + displayOffset : null,
+        exitTimeSec: exitSec !== null ? exitSec + displayOffset : null,
+      };
+    }).filter(t => t.entryTimeSec !== null && t.exitTimeSec !== null);
+  }, [symbolTrades, displayTz, displayOffset]);
+
+  // ---- per-trade analysis (markers) ----
   const tradeAnalysis = useMemo(() => {
     if (symbolTrades.length === 0 || displayBars.length === 0) {
       return { markers: [], skipped: [] };
@@ -304,6 +305,35 @@ export default function MarketChartPage() {
       });
     }
 
+    // Exit marker for the focused trade
+    if (focusedTradeId && !isDaily) {
+      const ft = symbolTrades.find((x) => x.id === focusedTradeId);
+      if (ft && ft.exitTime) {
+        const hasPriceData =
+          Number.isFinite(Number(ft.entryPrice)) && Number(ft.entryPrice) > 0 ||
+          Number.isFinite(Number(ft.stopLoss)) && Number(ft.stopLoss) > 0 ||
+          Number.isFinite(Number(ft.takeProfit)) && Number(ft.takeProfit) > 0;
+
+        if (hasPriceData) {
+          const exitRawUtc = tradeTimeToUtcSeconds(ft.date, ft.exitTime, displayTz);
+          if (exitRawUtc != null) {
+            const exitDisplayTs = exitRawUtc + displayOffset;
+            if (exitDisplayTs >= allowFrom && exitDisplayTs <= allowTo) {
+              const isLong = String(ft.direction || '').toLowerCase() === 'long';
+              markers.push({
+                time: exitDisplayTs,
+                position: isLong ? 'aboveBar' : 'belowBar',
+                color: '#F59E0B',
+                shape: 'circle',
+                text: 'Exit',
+                size: 1,
+              });
+            }
+          }
+        }
+      }
+    }
+
     markers.sort((a, b) => {
       const ta = typeof a.time === 'number'
         ? a.time
@@ -315,72 +345,94 @@ export default function MarketChartPage() {
     });
 
     return { markers, skipped };
-  }, [symbolTrades, displayBars, interval, displayTz, displayOffset]);
+  }, [symbolTrades, displayBars, interval, displayTz, displayOffset, focusedTradeId]);
 
   const tradeMarkers = tradeAnalysis.markers;
   const skippedTrades = tradeAnalysis.skipped;
 
-  // ---- diagnostics (dev only) --------------------------------------------
-  const diagRef = useRef(null);
+  // ---- focus timestamp ----
+  const [focusUtc, setFocusUtc] = useState(null);
+
   useEffect(() => {
-    if (!import.meta.env.DEV) return;
-    const key = `${symbol}|${interval}|${bars.length}|${symbolTrades.length}|${tradeMarkers.length}|${displayTz}|${displayOffset}`;
-    if (diagRef.current === key) return;
-    diagRef.current = key;
+    const raw = searchParams.get('focusTs');
+    if (!raw) return;
+    const ts = Number(raw);
+    if (Number.isFinite(ts)) setFocusUtc(ts);
+  }, [searchParams]);
 
-    /* eslint-disable no-console */
-    console.group(`[chart] ${symbol} · ${interval} · ${displayTz}`);
-    console.log(`bars: ${bars.length}  (offset ${displayOffset}s applied to chart + trades)`);
+  const focusTime = useMemo(
+    () => (focusUtc != null ? focusUtc + displayOffset : null),
+    [focusUtc, displayOffset]
+  );
 
-    if (bars.length > 0) {
-      const first = new Date(bars[0].time * 1000).toISOString();
-      const last  = new Date(bars[bars.length - 1].time * 1000).toISOString();
-      console.log(`  raw UTC range:  ${first}  →  ${last}`);
-    }
-
-    console.log(`journal trades for ${symbol}: ${symbolTrades.length}`);
-
-    for (let i = 0; i < symbolTrades.length; i++) {
-      const t = symbolTrades[i];
-      const label = `${t.date} ${t.entryTime} (${displayTz})`;
-
-      if (interval === '1d') {
-        const skip = skippedTrades.find((s) => s.trade === t);
-        if (skip?.reason === 'invalid-date') {
-          console.warn(`  [${i}] ${label} → INVALID DATE "${skip.dateStr}"`);
-        } else if (skip?.reason === 'out-of-range') {
-          console.warn(`  [${i}] ${label} → OUT OF RANGE  (${skip.allowFrom} → ${skip.allowTo})`);
-        } else {
-          console.log(`  [${i}] ${label} → OK`);
-        }
-        continue;
+  const handleSelectTrade = useCallback(
+    (trade) => {
+      if (!trade) return;
+      setFocusedTradeId(trade.id);
+      const rawUtc = tradeTimeToUtcSeconds(trade.date, trade.entryTime, displayTz);
+      if (rawUtc != null) {
+        setFocusUtc(rawUtc);
       }
+    },
+    [displayTz]
+  );
 
-      const skip = skippedTrades.find((s) => s.trade === t);
-      if (skip?.reason === 'invalid-time') {
-        console.warn(`  [${i}] ${label} → INVALID TIME`);
-      } else if (skip?.reason === 'out-of-range') {
-        const raw = new Date(skip.rawUtc * 1000).toISOString();
-        console.warn(
-          `  [${i}] ${label} → rawUtc ${raw} → OUT OF RANGE`
-        );
-      } else {
-        const raw = tradeTimeToUtcSeconds(t.date, t.entryTime, displayTz);
-        console.log(
-          `  [${i}] ${label} → rawUtc ${new Date(raw * 1000).toISOString()} → OK`
-        );
-      }
+  // ---- loading phase ----
+  const [chartReady, setChartReady] = useState(false);
+  useEffect(() => { setChartReady(false); }, [symbol, interval]);
+  const handleChartReady = useCallback(() => { setChartReady(true); }, []);
+
+  const [finalizeDone, setFinalizeDone] = useState(false);
+  useEffect(() => {
+    if (!chartReady) { setFinalizeDone(false); return undefined; }
+    const t = setTimeout(() => setFinalizeDone(true), 400);
+    return () => clearTimeout(t);
+  }, [chartReady]);
+
+  const loadingPhase = useMemo(() => {
+    if (!catalog) return 'symbols';
+    if (barsFetching || bars.length === 0) return 'data';
+    if (journalLoading) return 'trades';
+    if (!chartReady) return 'render';
+    if (!finalizeDone) return 'finalize';
+    return 'done';
+  }, [catalog, barsFetching, bars.length, journalLoading, chartReady, finalizeDone]);
+
+  const showLoading = loadingPhase !== 'done';
+
+  // ---- fullscreen ----
+  const stageRef = useRef(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    const onChange = () =>
+      setIsFullscreen(document.fullscreenElement === stageRef.current);
+    document.addEventListener('fullscreenchange', onChange);
+    return () => document.removeEventListener('fullscreenchange', onChange);
+  }, []);
+
+  const toggleFullscreen = useCallback(async () => {
+    const stage = stageRef.current;
+    if (!stage) return;
+    try {
+      if (document.fullscreenElement === stage) await document.exitFullscreen();
+      else if (stage.requestFullscreen) await stage.requestFullscreen();
+    } catch (err) {
+      console.warn('[chart] fullscreen rejected:', err);
     }
+  }, []);
 
-    console.log(`markers applied: ${tradeMarkers.length}`);
-    console.groupEnd();
-    /* eslint-enable no-console */
-  }, [
-    symbol, interval, displayTz, displayOffset,
-    bars, symbolTrades, tradeMarkers, skippedTrades,
-  ]);
+  const handleRefresh = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ['market-data', 'bars'] });
+    queryClient.invalidateQueries({ queryKey: ['market-data', 'quote'] });
+  }, []);
 
-  // ---- off-range banner ---------------------------------------------------
+  usePageHeader({
+    title: 'Chart',
+    subtitle: `${symbol} · ${interval.toUpperCase()} · ${displayTz}`,
+  });
+
+  // ---- off-range banner ----
   const hasSkippedTrades = skippedTrades.length > 0 && bars.length > 0;
 
   const offRangeMessage = useMemo(() => {
@@ -422,84 +474,6 @@ export default function MarketChartPage() {
     );
   }, [hasSkippedTrades, skippedTrades, symbol]);
 
-  // ---- focus timestamp ----------------------------------------------------
-  const [focusUtc, setFocusUtc] = useState(null);
-
-  useEffect(() => {
-    const raw = searchParams.get('focusTs');
-    if (!raw) return;
-    const ts = Number(raw);
-    if (Number.isFinite(ts)) setFocusUtc(ts);
-  }, [searchParams]);
-
-  const focusTime = useMemo(
-    () => (focusUtc != null ? focusUtc + displayOffset : null),
-    [focusUtc, displayOffset]
-  );
-
-  const handlePanelFocus = useCallback(
-    (displayTs) => {
-      if (displayTs == null) return;
-      setFocusUtc(displayTs - displayOffset);
-    },
-    [displayOffset]
-  );
-
-  // ---- loading phase ------------------------------------------------------
-  const [chartReady, setChartReady] = useState(false);
-  useEffect(() => { setChartReady(false); }, [symbol, interval]);
-  const handleChartReady = useCallback(() => { setChartReady(true); }, []);
-
-  const [finalizeDone, setFinalizeDone] = useState(false);
-  useEffect(() => {
-    if (!chartReady) { setFinalizeDone(false); return undefined; }
-    const t = setTimeout(() => setFinalizeDone(true), 400);
-    return () => clearTimeout(t);
-  }, [chartReady]);
-
-  const loadingPhase = useMemo(() => {
-    if (!catalog) return 'symbols';
-    if (barsFetching || bars.length === 0) return 'data';
-    if (journalLoading) return 'trades';
-    if (!chartReady) return 'render';
-    if (!finalizeDone) return 'finalize';
-    return 'done';
-  }, [catalog, barsFetching, bars.length, journalLoading, chartReady, finalizeDone]);
-
-  const showLoading = loadingPhase !== 'done';
-
-  // ---- fullscreen ---------------------------------------------------------
-  const stageRef = useRef(null);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-
-  useEffect(() => {
-    const onChange = () =>
-      setIsFullscreen(document.fullscreenElement === stageRef.current);
-    document.addEventListener('fullscreenchange', onChange);
-    return () => document.removeEventListener('fullscreenchange', onChange);
-  }, []);
-
-  const toggleFullscreen = useCallback(async () => {
-    const stage = stageRef.current;
-    if (!stage) return;
-    try {
-      if (document.fullscreenElement === stage) await document.exitFullscreen();
-      else if (stage.requestFullscreen) await stage.requestFullscreen();
-    } catch (err) {
-      console.warn('[chart] fullscreen rejected:', err);
-    }
-  }, []);
-
-  const handleRefresh = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: ['market-data', 'bars'] });
-    queryClient.invalidateQueries({ queryKey: ['market-data', 'quote'] });
-  }, []);
-
-  usePageHeader({
-    title: 'Chart',
-    subtitle: `${symbol} · ${interval.toUpperCase()} · ${displayTz}`,
-  });
-
   return (
     <>
       <style>{CSS}</style>
@@ -537,8 +511,17 @@ export default function MarketChartPage() {
                 bars={displayBars}
                 interval={interval}
                 markers={tradeMarkers}
+                trades={showPositions ? chartTrades : []}
                 focusTime={focusTime}
                 onReady={handleChartReady}
+              />
+              <TradesDropdown
+                trades={symbolTrades}
+                symbol={symbol}
+                focusedTradeId={focusedTradeId}
+                onSelect={handleSelectTrade}
+                showPositions={showPositions}
+                onTogglePositions={setShowPositions}
               />
             </div>
 
@@ -550,15 +533,6 @@ export default function MarketChartPage() {
               />
             )}
           </div>
-
-          <TradeFocusPanel
-            trades={symbolTrades}
-            symbol={symbol}
-            activeTs={focusTime}
-            onFocus={handlePanelFocus}
-            displayTz={displayTz}
-            displayOffset={displayOffset}
-          />
         </div>
       </div>
     </>

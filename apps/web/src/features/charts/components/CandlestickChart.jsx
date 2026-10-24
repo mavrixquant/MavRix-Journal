@@ -12,6 +12,153 @@ import {
 import EmptyState from '@/shared/components/EmptyState';
 import { chartTheme } from '../lib/chartTheme';
 
+// ---------------------------------------------------------------------------
+// TradeBoxesPrimitive: Renders TradingView-style position boxes
+// ---------------------------------------------------------------------------
+class TradeBoxesPrimitive {
+  constructor(trades, series, chart) {
+    this._trades = trades;
+    this._series = series;
+    this._chart = chart;
+    this._paneViews = [{ renderer: () => this }];
+  }
+
+  paneViews() {
+    return this._paneViews;
+  }
+
+  updateAllViews() {}
+
+  draw(target) {
+    if (!this._trades || this._trades.length === 0) return;
+
+    const timeScale = this._chart.timeScale();
+    const series = this._series;
+
+    target.useMediaCoordinateSpace((scope) => {
+      const ctx = scope.context;
+
+      for (const trade of this._trades) {
+        if (trade.entryTimeSec == null || trade.exitTimeSec == null) continue;
+
+        const x1 = timeScale.timeToCoordinate(trade.entryTimeSec);
+        const x2 = timeScale.timeToCoordinate(trade.exitTimeSec);
+
+        if (x1 === null || x2 === null) continue;
+
+        const yEntry = trade.entryPrice ? series.priceToCoordinate(trade.entryPrice) : null;
+        const ySl = trade.stopLoss ? series.priceToCoordinate(trade.stopLoss) : null;
+        const yTp = trade.takeProfit ? series.priceToCoordinate(trade.takeProfit) : null;
+
+        const w = x2 - x1;
+
+        // Draw TP Zone (Green)
+        if (yEntry !== null && yTp !== null) {
+          const top = Math.min(yEntry, yTp);
+          const bottom = Math.max(yEntry, yTp);
+          ctx.fillStyle = 'rgba(34, 197, 94, 0.15)';
+          ctx.fillRect(x1, top, w, bottom - top);
+          ctx.strokeStyle = 'rgba(34, 197, 94, 0.4)';
+          ctx.lineWidth = 1;
+          ctx.strokeRect(x1, top, w, bottom - top);
+        }
+
+        // Draw SL Zone (Red)
+        if (yEntry !== null && ySl !== null) {
+          const top = Math.min(yEntry, ySl);
+          const bottom = Math.max(yEntry, ySl);
+          ctx.fillStyle = 'rgba(239, 68, 68, 0.15)';
+          ctx.fillRect(x1, top, w, bottom - top);
+          ctx.strokeStyle = 'rgba(239, 68, 68, 0.4)';
+          ctx.lineWidth = 1;
+          ctx.strokeRect(x1, top, w, bottom - top);
+        }
+
+        // Fallback outline if Entry is missing
+        if (yEntry === null) {
+          let yTop = ySl !== null ? ySl : null;
+          let yBottom = yTp !== null ? yTp : null;
+          if (yTop !== null && yBottom !== null) {
+             const t = Math.min(yTop, yBottom);
+             const b = Math.max(yTop, yBottom);
+             ctx.strokeStyle = 'rgba(255,255,255, 0.2)';
+             ctx.lineWidth = 1;
+             ctx.strokeRect(x1, t, w, b - t);
+          }
+        }
+
+        // Draw TP Line (Solid Green)
+        if (yTp !== null) {
+          ctx.strokeStyle = '#22c55e';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(x1, yTp);
+          ctx.lineTo(x2, yTp);
+          ctx.stroke();
+        }
+
+        // Draw SL Line (Solid Red)
+        if (ySl !== null) {
+          ctx.strokeStyle = '#ef4444';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(x1, ySl);
+          ctx.lineTo(x2, ySl);
+          ctx.stroke();
+        }
+
+        // Draw Entry Line (Dashed Amber)
+        if (yEntry !== null) {
+          ctx.strokeStyle = '#f59e0b';
+          ctx.lineWidth = 1;
+          ctx.setLineDash([4, 4]);
+          ctx.beginPath();
+          ctx.moveTo(x1, yEntry);
+          ctx.lineTo(x2, yEntry);
+          ctx.stroke();
+          ctx.setLineDash([]);
+        }
+
+        // Draw Labels
+        ctx.font = '11px "IBM Plex Mono", monospace';
+        ctx.textBaseline = 'middle';
+
+        function drawPill(text, x, y, bg, color) {
+          const padding = 4;
+          const textW = ctx.measureText(text).width;
+          const pw = textW + padding * 2;
+          const ph = 16;
+
+          ctx.fillStyle = bg;
+          ctx.beginPath();
+          if (ctx.roundRect) {
+            ctx.roundRect(x, y - ph / 2, pw, ph, 4);
+          } else {
+            ctx.rect(x, y - ph / 2, pw, ph);
+          }
+          ctx.fill();
+
+          ctx.fillStyle = color;
+          ctx.textAlign = 'left';
+          ctx.fillText(text, x + padding, y);
+        }
+
+        if (trade.takeProfit && yTp !== null) {
+          drawPill(`TP ${Number(trade.takeProfit).toFixed(2)}`, x1 + 6, yTp - 12, '#22c55e', '#0D1117');
+        }
+
+        if (trade.stopLoss && ySl !== null) {
+          drawPill(`SL ${Number(trade.stopLoss).toFixed(2)}`, x1 + 6, ySl + 12, '#ef4444', '#0D1117');
+        }
+
+        if (trade.entryPrice && yEntry !== null) {
+          drawPill(`Entry ${Number(trade.entryPrice).toFixed(2)}`, x1 + 6, yEntry - 12, '#f59e0b', '#0D1117');
+        }
+      }
+    });
+  }
+}
+
 function fmtPrice(n) {
   if (n == null || Number.isNaN(Number(n))) return '—';
   return Number(n).toLocaleString('en-US', {
@@ -109,6 +256,7 @@ export default function CandlestickChart({
   bars,
   interval,
   markers = [],
+  trades = [],
   focusTime = null,
   onReady,
 }) {
@@ -181,7 +329,6 @@ export default function CandlestickChart({
       lastValueVisible: true,
     });
 
-    // v5: markers live in a plugin attached to the series.
     let markersPlugin = null;
     try {
       markersPlugin = createSeriesMarkers(candle, []);
@@ -234,7 +381,6 @@ export default function CandlestickChart({
       time: b.time, open: b.open, high: b.high, low: b.low, close: b.close,
     })));
 
-    // Re-apply markers AFTER setData.
     const plugin = markersPluginRef.current;
     if (plugin) {
       try {
@@ -262,14 +408,26 @@ export default function CandlestickChart({
     if (!plugin) return;
     try {
       plugin.setMarkers(Array.isArray(markers) ? markers : []);
-      if (import.meta.env.DEV) {
-        // eslint-disable-next-line no-console
-        console.debug('[chart] markers applied:', markers.length);
-      }
     } catch (err) {
       console.warn('[chart] markers update failed:', err);
     }
   }, [markers]);
+
+  // ---- Trade Boxes primitive ----
+  useEffect(() => {
+    const candle = candleRef.current;
+    const chart = chartRef.current;
+    if (!candle || !chart) return;
+
+    const primitive = new TradeBoxesPrimitive(trades, candle, chart);
+    candle.attachPrimitive(primitive);
+
+    return () => {
+      if (candleRef.current) {
+        try { candleRef.current.detachPrimitive(primitive); } catch (e) { }
+      }
+    };
+  }, [trades]);
 
   // ---- focus a specific timestamp ----
   useEffect(() => {
