@@ -57,6 +57,7 @@ const AdminBroadcastPage    = lazy(() => import('@/features/admin/pages/AdminBro
 const AdminGexPage          = lazy(() => import('@/features/admin/pages/AdminGexPage'));
 const AdminHealthCheckPage  = lazy(() => import('@/features/admin/pages/AdminHealthCheckPage'));
 const AdminBugReportsPage   = lazy(() => import('@/features/admin/pages/AdminBugReportsPage'));
+const AdminMarketDataPage   = lazy(() => import('@/features/admin/pages/AdminMarketDataPage'));
 
 const LAST_PATH_KEY = 'mavrix:lastPath';
 
@@ -134,6 +135,7 @@ export function AppRoutes() {
         <Route path="groups"    element={<AdminGroupsPage />} />
         <Route path="audit"     element={<AdminAuditPage />} />
         <Route path="bug-reports" element={<AdminBugReportsPage />} />
+        <Route path="market-data" element={<AdminMarketDataPage />} />
         <Route path="sessions"  element={<AdminSessionsPage />} />
         <Route path="system"    element={<AdminSystemPage />} />
         <Route path="calendar"  element={<AdminCalendarPage />} />

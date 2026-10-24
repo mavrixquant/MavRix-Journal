@@ -1,4 +1,4 @@
-
+﻿
 import {
   useQuery,
   useMutation,
@@ -387,6 +387,46 @@ export function useAdminCalendarWipe() {
     mutationFn: () =>
       apiJson('/api/admin/calendar/cache', { method: 'DELETE' }),
     onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'audit'] });
+    },
+  });
+}
+// ---------------------------------------------------------------------------
+// Market data cache — coverage stats, bulk import, wipe.
+// ---------------------------------------------------------------------------
+export function useAdminMarketDataStats() {
+  return useQuery({
+    queryKey: ['admin', 'market-data', 'stats'],
+    queryFn: () => apiJson('/api/admin/market-data/stats'),
+    staleTime: 15_000,
+  });
+}
+
+export function useAdminMarketDataImport() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload) =>
+      apiJson('/api/admin/market-data/import', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'market-data', 'stats'] });
+      qc.invalidateQueries({ queryKey: ['admin', 'audit'] });
+    },
+  });
+}
+
+export function useAdminMarketDataWipe() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload) =>
+      apiJson('/api/admin/market-data/cache', {
+        method: 'DELETE',
+        body: JSON.stringify(payload),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'market-data', 'stats'] });
       qc.invalidateQueries({ queryKey: ['admin', 'audit'] });
     },
   });

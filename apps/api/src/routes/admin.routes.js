@@ -1,4 +1,4 @@
-import { Router } from 'express';
+﻿import { Router } from 'express';
 import { z } from 'zod';
 import {
   gexDaySchema,
@@ -21,6 +21,7 @@ import * as strategyCtrl from '../controllers/adminStrategies.controller.js';
 import * as groupCtrl from '../controllers/adminGroups.controller.js';
 import * as hcCtrl from '../controllers/healthCheck.controller.js';
 import * as bugCtrl from '../controllers/adminBugReports.controller.js';
+import * as marketDataCtrl from '../controllers/adminMarketData.controller.js';
 
 export const adminRoutes = Router();
 
@@ -193,12 +194,12 @@ adminRoutes.post('/calendar/sync', sensitive, opsCtrl.calendarSync);
 adminRoutes.delete('/calendar/cache', requireSuperadmin, sensitive, opsCtrl.calendarWipe);
 adminRoutes.get('/calendar/logs', opsCtrl.calendarLogs);
 
-// GEX — symbol-aware. GET/DELETE take ?symbol=..., POST takes symbol in body.
+// GEX â€” symbol-aware. GET/DELETE take ?symbol=..., POST takes symbol in body.
 adminRoutes.get('/gex', validateSymbolQuery, gexCtrl.list);
 adminRoutes.post('/gex', writeLimiter, validate(gexDaySchema), gexCtrl.upsert);
 adminRoutes.delete('/gex/:date', requireSuperadmin, sensitive, validateSymbolQuery, gexCtrl.remove);
 
-// Bug reports — new admin tab.
+// Bug reports â€” new admin tab.
 adminRoutes.get('/bug-reports', bugCtrl.list);
 adminRoutes.patch('/bug-reports/:id', writeLimiter, validate(bugReportUpdateSchema), bugCtrl.update);
 adminRoutes.delete('/bug-reports/:id', requireSuperadmin, sensitive, bugCtrl.remove);
@@ -224,4 +225,36 @@ adminRoutes.get(
   '/health-check/status/:runId',
   requireSuperadmin,
   hcCtrl.status
+);
+
+// ---------------------------------------------------------------------------
+// Market data cache — read stats, force import chunks, wipe per (symbol, interval).
+// ---------------------------------------------------------------------------
+const marketDataIntervalEnum = z.enum(['1m', '5m', '15m', '1h', '4h', '1d']);
+
+const marketDataImportSchema = z.object({
+  symbol:   z.string().trim().min(1).max(32),
+  interval: marketDataIntervalEnum,
+  from:     z.string().trim().min(1),
+  to:       z.string().trim().min(1),
+});
+
+const marketDataWipeSchema = z.object({
+  symbol:   z.string().trim().min(1).max(32),
+  interval: marketDataIntervalEnum.optional().nullable(),
+});
+
+adminRoutes.get('/market-data/stats', marketDataCtrl.stats);
+adminRoutes.post(
+  '/market-data/import',
+  writeLimiter,
+  validate(marketDataImportSchema),
+  marketDataCtrl.importData
+);
+adminRoutes.delete(
+  '/market-data/cache',
+  requireSuperadmin,
+  sensitive,
+  validate(marketDataWipeSchema),
+  marketDataCtrl.wipe
 );
