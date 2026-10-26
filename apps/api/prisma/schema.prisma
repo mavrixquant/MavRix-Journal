@@ -412,10 +412,10 @@ model AiCredential {
 }
 
 // ---------------------------------------------------------------------------
-// BugReport â€” in-app bug reports.
+// BugReport — in-app bug reports.
 //
 // The report itself is stored here for admin review; an optional screenshot
-// is NEVER persisted â€” it is attached only to the email that goes out to
+// is NEVER persisted — it is attached only to the email that goes out to
 // SUPPORT_EMAIL. Text only lives here.
 // ---------------------------------------------------------------------------
 model BugReport {
@@ -441,7 +441,7 @@ model BugReport {
   @@map("bug_reports")
 }
 // ---------------------------------------------------------------------------
-// Market data cache â€” server-wide OHLC bar storage.
+// Market data cache — server-wide OHLC bar storage.
 //
 // The provider (Yahoo / Biquote) is the source of truth but we NEVER serve it
 // directly to clients. Every read goes through market_bars. The provider is
@@ -486,14 +486,14 @@ model MarketBarCoverage {
 }
 
 // ---------------------------------------------------------------------------
-// MarketImportJob â€” async import tracking.
+// MarketImportJob — async import tracking.
 //
 // Rows are created when an admin clicks Import. The runner loop writes
 // progress fields (chunksDone / fetched / inserted) at every chunk boundary.
 // On server restart, markInterruptedJobs() flips any running rows to
 // `interrupted`; data already committed to market_bars is preserved.
 //
-// status âˆˆ running | completed | stopped | failed | interrupted
+// status ∈ running | completed | stopped | failed | interrupted
 // ---------------------------------------------------------------------------
 model MarketImportJob {
   id            String    @id @default(cuid())

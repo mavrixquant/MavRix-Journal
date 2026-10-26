@@ -43,7 +43,7 @@ const server = app.listen(env.port, async () => {
 });
 
 const shutdown = (signal) => {
-  console.log(`[api] received ${signal}, shutting downâ€¦`);
+  console.log(`[api] received ${signal}, shutting down…`);
   stopCalendarSync();
   server.close(() => process.exit(0));
 };
