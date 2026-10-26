@@ -1,15 +1,15 @@
 {
   "kind": "mavrix.gex.backup",
   "version": 1,
-  "createdAt": "2026-10-21T07:11:02.034Z",
-  "count": 72,
+  "createdAt": "2026-10-26T06:01:44.894Z",
+  "count": 78,
   "symbols": [
     "ES",
     "NQ"
   ],
   "dateRange": {
     "from": "2026-08-28",
-    "to": "2026-10-20"
+    "to": "2026-10-23"
   },
   "rows": [
     {
@@ -111,7 +111,7 @@
       "sourceTimezone": "Asia/Kolkata",
       "uploadedBy": "cmvgdltm10000kqkie2es9bg8",
       "createdAt": "2026-10-20T09:11:26.540Z",
-      "updatedAt": "2026-10-20T09:11:26.540Z"
+      "updatedAt": "2026-10-21T18:32:21.224Z"
     },
     {
       "id": "cmvggsn5m001z113wefizvvfl",
@@ -217,7 +217,7 @@
       "sourceTimezone": "Asia/Kolkata",
       "uploadedBy": "cmvgdltm10000kqkie2es9bg8",
       "createdAt": "2026-10-20T09:12:11.578Z",
-      "updatedAt": "2026-10-20T09:12:11.578Z"
+      "updatedAt": "2026-10-21T18:32:21.298Z"
     },
     {
       "id": "cmvgk0f0m005ovu90u9d15xyp",
@@ -318,7 +318,7 @@
       "sourceTimezone": "Asia/Kolkata",
       "uploadedBy": "cmvgdltm10000kqkie2es9bg8",
       "createdAt": "2026-10-20T10:42:13.126Z",
-      "updatedAt": "2026-10-20T10:42:13.126Z"
+      "updatedAt": "2026-10-21T18:32:21.334Z"
     },
     {
       "id": "cmvgk0pnd005svu90mxszrvqd",
@@ -414,7 +414,7 @@
       "sourceTimezone": "Asia/Kolkata",
       "uploadedBy": "cmvgdltm10000kqkie2es9bg8",
       "createdAt": "2026-10-20T10:42:26.905Z",
-      "updatedAt": "2026-10-20T10:42:26.905Z"
+      "updatedAt": "2026-10-21T18:32:21.378Z"
     },
     {
       "id": "cmvgk10i1005uvu90wfx7qy2t",
@@ -510,7 +510,7 @@
       "sourceTimezone": "Asia/Kolkata",
       "uploadedBy": "cmvgdltm10000kqkie2es9bg8",
       "createdAt": "2026-10-20T10:42:40.969Z",
-      "updatedAt": "2026-10-20T10:42:40.969Z"
+      "updatedAt": "2026-10-21T18:32:21.412Z"
     },
     {
       "id": "cmvgk1bah005wvu90l66ej21n",
@@ -611,7 +611,7 @@
       "sourceTimezone": "Asia/Kolkata",
       "uploadedBy": "cmvgdltm10000kqkie2es9bg8",
       "createdAt": "2026-10-20T10:42:54.953Z",
-      "updatedAt": "2026-10-20T10:42:54.953Z"
+      "updatedAt": "2026-10-21T18:32:21.450Z"
     },
     {
       "id": "cmvgk20e50060vu90e6wniurj",
@@ -712,7 +712,7 @@
       "sourceTimezone": "Asia/Kolkata",
       "uploadedBy": "cmvgdltm10000kqkie2es9bg8",
       "createdAt": "2026-10-20T10:43:27.486Z",
-      "updatedAt": "2026-10-20T10:43:27.486Z"
+      "updatedAt": "2026-10-21T18:32:21.489Z"
     },
     {
       "id": "cmvgk2jxp0062vu90zs1s1mne",
@@ -813,7 +813,7 @@
       "sourceTimezone": "Asia/Kolkata",
       "uploadedBy": "cmvgdltm10000kqkie2es9bg8",
       "createdAt": "2026-10-20T10:43:52.813Z",
-      "updatedAt": "2026-10-20T10:43:52.813Z"
+      "updatedAt": "2026-10-21T18:32:21.528Z"
     },
     {
       "id": "cmvgk2slv0064vu90mjritfpl",
@@ -919,7 +919,7 @@
       "sourceTimezone": "Asia/Kolkata",
       "uploadedBy": "cmvgdltm10000kqkie2es9bg8",
       "createdAt": "2026-10-20T10:44:04.052Z",
-      "updatedAt": "2026-10-20T10:44:04.052Z"
+      "updatedAt": "2026-10-21T18:32:21.569Z"
     },
     {
       "id": "cmvgk33mm0066vu90moz8p9m8",
@@ -1025,7 +1025,7 @@
       "sourceTimezone": "Asia/Kolkata",
       "uploadedBy": "cmvgdltm10000kqkie2es9bg8",
       "createdAt": "2026-10-20T10:44:18.335Z",
-      "updatedAt": "2026-10-20T10:44:18.335Z"
+      "updatedAt": "2026-10-21T18:32:21.604Z"
     },
     {
       "id": "cmvgk3dza0068vu90c8h5lcg9",
@@ -1126,7 +1126,7 @@
       "sourceTimezone": "Asia/Kolkata",
       "uploadedBy": "cmvgdltm10000kqkie2es9bg8",
       "createdAt": "2026-10-20T10:44:31.751Z",
-      "updatedAt": "2026-10-20T10:44:31.751Z"
+      "updatedAt": "2026-10-21T18:32:21.644Z"
     },
     {
       "id": "cmvgk3riy006cvu900xya1bue",
@@ -1227,7 +1227,7 @@
       "sourceTimezone": "Asia/Kolkata",
       "uploadedBy": "cmvgdltm10000kqkie2es9bg8",
       "createdAt": "2026-10-20T10:44:49.307Z",
-      "updatedAt": "2026-10-20T10:44:49.307Z"
+      "updatedAt": "2026-10-21T18:32:21.677Z"
     },
     {
       "id": "cmvgk42u6006evu900nn5688w",
@@ -1328,7 +1328,7 @@
       "sourceTimezone": "Asia/Kolkata",
       "uploadedBy": "cmvgdltm10000kqkie2es9bg8",
       "createdAt": "2026-10-20T10:45:03.966Z",
-      "updatedAt": "2026-10-20T10:45:03.966Z"
+      "updatedAt": "2026-10-21T18:32:21.713Z"
     },
     {
       "id": "cmvgk4brs006gvu90l38pav5p",
@@ -1429,7 +1429,7 @@
       "sourceTimezone": "Asia/Kolkata",
       "uploadedBy": "cmvgdltm10000kqkie2es9bg8",
       "createdAt": "2026-10-20T10:45:15.545Z",
-      "updatedAt": "2026-10-20T10:45:15.545Z"
+      "updatedAt": "2026-10-21T18:32:21.759Z"
     },
     {
       "id": "cmvgk4mk5006ivu90c8lyltgg",
@@ -1530,7 +1530,7 @@
       "sourceTimezone": "Asia/Kolkata",
       "uploadedBy": "cmvgdltm10000kqkie2es9bg8",
       "createdAt": "2026-10-20T10:45:29.526Z",
-      "updatedAt": "2026-10-20T10:45:29.526Z"
+      "updatedAt": "2026-10-21T18:32:21.797Z"
     },
     {
       "id": "cmvgk4xvh006kvu90wlr0p3vu",
@@ -1626,7 +1626,7 @@
       "sourceTimezone": "Asia/Kolkata",
       "uploadedBy": "cmvgdltm10000kqkie2es9bg8",
       "createdAt": "2026-10-20T10:45:44.189Z",
-      "updatedAt": "2026-10-20T10:45:44.189Z"
+      "updatedAt": "2026-10-21T18:32:21.834Z"
     },
     {
       "id": "cmvgk5c56006ovu90kmx9xe1c",
@@ -1722,7 +1722,7 @@
       "sourceTimezone": "Asia/Kolkata",
       "uploadedBy": "cmvgdltm10000kqkie2es9bg8",
       "createdAt": "2026-10-20T10:46:02.402Z",
-      "updatedAt": "2026-10-20T10:46:02.402Z"
+      "updatedAt": "2026-10-21T18:32:21.867Z"
     },
     {
       "id": "cmvgk5w22006qvu90xse2x215",
@@ -1828,7 +1828,7 @@
       "sourceTimezone": "Asia/Kolkata",
       "uploadedBy": "cmvgdltm10000kqkie2es9bg8",
       "createdAt": "2026-10-20T10:46:28.490Z",
-      "updatedAt": "2026-10-20T10:46:28.490Z"
+      "updatedAt": "2026-10-21T18:32:21.902Z"
     },
     {
       "id": "cmvgk65ng006svu90w01cevpo",
@@ -1929,7 +1929,7 @@
       "sourceTimezone": "Asia/Kolkata",
       "uploadedBy": "cmvgdltm10000kqkie2es9bg8",
       "createdAt": "2026-10-20T10:46:40.925Z",
-      "updatedAt": "2026-10-20T10:46:40.925Z"
+      "updatedAt": "2026-10-21T18:32:21.937Z"
     },
     {
       "id": "cmvgk6g0g006uvu90dl16whv0",
@@ -2035,7 +2035,7 @@
       "sourceTimezone": "Asia/Kolkata",
       "uploadedBy": "cmvgdltm10000kqkie2es9bg8",
       "createdAt": "2026-10-20T10:46:54.352Z",
-      "updatedAt": "2026-10-20T10:46:54.352Z"
+      "updatedAt": "2026-10-21T18:32:21.973Z"
     },
     {
       "id": "cmvgk6qmr006yvu9055u0zxpw",
@@ -2126,7 +2126,7 @@
       "sourceTimezone": "Asia/Kolkata",
       "uploadedBy": "cmvgdltm10000kqkie2es9bg8",
       "createdAt": "2026-10-20T10:47:08.115Z",
-      "updatedAt": "2026-10-20T10:47:08.115Z"
+      "updatedAt": "2026-10-21T18:32:22.007Z"
     },
     {
       "id": "cmvgk706x0070vu90nthhop0a",
@@ -2227,7 +2227,7 @@
       "sourceTimezone": "Asia/Kolkata",
       "uploadedBy": "cmvgdltm10000kqkie2es9bg8",
       "createdAt": "2026-10-20T10:47:20.506Z",
-      "updatedAt": "2026-10-20T10:47:20.506Z"
+      "updatedAt": "2026-10-21T18:32:22.043Z"
     },
     {
       "id": "cmvgk79nm0072vu9089xzcxta",
@@ -2323,7 +2323,7 @@
       "sourceTimezone": "Asia/Kolkata",
       "uploadedBy": "cmvgdltm10000kqkie2es9bg8",
       "createdAt": "2026-10-20T10:47:32.771Z",
-      "updatedAt": "2026-10-20T10:47:32.771Z"
+      "updatedAt": "2026-10-21T18:32:22.077Z"
     },
     {
       "id": "cmvgk7jwj0074vu90cklo4yv1",
@@ -2424,7 +2424,7 @@
       "sourceTimezone": "Asia/Kolkata",
       "uploadedBy": "cmvgdltm10000kqkie2es9bg8",
       "createdAt": "2026-10-20T10:47:46.051Z",
-      "updatedAt": "2026-10-20T10:47:46.051Z"
+      "updatedAt": "2026-10-21T18:32:22.113Z"
     },
     {
       "id": "cmvgk7uur0076vu90gbdv9l1o",
@@ -2520,7 +2520,7 @@
       "sourceTimezone": "Asia/Kolkata",
       "uploadedBy": "cmvgdltm10000kqkie2es9bg8",
       "createdAt": "2026-10-20T10:48:00.243Z",
-      "updatedAt": "2026-10-20T10:48:00.243Z"
+      "updatedAt": "2026-10-21T18:32:22.147Z"
     },
     {
       "id": "cmvgk8580007avu90sf17zb39",
@@ -2626,7 +2626,7 @@
       "sourceTimezone": "Asia/Kolkata",
       "uploadedBy": "cmvgdltm10000kqkie2es9bg8",
       "createdAt": "2026-10-20T10:48:13.681Z",
-      "updatedAt": "2026-10-20T10:48:13.681Z"
+      "updatedAt": "2026-10-21T18:32:22.183Z"
     },
     {
       "id": "cmvgk8coj007cvu90bl5h66ss",
@@ -2732,7 +2732,7 @@
       "sourceTimezone": "Asia/Kolkata",
       "uploadedBy": "cmvgdltm10000kqkie2es9bg8",
       "createdAt": "2026-10-20T10:48:23.347Z",
-      "updatedAt": "2026-10-20T10:48:23.347Z"
+      "updatedAt": "2026-10-21T18:32:22.217Z"
     },
     {
       "id": "cmvgk8msz007evu90wqtmmnzi",
@@ -2833,7 +2833,7 @@
       "sourceTimezone": "Asia/Kolkata",
       "uploadedBy": "cmvgdltm10000kqkie2es9bg8",
       "createdAt": "2026-10-20T10:48:36.468Z",
-      "updatedAt": "2026-10-20T10:48:36.468Z"
+      "updatedAt": "2026-10-21T18:32:22.253Z"
     },
     {
       "id": "cmvgk8wll007gvu90zaezrimy",
@@ -2939,7 +2939,7 @@
       "sourceTimezone": "Asia/Kolkata",
       "uploadedBy": "cmvgdltm10000kqkie2es9bg8",
       "createdAt": "2026-10-20T10:48:49.161Z",
-      "updatedAt": "2026-10-20T10:48:49.161Z"
+      "updatedAt": "2026-10-21T18:32:22.287Z"
     },
     {
       "id": "cmvgk988f007ivu90i5wtq2jd",
@@ -3045,7 +3045,7 @@
       "sourceTimezone": "Asia/Kolkata",
       "uploadedBy": "cmvgdltm10000kqkie2es9bg8",
       "createdAt": "2026-10-20T10:49:04.239Z",
-      "updatedAt": "2026-10-20T10:49:04.239Z"
+      "updatedAt": "2026-10-21T18:32:22.323Z"
     },
     {
       "id": "cmvgk9kyo007mvu90rhb07k2y",
@@ -3141,7 +3141,7 @@
       "sourceTimezone": "Asia/Kolkata",
       "uploadedBy": "cmvgdltm10000kqkie2es9bg8",
       "createdAt": "2026-10-20T10:49:20.737Z",
-      "updatedAt": "2026-10-20T10:49:20.737Z"
+      "updatedAt": "2026-10-21T18:32:22.358Z"
     },
     {
       "id": "cmvgk9rmy007ovu90d9o4np91",
@@ -3247,7 +3247,7 @@
       "sourceTimezone": "Asia/Kolkata",
       "uploadedBy": "cmvgdltm10000kqkie2es9bg8",
       "createdAt": "2026-10-20T10:49:29.387Z",
-      "updatedAt": "2026-10-20T10:49:29.387Z"
+      "updatedAt": "2026-10-21T18:32:22.394Z"
     },
     {
       "id": "cmvgka062007qvu90ozpmfott",
@@ -3348,7 +3348,7 @@
       "sourceTimezone": "Asia/Kolkata",
       "uploadedBy": "cmvgdltm10000kqkie2es9bg8",
       "createdAt": "2026-10-20T10:49:40.442Z",
-      "updatedAt": "2026-10-20T10:49:40.442Z"
+      "updatedAt": "2026-10-21T18:32:22.427Z"
     },
     {
       "id": "cmvgka9ch007svu90qcld9e8y",
@@ -3439,7 +3439,7 @@
       "sourceTimezone": "Asia/Kolkata",
       "uploadedBy": "cmvgdltm10000kqkie2es9bg8",
       "createdAt": "2026-10-20T10:49:52.337Z",
-      "updatedAt": "2026-10-20T10:49:52.337Z"
+      "updatedAt": "2026-10-21T18:32:22.479Z"
     },
     {
       "id": "cmvgkake3007uvu905yemkjgr",
@@ -3545,7 +3545,7 @@
       "sourceTimezone": "Asia/Kolkata",
       "uploadedBy": "cmvgdltm10000kqkie2es9bg8",
       "createdAt": "2026-10-20T10:50:06.651Z",
-      "updatedAt": "2026-10-20T10:50:06.651Z"
+      "updatedAt": "2026-10-21T18:32:22.513Z"
     },
     {
       "id": "cmvgpqmgv0004wr4fa91lz43f",
@@ -3646,7 +3646,320 @@
       "sourceTimezone": "Asia/Kolkata",
       "uploadedBy": "cmvgdltm10000kqkie2es9bg8",
       "createdAt": "2026-10-20T13:22:33.876Z",
-      "updatedAt": "2026-10-20T13:22:33.876Z"
+      "updatedAt": "2026-10-21T18:32:22.547Z"
+    },
+    {
+      "id": "cmvj9zsza00awfn0idb6q5t4m",
+      "date": "2026-10-21",
+      "symbol": "ES",
+      "levels": [
+        {
+          "type": "GEX",
+          "label": "Call Resistance (ES1!)",
+          "price": 7850
+        },
+        {
+          "type": "GEX",
+          "label": "Put Support - Put Support 0DTE (ES1!)",
+          "price": 7700
+        },
+        {
+          "type": "GEX",
+          "label": "HVL (ES1!)",
+          "price": 7755
+        },
+        {
+          "type": "GEX",
+          "label": "1D Min (ES1!)",
+          "price": 7719.13
+        },
+        {
+          "type": "GEX",
+          "label": "1D Max (ES1!)",
+          "price": 7850.37
+        },
+        {
+          "type": "GEX",
+          "label": "Call Resistance 0DTE - Gamma Wall 0DTE (ES1!)",
+          "price": 7800
+        },
+        {
+          "type": "GEX",
+          "label": "HVL 0DTE (ES1!)",
+          "price": 7750
+        },
+        {
+          "type": "GEX",
+          "label": "GEX 1 (ES1!)",
+          "price": 7825
+        },
+        {
+          "type": "GEX",
+          "label": "GEX 2 (ES1!)",
+          "price": 7790
+        },
+        {
+          "type": "GEX",
+          "label": "GEX 3 (ES1!)",
+          "price": 7820
+        },
+        {
+          "type": "GEX",
+          "label": "GEX 4 (ES1!)",
+          "price": 7810
+        },
+        {
+          "type": "GEX",
+          "label": "GEX 5 (ES1!)",
+          "price": 7730
+        },
+        {
+          "type": "GEX",
+          "label": "GEX 6 (ES1!)",
+          "price": 7900
+        },
+        {
+          "type": "GEX",
+          "label": "GEX 7 (ES1!)",
+          "price": 7675
+        },
+        {
+          "type": "GEX",
+          "label": "GEX 8 (ES1!)",
+          "price": 7875
+        },
+        {
+          "type": "GEX",
+          "label": "GEX 9 (ES1!)",
+          "price": 7870
+        },
+        {
+          "type": "GEX",
+          "label": "GEX 10 (ES1!)",
+          "price": 7890
+        }
+      ],
+      "converted": "GEX|7850|Call Resistance (ES1!);GEX|7700|Put Support - Put Support 0DTE (ES1!);GEX|7755|HVL (ES1!);GEX|7719.13|1D Min (ES1!);GEX|7850.37|1D Max (ES1!);GEX|7800|Call Resistance 0DTE - Gamma Wall 0DTE (ES1!);GEX|7750|HVL 0DTE (ES1!);GEX|7825|GEX 1 (ES1!);GEX|7790|GEX 2 (ES1!);GEX|7820|GEX 3 (ES1!);GEX|7810|GEX 4 (ES1!);GEX|7730|GEX 5 (ES1!);GEX|7900|GEX 6 (ES1!);GEX|7675|GEX 7 (ES1!);GEX|7875|GEX 8 (ES1!);GEX|7870|GEX 9 (ES1!);GEX|7890|GEX 10 (ES1!)",
+      "levelCount": 17,
+      "blCount": 0,
+      "gexCount": 17,
+      "otherCount": 0,
+      "sourceTimezone": "Asia/Kolkata",
+      "uploadedBy": "cmvig52hv000011zq4go7onup",
+      "createdAt": "2026-10-22T08:25:06.935Z",
+      "updatedAt": "2026-10-22T08:25:06.935Z"
+    },
+    {
+      "id": "cmvkulmz2027brwal6469br2j",
+      "date": "2026-10-22",
+      "symbol": "ES",
+      "levels": [
+        {
+          "type": "GEX",
+          "label": "Call Resistance (ES1!)",
+          "price": 7850
+        },
+        {
+          "type": "GEX",
+          "label": "Put Support (ES1!)",
+          "price": 7700
+        },
+        {
+          "type": "GEX",
+          "label": "HVL (ES1!)",
+          "price": 7800
+        },
+        {
+          "type": "GEX",
+          "label": "1D Min (ES1!)",
+          "price": 7734.97
+        },
+        {
+          "type": "GEX",
+          "label": "1D Max (ES1!)",
+          "price": 7865.53
+        },
+        {
+          "type": "GEX",
+          "label": "Call Resistance 0DTE (ES1!)",
+          "price": 7840
+        },
+        {
+          "type": "GEX",
+          "label": "Put Support 0DTE (ES1!)",
+          "price": 7725
+        },
+        {
+          "type": "GEX",
+          "label": "HVL 0DTE (ES1!)",
+          "price": 7800
+        },
+        {
+          "type": "GEX",
+          "label": "Gamma Wall 0DTE (ES1!)",
+          "price": 7840
+        },
+        {
+          "type": "GEX",
+          "label": "GEX 1 (ES1!)",
+          "price": 7750
+        },
+        {
+          "type": "GEX",
+          "label": "GEX 2 (ES1!)",
+          "price": 7825
+        },
+        {
+          "type": "GEX",
+          "label": "GEX 3 (ES1!)",
+          "price": 7820
+        },
+        {
+          "type": "GEX",
+          "label": "GEX 4 (ES1!)",
+          "price": 7830
+        },
+        {
+          "type": "GEX",
+          "label": "GEX 5 (ES1!)",
+          "price": 7810
+        },
+        {
+          "type": "GEX",
+          "label": "GEX 6 (ES1!)",
+          "price": 7900
+        },
+        {
+          "type": "GEX",
+          "label": "GEX 7 (ES1!)",
+          "price": 7925
+        },
+        {
+          "type": "GEX",
+          "label": "GEX 8 (ES1!)",
+          "price": 7875
+        },
+        {
+          "type": "GEX",
+          "label": "GEX 9 (ES1!)",
+          "price": 7675
+        },
+        {
+          "type": "GEX",
+          "label": "GEX 10 (ES1!)",
+          "price": 7870
+        }
+      ],
+      "converted": "GEX|7850|Call Resistance (ES1!);GEX|7700|Put Support (ES1!);GEX|7800|HVL (ES1!);GEX|7734.97|1D Min (ES1!);GEX|7865.53|1D Max (ES1!);GEX|7840|Call Resistance 0DTE (ES1!);GEX|7725|Put Support 0DTE (ES1!);GEX|7800|HVL 0DTE (ES1!);GEX|7840|Gamma Wall 0DTE (ES1!);GEX|7750|GEX 1 (ES1!);GEX|7825|GEX 2 (ES1!);GEX|7820|GEX 3 (ES1!);GEX|7830|GEX 4 (ES1!);GEX|7810|GEX 5 (ES1!);GEX|7900|GEX 6 (ES1!);GEX|7925|GEX 7 (ES1!);GEX|7875|GEX 8 (ES1!);GEX|7675|GEX 9 (ES1!);GEX|7870|GEX 10 (ES1!)",
+      "levelCount": 19,
+      "blCount": 0,
+      "gexCount": 19,
+      "otherCount": 0,
+      "sourceTimezone": "Asia/Kolkata",
+      "uploadedBy": "cmvig52hv000011zq4go7onup",
+      "createdAt": "2026-10-23T10:49:44.078Z",
+      "updatedAt": "2026-10-23T10:49:44.078Z"
+    },
+    {
+      "id": "cmvkzaaoj003kih73ekfws6uc",
+      "date": "2026-10-23",
+      "symbol": "ES",
+      "levels": [
+        {
+          "type": "GEX",
+          "label": "Call Resistance (ES1!)",
+          "price": 8000
+        },
+        {
+          "type": "GEX",
+          "label": "Put Support - Put Support 0DTE (ES1!)",
+          "price": 7700
+        },
+        {
+          "type": "GEX",
+          "label": "HVL (ES1!)",
+          "price": 7800
+        },
+        {
+          "type": "GEX",
+          "label": "1D Min (ES1!)",
+          "price": 7633.48
+        },
+        {
+          "type": "GEX",
+          "label": "1D Max (ES1!)",
+          "price": 7774.02
+        },
+        {
+          "type": "GEX",
+          "label": "Call Resistance 0DTE - Gamma Wall 0DTE (ES1!)",
+          "price": 7720
+        },
+        {
+          "type": "GEX",
+          "label": "HVL 0DTE (ES1!)",
+          "price": 7735
+        },
+        {
+          "type": "GEX",
+          "label": "GEX 1 (ES1!)",
+          "price": 7650
+        },
+        {
+          "type": "GEX",
+          "label": "GEX 2 (ES1!)",
+          "price": 7675
+        },
+        {
+          "type": "GEX",
+          "label": "GEX 3 (ES1!)",
+          "price": 7750
+        },
+        {
+          "type": "GEX",
+          "label": "GEX 4 (ES1!)",
+          "price": 7640
+        },
+        {
+          "type": "GEX",
+          "label": "GEX 5 (ES1!)",
+          "price": 7725
+        },
+        {
+          "type": "GEX",
+          "label": "GEX 6 (ES1!)",
+          "price": 7600
+        },
+        {
+          "type": "GEX",
+          "label": "GEX 7 (ES1!)",
+          "price": 7625
+        },
+        {
+          "type": "GEX",
+          "label": "GEX 8 (ES1!)",
+          "price": 7575
+        },
+        {
+          "type": "GEX",
+          "label": "GEX 9 (ES1!)",
+          "price": 7615
+        },
+        {
+          "type": "GEX",
+          "label": "GEX 10 (ES1!)",
+          "price": 7620
+        }
+      ],
+      "converted": "GEX|8000|Call Resistance (ES1!);GEX|7700|Put Support - Put Support 0DTE (ES1!);GEX|7800|HVL (ES1!);GEX|7633.48|1D Min (ES1!);GEX|7774.02|1D Max (ES1!);GEX|7720|Call Resistance 0DTE - Gamma Wall 0DTE (ES1!);GEX|7735|HVL 0DTE (ES1!);GEX|7650|GEX 1 (ES1!);GEX|7675|GEX 2 (ES1!);GEX|7750|GEX 3 (ES1!);GEX|7640|GEX 4 (ES1!);GEX|7725|GEX 5 (ES1!);GEX|7600|GEX 6 (ES1!);GEX|7625|GEX 7 (ES1!);GEX|7575|GEX 8 (ES1!);GEX|7615|GEX 9 (ES1!);GEX|7620|GEX 10 (ES1!)",
+      "levelCount": 17,
+      "blCount": 0,
+      "gexCount": 17,
+      "otherCount": 0,
+      "sourceTimezone": "Asia/Kolkata",
+      "uploadedBy": "cmvig52hv000011zq4go7onup",
+      "createdAt": "2026-10-23T13:00:53.011Z",
+      "updatedAt": "2026-10-23T13:00:53.011Z"
     },
     {
       "id": "cmvghvtui000qvu905febf78o",
@@ -3742,7 +4055,7 @@
       "sourceTimezone": "Asia/Kolkata",
       "uploadedBy": "cmvgdltm10000kqkie2es9bg8",
       "createdAt": "2026-10-20T09:42:39.834Z",
-      "updatedAt": "2026-10-20T09:42:39.834Z"
+      "updatedAt": "2026-10-21T18:32:22.583Z"
     },
     {
       "id": "cmvgi60mj0018vu902h4jofg2",
@@ -3843,7 +4156,7 @@
       "sourceTimezone": "Asia/Kolkata",
       "uploadedBy": "cmvgdltm10000kqkie2es9bg8",
       "createdAt": "2026-10-20T09:50:35.180Z",
-      "updatedAt": "2026-10-20T09:50:35.180Z"
+      "updatedAt": "2026-10-21T18:32:22.617Z"
     },
     {
       "id": "cmvgi6awg001avu90eoa4lmzw",
@@ -3934,7 +4247,7 @@
       "sourceTimezone": "Asia/Kolkata",
       "uploadedBy": "cmvgdltm10000kqkie2es9bg8",
       "createdAt": "2026-10-20T09:50:48.496Z",
-      "updatedAt": "2026-10-20T09:50:48.496Z"
+      "updatedAt": "2026-10-21T18:32:22.654Z"
     },
     {
       "id": "cmvgi6oxs001cvu90ftapn7jt",
@@ -4030,7 +4343,7 @@
       "sourceTimezone": "Asia/Kolkata",
       "uploadedBy": "cmvgdltm10000kqkie2es9bg8",
       "createdAt": "2026-10-20T09:51:06.688Z",
-      "updatedAt": "2026-10-20T09:51:06.688Z"
+      "updatedAt": "2026-10-21T18:32:22.687Z"
     },
     {
       "id": "cmvgi70we001evu90vfz6ykwf",
@@ -4136,7 +4449,7 @@
       "sourceTimezone": "Asia/Kolkata",
       "uploadedBy": "cmvgdltm10000kqkie2es9bg8",
       "createdAt": "2026-10-20T09:51:22.190Z",
-      "updatedAt": "2026-10-20T09:51:22.190Z"
+      "updatedAt": "2026-10-21T18:32:22.724Z"
     },
     {
       "id": "cmvgi7mus001ivu90st490gm6",
@@ -4237,7 +4550,7 @@
       "sourceTimezone": "Asia/Kolkata",
       "uploadedBy": "cmvgdltm10000kqkie2es9bg8",
       "createdAt": "2026-10-20T09:51:50.644Z",
-      "updatedAt": "2026-10-20T09:51:50.644Z"
+      "updatedAt": "2026-10-21T18:32:22.760Z"
     },
     {
       "id": "cmvgibw0s001qvu90t8nqyylb",
@@ -4338,7 +4651,7 @@
       "sourceTimezone": "Asia/Kolkata",
       "uploadedBy": "cmvgdltm10000kqkie2es9bg8",
       "createdAt": "2026-10-20T09:55:09.148Z",
-      "updatedAt": "2026-10-20T09:55:09.148Z"
+      "updatedAt": "2026-10-21T18:32:22.797Z"
     },
     {
       "id": "cmvgie6rk001uvu90ch67l41z",
@@ -4439,7 +4752,7 @@
       "sourceTimezone": "Asia/Kolkata",
       "uploadedBy": "cmvgdltm10000kqkie2es9bg8",
       "createdAt": "2026-10-20T09:56:56.384Z",
-      "updatedAt": "2026-10-20T09:56:56.384Z"
+      "updatedAt": "2026-10-21T18:32:22.833Z"
     },
     {
       "id": "cmvgieghi001yvu907cyzxwl5",
@@ -4540,7 +4853,7 @@
       "sourceTimezone": "Asia/Kolkata",
       "uploadedBy": "cmvgdltm10000kqkie2es9bg8",
       "createdAt": "2026-10-20T09:57:08.983Z",
-      "updatedAt": "2026-10-20T09:57:08.983Z"
+      "updatedAt": "2026-10-21T18:32:22.867Z"
     },
     {
       "id": "cmvgiepqe0020vu90png71pmi",
@@ -4636,7 +4949,7 @@
       "sourceTimezone": "Asia/Kolkata",
       "uploadedBy": "cmvgdltm10000kqkie2es9bg8",
       "createdAt": "2026-10-20T09:57:20.966Z",
-      "updatedAt": "2026-10-20T09:57:20.966Z"
+      "updatedAt": "2026-10-21T18:32:22.904Z"
     },
     {
       "id": "cmvgieyrt0022vu90z6g0gkr5",
@@ -4742,7 +5055,7 @@
       "sourceTimezone": "Asia/Kolkata",
       "uploadedBy": "cmvgdltm10000kqkie2es9bg8",
       "createdAt": "2026-10-20T09:57:32.682Z",
-      "updatedAt": "2026-10-20T09:57:32.682Z"
+      "updatedAt": "2026-10-21T18:32:22.937Z"
     },
     {
       "id": "cmvgif7dp0024vu900o1hzqi8",
@@ -4843,7 +5156,7 @@
       "sourceTimezone": "Asia/Kolkata",
       "uploadedBy": "cmvgdltm10000kqkie2es9bg8",
       "createdAt": "2026-10-20T09:57:43.838Z",
-      "updatedAt": "2026-10-20T09:57:43.838Z"
+      "updatedAt": "2026-10-21T18:32:22.972Z"
     },
     {
       "id": "cmvgiffcv0026vu903i8httu7",
@@ -4944,7 +5257,7 @@
       "sourceTimezone": "Asia/Kolkata",
       "uploadedBy": "cmvgdltm10000kqkie2es9bg8",
       "createdAt": "2026-10-20T09:57:54.175Z",
-      "updatedAt": "2026-10-20T09:57:54.175Z"
+      "updatedAt": "2026-10-21T18:32:23.008Z"
     },
     {
       "id": "cmvgifpt80028vu90lsvt6mhs",
@@ -5050,7 +5363,7 @@
       "sourceTimezone": "Asia/Kolkata",
       "uploadedBy": "cmvgdltm10000kqkie2es9bg8",
       "createdAt": "2026-10-20T09:58:07.724Z",
-      "updatedAt": "2026-10-20T09:58:07.724Z"
+      "updatedAt": "2026-10-21T18:32:23.043Z"
     },
     {
       "id": "cmvgifxot002cvu90f0ijfxza",
@@ -5156,7 +5469,7 @@
       "sourceTimezone": "Asia/Kolkata",
       "uploadedBy": "cmvgdltm10000kqkie2es9bg8",
       "createdAt": "2026-10-20T09:58:17.934Z",
-      "updatedAt": "2026-10-20T09:58:17.934Z"
+      "updatedAt": "2026-10-21T18:32:23.078Z"
     },
     {
       "id": "cmvgil260002kvu90htbr8oeo",
@@ -5262,7 +5575,7 @@
       "sourceTimezone": "Asia/Kolkata",
       "uploadedBy": "cmvgdltm10000kqkie2es9bg8",
       "createdAt": "2026-10-20T10:02:17.016Z",
-      "updatedAt": "2026-10-20T10:02:17.016Z"
+      "updatedAt": "2026-10-21T18:32:23.113Z"
     },
     {
       "id": "cmvgilb9l002mvu90mt03a2au",
@@ -5363,7 +5676,7 @@
       "sourceTimezone": "Asia/Kolkata",
       "uploadedBy": "cmvgdltm10000kqkie2es9bg8",
       "createdAt": "2026-10-20T10:02:28.810Z",
-      "updatedAt": "2026-10-20T10:02:28.810Z"
+      "updatedAt": "2026-10-21T18:32:23.147Z"
     },
     {
       "id": "cmvgilk32002qvu906zttjcxb",
@@ -5469,7 +5782,7 @@
       "sourceTimezone": "Asia/Kolkata",
       "uploadedBy": "cmvgdltm10000kqkie2es9bg8",
       "createdAt": "2026-10-20T10:02:40.238Z",
-      "updatedAt": "2026-10-20T10:02:40.238Z"
+      "updatedAt": "2026-10-21T18:32:23.189Z"
     },
     {
       "id": "cmvgilsge002svu90f902rvdf",
@@ -5570,7 +5883,7 @@
       "sourceTimezone": "Asia/Kolkata",
       "uploadedBy": "cmvgdltm10000kqkie2es9bg8",
       "createdAt": "2026-10-20T10:02:51.087Z",
-      "updatedAt": "2026-10-20T10:02:51.087Z"
+      "updatedAt": "2026-10-21T18:32:23.223Z"
     },
     {
       "id": "cmvgim66o002uvu903jkpkv5w",
@@ -5666,7 +5979,7 @@
       "sourceTimezone": "Asia/Kolkata",
       "uploadedBy": "cmvgdltm10000kqkie2es9bg8",
       "createdAt": "2026-10-20T10:03:08.880Z",
-      "updatedAt": "2026-10-20T10:03:08.880Z"
+      "updatedAt": "2026-10-21T18:32:23.257Z"
     },
     {
       "id": "cmvgimgpa002wvu90rpivivyc",
@@ -5767,7 +6080,7 @@
       "sourceTimezone": "Asia/Kolkata",
       "uploadedBy": "cmvgdltm10000kqkie2es9bg8",
       "createdAt": "2026-10-20T10:03:22.510Z",
-      "updatedAt": "2026-10-20T10:03:22.510Z"
+      "updatedAt": "2026-10-21T18:32:23.303Z"
     },
     {
       "id": "cmvgimt6p002yvu90lgqj40di",
@@ -5863,7 +6176,7 @@
       "sourceTimezone": "Asia/Kolkata",
       "uploadedBy": "cmvgdltm10000kqkie2es9bg8",
       "createdAt": "2026-10-20T10:03:38.689Z",
-      "updatedAt": "2026-10-20T10:03:38.689Z"
+      "updatedAt": "2026-10-21T18:32:23.337Z"
     },
     {
       "id": "cmvgin6dj0032vu90q1y6d8w4",
@@ -5964,7 +6277,7 @@
       "sourceTimezone": "Asia/Kolkata",
       "uploadedBy": "cmvgdltm10000kqkie2es9bg8",
       "createdAt": "2026-10-20T10:03:55.783Z",
-      "updatedAt": "2026-10-20T10:03:55.783Z"
+      "updatedAt": "2026-10-21T18:32:23.373Z"
     },
     {
       "id": "cmvginixy0034vu90k53ijfdt",
@@ -6065,7 +6378,7 @@
       "sourceTimezone": "Asia/Kolkata",
       "uploadedBy": "cmvgdltm10000kqkie2es9bg8",
       "createdAt": "2026-10-20T10:04:12.071Z",
-      "updatedAt": "2026-10-20T10:04:12.071Z"
+      "updatedAt": "2026-10-21T18:32:23.413Z"
     },
     {
       "id": "cmvginsct0036vu9064wlm3pw",
@@ -6166,7 +6479,7 @@
       "sourceTimezone": "Asia/Kolkata",
       "uploadedBy": "cmvgdltm10000kqkie2es9bg8",
       "createdAt": "2026-10-20T10:04:24.270Z",
-      "updatedAt": "2026-10-20T10:04:24.270Z"
+      "updatedAt": "2026-10-21T18:32:23.453Z"
     },
     {
       "id": "cmvgio2ot0038vu904ty8q3gh",
@@ -6267,7 +6580,7 @@
       "sourceTimezone": "Asia/Kolkata",
       "uploadedBy": "cmvgdltm10000kqkie2es9bg8",
       "createdAt": "2026-10-20T10:04:37.662Z",
-      "updatedAt": "2026-10-20T10:04:37.662Z"
+      "updatedAt": "2026-10-21T18:32:23.493Z"
     },
     {
       "id": "cmvgiod22003cvu90l3urvrn7",
@@ -6368,7 +6681,7 @@
       "sourceTimezone": "Asia/Kolkata",
       "uploadedBy": "cmvgdltm10000kqkie2es9bg8",
       "createdAt": "2026-10-20T10:04:51.098Z",
-      "updatedAt": "2026-10-20T10:04:51.098Z"
+      "updatedAt": "2026-10-21T18:32:23.527Z"
     },
     {
       "id": "cmvgionop003evu90n5gcffl1",
@@ -6469,7 +6782,7 @@
       "sourceTimezone": "Asia/Kolkata",
       "uploadedBy": "cmvgdltm10000kqkie2es9bg8",
       "createdAt": "2026-10-20T10:05:04.874Z",
-      "updatedAt": "2026-10-20T10:05:04.874Z"
+      "updatedAt": "2026-10-21T18:32:23.563Z"
     },
     {
       "id": "cmvgiozpm003gvu900h6kwz7u",
@@ -6575,7 +6888,7 @@
       "sourceTimezone": "Asia/Kolkata",
       "uploadedBy": "cmvgdltm10000kqkie2es9bg8",
       "createdAt": "2026-10-20T10:05:20.459Z",
-      "updatedAt": "2026-10-20T10:05:20.459Z"
+      "updatedAt": "2026-10-21T18:32:23.603Z"
     },
     {
       "id": "cmvgipcmi003ivu90wro4ltaj",
@@ -6681,7 +6994,7 @@
       "sourceTimezone": "Asia/Kolkata",
       "uploadedBy": "cmvgdltm10000kqkie2es9bg8",
       "createdAt": "2026-10-20T10:05:37.194Z",
-      "updatedAt": "2026-10-20T10:05:37.194Z"
+      "updatedAt": "2026-10-21T18:32:23.643Z"
     },
     {
       "id": "cmvgiqj5s003ovu90bprso0rq",
@@ -6787,7 +7100,7 @@
       "sourceTimezone": "Asia/Kolkata",
       "uploadedBy": "cmvgdltm10000kqkie2es9bg8",
       "createdAt": "2026-10-20T10:06:32.320Z",
-      "updatedAt": "2026-10-20T10:06:32.320Z"
+      "updatedAt": "2026-10-21T18:32:23.677Z"
     },
     {
       "id": "cmvgiqzuc003rvu90ful9vkma",
@@ -6878,7 +7191,7 @@
       "sourceTimezone": "Asia/Kolkata",
       "uploadedBy": "cmvgdltm10000kqkie2es9bg8",
       "createdAt": "2026-10-20T10:06:53.940Z",
-      "updatedAt": "2026-10-20T10:06:53.940Z"
+      "updatedAt": "2026-10-21T18:32:23.713Z"
     },
     {
       "id": "cmvgirjr3003vvu90xem9h1va",
@@ -6979,7 +7292,7 @@
       "sourceTimezone": "Asia/Kolkata",
       "uploadedBy": "cmvgdltm10000kqkie2es9bg8",
       "createdAt": "2026-10-20T10:07:19.744Z",
-      "updatedAt": "2026-10-20T10:07:19.744Z"
+      "updatedAt": "2026-10-21T18:32:23.753Z"
     },
     {
       "id": "cmvgirtop003xvu90oagdlcud",
@@ -7085,7 +7398,7 @@
       "sourceTimezone": "Asia/Kolkata",
       "uploadedBy": "cmvgdltm10000kqkie2es9bg8",
       "createdAt": "2026-10-20T10:07:32.618Z",
-      "updatedAt": "2026-10-20T10:07:32.618Z"
+      "updatedAt": "2026-10-21T18:32:23.792Z"
     },
     {
       "id": "cmvgis72p003zvu90syutxmjc",
@@ -7191,7 +7504,7 @@
       "sourceTimezone": "Asia/Kolkata",
       "uploadedBy": "cmvgdltm10000kqkie2es9bg8",
       "createdAt": "2026-10-20T10:07:49.969Z",
-      "updatedAt": "2026-10-20T10:07:49.969Z"
+      "updatedAt": "2026-10-21T18:32:23.828Z"
     },
     {
       "id": "cmvgpqbn60002wr4ficni1bo4",
@@ -7292,7 +7605,325 @@
       "sourceTimezone": "Asia/Kolkata",
       "uploadedBy": "cmvgdltm10000kqkie2es9bg8",
       "createdAt": "2026-10-20T13:22:19.890Z",
-      "updatedAt": "2026-10-20T13:22:19.890Z"
+      "updatedAt": "2026-10-21T18:32:23.864Z"
+    },
+    {
+      "id": "cmvj9zgtp00aufn0ikw1r0joo",
+      "date": "2026-10-21",
+      "symbol": "NQ",
+      "levels": [
+        {
+          "type": "GEX",
+          "label": "Call Resistance (NQ1!)",
+          "price": 30500
+        },
+        {
+          "type": "GEX",
+          "label": "Put Support (NQ1!)",
+          "price": 29000
+        },
+        {
+          "type": "GEX",
+          "label": "HVL (NQ1!)",
+          "price": 29750
+        },
+        {
+          "type": "GEX",
+          "label": "1D Min (NQ1!)",
+          "price": 29513.02
+        },
+        {
+          "type": "GEX",
+          "label": "1D Max (NQ1!)",
+          "price": 30274.48
+        },
+        {
+          "type": "GEX",
+          "label": "Call Resistance 0DTE - Gamma Wall 0DTE (NQ1!)",
+          "price": 30000
+        },
+        {
+          "type": "GEX",
+          "label": "Put Support 0DTE (NQ1!)",
+          "price": 29500
+        },
+        {
+          "type": "GEX",
+          "label": "HVL 0DTE (NQ1!)",
+          "price": 29710
+        },
+        {
+          "type": "GEX",
+          "label": "GEX 1 (NQ1!)",
+          "price": 29600
+        },
+        {
+          "type": "GEX",
+          "label": "GEX 2 (NQ1!)",
+          "price": 29900
+        },
+        {
+          "type": "GEX",
+          "label": "GEX 3 (NQ1!)",
+          "price": 30125
+        },
+        {
+          "type": "GEX",
+          "label": "GEX 4 (NQ1!)",
+          "price": 29650
+        },
+        {
+          "type": "GEX",
+          "label": "GEX 5 (NQ1!)",
+          "price": 29850
+        },
+        {
+          "type": "GEX",
+          "label": "GEX 6 (NQ1!)",
+          "price": 29250
+        },
+        {
+          "type": "GEX",
+          "label": "GEX 7 (NQ1!)",
+          "price": 29400
+        },
+        {
+          "type": "GEX",
+          "label": "GEX 8 (NQ1!)",
+          "price": 29200
+        },
+        {
+          "type": "GEX",
+          "label": "GEX 9 (NQ1!)",
+          "price": 29300
+        },
+        {
+          "type": "GEX",
+          "label": "GEX 10 (NQ1!)",
+          "price": 30600
+        }
+      ],
+      "converted": "GEX|30500|Call Resistance (NQ1!);GEX|29000|Put Support (NQ1!);GEX|29750|HVL (NQ1!);GEX|29513.02|1D Min (NQ1!);GEX|30274.48|1D Max (NQ1!);GEX|30000|Call Resistance 0DTE - Gamma Wall 0DTE (NQ1!);GEX|29500|Put Support 0DTE (NQ1!);GEX|29710|HVL 0DTE (NQ1!);GEX|29600|GEX 1 (NQ1!);GEX|29900|GEX 2 (NQ1!);GEX|30125|GEX 3 (NQ1!);GEX|29650|GEX 4 (NQ1!);GEX|29850|GEX 5 (NQ1!);GEX|29250|GEX 6 (NQ1!);GEX|29400|GEX 7 (NQ1!);GEX|29200|GEX 8 (NQ1!);GEX|29300|GEX 9 (NQ1!);GEX|30600|GEX 10 (NQ1!)",
+      "levelCount": 18,
+      "blCount": 0,
+      "gexCount": 18,
+      "otherCount": 0,
+      "sourceTimezone": "Asia/Kolkata",
+      "uploadedBy": "cmvig52hv000011zq4go7onup",
+      "createdAt": "2026-10-22T08:24:51.181Z",
+      "updatedAt": "2026-10-22T08:24:51.181Z"
+    },
+    {
+      "id": "cmvkule4d0279rwalckyiz5yq",
+      "date": "2026-10-22",
+      "symbol": "NQ",
+      "levels": [
+        {
+          "type": "GEX",
+          "label": "Call Resistance (NQ1!)",
+          "price": 30500
+        },
+        {
+          "type": "GEX",
+          "label": "Put Support (NQ1!)",
+          "price": 29500
+        },
+        {
+          "type": "GEX",
+          "label": "HVL (NQ1!)",
+          "price": 30000
+        },
+        {
+          "type": "GEX",
+          "label": "1D Min (NQ1!)",
+          "price": 29640.58
+        },
+        {
+          "type": "GEX",
+          "label": "1D Max (NQ1!)",
+          "price": 30406.92
+        },
+        {
+          "type": "GEX",
+          "label": "Call Resistance 0DTE (NQ1!)",
+          "price": 30200
+        },
+        {
+          "type": "GEX",
+          "label": "Put Support 0DTE (NQ1!)",
+          "price": 29600
+        },
+        {
+          "type": "GEX",
+          "label": "HVL 0DTE (NQ1!)",
+          "price": 29790
+        },
+        {
+          "type": "GEX",
+          "label": "Gamma Wall 0DTE (NQ1!)",
+          "price": 30200
+        },
+        {
+          "type": "GEX",
+          "label": "GEX 1 (NQ1!)",
+          "price": 29750
+        },
+        {
+          "type": "GEX",
+          "label": "GEX 2 (NQ1!)",
+          "price": 30150
+        },
+        {
+          "type": "GEX",
+          "label": "GEX 3 (NQ1!)",
+          "price": 30125
+        },
+        {
+          "type": "GEX",
+          "label": "GEX 4 (NQ1!)",
+          "price": 30250
+        },
+        {
+          "type": "GEX",
+          "label": "GEX 5 (NQ1!)",
+          "price": 30300
+        },
+        {
+          "type": "GEX",
+          "label": "GEX 6 (NQ1!)",
+          "price": 29400
+        },
+        {
+          "type": "GEX",
+          "label": "GEX 7 (NQ1!)",
+          "price": 29300
+        },
+        {
+          "type": "GEX",
+          "label": "GEX 8 (NQ1!)",
+          "price": 30600
+        },
+        {
+          "type": "GEX",
+          "label": "GEX 9 (NQ1!)",
+          "price": 30700
+        },
+        {
+          "type": "GEX",
+          "label": "GEX 10 (NQ1!)",
+          "price": 30750
+        }
+      ],
+      "converted": "GEX|30500|Call Resistance (NQ1!);GEX|29500|Put Support (NQ1!);GEX|30000|HVL (NQ1!);GEX|29640.58|1D Min (NQ1!);GEX|30406.92|1D Max (NQ1!);GEX|30200|Call Resistance 0DTE (NQ1!);GEX|29600|Put Support 0DTE (NQ1!);GEX|29790|HVL 0DTE (NQ1!);GEX|30200|Gamma Wall 0DTE (NQ1!);GEX|29750|GEX 1 (NQ1!);GEX|30150|GEX 2 (NQ1!);GEX|30125|GEX 3 (NQ1!);GEX|30250|GEX 4 (NQ1!);GEX|30300|GEX 5 (NQ1!);GEX|29400|GEX 6 (NQ1!);GEX|29300|GEX 7 (NQ1!);GEX|30600|GEX 8 (NQ1!);GEX|30700|GEX 9 (NQ1!);GEX|30750|GEX 10 (NQ1!)",
+      "levelCount": 19,
+      "blCount": 0,
+      "gexCount": 19,
+      "otherCount": 0,
+      "sourceTimezone": "Asia/Kolkata",
+      "uploadedBy": "cmvig52hv000011zq4go7onup",
+      "createdAt": "2026-10-23T10:49:32.606Z",
+      "updatedAt": "2026-10-23T10:49:32.606Z"
+    },
+    {
+      "id": "cmvkz9sdz003iih73ml2jkry5",
+      "date": "2026-10-23",
+      "symbol": "NQ",
+      "levels": [
+        {
+          "type": "GEX",
+          "label": "Call Resistance (NQ1!)",
+          "price": 31000
+        },
+        {
+          "type": "GEX",
+          "label": "Put Support - Put Support 0DTE (NQ1!)",
+          "price": 29000
+        },
+        {
+          "type": "GEX",
+          "label": "HVL (NQ1!)",
+          "price": 29750
+        },
+        {
+          "type": "GEX",
+          "label": "1D Min (NQ1!)",
+          "price": 28664.72
+        },
+        {
+          "type": "GEX",
+          "label": "1D Max (NQ1!)",
+          "price": 29524.78
+        },
+        {
+          "type": "GEX",
+          "label": "Call Resistance 0DTE - Gamma Wall 0DTE (NQ1!)",
+          "price": 29700
+        },
+        {
+          "type": "GEX",
+          "label": "HVL 0DTE (NQ1!)",
+          "price": 29275
+        },
+        {
+          "type": "GEX",
+          "label": "GEX 1 (NQ1!)",
+          "price": 29500
+        },
+        {
+          "type": "GEX",
+          "label": "GEX 2 (NQ1!)",
+          "price": 29250
+        },
+        {
+          "type": "GEX",
+          "label": "GEX 3 (NQ1!)",
+          "price": 29100
+        },
+        {
+          "type": "GEX",
+          "label": "GEX 4 (NQ1!)",
+          "price": 28800
+        },
+        {
+          "type": "GEX",
+          "label": "GEX 5 (NQ1!)",
+          "price": 28750
+        },
+        {
+          "type": "GEX",
+          "label": "GEX 6 (NQ1!)",
+          "price": 28500
+        },
+        {
+          "type": "GEX",
+          "label": "GEX 7 (NQ1!)",
+          "price": 28250
+        },
+        {
+          "type": "GEX",
+          "label": "GEX 8 (NQ1!)",
+          "price": 28400
+        },
+        {
+          "type": "GEX",
+          "label": "GEX 9 (NQ1!)",
+          "price": 28600
+        },
+        {
+          "type": "GEX",
+          "label": "GEX 10 (NQ1!)",
+          "price": 28300
+        }
+      ],
+      "converted": "GEX|31000|Call Resistance (NQ1!);GEX|29000|Put Support - Put Support 0DTE (NQ1!);GEX|29750|HVL (NQ1!);GEX|28664.72|1D Min (NQ1!);GEX|29524.78|1D Max (NQ1!);GEX|29700|Call Resistance 0DTE - Gamma Wall 0DTE (NQ1!);GEX|29275|HVL 0DTE (NQ1!);GEX|29500|GEX 1 (NQ1!);GEX|29250|GEX 2 (NQ1!);GEX|29100|GEX 3 (NQ1!);GEX|28800|GEX 4 (NQ1!);GEX|28750|GEX 5 (NQ1!);GEX|28500|GEX 6 (NQ1!);GEX|28250|GEX 7 (NQ1!);GEX|28400|GEX 8 (NQ1!);GEX|28600|GEX 9 (NQ1!);GEX|28300|GEX 10 (NQ1!)",
+      "levelCount": 17,
+      "blCount": 0,
+      "gexCount": 17,
+      "otherCount": 0,
+      "sourceTimezone": "Asia/Kolkata",
+      "uploadedBy": "cmvig52hv000011zq4go7onup",
+      "createdAt": "2026-10-23T13:00:29.303Z",
+      "updatedAt": "2026-10-23T13:00:29.303Z"
     }
   ]
 }
