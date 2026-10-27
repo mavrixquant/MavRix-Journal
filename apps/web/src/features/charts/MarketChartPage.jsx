@@ -123,7 +123,7 @@ export default function MarketChartPage() {
     queryClient.invalidateQueries({ queryKey: ['market-data', 'quote'] });
   }, []);
 
-  usePageHeader({ title: 'Chart', subtitle: `${symbol} Ã‚Â· ${interval.toUpperCase()} Ã‚Â· ${displayTz}` });
+  usePageHeader({ title: 'Chart', subtitle: `${symbol} · ${interval.toUpperCase()} · ${displayTz}` });
 
   const [showLoader, setShowLoader] = useState(false);
   const loaderTimerRef = useRef(null);
