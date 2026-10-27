@@ -233,11 +233,16 @@ adminRoutes.get(
 const marketDataIntervalEnum = z.enum(['1m', '5m', '15m', '1h', '4h', '1d']);
 
 const marketDataImportSchema = z.object({
-  symbol:   z.string().trim().min(1).max(32),
-  interval: marketDataIntervalEnum,
-  from:     z.string().trim().min(1),
-  to:       z.string().trim().min(1),
-});
+    symbol:   z.string().trim().min(1).max(32),
+    interval: marketDataIntervalEnum,
+    mode:     z.enum(['range', 'full']).optional().default('range'),
+    from:     z.string().trim().optional(),
+    to:       z.string().trim().optional(),
+  })
+  .refine(
+    (d) => d.mode === 'full' || (!!d.from && !!d.to),
+    { message: 'from and to are required unless mode is "full"' }
+  );
 
 const marketDataWipeSchema = z.object({
   symbol:   z.string().trim().min(1).max(32),

@@ -1,5 +1,5 @@
-﻿import { HttpError } from '../middleware/error.js';
-import { getBars as getBarsDB } from './marketBars.service.js';
+import { HttpError } from '../middleware/error.js';
+import { getBars as getBarsDB, refreshTail } from './marketBars.service.js';
 import { resolveSymbol, SYMBOL_CATALOG, SUPPORTED_INTERVALS } from '../lib/marketData/index.js';
 import { getQuote as getYahooQuote } from '../lib/marketData/yahooProvider.js';
 import { getQuote as getBiquoteQuote } from '../lib/marketData/biquoteProvider.js';
@@ -22,7 +22,17 @@ export async function fetchBars(opts) {
       `Unsupported interval "${opts.interval}". Allowed: ${SUPPORTED_INTERVALS.join(', ')}`,
     );
   }
-  return getBarsDB(opts);
+
+  const result = await getBarsDB(opts);
+
+  // Fire-and-forget tail refresh ONLY when DB has data for this pair. Empty
+  // ranges stay empty (the UI shows "Coming Soon"). The refresh itself is
+  // rate-limited + backoff-aware + lock-protected inside the service.
+  if (result?.hasData) {
+    void refreshTail(result.symbol, result.interval).catch(() => {});
+  }
+
+  return result;
 }
 
 export async function fetchQuote({ symbol }) {

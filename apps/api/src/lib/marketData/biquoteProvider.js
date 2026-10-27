@@ -1,4 +1,4 @@
-﻿// ============================================================================
+// ============================================================================
 // Biquote provider.
 //
 // getBars() accepts { from, to } (preferred) or the legacy no-opts form.
@@ -87,7 +87,10 @@ export async function getBars(symbol, interval, opts = {}) {
   return bars;
 }
 
-const QUOTE_TTL_MS = 30_000;
+// Shared across ALL users. 60s caps provider load at ~1 req/symbol/minute
+// no matter how many users have that symbol open. Matches the client-side
+// 60s poll interval in useMarketQuote.
+const QUOTE_TTL_MS = 60_000;
 
 export async function getQuote(symbol) {
   const cacheKey = `biquote-quote:${symbol}`;

@@ -96,7 +96,43 @@ export default function QuoteHeader({
   const { data, isLoading } = useMarketQuote(symbol, { enabled: !!symbol });
 
   if (isLoading && !data) {
-    return <div className="qh2-root">Loading quote for {symbol}…</div>;
+    return (
+      <>
+        <style>{CSS}</style>
+        <div className="qh2-root" style={{ opacity: 0.7 }}>
+          <div className="qh2-left">
+            <SymbolIcon symbol={symbol} size={26} />
+            <div className="qh2-symbol-block">
+              <div className="qh2-symbol-row">
+                <span className="qh2-code">{symbol}</span>
+                <span className="qh2-label">Fetching quote…</span>
+              </div>
+            </div>
+          </div>
+          
+          <div className="qh2-price-block">
+            <span className="qh2-price" style={{ color: 'var(--ink-3)' }}>—</span>
+            <span className="qh2-change is-empty">—</span>
+          </div>
+
+          {onIntervalChange && (
+            <div className="qh2-tf">
+              {INTERVALS.map((tf) => (
+                <button 
+                  key={tf.id} 
+                  className={`qh2-tf-btn${tf.id === interval ? ' is-active' : ''}`} 
+                  onClick={() => onIntervalChange(tf.id)}
+                >
+                  {tf.label}
+                </button>
+              ))}
+            </div>
+          )}
+
+          <div className="qh2-right-group" style={{ marginLeft: 'auto' }} />
+        </div>
+      </>
+    );
   }
 
   const price = data?.price ?? null;

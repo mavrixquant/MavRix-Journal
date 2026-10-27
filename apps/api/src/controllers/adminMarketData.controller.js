@@ -17,8 +17,8 @@ export async function stats(_req, res, next) {
 export async function startJob(req, res, next) {
   try {
     const actor = await buildActor(req);
-    const { symbol, interval, from, to } = req.body || {};
-    const result = await svc.startImportJob({ symbol, interval, from, to, actor });
+    const { symbol, interval, from, to, mode } = req.body || {};
+    const result = await svc.startImportJob({ symbol, interval, from, to, mode, actor });
     res.status(202).json(result);
   } catch (e) { next(e); }
 }

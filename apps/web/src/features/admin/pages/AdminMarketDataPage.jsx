@@ -1,4 +1,4 @@
-﻿import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Database, RefreshCw, Download, Trash2, Play,
   AlertTriangle, CheckCircle2, Clock, Loader2,
@@ -517,6 +517,7 @@ export default function AdminMarketDataPage() {
     prevRunningCount.current = runningJobs.length;
   }, [runningJobs.length, refetchStats]);
 
+  const [mode, setMode] = useState('full');
   const [symbol, setSymbol] = useState('NQ');
   const [interval, setInterval] = useState('5m');
   const [from, setFrom] = useState(() => defaultFromFor('5m'));
@@ -597,17 +598,25 @@ export default function AdminMarketDataPage() {
     });
   };
 
-  const startImport = async ({ symbol: sym, interval: iv, from: f, to: t }) => {
-    if (!sym || !iv || !f || !t) {
-      toast.error('Symbol, interval, and both dates are required.');
+  const startImport = async ({ symbol: sym, interval: iv, from: f, to: t, mode: m = 'range' }) => {
+    if (!sym || !iv) {
+      toast.error('Symbol and interval are required.');
       return;
     }
-    if (new Date(f) >= new Date(t)) {
-      toast.error('From date must be before To date.');
-      return;
+    if (m === 'range') {
+      if (!f || !t) {
+        toast.error('Symbol, interval, and both dates are required.');
+        return;
+      }
+      if (new Date(f) >= new Date(t)) {
+        toast.error('From date must be before To date.');
+        return;
+      }
     }
     try {
-      const res = await startMutation.mutateAsync({ symbol: sym, interval: iv, from: f, to: t });
+      const payload = { symbol: sym, interval: iv, mode: m };
+      if (m === 'range') { payload.from = f; payload.to = t; }
+      const res = await startMutation.mutateAsync(payload);
       if (res.alreadyComplete) {
         toast.info('Range already covered — nothing to import.');
       } else {
@@ -627,7 +636,7 @@ export default function AdminMarketDataPage() {
   const handleImport = (e) => {
     e?.preventDefault?.();
     if (formActiveJob) return; // shouldn't fire, button is Stop
-    startImport({ symbol, interval, from, to });
+    startImport({ symbol, interval, from, to, mode });
   };
 
   const handleStop = async (jobId) => {
@@ -645,6 +654,7 @@ export default function AdminMarketDataPage() {
       interval: job.interval,
       from: job.fromTime?.slice(0, 10) || isoDate(new Date(job.fromTime)),
       to: job.toTime?.slice(0, 10) || isoDate(new Date(job.toTime)),
+      mode: 'range',
     });
   };
 
@@ -861,6 +871,71 @@ export default function AdminMarketDataPage() {
             </span>
           </div>
           <div className="mdp-card-body">
+            <div
+              style={{
+                display: 'flex',
+                gap: 4,
+                padding: 3,
+                borderRadius: 10,
+                background: 'rgba(0,0,0,.32)',
+                border: '1px solid rgba(255,255,255,.06)',
+                marginBottom: 14,
+                width: 'fit-content',
+              }}
+              role="tablist"
+            >
+              <button
+                type="button"
+                role="tab"
+                aria-selected={mode === 'full'}
+                onClick={() => setMode('full')}
+                disabled={anyBusy}
+                style={{
+                  padding: '7px 14px',
+                  border: 'none',
+                  borderRadius: 7,
+                  fontSize: 11,
+                  fontWeight: 700,
+                  fontFamily: "'IBM Plex Mono', monospace",
+                  letterSpacing: '.02em',
+                  cursor: anyBusy ? 'not-allowed' : 'pointer',
+                  background: mode === 'full'
+                    ? 'linear-gradient(135deg, var(--accent), var(--accent-2))'
+                    : 'transparent',
+                  color: mode === 'full' ? '#0D1117' : '#8892A3',
+                  opacity: anyBusy ? 0.5 : 1,
+                  transition: 'all .18s',
+                }}
+              >
+                Full Import
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={mode === 'range'}
+                onClick={() => setMode('range')}
+                disabled={anyBusy}
+                style={{
+                  padding: '7px 14px',
+                  border: 'none',
+                  borderRadius: 7,
+                  fontSize: 11,
+                  fontWeight: 700,
+                  fontFamily: "'IBM Plex Mono', monospace",
+                  letterSpacing: '.02em',
+                  cursor: anyBusy ? 'not-allowed' : 'pointer',
+                  background: mode === 'range'
+                    ? 'linear-gradient(135deg, var(--accent), var(--accent-2))'
+                    : 'transparent',
+                  color: mode === 'range' ? '#0D1117' : '#8892A3',
+                  opacity: anyBusy ? 0.5 : 1,
+                  transition: 'all .18s',
+                }}
+              >
+                Range Import
+              </button>
+            </div>
+
             <form className="mdp-form" onSubmit={handleImport}>
               <div className="mdp-field">
                 <label className="mdp-label">Symbol</label>
@@ -872,7 +947,10 @@ export default function AdminMarketDataPage() {
                 />
               </div>
 
-              <div className="mdp-field">
+              <div
+                className="mdp-field"
+                style={mode === 'full' ? { gridColumn: '2 / 5' } : undefined}
+              >
                 <label className="mdp-label">Interval</label>
                 <select
                   className="mdp-select"
@@ -886,7 +964,10 @@ export default function AdminMarketDataPage() {
                 </select>
               </div>
 
-              <div className="mdp-field">
+              <div
+                className="mdp-field"
+                style={mode === 'full' ? { display: 'none' } : undefined}
+              >
                 <label className="mdp-label">From</label>
                 <input
                   className="mdp-input"
@@ -897,7 +978,10 @@ export default function AdminMarketDataPage() {
                 />
               </div>
 
-              <div className="mdp-field">
+              <div
+                className="mdp-field"
+                style={mode === 'full' ? { display: 'none' } : undefined}
+              >
                 <label className="mdp-label">To</label>
                 <input
                   className="mdp-input"
@@ -932,6 +1016,27 @@ export default function AdminMarketDataPage() {
                 </button>
               )}
             </form>
+
+            {mode === 'full' && !formActiveJob && (
+              <div
+                style={{
+                  marginTop: 12,
+                  padding: '10px 12px',
+                  borderRadius: 10,
+                  background: 'color-mix(in srgb, var(--accent) 6%, transparent)',
+                  border: '1px solid color-mix(in srgb, var(--accent) 28%, transparent)',
+                  color: 'var(--accent-2)',
+                  fontFamily: "'IBM Plex Mono', monospace",
+                  fontSize: 11.5,
+                  lineHeight: 1.55,
+                }}
+              >
+                Full import pulls <b>all available history</b> for this interval
+                (up to the provider's maximum lookback). Large imports may take
+                several hours and can be stopped at any time � re-run
+                <b> Start again </b> from the interrupted banner to resume.
+              </div>
+            )}
 
             {globalCapReached && !formActiveJob && (
               <div

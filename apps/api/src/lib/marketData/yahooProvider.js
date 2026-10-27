@@ -1,4 +1,4 @@
-﻿import { env } from '../../config/env.js';
+import { env } from '../../config/env.js';
 import { HttpError } from '../../middleware/error.js';
 import { enqueue } from './queue.js';
 import { get as cacheGet, set as cacheSet } from './cache.js';
@@ -117,7 +117,10 @@ export async function getBars(yahooSymbol, interval, opts = {}) {
   return bars;
 }
 
-const QUOTE_TTL_MS = 30_000;
+// Shared across ALL users. 60s caps provider load at ~1 req/symbol/minute
+// no matter how many users have that symbol open. Matches the client-side
+// 60s poll interval in useMarketQuote.
+const QUOTE_TTL_MS = 60_000;
 
 export async function getQuote(yahooSymbol) {
   const cacheKey = `yahoo-quote:${yahooSymbol}`;

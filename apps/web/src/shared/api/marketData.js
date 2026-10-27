@@ -1,4 +1,4 @@
-﻿import {
+import {
   useQuery,
   useInfiniteQuery,
 } from '@tanstack/react-query';
@@ -98,12 +98,15 @@ export function useMarketBars({ symbol, interval, from, to, enabled = true }) {
     },
     enabled: enabled && !!symbol && !!interval,
     staleTime: 30_000,
-    placeholderData: (prev) => prev,
-    refetchInterval: (data) => {
-      // Poll while the server is still filling in the background.
-      const firstPage = data?.pages?.[0];
-      if (firstPage?.filling) return 2000;
-      return false;
+    refetchInterval: (query) => {
+      // Explicit range = static historical view; no polling.
+      if (isExplicitRange) return false;
+      // Live view: poll every 60s. The backend fires a background
+      // refreshTail on each read, so the NEXT poll sees the new bars.
+      // MarketChartPage dedupes overlapping pages after each refetch.
+      const firstPage = query?.state?.data?.pages?.[0];
+      if (!firstPage) return false;
+      return 60_000;
     },
     retry: (n, err) => (err?.status >= 400 && err?.status < 500 ? false : n < 2),
   });
@@ -119,8 +122,10 @@ export function useMarketQuote(symbol, { enabled = true } = {}) {
     queryKey: marketDataKeys.quote(symbol),
     queryFn: () => getQuote(symbol),
     enabled: enabled && !!symbol,
-    staleTime: 20_000,
-    refetchInterval: 30_000,
+    staleTime: 30_000,
+    // 60s matches the server-side quote cache TTL. For N users on the same
+    // symbol, the provider is hit at most once per minute -- not N times.
+    refetchInterval: 60_000,
     retry: (n, err) => (err?.status >= 400 && err?.status < 500 ? false : n < 2),
   });
 }
@@ -131,8 +136,8 @@ export function useMarketQuotes(symbols, { enabled = true } = {}) {
     queryKey: marketDataKeys.quotes(key),
     queryFn: () => getQuotes(symbols),
     enabled: enabled && symbols.length > 0,
-    staleTime: 20_000,
-    refetchInterval: 45_000,
+    staleTime: 30_000,
+    refetchInterval: 60_000,
     retry: (n, err) => (err?.status >= 400 && err?.status < 500 ? false : n < 2),
   });
 }

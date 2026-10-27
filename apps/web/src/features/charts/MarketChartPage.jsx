@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 import { useMarketCatalog, useMarketBars } from '@/shared/api/marketData';
@@ -69,7 +69,25 @@ export default function MarketChartPage() {
     const pages = [...barsQuery.data.pages];
     // If not explicit range, we fetched descending pages. Reverse so oldest is first.
     if (!fromParam) pages.reverse();
-    return pages.flatMap(p => p.bars || []);
+    const flat = pages.flatMap(p => p.bars || []);
+
+    // Dedupe by time. With refetchInterval active on the infinite query,
+    // page-1 refetches can extend the newest window, which pushes older
+    // bars into page 2's territory and produces overlapping windows.
+    // A Map keyed by time collapses duplicates; sort restores chronology.
+    const seen = new Map();
+    for (const b of flat) {
+      const isFlat = b.open === b.high && b.high === b.low && b.low === b.close;
+      if (isFlat && (!b.volume || Number(b.volume) === 0)) continue;
+      seen.set(b.time, b);
+    }
+    const out = [...seen.values()];
+    out.sort((a, b) => {
+      const at = typeof a.time === 'number' ? a.time : new Date(a.time).getTime();
+      const bt = typeof b.time === 'number' ? b.time : new Date(b.time).getTime();
+      return at - bt;
+    });
+    return out;
   }, [barsQuery.data, fromParam]);
 
   const filling = barsQuery.data?.pages?.[0]?.filling;
@@ -105,9 +123,34 @@ export default function MarketChartPage() {
     queryClient.invalidateQueries({ queryKey: ['market-data', 'quote'] });
   }, []);
 
-  usePageHeader({ title: 'Chart', subtitle: `${symbol} · ${interval.toUpperCase()} · ${displayTz}` });
+  usePageHeader({ title: 'Chart', subtitle: `${symbol} Ã‚Â· ${interval.toUpperCase()} Ã‚Â· ${displayTz}` });
 
-  const showFullPageLoading = barsQuery.isLoading && bars.length === 0;
+  const [showLoader, setShowLoader] = useState(false);
+  const loaderTimerRef = useRef(null);
+
+  // Reset when symbol or interval changes
+  useEffect(() => {
+    if (loaderTimerRef.current) clearTimeout(loaderTimerRef.current);
+    setShowLoader(false);
+  }, [symbol, interval]);
+
+  useEffect(() => {
+    if (barsQuery.isLoading) return;
+
+    if (bars.length > 0) {
+      // Data exists -> always play the full 2.2s animation
+      setShowLoader(true);
+      if (loaderTimerRef.current) clearTimeout(loaderTimerRef.current);
+      loaderTimerRef.current = setTimeout(() => setShowLoader(false), 2200);
+    } else {
+      // No data -> immediately hide overlay and show "Coming Soon"
+      setShowLoader(false);
+    }
+
+    return () => {
+      if (loaderTimerRef.current) clearTimeout(loaderTimerRef.current);
+    };
+  }, [barsQuery.isLoading, bars.length, symbol, interval]);
 
   return (
     <>
@@ -131,13 +174,14 @@ export default function MarketChartPage() {
               <CandlestickChart
                 bars={displayBars}
                 interval={interval}
+                symbol={symbol}
                 fitContentKey={fitContentKey}
                 hasMoreOlder={hasMoreOlder}
                 onRequestOlder={handleLoadOlder}
               />
 
-              {showFullPageLoading && (
-                <ChartLoadingOverlay phase="data" symbol={symbol} interval={interval} />
+              {showLoader && (
+                <ChartLoadingOverlay symbol={symbol} interval={interval} />
               )}
             </div>
           </div>

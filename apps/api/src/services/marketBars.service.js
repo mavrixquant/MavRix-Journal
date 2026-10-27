@@ -8,6 +8,12 @@ const PROVIDER_FETCHERS = { yahoo: getYahooBars, biquote: getBiquoteBars };
 
 const FRESHNESS_MS = { '1m': 60_000, '5m': 5 * 60_000, '15m': 15 * 60_000, '1h': 30 * 60_000, '4h': 60 * 60_000, '1d': 60 * 60_000 };
 
+// ---------------------------------------------------------------------------
+// In-flight lock for refreshTail. Key = "SYMBOL:interval".
+// Prevents 50 users opening the same chart from firing 50 identical refreshes.
+// ---------------------------------------------------------------------------
+const refreshesInFlight = new Set();
+
 // Yahoo throws 422 if we request exactly the maximum allowed. We use a safety margin.
 const MAX_CHUNK_DAYS = { '1m': 6, '5m': 55, '15m': 55, '1h': 700, '4h': 700, '1d': 3000 };
 
@@ -29,57 +35,60 @@ export async function getBars({ symbol, interval, from: rawFrom, to: rawTo, befo
   const before = rawBefore ? new Date(rawBefore) : null;
   const after = rawAfter ? new Date(rawAfter) : null;
 
-  const coverage = await prisma.marketBarCoverage.findUnique({ where: { symbol_interval: { symbol: sym, interval } } });
+  const coverage = await prisma.marketBarCoverage.findUnique({
+    where: { symbol_interval: { symbol: sym, interval } },
+  });
 
   const isExplicitRange = !!(from && to) && !before && !after;
   const isScrollBack = !!before;
   const isScrollForward = !!after;
+  const isDefault = !isExplicitRange && !isScrollBack && !isScrollForward;
 
-  const effectiveFrom = isExplicitRange ? from : isScrollBack ? null : isScrollForward ? null : new Date(now.getTime() - DEFAULT_WINDOW_DAYS * 86400000);
-  const effectiveTo = isExplicitRange ? to : isScrollBack ? null : isScrollForward ? null : now;
+  // Default window: the last DEFAULT_WINDOW_DAYS. Pagination extends it via
+  // the `before` cursor, which overrides this clause entirely.
+  const effectiveFrom = isExplicitRange
+    ? from
+    : new Date(now.getTime() - DEFAULT_WINDOW_DAYS * 86400000);
+  const effectiveTo = isExplicitRange ? to : now;
 
   const where = { symbol: sym, interval };
   if (isScrollBack) where.time = { lt: before };
   else if (isScrollForward) where.time = { gt: after };
   else where.time = { gte: effectiveFrom, lte: effectiveTo };
 
+  // Ordering rules:
+  //   Default (nothing set)   -> DESC + reverse  = NEWEST page, chronological
+  //   Scroll-back (before=X)  -> DESC + reverse  = oldest-before-X, chronological
+  //   Scroll-forward (after=X)-> ASC  (no reverse)= newest-after-X, chronological
+  //   Explicit range          -> ASC  (no reverse)= oldest-in-range, page forward via after
+  //
+  // DB is the ONLY source here. No provider fetch, no blocking, no lazy fill.
+  // Missing data simply renders as empty and the UI shows "Coming Soon".
   let page = await prisma.marketBar.findMany({
-    where, orderBy: { time: isScrollBack ? 'desc' : 'asc' }, take: limitSafe + 1,
+    where,
+    orderBy: { time: (isScrollBack || isDefault) ? 'desc' : 'asc' },
+    take: limitSafe + 1,
   });
 
   const fetchedAll = page.length <= limitSafe;
   if (!fetchedAll) page = page.slice(0, limitSafe);
-  if (isScrollBack) page.reverse();
-
-  const gaps = computeGaps({ coverage, now, interval, effectiveFrom, effectiveTo, isScrollBack, isScrollForward, isExplicitRange, before, after });
-
-  let filling = false;
-  let fillError = null;
-
-  const inBackoff = coverage?.backoffUntil && coverage.backoffUntil > now;
-  if (inBackoff) {
-    fillError = 'Provider cooldown';
-  } else if (gaps.length > 0) {
-    const shouldBlock = !coverage || gaps.every((g) => (g.to - g.from) / 86400000 <= 3);
-
-    if (shouldBlock && !isScrollBack && !isScrollForward) {
-      await fillGaps({ symbol: sym, interval, resolved, gaps });
-      page = await prisma.marketBar.findMany({ where, orderBy: { time: isScrollBack ? 'desc' : 'asc' }, take: limitSafe + 1 });
-      if (page.length > limitSafe) page = page.slice(0, limitSafe);
-      if (isScrollBack) page.reverse();
-    } else {
-      filling = true;
-      void fillGaps({ symbol: sym, interval, resolved, gaps });
-    }
-  }
+  if (isScrollBack || isDefault) page.reverse();
 
   const bars = page.map((b) => ({
     time: interval === '1d' ? b.time.toISOString().slice(0, 10) : Math.floor(b.time.getTime() / 1000),
     open: b.open, high: b.high, low: b.low, close: b.close, volume: b.volume,
-  }));
+  })).filter((b) => {
+    // Filter out flat "dash" bars with zero volume (e.g. empty extended-hours ticks)
+    const isFlat = b.open === b.high && b.high === b.low && b.low === b.close;
+    return !(isFlat && (!b.volume || Number(b.volume) === 0));
+  });
 
-  const coveredBefore = coverage && coverage.fromTime && page[0] ? coverage.fromTime < page[0].time : false;
-  const coveredAfter = coverage && coverage.toTime && page[page.length - 1] ? coverage.toTime > page[page.length - 1].time : false;
+  const coveredBefore = coverage && coverage.fromTime && page[0]
+    ? coverage.fromTime < page[0].time
+    : false;
+  const coveredAfter = coverage && coverage.toTime && page[page.length - 1]
+    ? coverage.toTime > page[page.length - 1].time
+    : false;
 
   let hasMoreOlder = false;
   let hasMoreNewer = false;
@@ -89,11 +98,20 @@ export async function getBars({ symbol, interval, from: rawFrom, to: rawTo, befo
   else { hasMoreOlder = !fetchedAll || coveredBefore; }
 
   return {
-    symbol: sym, interval, provider: resolved.provider, providerSymbol: resolved.providerSymbol, count: bars.length, bars, hasMoreOlder, hasMoreNewer,
-    oldestInDb: coverage?.fromTime ?? null, newestInDb: coverage?.toTime ?? null, filling, fillError, backoffUntil: coverage?.backoffUntil ?? null,
+    symbol: sym,
+    interval,
+    provider: resolved.provider,
+    providerSymbol: resolved.providerSymbol,
+    count: bars.length,
+    bars,
+    hasData: bars.length > 0,
+    hasMoreOlder,
+    hasMoreNewer,
+    oldestInDb: coverage?.fromTime ?? null,
+    newestInDb: coverage?.toTime ?? null,
+    backoffUntil: coverage?.backoffUntil ?? null,
   };
 }
-
 function computeGaps({ coverage, now, interval, effectiveFrom, effectiveTo, isScrollBack, isExplicitRange, before }) {
   const gaps = [];
   if (!coverage) {
@@ -156,6 +174,9 @@ async function fillGaps({ symbol, interval, resolved, gaps }) {
 async function bulkUpsertBars(symbol, interval, provider, bars) {
   const dedup = new Map();
   for (const b of bars) {
+    const isFlat = b.open === b.high && b.high === b.low && b.low === b.close;
+    if (isFlat && (!b.volume || Number(b.volume) === 0)) continue;
+    
     const key = typeof b.time === 'string' ? b.time : new Date(b.time * 1000).toISOString();
     dedup.set(key, b);
   }
@@ -196,4 +217,98 @@ async function recomputeCoverage(symbol, interval, resolved) {
     create: { symbol, interval, provider: resolved.provider, providerSymbol: resolved.providerSymbol, fromTime: min_t, toTime: max_t },
     update: { fromTime: min_t, toTime: max_t, lastFetchedAt: new Date(), lastError: null },
   });
+}
+
+// ---------------------------------------------------------------------------
+// refreshTail â€” opportunistic background catch-up.
+//
+// Called (fire-and-forget) after every getBars() that returned data. Fetches
+// the small window between coverage.toTime and now, so users see fresh bars
+// on the next poll.
+//
+// Safety:
+//   - Per (symbol, interval) in-memory lock; no duplicate concurrent runs.
+//   - Freshness gate: skip if lastFetchedAt is within the interval's TTL.
+//   - Backoff gate: skip if coverage.backoffUntil is in the future (set by
+//     this function or by admin import on 429s).
+//   - Max 7-day tail window: avoids pulling months in one call if coverage
+//     went stale. Wider gaps require a real admin re-import.
+//   - Chunked with MAX_CHUNK_DAYS so no single provider request exceeds the
+//     provider page limit.
+//   - On provider error, sets backoffUntil so we don't hammer again.
+// ---------------------------------------------------------------------------
+export async function refreshTail(symbol, interval) {
+  const sym = String(symbol || '').toUpperCase();
+  if (!sym || !interval) return;
+
+  const key = `${sym}:${interval}`;
+  if (refreshesInFlight.has(key)) return;
+  refreshesInFlight.add(key);
+
+  try {
+    const resolved = resolveSymbol(sym);
+    if (!resolved) return;
+
+    const coverage = await prisma.marketBarCoverage.findUnique({
+      where: { symbol_interval: { symbol: sym, interval } },
+    });
+    if (!coverage) return; // no DB data â†’ "Coming Soon" state persists
+
+    const now = new Date();
+    if (coverage.backoffUntil && coverage.backoffUntil > now) return;
+
+    const freshness = FRESHNESS_MS[interval] ?? 60_000;
+    if (
+      coverage.lastFetchedAt &&
+      now.getTime() - coverage.lastFetchedAt.getTime() < freshness
+    ) {
+      return;
+    }
+
+    const fetchFn = PROVIDER_FETCHERS[resolved.provider];
+    if (!fetchFn) return;
+
+    const TAIL_CAP_DAYS = 7;
+    const tailFloor = new Date(now.getTime() - TAIL_CAP_DAYS * 86400000);
+    const from = coverage.toTime > tailFloor ? coverage.toTime : tailFloor;
+    const to = now;
+    if (from >= to) return;
+
+    const maxChunkDays = MAX_CHUNK_DAYS[interval] ?? 60;
+    let cursor = new Date(from);
+
+    while (cursor < to) {
+      const chunkEnd = new Date(
+        Math.min(cursor.getTime() + maxChunkDays * 86400000, to.getTime())
+      );
+
+      try {
+        const rawBars = await fetchFn(resolved.providerSymbol, interval, {
+          from: cursor,
+          to: chunkEnd,
+        });
+        if (rawBars.length > 0) {
+          await bulkUpsertBars(sym, interval, resolved.provider, rawBars);
+        }
+        await recomputeCoverage(sym, interval, resolved);
+      } catch (err) {
+        const isRate = err?.status === 429;
+        const backoffMs = isRate ? 5 * 60_000 : 60_000;
+        await prisma.marketBarCoverage.update({
+          where: { symbol_interval: { symbol: sym, interval } },
+          data: {
+            backoffUntil: new Date(Date.now() + backoffMs),
+            lastError: err?.message || 'refreshTail failed',
+          },
+        });
+        return;
+      }
+
+      cursor = chunkEnd;
+    }
+  } catch (err) {
+    console.warn(`[mkt-bars] refreshTail ${sym} ${interval} failed:`, err?.message || err);
+  } finally {
+    refreshesInFlight.delete(key);
+  }
 }

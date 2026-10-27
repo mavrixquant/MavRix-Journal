@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { BarChart3 } from 'lucide-react';
+import { BarChart3, ArrowRightToLine } from 'lucide-react';
 import {
   createChart,
   CandlestickSeries,
@@ -117,11 +117,43 @@ const CSS = `
   .cl-ohlc-item b.is-down { color: #FF5C5C; }
   .cl-ohlc-tf { margin-left: 4px; padding: 1px 7px; border-radius: 4px; background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.06); color: #8892A3; font-size: 9.5px; font-weight: 700; letter-spacing: .08em; }
   .cl-empty-overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; }
+  
+  .cl-scroll-btn {
+    position: absolute;
+    bottom: 36px;
+    right: 82px; /* Pushed left to avoid the price scale */
+    z-index: 5;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(12, 16, 23, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #8892A3;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    backdrop-filter: blur(8px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    animation: clFadeIn 0.2s ease;
+  }
+  .cl-scroll-btn:hover {
+    color: var(--accent);
+    border-color: var(--accent-soft2);
+    background: rgba(15, 18, 25, 0.95);
+    transform: translateY(-2px);
+  }
+  .cl-scroll-btn:active {
+    transform: translateY(0) scale(0.95);
+  }
+  @keyframes clFadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 `;
 
 export default function CandlestickChart({
   bars,
   interval,
+  symbol,
   markers = [],
   trades = [],
   showLabels = false,
@@ -137,6 +169,7 @@ export default function CandlestickChart({
   const markersPluginRef = useRef(null);
 
   const [ohlc, setOhlc] = useState(null);
+  const [isAtRightEdge, setIsAtRightEdge] = useState(true);
   const onReadyRef = useRef(onReady);
   useEffect(() => { onReadyRef.current = onReady; }, [onReady]);
 
@@ -194,24 +227,58 @@ export default function CandlestickChart({
   }, [interval]);
 
   useEffect(() => {
+    const chart = chartRef.current;
+    if (!chart) return;
+    
+    const handleRangeChange = (range) => {
+      if (!range) return;
+      const safeBars = Array.isArray(bars) ? bars : [];
+      // If the right edge of our viewport is within 5 bars of the newest data,
+      // consider us "at the edge" and hide the button.
+      setIsAtRightEdge(range.to >= safeBars.length - 5);
+    };
+    
+    chart.timeScale().subscribeVisibleLogicalRangeChange(handleRangeChange);
+    return () => chart.timeScale().unsubscribeVisibleLogicalRangeChange(handleRangeChange);
+  }, [bars.length]);
+
+  // Track the last key we fit for. fitContent() must run ONLY when the
+  // dataset's identity changes (symbol / interval / explicit range). Running
+  // it on every bars update (as the old code did) resets the user's zoom/pan
+  // on every poll refresh Ã¢â‚¬â€ which looks like "wrong data" because the view
+  // keeps jumping.
+  const lastFitKeyRef = useRef(undefined);
+
+  useEffect(() => {
     const candle = candleRef.current;
     const chart = chartRef.current;
     if (!candle || !chart) return;
-    if (!Array.isArray(bars) || bars.length === 0) return;
-
-    candle.setData(bars.map((b) => ({
+    
+    const safeBars = Array.isArray(bars) ? bars : [];
+    
+    // Explicitly set data (even if empty) to clear any ghost candles from the
+    // previous symbol/interval.
+    candle.setData(safeBars.map((b) => ({
       time: b.time, open: b.open, high: b.high, low: b.low, close: b.close,
     })));
+
+    if (safeBars.length === 0) {
+      setOhlc(null);
+      if (markersPluginRef.current) {
+        try { markersPluginRef.current.setMarkers([]); } catch { }
+      }
+      return;
+    }
 
     const plugin = markersPluginRef.current;
     if (plugin) { try { plugin.setMarkers(markers); } catch { } }
 
-    // Only fitContent on explicit range change / symbol change
-    if (fitContentKey !== null) {
+    if (fitContentKey !== null && fitContentKey !== lastFitKeyRef.current) {
+      lastFitKeyRef.current = fitContentKey;
       chart.timeScale().fitContent();
     }
 
-    const last = bars[bars.length - 1];
+    const last = safeBars[safeBars.length - 1];
     setOhlc({ open: last.open, high: last.high, low: last.low, close: last.close });
 
     requestAnimationFrame(() => { requestAnimationFrame(() => { onReadyRef.current?.(); }); });
@@ -270,9 +337,26 @@ export default function CandlestickChart({
       <div className="cl-root">
         <div ref={containerRef} className="cl-canvas" />
         {!showEmpty && <OhlcLegend ohlc={ohlc} interval={interval} />}
+        
+        {!showEmpty && !isAtRightEdge && (
+          <button
+            type="button"
+            className="cl-scroll-btn"
+            onClick={() => chartRef.current?.timeScale().scrollToRealTime()}
+            title="Go to current price"
+          >
+            <ArrowRightToLine size={16} />
+          </button>
+        )}
         {showEmpty && (
           <div className="cl-empty-overlay">
-            <EmptyState size="sm" icon={BarChart3} eyebrow="No data" title="No chart data" description="No data for this timeframe." />
+            <EmptyState
+              size="lg"
+              icon={BarChart3}
+              eyebrow="Coming Soon"
+              title={`No chart data for ${symbol || 'this symbol'}`}
+              description={`${interval ? interval.toUpperCase() + ' history' : 'History'} hasn't been imported yet. An admin can load it from Admin Ã¢â€ â€™ Market Data.`}
+            />
           </div>
         )}
       </div>

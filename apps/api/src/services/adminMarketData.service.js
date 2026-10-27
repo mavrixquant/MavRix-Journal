@@ -42,6 +42,21 @@ const CHUNK_RETRY_BACKOFF_MS = [2000, 5000, 15000];
 const DB_STOP_CHECK_EVERY_N_CHUNKS = 10;
 const KEEPALIVE_INTERVAL_MS = 4 * 60 * 1000;
 
+// ---------------------------------------------------------------------------
+// Full-import mode.
+//
+// MAX_CHUNK_DAYS still applies (it's a provider page-size constraint), but
+// the total-chunk cap and duration cap are relaxed, and isolated chunk
+// failures no longer abort the whole job. The lookback table below is the
+// effective "all available history" for each interval -- providers won't
+// serve more.
+// ---------------------------------------------------------------------------
+const FULL_IMPORT_LOOKBACK_DAYS = {
+  '1m': 7, '5m': 60, '15m': 60, '1h': 730, '4h': 730, '1d': 3650,
+};
+const FULL_IMPORT_MAX_DURATION_MS = 6 * 60 * 60 * 1000; // 6 hours
+const FULL_IMPORT_CONSECUTIVE_FAILURES = 3;
+
 // In-memory registry — cleared on process restart (boot sweep handles
 // the DB side; the map only holds live runners in THIS process).
 const running = new Map();   // jobId -> { stopped: boolean }
@@ -269,11 +284,23 @@ async function computeMissingChunks(symbol, interval, from, to) {
   return { missing, skipped: allChunks.length - missing.length };
 }
 
-export async function startImportJob({ symbol, interval, from, to, actor }) {
+export async function startImportJob({ symbol, interval, from, to, mode = 'range', actor }) {
   if (!symbol) throw new HttpError(400, 'symbol is required');
   if (!interval) throw new HttpError(400, 'interval is required');
   if (!SUPPORTED_INTERVALS.includes(interval)) {
     throw new HttpError(400, `Unsupported interval "${interval}". Allowed: ${SUPPORTED_INTERVALS.join(', ')}`);
+  }
+
+  if (mode === 'full') {
+    const lookback = FULL_IMPORT_LOOKBACK_DAYS[interval] || 365;
+    const today = new Date();
+    today.setUTCHours(23, 59, 59, 999);
+    to = today.toISOString();
+    const startFrom = new Date(today);
+    startFrom.setUTCDate(startFrom.getUTCDate() - lookback);
+    from = startFrom.toISOString();
+  } else if (mode !== 'range') {
+    throw new HttpError(400, `Invalid mode "${mode}". Allowed: range, full`);
   }
 
   const fromDate = new Date(from);
@@ -302,7 +329,7 @@ export async function startImportJob({ symbol, interval, from, to, actor }) {
 
   const { missing, skipped } = await computeMissingChunks(sym, interval, fromDate, toDate);
 
-  if (missing.length > MAX_CHUNKS_PER_JOB) {
+  if (mode !== 'full' && missing.length > MAX_CHUNKS_PER_JOB) {
     throw new HttpError(
       400,
       `Range too large — ${missing.length} chunks needed (max ${MAX_CHUNKS_PER_JOB}). Split the range.`
@@ -334,6 +361,7 @@ export async function startImportJob({ symbol, interval, from, to, actor }) {
     targetType: 'market_import_job',
     targetId: job.id,
     metadata: {
+      mode,
       symbol: sym,
       interval,
       from: fromDate.toISOString(),
@@ -368,7 +396,7 @@ export async function startImportJob({ symbol, interval, from, to, actor }) {
 
   // Kick off OUTSIDE the HTTP lifecycle.
   setImmediate(() => {
-    runImportJob(job.id, missing, resolved, fetchFn).catch((err) => {
+    runImportJob(job.id, missing, resolved, fetchFn, mode).catch((err) => {
       console.error(`[market-data] job runner crashed: ${job.id}`, err);
     });
   });
@@ -376,7 +404,7 @@ export async function startImportJob({ symbol, interval, from, to, actor }) {
   return { jobId: job.id, totalChunks: missing.length, skippedChunks: skipped };
 }
 
-async function runImportJob(jobId, chunks, resolved, fetchFn) {
+async function runImportJob(jobId, chunks, resolved, fetchFn, mode = 'range') {
   const reg = running.get(jobId);
   if (!reg) return; // already stopped before the loop even started
 
@@ -385,6 +413,8 @@ async function runImportJob(jobId, chunks, resolved, fetchFn) {
 
   const { symbol, interval } = initial;
   const startedAt = Date.now();
+  const maxDurationMs = mode === 'full' ? FULL_IMPORT_MAX_DURATION_MS : MAX_JOB_DURATION_MS;
+  let consecutiveFailures = 0;
 
   // Chunk rows — created in startImportJob, matched 1:1 with the chunks array.
   const chunkRows = await prisma.marketImportChunk.findMany({
@@ -425,9 +455,9 @@ async function runImportJob(jobId, chunks, resolved, fetchFn) {
       }
 
       // ---- Duration cap ----
-      if (Date.now() - startedAt > MAX_JOB_DURATION_MS) {
+      if (Date.now() - startedAt > maxDurationMs) {
         finalStatus = 'failed';
-        lastError = `Job exceeded max duration (${MAX_JOB_DURATION_MS / 60000} min).`;
+        lastError = `Job exceeded max duration (${maxDurationMs / 60000} min).`;
         break;
       }
 
@@ -524,8 +554,24 @@ async function runImportJob(jobId, chunks, resolved, fetchFn) {
             },
           });
         }
-        finalStatus = 'failed';
+        consecutiveFailures += 1;
         lastError = chunkError?.message || 'Unknown chunk error';
+
+        // Full-import mode: continue past isolated failures (providers can
+        // hiccup on a single chunk). Abort only after N consecutive failures
+        // -- that usually means the provider is down and retrying is wasteful.
+        // Failed chunks can be re-filled later via wipe + reimport.
+        if (mode === 'full' && consecutiveFailures < FULL_IMPORT_CONSECUTIVE_FAILURES) {
+          chunksDone += 1;
+          const updated = await prisma.marketImportJob.update({
+            where: { id: jobId },
+            data: { chunksDone, fetched, inserted, lastError },
+          });
+          broadcastJob(updated);
+          continue;
+        }
+
+        finalStatus = 'failed';
         break;
       }
 
@@ -533,6 +579,7 @@ async function runImportJob(jobId, chunks, resolved, fetchFn) {
       fetched += chunkFetched;
       inserted += chunkInserted;
       chunksDone += 1;
+      consecutiveFailures = 0;
 
       if (chunkRow) {
         await prisma.marketImportChunk.update({

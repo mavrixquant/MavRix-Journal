@@ -46,7 +46,23 @@ const CSS = `
   @keyframes cloSpin { to { transform: rotate(360deg); } }
 `;
 
-export default function ChartLoadingOverlay({ phase = 'symbols', symbol, interval }) {
+import { useEffect, useState } from 'react';
+
+export default function ChartLoadingOverlay({ symbol, interval }) {
+  const [phase, setPhase] = useState('symbols');
+
+  useEffect(() => {
+    // Synced to the parent's 2.2s minimum timer.
+    // 500ms + 700ms + 500ms + 400ms = 2100ms (finishes just before parent unmounts)
+    const timers = [];
+    timers.push(setTimeout(() => setPhase('data'), 500));
+    timers.push(setTimeout(() => setPhase('trades'), 1200));
+    timers.push(setTimeout(() => setPhase('render'), 1700));
+    timers.push(setTimeout(() => setPhase('finalize'), 2100));
+    
+    return () => timers.forEach(clearTimeout);
+  }, []);
+
   if (phase === 'done') return null;
   const currentIndex = STEP_ORDER.indexOf(phase);
   const progress = PROGRESS[phase] ?? 0;
