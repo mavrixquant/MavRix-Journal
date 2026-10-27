@@ -39,22 +39,33 @@ export async function getBars({ symbol, interval, from: rawFrom, to: rawTo, befo
     where: { symbol_interval: { symbol: sym, interval } },
   });
 
-  const isExplicitRange = !!(from && to) && !before && !after;
-  const isScrollBack = !!before;
-  const isScrollForward = !!after;
-  const isDefault = !isExplicitRange && !isScrollBack && !isScrollForward;
+  const hasExplicitRange = !!(from && to);
+  const isBackwardPaging = !hasExplicitRange && !!before;
+  const isForwardPaging = !hasExplicitRange && !!after;
+  const isDefaultRange = !hasExplicitRange && !before && !after;
 
   // Default window: the last DEFAULT_WINDOW_DAYS. Pagination extends it via
   // the `before` cursor, which overrides this clause entirely.
-  const effectiveFrom = isExplicitRange
+  const effectiveFrom = hasExplicitRange
     ? from
     : new Date(now.getTime() - DEFAULT_WINDOW_DAYS * 86400000);
-  const effectiveTo = isExplicitRange ? to : now;
+  const effectiveTo = hasExplicitRange ? to : now;
 
   const where = { symbol: sym, interval };
-  if (isScrollBack) where.time = { lt: before };
-  else if (isScrollForward) where.time = { gt: after };
-  else where.time = { gte: effectiveFrom, lte: effectiveTo };
+  if (hasExplicitRange) {
+    // Explicit range is ALWAYS bounded by [from, to], including on page 2+
+    // where `after` is set as a cursor. Without the `lte: to` bound, page 2+
+    // would return bars past the user's selected end date and the chart
+    // would silently drift beyond the chosen range.
+    if (after) where.time = { gt: after, lte: to };
+    else where.time = { gte: from, lte: to };
+  } else if (isBackwardPaging) {
+    where.time = { lt: before };
+  } else if (isForwardPaging) {
+    where.time = { gt: after };
+  } else {
+    where.time = { gte: effectiveFrom, lte: effectiveTo };
+  }
 
   // Ordering rules:
   //   Default (nothing set)   -> DESC + reverse  = NEWEST page, chronological
@@ -66,13 +77,13 @@ export async function getBars({ symbol, interval, from: rawFrom, to: rawTo, befo
   // Missing data simply renders as empty and the UI shows "Coming Soon".
   let page = await prisma.marketBar.findMany({
     where,
-    orderBy: { time: (isScrollBack || isDefault) ? 'desc' : 'asc' },
+    orderBy: { time: (isBackwardPaging || isDefaultRange) ? 'desc' : 'asc' },
     take: limitSafe + 1,
   });
 
   const fetchedAll = page.length <= limitSafe;
   if (!fetchedAll) page = page.slice(0, limitSafe);
-  if (isScrollBack || isDefault) page.reverse();
+  if (isBackwardPaging || isDefaultRange) page.reverse();
 
   const bars = page.map((b) => ({
     time: interval === '1d' ? b.time.toISOString().slice(0, 10) : Math.floor(b.time.getTime() / 1000),
@@ -92,10 +103,18 @@ export async function getBars({ symbol, interval, from: rawFrom, to: rawTo, befo
 
   let hasMoreOlder = false;
   let hasMoreNewer = false;
-  if (isScrollBack) { hasMoreOlder = !fetchedAll || coveredBefore; }
-  else if (isScrollForward) { hasMoreNewer = !fetchedAll || coveredAfter; }
-  else if (isExplicitRange) { hasMoreNewer = !fetchedAll || coveredAfter; }
-  else { hasMoreOlder = !fetchedAll || coveredBefore; }
+  if (hasExplicitRange) {
+    // Bounded by `to`, so `!fetchedAll` is authoritative for "more exists
+    // inside [from, to]". Once a page returns fewer than `limit` rows, the
+    // user's end date has been reached — stop paging.
+    hasMoreNewer = !fetchedAll;
+  } else if (isBackwardPaging) {
+    hasMoreOlder = !fetchedAll || coveredBefore;
+  } else if (isForwardPaging) {
+    hasMoreNewer = !fetchedAll || coveredAfter;
+  } else {
+    hasMoreOlder = !fetchedAll || coveredBefore;
+  }
 
   return {
     symbol: sym,
@@ -112,7 +131,9 @@ export async function getBars({ symbol, interval, from: rawFrom, to: rawTo, befo
     backoffUntil: coverage?.backoffUntil ?? null,
   };
 }
-function computeGaps({ coverage, now, interval, effectiveFrom, effectiveTo, isScrollBack, isExplicitRange, before }) {
+// DEPRECATED: orphaned helper from the pre-lazy-loading architecture.
+// Kept for reference; safe to delete entirely.
+function _computeGaps({ coverage, now, interval, effectiveFrom, effectiveTo, isScrollBack, isExplicitRange, before }) {
   const gaps = [];
   if (!coverage) {
     const to = effectiveTo ?? now;
@@ -138,7 +159,9 @@ function computeGaps({ coverage, now, interval, effectiveFrom, effectiveTo, isSc
   return gaps;
 }
 
-async function fillGaps({ symbol, interval, resolved, gaps }) {
+// DEPRECATED: orphaned helper from the pre-lazy-loading architecture.
+// Kept for reference; safe to delete entirely.
+async function _fillGaps({ symbol, interval, resolved, gaps }) {
   const fetch = PROVIDER_FETCHERS[resolved.provider];
   if (!fetch) return;
   const maxDays = MAX_CHUNK_DAYS[interval] ?? 60;

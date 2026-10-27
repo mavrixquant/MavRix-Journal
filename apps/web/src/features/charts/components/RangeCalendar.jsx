@@ -31,6 +31,14 @@ const CSS = `
   .rc-btn:hover { color: #E7E9EE; background: rgba(255,255,255,.06); }
   .rc-btn-primary { background: var(--accent); color: #0D1117; }
   .rc-btn-primary:hover { background: var(--accent-2); color: #0D1117; }
+
+  @media (max-width: 560px) {
+    .rc-grid { flex-direction: column; align-items: center; gap: 20px; }
+    .rc-month { width: 100%; max-width: 280px; }
+    .rc-foot { flex-direction: column; align-items: stretch; gap: 8px; }
+    .rc-foot > div { justify-content: center; text-align: center; }
+    .rc-foot > div:last-child { display: flex; gap: 8px; }
+  }
 `;
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -43,7 +51,7 @@ function getFirstDayOfMonth(year, month) {
   return new Date(year, month, 1).getDay();
 }
 
-export default function RangeCalendar({ initialFrom, initialTo, onApply, onClose }) {
+export default function RangeCalendar({ initialFrom, initialTo, onApply, onClose, onClear }) {
   const [from, setFrom] = useState(initialFrom ? new Date(initialFrom) : new Date());
   const [to, setTo] = useState(initialTo ? new Date(initialTo) : new Date());
   const [selecting, setSelecting] = useState('from'); // 'from' | 'to'
@@ -128,7 +136,15 @@ export default function RangeCalendar({ initialFrom, initialTo, onApply, onClose
             {from.toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'})} – {to.toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'})}
           </div>
           <div style={{ display: 'flex', gap: 6 }}>
-            <button className="rc-btn" onClick={onClose}>Cancel</button>
+            <button
+      className="rc-btn"
+      onClick={() => {
+        if (onClear) onClear();
+        else if (onClose) onClose();
+      }}
+    >
+      Clear
+    </button>
             <button 
               className="rc-btn rc-btn-primary" 
               onClick={() => onApply(from, to)}

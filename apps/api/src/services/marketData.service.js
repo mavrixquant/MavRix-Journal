@@ -1,3 +1,4 @@
+import { prisma } from '../lib/prisma.js';
 import { HttpError } from '../middleware/error.js';
 import { getBars as getBarsDB, refreshTail } from './marketBars.service.js';
 import { resolveSymbol, SYMBOL_CATALOG, SUPPORTED_INTERVALS } from '../lib/marketData/index.js';
@@ -8,8 +9,22 @@ function pickQuoteFn(provider) {
   return provider === 'biquote' ? getBiquoteQuote : getYahooQuote;
 }
 
-export function listCatalog() {
-  return { symbols: SYMBOL_CATALOG, intervals: SUPPORTED_INTERVALS };
+export async function listCatalog() {
+  // Authoritative source of "has data" is market_bars (real OHLC rows),
+  // NOT market_bar_coverage (derived cache that can drift or hold stale rows).
+  // groupBy uses the (symbol, interval, time) index -> fast even on millions of rows.
+  const rows = await prisma.marketBar.groupBy({
+    by: ['symbol'],
+  });
+  const coveredSet = new Set(rows.map((r) => r.symbol));
+
+  return {
+    symbols: SYMBOL_CATALOG.map((s) => ({
+      ...s,
+      hasData: coveredSet.has(s.code),
+    })),
+    intervals: SUPPORTED_INTERVALS,
+  };
 }
 
 // Bars are ALWAYS served via marketBars.service (DB-first).

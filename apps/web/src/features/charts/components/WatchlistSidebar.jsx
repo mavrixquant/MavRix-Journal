@@ -317,7 +317,11 @@ const CSS = `
 
 
 export default function WatchlistSidebar({ catalog = [], activeSymbol, onChange }) {
-  const symbols = useMemo(() => catalog.map((s) => s.code), [catalog]);
+  const coveredCatalog = useMemo(
+    () => catalog.filter((s) => s.hasData !== false),
+    [catalog]
+  );
+  const symbols = useMemo(() => coveredCatalog.map((s) => s.code), [coveredCatalog]);
 
   const { data } = useMarketQuotes(symbols, { enabled: symbols.length > 0 });
 
@@ -337,18 +341,18 @@ export default function WatchlistSidebar({ catalog = [], activeSymbol, onChange 
 
   const grouped = useMemo(() => {
     const m = new Map();
-    for (const s of catalog) {
+    for (const s of coveredCatalog) {
       if (!m.has(s.category)) m.set(s.category, []);
       m.get(s.category).push(s);
     }
     return [...m.entries()];
-  }, [catalog]);
+  }, [coveredCatalog]);
 
   const normalizedQuery = query.trim().toLowerCase();
 
   const searchResults = useMemo(() => {
     if (!normalizedQuery) return [];
-    return catalog.filter((s) => {
+    return coveredCatalog.filter((s) => {
       const code = s.code.toLowerCase();
       const label = (s.label || '').toLowerCase();
       const category = (s.category || '').toLowerCase();
@@ -360,7 +364,7 @@ export default function WatchlistSidebar({ catalog = [], activeSymbol, onChange 
         exchange.includes(normalizedQuery)
       );
     });
-  }, [catalog, normalizedQuery]);
+  }, [coveredCatalog, normalizedQuery]);
 
   const isSearching = normalizedQuery.length > 0;
 
@@ -454,7 +458,7 @@ export default function WatchlistSidebar({ catalog = [], activeSymbol, onChange 
 
       <div className="wl-head">
         <span className="wl-title">Watchlist</span>
-        <span className="wl-count">{catalog.length}</span>
+        <span className="wl-count">{coveredCatalog.length}</span>
 
         <button
           type="button"

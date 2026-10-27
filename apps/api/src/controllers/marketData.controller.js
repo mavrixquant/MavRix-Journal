@@ -1,7 +1,7 @@
-﻿import * as svc from '../services/marketData.service.js';
+import * as svc from '../services/marketData.service.js';
 
 export async function catalog(_req, res, next) {
-  try { res.json(svc.listCatalog()); } catch (e) { next(e); }
+  try { res.json(await svc.listCatalog()); } catch (e) { next(e); }
 }
 
 export async function bars(req, res, next) {

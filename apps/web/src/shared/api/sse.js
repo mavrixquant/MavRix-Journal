@@ -326,9 +326,9 @@ export function useSSEBridge({ enabled = true, currentUserId = null } = {}) {
         queryClient.invalidateQueries({ queryKey: ['chat'] });
       });
 
-      // Market-data import job updates — invalidate admin queries on every
+      // Market-data import job updates â€” invalidate admin queries on every
       // job state change. Invalidate the stats query only on terminal states
-      // (cheap — no point refetching coverage mid-run).
+      // (cheap â€” no point refetching coverage mid-run).
       es.addEventListener('market-data:job:update', (e) => {
         queryClient.invalidateQueries({ queryKey: ['admin', 'market-data', 'jobs'] });
         try {
@@ -344,6 +344,8 @@ export function useSSEBridge({ enabled = true, currentUserId = null } = {}) {
             payload.status !== 'stopping'
           ) {
             queryClient.invalidateQueries({ queryKey: ['admin', 'market-data', 'stats'] });
+            // hasData (catalog) changed - refresh so watchlist reflects new coverage
+            queryClient.invalidateQueries({ queryKey: ['market-data', 'catalog'] });
           }
         } catch {}
       });

@@ -7,6 +7,7 @@ import {
   RefreshCw,
   Calendar as CalendarIcon,
 } from 'lucide-react';
+import { useState } from 'react';
 import { useMarketQuote } from '@/shared/api/marketData';
 import { SymbolIcon } from '@/shared/symbols';
 import {
@@ -85,15 +86,32 @@ const CSS = `
 
   .qh2-range-btn { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,.1); background: rgba(255,255,255,.03); color: #8892A3; font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; cursor: pointer; transition: all .2s; }
   .qh2-range-btn:hover { color: var(--accent); border-color: var(--accent-soft2); background: color-mix(in srgb, var(--accent) 6%, transparent); }
-  .qh2-range-pop { padding: 14px !important; background: #11151F !important; border: 1px solid #212836 !important; border-radius: 14px !important; box-shadow: 0 24px 60px -20px rgba(0,0,0,.95) !important; z-index: 3000 !important; }
+  .qh2-range-pop {
+    /* Fit 2 x 210px months + 16px gap + 28px padding, plus breathing room */
+    width: 430px !important;
+    max-width: calc(100vw - 32px) !important;
+    padding: 14px !important;
+    background: #11151F !important;
+    border: 1px solid #212836 !important;
+    border-radius: 14px !important;
+    box-shadow: 0 24px 60px -20px rgba(0,0,0,.95) !important;
+    z-index: 3000 !important;
+  }
+  @media (max-width: 560px) {
+    .qh2-range-pop {
+      width: calc(100vw - 16px) !important;
+      max-width: 340px !important;
+    }
+  }
 `;
 
 export default function QuoteHeader({
-  symbol, displayName, interval, onIntervalChange, displayTz, lastBarTime,
+  symbol, displayName, hasData = true, interval, onIntervalChange, displayTz, lastBarTime,
   onRefresh, isRefreshing, onToggleFullscreen, isFullscreen,
   from, to, onRangeChange,
 }) {
-  const { data, isLoading } = useMarketQuote(symbol, { enabled: !!symbol });
+  const { data, isLoading } = useMarketQuote(symbol, { enabled: !!symbol && hasData });
+  const [rangeOpen, setRangeOpen] = useState(false);
 
   if (isLoading && !data) {
     return (
@@ -192,7 +210,7 @@ export default function QuoteHeader({
             </div>
           )}
 
-          <Popover>
+          <Popover open={rangeOpen} onOpenChange={setRangeOpen}>
             <PopoverTrigger asChild>
               <button className="qh2-range-btn">
                 <CalendarIcon size={11} />
@@ -203,8 +221,24 @@ export default function QuoteHeader({
               <RangeCalendar 
                 initialFrom={from} 
                 initialTo={to} 
-                onApply={(f, t) => onRangeChange(f, t)} 
-                onClose={() => document.body.click()} 
+                onApply={(f, t) => {
+            // Convert Date objects to full-day boundaries so the API receives
+            // start-of-day for `from` and end-of-day for `to`. Without the
+            // end-of-day conversion the entire `to` day (and, for single-day
+            // picks, the whole range) is silently dropped by `time <= to`.
+            const fromD = new Date(f);
+            fromD.setHours(0, 0, 0, 0);
+            const toD = new Date(t);
+            toD.setHours(23, 59, 59, 999);
+            onRangeChange(fromD, toD);
+            setRangeOpen(false);
+          }}
+          onClear={() => {
+            // null, null -> parent deletes from/to from the URL -> chart
+            // snaps back to its default (last 30 days, live edge).
+            onRangeChange(null, null);
+            setRangeOpen(false);
+          }} 
               />
             </PopoverContent>
           </Popover>

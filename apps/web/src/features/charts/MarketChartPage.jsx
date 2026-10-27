@@ -53,8 +53,14 @@ export default function MarketChartPage() {
 
   const setRange = useCallback((fromDate, toDate) => {
     const sp = new URLSearchParams(searchParams);
-    sp.set('from', fromDate.toISOString());
-    sp.set('to', toDate.toISOString());
+    if (fromDate && toDate) {
+      sp.set('from', fromDate.toISOString());
+      sp.set('to', toDate.toISOString());
+    } else {
+      // Clear -> strip params -> chart returns to its default (last 30 days, live)
+      sp.delete('from');
+      sp.delete('to');
+    }
     setSearchParams(sp, { replace: true });
   }, [searchParams, setSearchParams]);
 
@@ -127,30 +133,46 @@ export default function MarketChartPage() {
 
   const [showLoader, setShowLoader] = useState(false);
   const loaderTimerRef = useRef(null);
+  // Remembers every context we've already shown the 2.2s animation for,
+  // so pagination / refetch / SSE updates never re-trigger it.
+  const shownLoaderForRef = useRef(new Set());
 
-  // Reset when symbol or interval changes
+  // A "context" is one specific chart view. Switching symbol, interval, or
+  // an explicit date range creates a new context -> new 2.2s load animation.
+  const loaderContextKey = `${symbol}-${interval}-${fromParam || ''}-${toParam || ''}`;
+
+  // Context changed -> cancel any pending timer, hide the loader immediately
   useEffect(() => {
-    if (loaderTimerRef.current) clearTimeout(loaderTimerRef.current);
-    setShowLoader(false);
-  }, [symbol, interval]);
-
-  useEffect(() => {
-    if (barsQuery.isLoading) return;
-
-    if (bars.length > 0) {
-      // Data exists -> always play the full 2.2s animation
-      setShowLoader(true);
-      if (loaderTimerRef.current) clearTimeout(loaderTimerRef.current);
-      loaderTimerRef.current = setTimeout(() => setShowLoader(false), 2200);
-    } else {
-      // No data -> immediately hide overlay and show "Coming Soon"
-      setShowLoader(false);
+    if (loaderTimerRef.current) {
+      clearTimeout(loaderTimerRef.current);
+      loaderTimerRef.current = null;
     }
+    setShowLoader(false);
 
     return () => {
-      if (loaderTimerRef.current) clearTimeout(loaderTimerRef.current);
+      if (loaderTimerRef.current) {
+        clearTimeout(loaderTimerRef.current);
+        loaderTimerRef.current = null;
+      }
     };
-  }, [barsQuery.isLoading, bars.length, symbol, interval]);
+  }, [loaderContextKey]);
+
+  // Fire the 2.2s loader EXACTLY ONCE per context, the moment data arrives.
+  // isLoading is true only on the very first fetch for a given query key
+  // (React Query v5: isLoading = isPending && isFetching), so cached revisits
+  // never hit this branch.
+  useEffect(() => {
+    if (barsQuery.isLoading) return;
+    if (bars.length === 0) return;
+    if (shownLoaderForRef.current.has(loaderContextKey)) return;
+
+    shownLoaderForRef.current.add(loaderContextKey);
+    setShowLoader(true);
+    loaderTimerRef.current = setTimeout(() => {
+      setShowLoader(false);
+      loaderTimerRef.current = null;
+    }, 2200);
+  }, [barsQuery.isLoading, bars.length, loaderContextKey]);
 
   return (
     <>
@@ -162,6 +184,7 @@ export default function MarketChartPage() {
           <div className="chart2-stage">
             <QuoteHeader
               symbol={symbol} displayName={catalog?.symbols.find(s => s.code === symbol)?.label || ''}
+              hasData={!!catalog?.symbols.find(s => s.code === symbol)?.hasData}
               interval={interval} onIntervalChange={setInterval}
               lastBarTime={lastBarTime} displayTz={displayTz}
               onRefresh={handleRefresh} isRefreshing={barsQuery.isFetching && !barsQuery.isFetchingNextPage}
