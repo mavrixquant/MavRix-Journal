@@ -1,10 +1,9 @@
-
+﻿
 import { useEffect, useMemo, useState } from 'react';
-import { RefreshCw, ChevronDown, Search, Check, List, CalendarDays } from 'lucide-react';
+import { ChevronDown, Search, Check, List, CalendarDays } from 'lucide-react';
 import { Command } from 'cmdk';
 
 import { IMPACT_LEVELS, CURRENCY_NAMES } from '@mavrix/shared';
-import { useSyncCalendar } from '@/shared/api/calendar';
 import {
   Popover,
   PopoverContent,
@@ -128,11 +127,6 @@ const CSS = `
   .cf-btn.is-active { background: linear-gradient(135deg, var(--accent), var(--accent-2));
     color: #0D1117; border-color: transparent; font-weight: 700;
     box-shadow: 0 6px 18px -8px color-mix(in srgb, var(--accent) 55%, transparent); }
-  .cf-btn.is-sync { border-color: color-mix(in srgb, var(--accent) 35%, transparent); background: color-mix(in srgb, var(--accent) 6%, transparent);
-    color: var(--accent); }
-  .cf-btn.is-sync:hover:not(:disabled) { background: color-mix(in srgb, var(--accent) 12%, transparent);
-    border-color: var(--accent); }
-  .cf-sync-icon.spinning { animation: cfSpin 1s linear infinite; }
 
   .cf-date { display: inline-flex; align-items: center; gap: 6px; }
   .cf-date-input { background: rgba(10,13,19,.6);
@@ -141,6 +135,11 @@ const CSS = `
     padding: 6px 10px; outline: none; transition: border-color .18s; color-scheme: dark; }
   .cf-date-input:hover { border-color: rgba(255,255,255,.2); }
   .cf-date-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent); }
+  .cf-date-input:disabled {
+    opacity: .4;
+    cursor: not-allowed;
+    background: rgba(10,13,19,.35);
+  }
 
   .cf-view-toggle { display: inline-flex; padding: 3px; background: rgba(0,0,0,.32);
     border: 1px solid rgba(255,255,255,.06); border-radius: 10px; gap: 2px; }
@@ -153,11 +152,9 @@ const CSS = `
   .cf-view-btn.is-active { background: linear-gradient(135deg, var(--accent), var(--accent-2));
     color: #0D1117; font-weight: 700; box-shadow: 0 6px 16px -8px color-mix(in srgb, var(--accent) 60%, transparent); }
 
-  @keyframes cfSpin { to { transform: rotate(360deg); } }
   @media (prefers-reduced-motion: reduce) {
     .cf-ms-btn, .cf-ms-item, .cf-ms-item-check, .cf-ms-chevron,
     .cf-btn, .cf-view-btn, .cf-ms-foot-btn { transition: none !important; }
-    .cf-sync-icon.spinning { animation: none !important; }
   }
 `;
 
@@ -371,8 +368,9 @@ export default function CalendarFilters({
   view,
   setView,
 }) {
-  const syncMutation = useSyncCalendar();
-  const handleSync = () => syncMutation.mutate();
+
+
+  const handleCustomClick = () => { setCustomRange(from, to); };
 
   const handleFromChange = (e) => { const v = e.target.value; if (v) setCustomRange(v, to); };
   const handleToChange = (e) => { const v = e.target.value; if (v) setCustomRange(from, v); };
@@ -422,16 +420,6 @@ export default function CalendarFilters({
 
           <div className="cf-spacer" />
 
-          <button
-            type="button"
-            className="cf-btn is-sync"
-            onClick={handleSync}
-            disabled={syncMutation.isPending}
-            title="Force a sync from Biquote now"
-          >
-            <RefreshCw size={12} className={`cf-sync-icon ${syncMutation.isPending ? 'spinning' : ''}`} />
-            {syncMutation.isPending ? 'Syncing…' : 'Sync now'}
-          </button>
 
           <div className="cf-view-toggle" role="tablist">
             <button
@@ -452,11 +440,18 @@ export default function CalendarFilters({
           <button type="button" className={`cf-btn ${rangePreset === 'today' ? 'is-active' : ''}`} onClick={() => applyPreset('today')}>Today</button>
           <button type="button" className={`cf-btn ${rangePreset === 'week' ? 'is-active' : ''}`} onClick={() => applyPreset('week')}>Week</button>
           <button type="button" className={`cf-btn ${rangePreset === 'month' ? 'is-active' : ''}`} onClick={() => applyPreset('month')}>Month</button>
+          <button
+            type="button"
+            className={`cf-btn ${rangePreset === 'custom' ? 'is-active' : ''}`}
+            onClick={handleCustomClick}
+          >
+            Custom
+          </button>
 
           <div className="cf-date">
-            <input type="date" className="cf-date-input" value={from} onChange={handleFromChange} />
+            <input type="date" className="cf-date-input" value={from} onChange={handleFromChange} disabled={rangePreset !== 'custom'} />
             <span style={{ color: 'var(--ink-3)', fontSize: 11 }}>→</span>
-            <input type="date" className="cf-date-input" value={to} onChange={handleToChange} />
+            <input type="date" className="cf-date-input" value={to} onChange={handleToChange} disabled={rangePreset !== 'custom'} />
           </div>
         </div>
       </div>

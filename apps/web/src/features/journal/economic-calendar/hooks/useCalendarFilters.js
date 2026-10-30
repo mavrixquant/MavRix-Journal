@@ -70,7 +70,7 @@ export function useCalendarFilters() {
   const setCustomRange = useCallback((nextFrom, nextTo) => {
     setFrom(nextFrom);
     setTo(nextTo);
-    setRangePreset(null);
+    setRangePreset('custom');
   }, []);
 
   const goToToday = useCallback(() => {

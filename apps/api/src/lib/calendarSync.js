@@ -243,6 +243,90 @@ async function pruneOldEvents(backwardDays) {
 }
 
 
+// ---------------------------------------------------------------------------
+// Auto-sync after news.
+//
+// For each HIGH-impact economic event today, we schedule two extra syncs:
+//   • T + 45s  (initial post-release numbers)
+//   • T + 90s  (revisions / corrections)
+// This complements the regular 60s background poll so freshly-released
+// numbers land within ~1.5 minutes instead of the next regular tick.
+//
+// `newsSyncTimers` maps externalId -> [timeoutHandle,...]. Entries are
+// removed when the 2nd timer fires (or on stop). All timers are cleared
+// on stopCalendarSync() so restarts / shutdowns don't leak handles.
+// ---------------------------------------------------------------------------
+const NEWS_SYNC_DELAY_MS = 45_000;
+const newsSyncTimers = new Map();
+
+function scheduleNewsSyncsForToday() {
+  (async () => {
+    try {
+      const now   = new Date();
+      const start = new Date(now); start.setUTCHours(0, 0, 0, 0);
+      const end   = new Date(now); end.setUTCHours(23, 59, 59, 999);
+
+      const events = await prisma.economicEvent.findMany({
+        where: {
+          dateTimeUtc: { gte: start, lte: end },
+          impact: 'high',
+        },
+        select: { externalId: true, dateTimeUtc: true },
+      });
+
+      const nowMs = Date.now();
+      let scheduled = 0;
+
+      for (const ev of events) {
+        if (newsSyncTimers.has(ev.externalId)) continue;
+
+        const t0       = ev.dateTimeUtc.getTime();
+        const firstAt  = t0 + NEWS_SYNC_DELAY_MS;
+        const secondAt = t0 + 2 * NEWS_SYNC_DELAY_MS;
+        if (secondAt < nowMs) continue;
+
+        const handles = [];
+        if (firstAt >= nowMs) {
+          handles.push(setTimeout(() => {
+            console.log(`[calendar-news] sync #1 for ${ev.externalId}`);
+            runCalendarSyncOnce().catch((err) =>
+              console.error('[calendar-news] sync #1 failed:', err?.message || err)
+            );
+          }, firstAt - nowMs));
+        }
+        if (secondAt >= nowMs) {
+          handles.push(setTimeout(() => {
+            console.log(`[calendar-news] sync #2 for ${ev.externalId}`);
+            runCalendarSyncOnce()
+              .catch((err) =>
+                console.error('[calendar-news] sync #2 failed:', err?.message || err)
+              )
+              .finally(() => newsSyncTimers.delete(ev.externalId));
+          }, secondAt - nowMs));
+        }
+        if (handles.length > 0) {
+          newsSyncTimers.set(ev.externalId, handles);
+          scheduled += 1;
+        }
+      }
+
+      if (scheduled > 0) {
+        console.log(`[calendar-news] scheduled ${scheduled} post-news sync pair(s)`);
+      }
+    } catch (err) {
+      console.error('[calendar-news] schedule failed:', err?.message || err);
+    }
+  })();
+}
+
+function clearNewsSyncTimers() {
+  for (const handles of newsSyncTimers.values()) {
+    for (const h of handles) clearTimeout(h);
+  }
+  newsSyncTimers.clear();
+}
+
+
 let syncInFlight = false;
 
 export async function runCalendarSyncOnce() {
@@ -304,6 +388,7 @@ async function tick() {
 
   if (res?.ok) {
     consecutiveFailures = 0;
+    scheduleNewsSyncsForToday();
   } else {
     consecutiveFailures++;
     const backoffMs = Math.min(300_000, 30_000 * consecutiveFailures);
@@ -345,6 +430,7 @@ export function startCalendarSync() {
   );
 
   tick();
+  scheduleNewsSyncsForToday();
 }
 
 export function stopCalendarSync() {
@@ -354,5 +440,6 @@ export function stopCalendarSync() {
     clearTimeout(currentTimeoutHandle);
     currentTimeoutHandle = null;
   }
+  clearNewsSyncTimers();
   console.log('[calendar] sync stopped');
 }
