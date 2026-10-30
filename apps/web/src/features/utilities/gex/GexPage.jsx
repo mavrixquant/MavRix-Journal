@@ -46,7 +46,7 @@ const CSS = `
     --ink-3: #545E6E;
 
     width: 100%;
-    max-width: 1560px;
+    max-width: none;
     margin: 0 auto;
     box-sizing: border-box;
     display: flex;

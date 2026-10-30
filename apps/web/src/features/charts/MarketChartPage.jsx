@@ -18,7 +18,7 @@ const DEFAULT_SYMBOL = 'NQ';
 const DEFAULT_INTERVAL = '5m';
 
 const CSS = `
-  .chart2-root { width: 100%; max-width: 1800px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+  .chart2-root { width: 100%; max-width: none; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
   .chart2-layout { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 16px; align-items: start; }
   @media (max-width: 1100px) { .chart2-layout { grid-template-columns: minmax(0, 1fr); } .chart2-layout > :nth-child(1) { display: none; } }
   .chart2-stage { display: flex; flex-direction: column; gap: 12px; min-width: 0; position: relative; }

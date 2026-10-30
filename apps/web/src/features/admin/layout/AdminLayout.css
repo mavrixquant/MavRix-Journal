@@ -361,7 +361,7 @@
   min-height: 0;
   overflow-y: auto;
   padding: 28px 28px 60px;
-  max-width: 1560px;
+  max-width: none;
   width: 100%;
 }
 

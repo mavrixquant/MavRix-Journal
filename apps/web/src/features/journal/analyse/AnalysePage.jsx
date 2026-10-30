@@ -43,7 +43,7 @@ const CSS = `
 
     position: relative;
     width: 100%;
-    max-width: 1560px;
+    max-width: none;
     margin: 0 auto;
     box-sizing: border-box;
     display: flex;

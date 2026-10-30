@@ -40,7 +40,7 @@ const CSS = `
     --loss: #ef4444;
 
     width: 100%;
-    max-width: 1440px;
+    max-width: none;
     margin: 0 auto;
     box-sizing: border-box;
     display: flex;

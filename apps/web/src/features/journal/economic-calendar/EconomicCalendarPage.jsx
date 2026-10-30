@@ -23,7 +23,7 @@ const CSS = `
     --ink-2: #8892A3;
     --ink-3: #545E6E;
     width: 100%;
-    max-width: 1400px;
+    max-width: none;
     margin: 0 auto;
     box-sizing: border-box;
     display: flex;

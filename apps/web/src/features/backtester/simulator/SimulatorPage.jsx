@@ -38,7 +38,7 @@ const SIM_CSS = `
     --line-soft: rgba(255,255,255,.05);
     --ink-1: #E7E9EE; --ink-2: #8892A3; --ink-3: #545E6E;
     --win: #22c55e; --loss: #ef4444;
-    width: 100%; max-width: 1560px; margin: 0 auto;
+    width: 100%; max-width: none; margin: 0 auto;
     box-sizing: border-box; display: flex; flex-direction: column; gap: 22px;
     color: var(--ink-1);
     font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
