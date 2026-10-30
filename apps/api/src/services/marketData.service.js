@@ -56,7 +56,7 @@ export async function fetchQuote({ symbol }) {
   if (!resolved) throw new HttpError(404, `Symbol "${symbol}" not in catalog.`);
   const quoteFn = pickQuoteFn(resolved.provider);
   const quote = await quoteFn(resolved.providerSymbol);
-  return { symbol: symbol.toUpperCase(), provider: resolved.provider, ...quote };
+  return { ...quote, symbol: symbol.toUpperCase(), provider: resolved.provider };
 }
 
 const MAX_BATCH = 30;
@@ -75,7 +75,7 @@ export async function fetchQuotes({ symbols }) {
         const resolved = resolveSymbol(s);
         if (!resolved) throw new Error(`Symbol "${s}" not in catalog.`);
         const q = await pickQuoteFn(resolved.provider)(resolved.providerSymbol);
-        return { symbol: s.toUpperCase(), provider: resolved.provider, ...q, error: null };
+        return { ...q, symbol: s.toUpperCase(), provider: resolved.provider, error: null };
       } catch (err) {
         return { symbol: s.toUpperCase(), error: err.message };
       }
