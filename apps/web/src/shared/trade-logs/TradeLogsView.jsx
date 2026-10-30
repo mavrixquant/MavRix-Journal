@@ -1,4 +1,4 @@
-﻿
+
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
@@ -587,6 +587,19 @@ const { data: accounts = [], isLoading: accountsLoading } = useAccounts();
 
   const { data: strategies = [] } = useStrategies();
 
+  const [dataTableMaxHeight, setDataTableMaxHeight] = useState(620);
+  useEffect(() => {
+    const updateHeight = () => {
+      const w = window.innerWidth;
+      setDataTableMaxHeight(
+        w >= 2560 ? 960 : w >= 1920 ? 840 : w >= 1440 ? 720 : 620
+      );
+    };
+    updateHeight();
+    window.addEventListener('resize', updateHeight);
+    return () => window.removeEventListener('resize', updateHeight);
+  }, []);
+
   const { enrichedTrades, dynamicKeys } = useMemo(
     () => enrichTradesFromDB(rawTrades),
     [rawTrades]
@@ -805,7 +818,7 @@ const columns = useMemo(
             searchableColumnIds={searchableIds}
             initialSort={[{ id: 'date', desc: true }]}
             estimateRowHeight={36}
-            maxHeight={620}
+            maxHeight={dataTableMaxHeight}
             emptyMessage="No records match your search."
             stickyFirstColumn={false}
             stickyLastColumn={true}

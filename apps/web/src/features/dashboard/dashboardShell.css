@@ -729,3 +729,92 @@
     min-height: calc(100dvh - 116px);
   }
 }
+
+/* ============================================================
+   LARGE-SCREEN SCALING — keeps the dashboard proportional on
+   1440p / 4K monitors. Mirrors the rowHeight/margin scaling
+   done in getResponsiveGridMetrics() so card padding and
+   headline typography grow in lock-step with the panels.
+   ============================================================ */
+@media (min-width: 1440px) {
+  .dash-panel {
+    padding: 10px;
+    border-radius: 20px;
+  }
+  .dash-panel .hero {
+    padding: 14px 27px 16px;
+    gap: 28px;
+  }
+  .dash-panel .hero-value {
+    font-size: 36px;
+  }
+  .dash-panel .hero-metric-row {
+    font-size: 14px;
+    padding: 9px 0;
+  }
+  .dash-tradelog {
+    padding: 20px;
+    border-radius: 20px;
+  }
+  .dash-section-title {
+    font-size: 16px;
+    margin: 28px 0 14px;
+  }
+}
+
+@media (min-width: 1920px) {
+  .dash-panel {
+    padding: 12px;
+  }
+  .dash-panel .hero {
+    padding: 16px 30px 18px;
+    gap: 32px;
+  }
+  .dash-panel .hero-value {
+    font-size: 40px;
+  }
+  .dash-panel .hero-metric-row {
+    font-size: 15px;
+  }
+  .dash-tradelog {
+    padding: 24px;
+    border-radius: 22px;
+  }
+  .dash-section-title {
+    font-size: 17px;
+    margin: 32px 0 16px;
+  }
+  .dash-section-title .bar {
+    height: 20px;
+  }
+}
+
+@media (min-width: 2560px) {
+  .dash-panel {
+    padding: 14px;
+    border-radius: 24px;
+  }
+  .dash-panel .hero {
+    padding: 18px 34px 20px;
+    gap: 36px;
+  }
+  .dash-panel .hero-value {
+    font-size: 46px;
+  }
+  .dash-panel .hero-metric-row {
+    font-size: 16px;
+    padding: 11px 0;
+  }
+  .dash-tradelog {
+    padding: 28px;
+    border-radius: 24px;
+  }
+  .dash-section-title {
+    font-size: 19px;
+    margin: 36px 0 18px;
+  }
+  .dash-section-title .bar {
+    height: 22px;
+    width: 5px;
+  }
+}

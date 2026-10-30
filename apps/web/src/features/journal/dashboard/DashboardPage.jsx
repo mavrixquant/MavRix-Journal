@@ -35,6 +35,7 @@ import { useAccounts } from '@/shared/api/accounts';
 import { useStats } from '@/features/dashboard/hooks/useStats';
 import { useEnrichedTrades } from '@/features/dashboard/hooks/useEnrichedTrades';
 import { useUserLayouts } from '@/features/dashboard/hooks/useUserLayouts';
+import { useResponsiveGridMetrics } from '@/features/dashboard/hooks/useResponsiveGridMetrics';
 import { usePageHeader } from '@/app/layout/PageHeaderProvider';
 import { saveUserLayouts } from '@/features/dashboard/api/layouts';
 
@@ -54,6 +55,7 @@ const DEFAULT_NAME_PATTERN = /^Layout \d+$/;
 export default function DashboardPage() {
   const { user } = useAuth();
   const { accountId, allowedTypes } = useDashboardAccount();
+  const gridMetrics = useResponsiveGridMetrics();
 
   const { data: accountsData, isLoading: accountsLoading } = useAccounts();
   const accounts = useMemo(() => accountsData ?? [], [accountsData]);
@@ -441,7 +443,7 @@ export default function DashboardPage() {
               <MeasuredGrid
                 breakpoints={GRID_BREAKPOINTS}
                 cols={GRID_COLS_BY_BP}
-                rowHeight={GRID_ROW_HEIGHT}
+                rowHeight={gridMetrics.rowHeight}
                 layouts={responsiveLayouts}
                 onBreakpointChange={setCurrentBreakpoint}
                 onDragStop={handleDragOrResizeStop}
@@ -450,7 +452,7 @@ export default function DashboardPage() {
                 isResizable={editMode && !isMobile}
                 compactType="vertical"
                 preventCollision={false}
-                margin={[16, 16]}
+                margin={[gridMetrics.margin, gridMetrics.margin]}
                 containerPadding={[0, 0]}
                 draggableHandle=".dash-editor-drag-area"
                 resizeHandles={['se']}

@@ -3,6 +3,16 @@ const ROW_HEIGHT = 40;
 
 export const GRID_COLS = 48;
 export const GRID_ROW_HEIGHT = ROW_HEIGHT;
+
+// Responsive metrics: panel pixel height = h * rowHeight + margin * (h - 1).
+// Scaling both together keeps the visual rhythm identical at every viewport
+// while letting panels fill large monitors instead of looking shrunken.
+export function getResponsiveGridMetrics(viewportWidth) {
+  if (viewportWidth >= 2560) return { rowHeight: 64, margin: 24 };
+  if (viewportWidth >= 1920) return { rowHeight: 56, margin: 22 };
+  if (viewportWidth >= 1440) return { rowHeight: 48, margin: 20 };
+  return { rowHeight: GRID_ROW_HEIGHT, margin: 16 };
+}
 export const GRID_BREAKPOINTS = { lg: 1280, md: 996, sm: 768, xs: 480, xxs: 0 };
 export const GRID_COLS_BY_BP = { lg: 48, md: 32, sm: 16, xs: 8, xxs: 4 };
 

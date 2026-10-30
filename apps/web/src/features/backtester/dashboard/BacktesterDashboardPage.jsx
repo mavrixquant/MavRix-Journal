@@ -8,7 +8,6 @@ import {
   GRID_COLS,
   GRID_COLS_BY_BP,
   GRID_BREAKPOINTS,
-  GRID_ROW_HEIGHT,
   MAX_LAYOUTS,
   DEFAULT_LAYOUT,
   buildFreshLayout,
@@ -33,6 +32,7 @@ import { useAuth } from '@/app/providers/AuthProvider';
 import { useDashboardAccount } from '@/app/providers/useDashboardAccount';
 import { useStats } from '@/features/dashboard/hooks/useStats';
 import { useEnrichedTrades } from '@/features/dashboard/hooks/useEnrichedTrades';
+import { useResponsiveGridMetrics } from '@/features/dashboard/hooks/useResponsiveGridMetrics';
 import {
   subscribeToUserLayouts,
   saveUserLayouts,
@@ -55,6 +55,7 @@ const DEFAULT_NAME_PATTERN = /^Layout \d+$/;
 export default function BacktesterDashboardPage() {
   const { user } = useAuth();
   const { accountId } = useDashboardAccount();
+  const gridMetrics = useResponsiveGridMetrics();
 
   const enriched = useEnrichedTrades(accountId);
 
@@ -434,7 +435,7 @@ export default function BacktesterDashboardPage() {
               <MeasuredGrid
                 breakpoints={GRID_BREAKPOINTS}
                 cols={GRID_COLS_BY_BP}
-                rowHeight={GRID_ROW_HEIGHT}
+                rowHeight={gridMetrics.rowHeight}
                 layouts={responsiveLayouts}
                 onBreakpointChange={setCurrentBreakpoint}
                 onDragStop={handleDragOrResizeStop}
@@ -443,7 +444,7 @@ export default function BacktesterDashboardPage() {
                 isResizable={editMode && !isMobile}
                 compactType="vertical"
                 preventCollision={false}
-                margin={[16, 16]}
+                margin={[gridMetrics.margin, gridMetrics.margin]}
                 containerPadding={[0, 0]}
                 draggableHandle=".dash-editor-drag-area"
                 resizeHandles={['se']}
