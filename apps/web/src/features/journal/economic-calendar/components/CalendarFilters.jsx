@@ -1,5 +1,4 @@
-﻿
-import { useEffect, useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
 import { ChevronDown, Search, Check, List, CalendarDays } from 'lucide-react';
 import { Command } from 'cmdk';
 
@@ -12,13 +11,9 @@ import {
 
 const CSS = `
   .cf-root { --ink-1: #E7E9EE; --ink-2: #8892A3; --ink-3: #545E6E;
-    display: flex; flex-direction: column; gap: 12px; }
-  .cf-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
-  .cf-label { font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    font-size: 10px; font-weight: 700; letter-spacing: .14em;
-    text-transform: uppercase; color: var(--ink-3);
-    margin-right: 4px; flex-shrink: 0; }
+    display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
   .cf-spacer { flex: 1; min-width: 8px; }
+  .cf-sep { width: 1px; height: 22px; background: rgba(255,255,255,.085); flex-shrink: 0; }
 
   .cf-seg { display: inline-flex; padding: 3px; background: rgba(0,0,0,.32);
     border: 1px solid rgba(255,255,255,.06); border-radius: 10px; gap: 2px; }
@@ -26,20 +21,29 @@ const CSS = `
     padding: 6px 12px; border-radius: 7px; background: transparent; border: none;
     color: var(--ink-2); font-family: 'IBM Plex Mono', ui-monospace, monospace;
     font-size: 11px; font-weight: 600; letter-spacing: .02em; cursor: pointer;
-    transition: all .18s; white-space: nowrap; }
+    transition: all .18s; white-space: nowrap; outline: none; }
   .cf-seg-btn:hover { color: var(--ink-1); background: rgba(255,255,255,.04); }
-  .cf-seg-btn.is-active { background: rgba(255,255,255,.08); color: var(--ink-1); }
+  .cf-seg-btn:focus-visible { box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 45%, transparent); }
+  .cf-seg-btn.is-active { background: rgba(255,255,255,.09); color: var(--ink-1); }
   .cf-impact-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
   .cf-impact-dot.high   { background: var(--accent); box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 60%, transparent); }
   .cf-impact-dot.medium { background: #60A5FA; box-shadow: 0 0 8px rgba(96,165,250,.5); }
   .cf-impact-dot.low    { background: #545E6E; }
+
+  .cf-date { display: inline-flex; align-items: center; gap: 6px; }
+  .cf-date-input { background: rgba(10,13,19,.6);
+    border: 1px solid rgba(255,255,255,.1); border-radius: 8px; color: var(--ink-1);
+    font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 11.5px;
+    padding: 6px 10px; outline: none; transition: border-color .18s; color-scheme: dark; }
+  .cf-date-input:hover { border-color: rgba(255,255,255,.2); }
+  .cf-date-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent); }
 
   .cf-ms-btn { display: inline-flex; align-items: center; gap: 8px;
     padding: 7px 11px 7px 12px; border-radius: 9px;
     border: 1px solid rgba(255,255,255,.1); background: rgba(255,255,255,.025);
     color: var(--ink-2); font-family: 'IBM Plex Mono', ui-monospace, monospace;
     font-size: 11.5px; font-weight: 600; letter-spacing: .02em; cursor: pointer;
-    transition: all .18s; white-space: nowrap; }
+    transition: all .18s; white-space: nowrap; outline: none; }
   .cf-ms-btn:hover { color: var(--ink-1); border-color: rgba(255,255,255,.18);
     background: rgba(255,255,255,.05); }
   .cf-ms-btn.is-active { background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 16%, transparent), color-mix(in srgb, var(--accent) 6%, transparent));
@@ -84,14 +88,12 @@ const CSS = `
     font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 12px;
     user-select: none; transition: background-color .14s ease, border-color .14s ease;
     outline: none; }
-
   .cf-ms-item:not([data-checked="true"]):hover,
   .cf-ms-item:not([data-checked="true"])[data-selected="true"] {
     background: rgba(255,255,255,.07);
     border-color: rgba(255,255,255,.12);
     color: #E7E9EE;
   }
-
   .cf-ms-item-code { font-weight: 700; letter-spacing: .04em; flex-shrink: 0;
     min-width: 42px; }
   .cf-ms-item-name { flex: 1; min-width: 0; font-size: 11px; color: #545E6E;
@@ -115,77 +117,49 @@ const CSS = `
   .cf-ms-foot-btn.clear { color: var(--ink-3); }
   .cf-ms-foot-btn.clear:hover { color: var(--ink-2); background: rgba(255,255,255,.04); }
 
-  .cf-btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px;
-    border-radius: 8px; border: 1px solid rgba(255,255,255,.1);
-    background: rgba(255,255,255,.03); color: var(--ink-2);
-    font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 11px;
-    font-weight: 600; letter-spacing: .02em; cursor: pointer;
-    transition: all .18s; white-space: nowrap; }
-  .cf-btn:hover:not(:disabled) { color: var(--ink-1); background: rgba(255,255,255,.06);
-    border-color: rgba(255,255,255,.2); transform: translateY(-1px); }
-  .cf-btn:disabled { opacity: .5; cursor: not-allowed; }
-  .cf-btn.is-active { background: linear-gradient(135deg, var(--accent), var(--accent-2));
-    color: #0D1117; border-color: transparent; font-weight: 700;
-    box-shadow: 0 6px 18px -8px color-mix(in srgb, var(--accent) 55%, transparent); }
-
-  .cf-date { display: inline-flex; align-items: center; gap: 6px; }
-  .cf-date-input { background: rgba(10,13,19,.6);
-    border: 1px solid rgba(255,255,255,.1); border-radius: 8px; color: var(--ink-1);
-    font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 11.5px;
-    padding: 6px 10px; outline: none; transition: border-color .18s; color-scheme: dark; }
-  .cf-date-input:hover { border-color: rgba(255,255,255,.2); }
-  .cf-date-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent); }
-  .cf-date-input:disabled {
-    opacity: .4;
-    cursor: not-allowed;
-    background: rgba(10,13,19,.35);
-  }
-
   .cf-view-toggle { display: inline-flex; padding: 3px; background: rgba(0,0,0,.32);
     border: 1px solid rgba(255,255,255,.06); border-radius: 10px; gap: 2px; }
   .cf-view-btn { display: inline-flex; align-items: center; gap: 6px;
-    padding: 7px 12px; border-radius: 7px; background: transparent; border: none;
+    padding: 6px 12px; border-radius: 7px; background: transparent; border: none;
     color: var(--ink-2); font-family: 'IBM Plex Mono', ui-monospace, monospace;
     font-size: 11px; font-weight: 600; letter-spacing: .02em; cursor: pointer;
-    transition: all .18s; white-space: nowrap; }
+    transition: all .18s; white-space: nowrap; outline: none; }
   .cf-view-btn:hover { color: var(--ink-1); background: rgba(255,255,255,.04); }
+  .cf-view-btn:focus-visible { box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 45%, transparent); }
   .cf-view-btn.is-active { background: linear-gradient(135deg, var(--accent), var(--accent-2));
     color: #0D1117; font-weight: 700; box-shadow: 0 6px 16px -8px color-mix(in srgb, var(--accent) 60%, transparent); }
 
+  @media (max-width: 700px) { .cf-sep { display: none; } .cf-spacer { flex-basis: 100%; height: 0; } }
   @media (prefers-reduced-motion: reduce) {
     .cf-ms-btn, .cf-ms-item, .cf-ms-item-check, .cf-ms-chevron,
-    .cf-btn, .cf-view-btn, .cf-ms-foot-btn { transition: none !important; }
+    .cf-seg-btn, .cf-view-btn, .cf-ms-foot-btn { transition: none !important; }
   }
 `;
 
 const IMPACT_LABELS = { high: 'High', medium: 'Medium', low: 'Low' };
-
+const RANGES = [
+  { id: 'today', label: 'Today' },
+  { id: 'week', label: 'Week' },
+  { id: 'month', label: 'Month' },
+];
 
 const SELECTED_ITEM_STYLE = {
   background: 'color-mix(in srgb, var(--accent) 10%, transparent)',
   borderColor: 'color-mix(in srgb, var(--accent) 30%, transparent)',
   color: '#F5F6F8',
 };
-
-const SELECTED_CODE_STYLE = {
-  color: '#FBBF24',
-  fontWeight: 700,
-};
-
+const SELECTED_CODE_STYLE = { color: '#FBBF24', fontWeight: 700 };
 const SELECTED_NAME_STYLE = { color: '#8892A3' };
-
 const SELECTED_COUNT_STYLE = {
   color: '#FBBF24',
   background: 'color-mix(in srgb, var(--accent) 14%, transparent)',
 };
-
 const SELECTED_CHECK_STYLE = {
   opacity: 1,
   transform: 'scale(1)',
   background: 'var(--accent)',
   boxShadow: 'none',
 };
-
 const SELECTED_BAR_STYLE = {
   position: 'absolute',
   left: 3,
@@ -251,33 +225,16 @@ function CurrencyMultiSelect({
         style={isSelected ? SELECTED_ITEM_STYLE : undefined}
       >
         {isSelected && <span style={SELECTED_BAR_STYLE} aria-hidden />}
-
-        <span
-          className="cf-ms-item-code"
-          style={isSelected ? SELECTED_CODE_STYLE : undefined}
-        >
+        <span className="cf-ms-item-code" style={isSelected ? SELECTED_CODE_STYLE : undefined}>
           {currency}
         </span>
-
-        <span
-          className="cf-ms-item-name"
-          style={isSelected ? SELECTED_NAME_STYLE : undefined}
-        >
+        <span className="cf-ms-item-name" style={isSelected ? SELECTED_NAME_STYLE : undefined}>
           {name}
         </span>
-
-        <span
-          className="cf-ms-item-count"
-          style={isSelected ? SELECTED_COUNT_STYLE : undefined}
-        >
+        <span className="cf-ms-item-count" style={isSelected ? SELECTED_COUNT_STYLE : undefined}>
           {count}
         </span>
-
-        <span
-          className="cf-ms-item-check"
-          style={isSelected ? SELECTED_CHECK_STYLE : undefined}
-          aria-hidden
-        >
+        <span className="cf-ms-item-check" style={isSelected ? SELECTED_CHECK_STYLE : undefined} aria-hidden>
           <Check size={12} strokeWidth={3.5} />
         </span>
       </Command.Item>
@@ -368,13 +325,6 @@ export default function CalendarFilters({
   view,
   setView,
 }) {
-
-
-  const handleCustomClick = () => { setCustomRange(from, to); };
-
-  const handleFromChange = (e) => { const v = e.target.value; if (v) setCustomRange(v, to); };
-  const handleToChange = (e) => { const v = e.target.value; if (v) setCustomRange(from, v); };
-
   const handleSelectAllCurrencies = () => {
     availableCurrencies.forEach(({ currency }) => {
       if (!currencies.includes(currency)) toggleCurrency(currency);
@@ -385,74 +335,101 @@ export default function CalendarFilters({
     <>
       <style>{CSS}</style>
       <div className="cf-root">
-        <div className="cf-row">
-          <span className="cf-label">Impact</span>
-          <div className="cf-seg">
+        {/* Date range */}
+        <div className="cf-seg" role="group" aria-label="Date range">
+          {RANGES.map((r) => (
             <button
+              key={r.id}
               type="button"
-              className={`cf-seg-btn ${impacts.length === 0 ? 'is-active' : ''}`}
-              onClick={clearImpacts}
-            >All</button>
-            {IMPACT_LEVELS.map((level) => {
-              const active = impacts.includes(level);
-              return (
-                <button
-                  key={level}
-                  type="button"
-                  className={`cf-seg-btn ${active ? 'is-active' : ''}`}
-                  onClick={() => toggleImpact(level)}
-                >
-                  <span className={`cf-impact-dot ${level}`} />
-                  {IMPACT_LABELS[level]}
-                </button>
-              );
-            })}
-          </div>
-
-          <span className="cf-label" style={{ marginLeft: 8 }}>Currency</span>
-          <CurrencyMultiSelect
-            availableCurrencies={availableCurrencies}
-            selected={currencies}
-            toggleCurrency={toggleCurrency}
-            clearCurrencies={clearCurrencies}
-            selectAllCurrencies={handleSelectAllCurrencies}
-          />
-
-          <div className="cf-spacer" />
-
-
-          <div className="cf-view-toggle" role="tablist">
-            <button
-              type="button" role="tab" aria-selected={view === 'list'}
-              className={`cf-view-btn ${view === 'list' ? 'is-active' : ''}`}
-              onClick={() => setView('list')}
-            ><List size={12} /> List</button>
-            <button
-              type="button" role="tab" aria-selected={view === 'month'}
-              className={`cf-view-btn ${view === 'month' ? 'is-active' : ''}`}
-              onClick={() => setView('month')}
-            ><CalendarDays size={12} /> Month</button>
-          </div>
-        </div>
-
-        <div className="cf-row">
-          <span className="cf-label">Range</span>
-          <button type="button" className={`cf-btn ${rangePreset === 'today' ? 'is-active' : ''}`} onClick={() => applyPreset('today')}>Today</button>
-          <button type="button" className={`cf-btn ${rangePreset === 'week' ? 'is-active' : ''}`} onClick={() => applyPreset('week')}>Week</button>
-          <button type="button" className={`cf-btn ${rangePreset === 'month' ? 'is-active' : ''}`} onClick={() => applyPreset('month')}>Month</button>
+              aria-pressed={rangePreset === r.id}
+              className={`cf-seg-btn ${rangePreset === r.id ? 'is-active' : ''}`}
+              onClick={() => applyPreset(r.id)}
+            >
+              {r.label}
+            </button>
+          ))}
           <button
             type="button"
-            className={`cf-btn ${rangePreset === 'custom' ? 'is-active' : ''}`}
-            onClick={handleCustomClick}
+            aria-pressed={rangePreset === 'custom'}
+            className={`cf-seg-btn ${rangePreset === 'custom' ? 'is-active' : ''}`}
+            onClick={() => setCustomRange(from, to)}
           >
             Custom
           </button>
+        </div>
 
+        {rangePreset === 'custom' && (
           <div className="cf-date">
-            <input type="date" className="cf-date-input" value={from} onChange={handleFromChange} disabled={rangePreset !== 'custom'} />
-            <span style={{ color: 'var(--ink-3)', fontSize: 11 }}>→</span>
-            <input type="date" className="cf-date-input" value={to} onChange={handleToChange} disabled={rangePreset !== 'custom'} />
+            <input
+              type="date"
+              className="cf-date-input"
+              aria-label="From date"
+              value={from}
+              onChange={(e) => e.target.value && setCustomRange(e.target.value, to)}
+            />
+            <span style={{ color: 'var(--ink-3)', fontSize: 11 }}>to</span>
+            <input
+              type="date"
+              className="cf-date-input"
+              aria-label="To date"
+              value={to}
+              onChange={(e) => e.target.value && setCustomRange(from, e.target.value)}
+            />
           </div>
+        )}
+
+        <span className="cf-sep" aria-hidden />
+
+        {/* Impact */}
+        <div className="cf-seg" role="group" aria-label="Impact">
+          <button
+            type="button"
+            aria-pressed={impacts.length === 0}
+            className={`cf-seg-btn ${impacts.length === 0 ? 'is-active' : ''}`}
+            onClick={clearImpacts}
+          >
+            All impact
+          </button>
+          {IMPACT_LEVELS.map((level) => {
+            const active = impacts.includes(level);
+            return (
+              <button
+                key={level}
+                type="button"
+                aria-pressed={active}
+                className={`cf-seg-btn ${active ? 'is-active' : ''}`}
+                onClick={() => toggleImpact(level)}
+              >
+                <span className={`cf-impact-dot ${level}`} />
+                {IMPACT_LABELS[level]}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Currency */}
+        <CurrencyMultiSelect
+          availableCurrencies={availableCurrencies}
+          selected={currencies}
+          toggleCurrency={toggleCurrency}
+          clearCurrencies={clearCurrencies}
+          selectAllCurrencies={handleSelectAllCurrencies}
+        />
+
+        <div className="cf-spacer" />
+
+        {/* View */}
+        <div className="cf-view-toggle" role="tablist" aria-label="View">
+          <button
+            type="button" role="tab" aria-selected={view === 'list'}
+            className={`cf-view-btn ${view === 'list' ? 'is-active' : ''}`}
+            onClick={() => setView('list')}
+          ><List size={12} /> List</button>
+          <button
+            type="button" role="tab" aria-selected={view === 'month'}
+            className={`cf-view-btn ${view === 'month' ? 'is-active' : ''}`}
+            onClick={() => setView('month')}
+          ><CalendarDays size={12} /> Calendar</button>
         </div>
       </div>
     </>
