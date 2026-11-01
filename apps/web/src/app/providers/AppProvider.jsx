@@ -30,7 +30,7 @@ const initialState = {
   optimize: {
     columnEnabled: {},
     columnValues: {},
-    rrSelected: [1, 2, 3, 4, 5, 6, 7, 8],
+    rrSelected: [1, 2, 3, 4],
     results: [],
     currentPage: 1,
     isRunning: false,
@@ -109,7 +109,7 @@ function appReducer(state, action) {
         optimize: {
           columnEnabled: {},
           columnValues: {},
-          rrSelected: [1, 2, 3, 4, 5, 6, 7, 8],
+          rrSelected: [1, 2, 3, 4],
           results: [],
           currentPage: 1,
           isRunning: false,

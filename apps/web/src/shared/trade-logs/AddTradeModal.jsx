@@ -36,7 +36,7 @@ function RPreview({ form, initialR = 1 }) {
       <div className="at-r-head">
         <span className="at-r-head-label">Live R Preview</span>
         <div className="at-r-targets">
-          {[1, 2, 3, 4, 5, 6, 7, 8].map((r) => (
+          {[1, 2, 3, 4].map((r) => (
             <button
               key={r}
               type="button"

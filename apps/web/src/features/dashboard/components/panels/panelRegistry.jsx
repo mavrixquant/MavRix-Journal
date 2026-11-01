@@ -195,7 +195,7 @@ function RRComparePanel() {
   return (
     <Panel
       title={isMoney ? 'Symbol Performance' : 'Target R:R Comparison'}
-      note={isMoney ? 'Net $ per symbol' : 'Sweep 1:1 → 1:8'}
+      note={isMoney ? 'Net $ per symbol' : 'Sweep 1:1 → 1:4'}
     >
       {isMoney ? <SymbolBreakdownTable /> : <RRCompareChart />}
     </Panel>

@@ -1,6 +1,6 @@
 import { useAppContext, actions } from '@/app/providers/AppProvider';
 
-const RR_LEVELS = [1, 2, 3, 4, 5, 6, 7, 8];
+const RR_LEVELS = [1, 2, 3, 4];
 
 export default function RRTabs() {
   const { state, dispatch } = useAppContext();

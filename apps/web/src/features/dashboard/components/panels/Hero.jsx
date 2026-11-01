@@ -5,7 +5,7 @@ import EquityChart from '@/features/dashboard/components/charts/EquityChart';
 import { FaProjectDiagram } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
 
-const RR_LEVELS = [1, 2, 3, 4, 5, 6, 7, 8];
+const RR_LEVELS = [1, 2, 3, 4];
 
 const formatR = (v) => (v != null && !Number.isNaN(v) ? `${v >= 0 ? '+' : ''}${v.toFixed(2)}R` : '—');
 const formatPct = (v) => (v != null && !Number.isNaN(v) ? `${v.toFixed(1)}%` : '—');
