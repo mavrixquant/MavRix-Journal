@@ -33,6 +33,7 @@ export async function verifyLogin(req, res, next) {
       photoUrl: user.photoUrl,
       hasGoogle: !!user.googleId,
       role: user.role || 'user',
+      plan: user.plan || 'free',
       isBanned: !!user.isBanned,
       hasPassword: !!user.passwordHash,
       twoFactorEnabled: !!user.twoFactorEnabled,

@@ -58,6 +58,7 @@ const userUpdateSchema = z.object({
     .optional(),
   email: z.string().trim().toLowerCase().email().optional(),
   role: z.enum(['user', 'admin', 'superadmin']).optional(),
+  plan: z.enum(['free', 'pro']).optional(),
 });
 
 const banSchema = z.object({

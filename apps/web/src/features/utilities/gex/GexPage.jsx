@@ -95,6 +95,7 @@ const fmt = (n) =>
     ? n.toLocaleString('en-US', { maximumFractionDigits: 2 })
     : '—';
 
+
 /* ------------------------------------------------------------------ */
 /* Styles                                                              */
 /* ------------------------------------------------------------------ */
@@ -525,6 +526,7 @@ export default function GexPage() {
     [symbol]
   );
 
+
   // Keep a valid selected date (auto-pick newest).
   useEffect(() => {
     if (days.length === 0) {
@@ -770,6 +772,7 @@ export default function GexPage() {
                         <span>·</span>
                         <span className="gxp-chip-gex">{d.gexCount} GEX</span>
                       </span>
+
                     </button>
                   );
                 })}

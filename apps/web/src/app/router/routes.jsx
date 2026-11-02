@@ -1,4 +1,4 @@
-﻿import { lazy, Suspense } from 'react';
+import { lazy, Suspense } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 
 import AppLayout from '@/app/layout/AppLayout';
@@ -6,6 +6,7 @@ import { RequireAuth, RequireVerified, RequireGuest, RequireTwoFactor } from './
 import { useAuth } from '@/app/providers/AuthProvider';
 import { useSettings } from '@/app/layout/Settings/SettingsProvider';
 import { RequireAdmin, RequireSuperadmin } from '@/features/admin/guards';
+import PlanGate from '@/features/plan/PlanGate';
 import { BootLoader } from '@/shared/ui/boot-loader';
 
 const LandingPage = lazy(() => import('@/features/landing/LandingPage'));
@@ -154,16 +155,44 @@ export function AppRoutes() {
         <Route path="/journal/logs" element={<TradeLogsPage />} />
         <Route path="/utilities/calendar" element={<EconomicCalendarPage />} />
 
-        <Route path="/backtester" element={<BacktesterDashboardPage />} />
-        <Route path="/backtester/logs" element={<TestLogsPage />} />
-        <Route path="/backtester/simulator" element={<SimulatorPage />} />
+        <Route
+          path="/backtester"
+          element={
+            <PlanGate feature="Backtester">
+              <BacktesterDashboardPage />
+            </PlanGate>
+          }
+        />
+        <Route
+          path="/backtester/logs"
+          element={
+            <PlanGate feature="Test Logs">
+              <TestLogsPage />
+            </PlanGate>
+          }
+        />
+        <Route
+          path="/backtester/simulator"
+          element={
+            <PlanGate feature="Monte Carlo Simulator">
+              <SimulatorPage />
+            </PlanGate>
+          }
+        />
         <Route path="/utilities/chart" element={<MarketChartPage />} />
 
         <Route path="/manage/accounts" element={<AccountsPage />} />
         <Route path="/manage/strategies" element={<StrategiesPage />} />
         <Route path="/manage/strategies/:id" element={<StrategyDetailPage />} />
 
-        <Route path="/utilities/gex" element={<GexPage />} />
+        <Route
+          path="/utilities/gex"
+          element={
+            <PlanGate feature="GEX Levels">
+              <GexPage />
+            </PlanGate>
+          }
+        />
 
         <Route path="/personal/chats" element={<ChatsPage />} />
       </Route>

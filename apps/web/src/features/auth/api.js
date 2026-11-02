@@ -28,6 +28,7 @@ function normalizeUser(u) {
     hasGoogle: !!u.hasGoogle,
     hasPassword: !!u.hasPassword,
     role: u.role || 'user',
+    plan: u.plan || 'free',
     isBanned: !!u.isBanned,
     twoFactorEnabled: !!u.twoFactorEnabled,
     twoFactorEmailEnabled: !!u.twoFactorEmailEnabled,

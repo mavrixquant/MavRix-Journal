@@ -34,7 +34,7 @@ export const SIDEBAR_GROUPS = [
     items: [
       { to: '/utilities/chart',    label: 'Chart',             icon: FaChartBar },
       { to: '/utilities/calendar', label: 'Economic Calendar', icon: FaCalendarAlt },
-      { to: '/utilities/gex',      label: 'GEX Levels',        icon: FaLayerGroup },
+      { to: '/utilities/gex',      label: 'GEX Levels',        icon: FaLayerGroup, pro: true },
     ],
   },
   {
@@ -51,9 +51,9 @@ export const SIDEBAR_GROUPS = [
     label: 'Backtest',
     icon: FaProjectDiagram,
     items: [
-      { to: '/backtester',           label: 'Dashboard', icon: FaChartLine, end: true },
-      { to: '/backtester/logs',      label: 'Test logs', icon: FaClipboardList },
-      { to: '/backtester/simulator', label: 'Simulator', icon: FaProjectDiagram },
+      { to: '/backtester',           label: 'Dashboard', icon: FaChartLine, end: true, pro: true },
+      { to: '/backtester/logs',      label: 'Test logs', icon: FaClipboardList, pro: true },
+      { to: '/backtester/simulator', label: 'Simulator', icon: FaProjectDiagram, pro: true },
     ],
   },
   {

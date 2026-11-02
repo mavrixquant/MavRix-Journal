@@ -114,6 +114,12 @@ const CSS = `
     color: #ef4444; background: rgba(239,68,68,.08);
     border-color: rgba(239,68,68,.3);
   }
+  .aup-pill.pro {
+    margin-left: 6px;
+    color: #a78bfa;
+    background: rgba(167,139,250,.10);
+    border-color: rgba(167,139,250,.32);
+  }
   .aup-pill.warn {
     color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent);
     border-color: color-mix(in srgb, var(--accent) 30%, transparent);
@@ -272,6 +278,9 @@ export default function AdminUsersPage() {
                     </td>
                     <td className="aup-td">
                       <RoleBadge role={u.role} />
+                      {(u.plan === 'pro') && (
+                        <span className="aup-pill pro">PRO</span>
+                      )}
                     </td>
                     <td className="aup-td">
                       {u.isBanned ? (

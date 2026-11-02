@@ -212,7 +212,7 @@ export default function AdminUserDetailPage() {
   });
 
   const [form, setForm] = useState({
-    firstName: '', lastName: '', email: '', username: '', role: 'user',
+    firstName: '', lastName: '', email: '', username: '', role: 'user', plan: 'free',
   });
   useEffect(() => {
     if (user) {
@@ -222,6 +222,7 @@ export default function AdminUserDetailPage() {
         email:     user.email     || '',
         username:  user.username  || '',
         role:      user.role      || 'user',
+        plan:      user.plan      || 'free',
       });
     }
   }, [user]);
@@ -244,13 +245,18 @@ export default function AdminUserDetailPage() {
 
   const isSelf = me?.id === user.id;
   const isSuper = me?.role === 'superadmin';
+  const canChangePlan = isSuper || me?.role === 'admin';
   const roleChanged = form.role !== user.role;
+  const planChanged = form.plan !== (user.plan || 'free');
   const otherFieldsChanged =
     form.firstName !== (user.firstName || '') ||
     form.lastName  !== (user.lastName  || '') ||
     form.email     !== (user.email     || '') ||
     form.username  !== (user.username  || '');
-  const hasChanges = otherFieldsChanged || (isSuper && roleChanged);
+  const hasChanges =
+    otherFieldsChanged ||
+    (isSuper && roleChanged) ||
+    (canChangePlan && planChanged);
 
   const handleSave = async () => {
     try {
@@ -260,6 +266,7 @@ export default function AdminUserDetailPage() {
       if (form.email     !== (user.email     || '')) patch.email     = form.email;
       if (form.username  !== (user.username  || '')) patch.username  = form.username;
       if (isSuper && roleChanged)                    patch.role      = form.role;
+      if (canChangePlan && planChanged)              patch.plan      = form.plan;
 
       if (Object.keys(patch).length === 0) { toast.info('No changes.'); return; }
       await updateUser.mutateAsync({ userId: user.id, patch });
@@ -349,6 +356,21 @@ export default function AdminUserDetailPage() {
                     <option value="superadmin">superadmin</option>
                   </select>
                 </div>
+
+                <div className="aud-field">
+                  <label className="aud-label">
+                    Plan {!canChangePlan && <span style={{ opacity: .5 }}>(admin only)</span>}
+                  </label>
+                  <select
+                    className="aud-input"
+                    value={form.plan}
+                    disabled={!canChangePlan}
+                    onChange={(e) => setForm((f) => ({ ...f, plan: e.target.value }))}
+                  >
+                    <option value="free">Free</option>
+                    <option value="pro">Pro</option>
+                  </select>
+                </div>
                 <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                   <button
                     className="aud-primary"
@@ -370,6 +392,7 @@ export default function AdminUserDetailPage() {
               <div className="aud-card-body">
                 <dl className="aud-kv">
                   <dt>User ID</dt>       <dd style={{ wordBreak: 'break-all' }}>{user.id}</dd>
+                  <dt>Plan</dt>          <dd>{user.plan || 'free'}</dd>
                   <dt>Joined</dt>        <dd>{fmtDate(user.createdAt)}</dd>
                   <dt>Last login</dt>    <dd>{fmtDate(user.lastLoginAt)}</dd>
                   <dt>Accounts</dt>      <dd>{user.accounts?.length ?? 0}</dd>

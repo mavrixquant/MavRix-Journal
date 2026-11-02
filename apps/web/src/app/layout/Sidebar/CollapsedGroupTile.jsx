@@ -1,8 +1,12 @@
 import { NavLink } from 'react-router-dom';
+import { Lock } from 'lucide-react';
 import { HoverCard as HoverCardPrimitive } from 'radix-ui';
+import { useAuth } from '@/app/providers/AuthProvider';
 import { groupHasActive } from './nav.config';
 
 export function CollapsedGroupTile({ group, onNavigate, pathname }) {
+  const { user } = useAuth();
+  const isPro = user?.plan === 'pro' || user?.role === 'admin' || user?.role === 'superadmin';
   const hasActive = groupHasActive(pathname, group);
   const Icon = group.icon;
   const defaultItem = group.items[0];
@@ -48,6 +52,11 @@ export function CollapsedGroupTile({ group, onNavigate, pathname }) {
                     <ItemIcon size={12} />
                   </span>
                   {item.label}
+                  {item.pro && !isPro && (
+                    <span className="sb-pro-lock" title="PRO feature">
+                      <Lock size={10} strokeWidth={2.5} />
+                    </span>
+                  )}
                 </NavLink>
               );
             })}
