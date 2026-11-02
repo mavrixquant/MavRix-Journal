@@ -1,4 +1,4 @@
-import { Router } from 'express';
+﻿import { Router } from 'express';
 import { z } from 'zod';
 import {
   gexDaySchema,
@@ -16,6 +16,7 @@ import * as ctrl from '../controllers/admin.controller.js';
 import * as accCtrl from '../controllers/adminAccounts.controller.js';
 import * as tradeCtrl from '../controllers/adminTrades.controller.js';
 import * as opsCtrl from '../controllers/adminOps.controller.js';
+import * as calendarCtrl from '../controllers/adminCalendar.controller.js';
 import * as gexCtrl from '../controllers/adminGex.controller.js';
 import * as strategyCtrl from '../controllers/adminStrategies.controller.js';
 import * as groupCtrl from '../controllers/adminGroups.controller.js';
@@ -268,4 +269,75 @@ adminRoutes.delete(
   sensitive,
   validate(marketDataWipeSchema),
   marketDataCtrl.wipe
+);
+
+
+// ---------------------------------------------------------------------------
+// Calendar data — view, sync-range, import, delete.
+// The legacy /calendar/sync, /calendar/cache, /calendar/logs routes above are
+// kept for backwards compatibility with older admin clients.
+// ---------------------------------------------------------------------------
+const calendarSyncRangeSchema = z
+  .object({
+    from: z.string().trim().optional(),
+    to: z.string().trim().optional(),
+  })
+  .refine(
+    (d) => {
+      if (!d.from || !d.to) return true;
+      const a = new Date(d.from);
+      const b = new Date(d.to);
+      if (Number.isNaN(a.getTime()) || Number.isNaN(b.getTime())) return false;
+      return a < b;
+    },
+    { message: '"from" must be before "to" and both must be valid dates' }
+  );
+
+const calendarImportSchema = z.object({
+  rows: z.array(z.record(z.any())).min(1).max(50_000),
+  mode: z.enum(['merge', 'replace']).optional().default('merge'),
+});
+
+const calendarDeleteSchema = z
+  .object({
+    ids: z.array(z.string().min(1)).max(500).optional(),
+    currency: z.string().trim().max(10).optional(),
+    impact: z.enum(['high', 'medium', 'low']).optional(),
+    from: z.string().trim().optional(),
+    to: z.string().trim().optional(),
+    all: z.boolean().optional(),
+  })
+  .refine(
+    (d) =>
+      (Array.isArray(d.ids) && d.ids.length > 0) ||
+      d.all === true ||
+      !!(d.currency || d.impact || d.from || d.to),
+    {
+      message:
+        'Provide at least one of: ids, currency, impact, from, to, or all=true',
+    }
+  );
+
+adminRoutes.get('/calendar/events', calendarCtrl.listEvents);
+adminRoutes.get('/calendar/events/:id', calendarCtrl.getEvent);
+adminRoutes.get('/calendar/stats', calendarCtrl.stats);
+adminRoutes.post(
+  '/calendar/sync-range',
+  sensitive,
+  validate(calendarSyncRangeSchema),
+  calendarCtrl.syncRange
+);
+adminRoutes.post(
+  '/calendar/import',
+  requireSuperadmin,
+  sensitive,
+  validate(calendarImportSchema),
+  calendarCtrl.importEvents
+);
+adminRoutes.delete(
+  '/calendar/events',
+  requireSuperadmin,
+  sensitive,
+  validate(calendarDeleteSchema),
+  calendarCtrl.deleteEvents
 );

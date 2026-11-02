@@ -1,4 +1,4 @@
-
+﻿
 import { prisma } from './prisma.js';
 import { broadcastToAll } from './broadcaster.js';
 
@@ -329,7 +329,7 @@ function clearNewsSyncTimers() {
 
 let syncInFlight = false;
 
-export async function runCalendarSyncOnce() {
+export async function runCalendarSyncOnce({ fromDate, toDate } = {}) {
   if (syncInFlight) {
     return { skipped: true, reason: 'sync already in flight' };
   }
@@ -339,12 +339,12 @@ export async function runCalendarSyncOnce() {
   const startedAt = Date.now();
 
   try {
-    const from = addDays(new Date(), -cfg.backwardDays);
-    const to = addDays(new Date(), cfg.forwardDays);
+    const from = fromDate ? new Date(fromDate) : addDays(new Date(), -cfg.backwardDays);
+    const to = toDate ? new Date(toDate) : addDays(new Date(), cfg.forwardDays);
 
     const { rows, chunks } = await fetchAllChunks(from, to, cfg);
     const { created, updated } = await upsertEventsBatched(rows);
-    const pruned = await pruneOldEvents(cfg.backwardDays);
+    const pruned = (!fromDate && !toDate) ? await pruneOldEvents(cfg.backwardDays) : 0;
 
     if (created > 0 || updated > 0) {
       broadcastToAll('invalidate', { keys: [['calendar']] });

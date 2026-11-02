@@ -489,3 +489,81 @@ export function useAdminMarketDataWipe() {
     },
   });
 }
+// ---------------------------------------------------------------------------
+// Calendar admin — view, sync range, import, delete.
+// These sit alongside the existing useAdminCalendarLogs / Sync / Wipe hooks.
+// ---------------------------------------------------------------------------
+
+export function useAdminCalendarEvents(filters = {}) {
+  return useQuery({
+    queryKey: ['admin', 'calendar', 'events', filters],
+    queryFn: () => apiJson(`/api/admin/calendar/events${buildQS(filters)}`),
+    staleTime: 15_000,
+    placeholderData: (prev) => prev,
+  });
+}
+
+export function useAdminCalendarEvent(id) {
+  return useQuery({
+    queryKey: ['admin', 'calendar', 'event', id],
+    queryFn: () =>
+      apiJson(`/api/admin/calendar/events/${encodeURIComponent(id)}`),
+    enabled: !!id,
+  });
+}
+
+export function useAdminCalendarStats() {
+  return useQuery({
+    queryKey: ['admin', 'calendar', 'stats'],
+    queryFn: () => apiJson('/api/admin/calendar/stats'),
+    staleTime: 30_000,
+  });
+}
+
+export function useAdminSyncCalendarRange() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload) =>
+      apiJson('/api/admin/calendar/sync-range', {
+        method: 'POST',
+        body: JSON.stringify(payload || {}),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'calendar'] });
+      qc.invalidateQueries({ queryKey: ['calendar'] });
+      qc.invalidateQueries({ queryKey: ['admin', 'audit'] });
+    },
+  });
+}
+
+export function useAdminImportCalendar() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload) =>
+      apiJson('/api/admin/calendar/import', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'calendar'] });
+      qc.invalidateQueries({ queryKey: ['calendar'] });
+      qc.invalidateQueries({ queryKey: ['admin', 'audit'] });
+    },
+  });
+}
+
+export function useAdminDeleteCalendarEvents() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload) =>
+      apiJson('/api/admin/calendar/events', {
+        method: 'DELETE',
+        body: JSON.stringify(payload),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'calendar'] });
+      qc.invalidateQueries({ queryKey: ['calendar'] });
+      qc.invalidateQueries({ queryKey: ['admin', 'audit'] });
+    },
+  });
+}
