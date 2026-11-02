@@ -7,11 +7,11 @@ import { Loader2, Check } from 'lucide-react';
 
 const STEP_ORDER = ['symbols', 'data', 'trades', 'render', 'finalize'];
 const STEPS = [
-  { id: 'symbols',  label: 'Loading symbols', hint: 'Fetching market catalog' },
-  { id: 'data',     label: 'Fetching candles', hint: 'Downloading historical data' },
-  { id: 'trades',   label: 'Loading trades', hint: 'Fetching journal trades' },
-  { id: 'render',   label: 'Rendering chart', hint: 'Building candlestick series' },
-  { id: 'finalize', label: 'Finalizing', hint: 'Warming up the canvas' },
+  { id: 'symbols',  label: 'Loading symbols', hint: ' Fetching market catalog' },
+  { id: 'data',     label: 'Fetching candles', hint: ' Downloading historical data' },
+  { id: 'trades',   label: 'Loading trades', hint: ' Fetching journal trades' },
+  { id: 'render',   label: 'Rendering chart', hint: ' Building candlestick series' },
+  { id: 'finalize', label: 'Finalizing', hint: ' Warming up the canvas' },
 ];
 const PROGRESS = { symbols: 12, data: 38, trades: 65, render: 88, finalize: 100 };
 
