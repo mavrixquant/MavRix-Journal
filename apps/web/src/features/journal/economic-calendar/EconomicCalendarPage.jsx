@@ -9,7 +9,6 @@ import { usePageHeader } from '@/app/layout/PageHeaderProvider';
 
 import { useCalendarFilters } from './hooks/useCalendarFilters';
 import CalendarFilters from './components/CalendarFilters';
-import CalendarGrid from './components/CalendarGrid';
 import EventList from './components/EventList';
 import EventDetailModal from './components/EventDetailModal';
 import MarketGlobe from './components/MarketGlobe';
@@ -50,10 +49,30 @@ const CSS = `
   /* Two-column workspace: data on the left, globe + upcoming on the right */
   .ec-main {
     flex: 1 1 auto; min-height: 0;
-    display: grid; grid-template-columns: minmax(0, 1fr) 400px; gap: 14px;
+    display: grid; grid-template-columns: minmax(0, 1fr) 460px; gap: 14px;
   }
-  .ec-left, .ec-right { display: flex; flex-direction: column; gap: 14px; min-height: 0; min-width: 0; }
-  .ec-grow { flex: 1 1 auto; min-height: 0; }
+  .ec-left { display: flex; flex-direction: column; gap: 14px; min-height: 0; min-width: 0; }
+  .ec-right {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    min-height: 0;
+    min-width: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255,255,255,.08) transparent;
+  }
+  .ec-right::-webkit-scrollbar { width: 6px; }
+  .ec-right::-webkit-scrollbar-track { background: transparent; }
+  .ec-right::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,.08);
+    border-radius: 99px;
+  }
+  .ec-right::-webkit-scrollbar-thumb:hover {
+    background: rgba(255,255,255,.14);
+  }
+  .ec-grow { flex: 1 0 auto; min-height: 420px; }
 
   .ec-body { flex: 1 1 auto; min-height: 0; padding: 0; display: flex; flex-direction: column; overflow: hidden; }
   .ec-loading {
@@ -177,7 +196,7 @@ const CSS = `
     color: var(--accent); border-color: color-mix(in srgb, var(--accent) 42%, transparent);
     background: color-mix(in srgb, var(--accent) 10%, transparent);
   }
-  .cu-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 8px; overscroll-behavior: contain; }
+  .cu-scroll { padding: 8px; }
   .cu-scroll::-webkit-scrollbar { width: 6px; }
   .cu-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,.08); border-radius: 99px; }
   .cu-empty { padding: 28px 16px; text-align: center; color: var(--ink-3); font-size: 12.5px; line-height: 1.5; }
@@ -202,8 +221,14 @@ const CSS = `
 
   /* ---------- Responsive ---------- */
   @media (max-width: 1180px) {
-    .ec-main { grid-template-columns: minmax(0, 1fr) 340px; }
+    .ec-main { grid-template-columns: minmax(0, 1fr) 400px; }
     .es-val { font-size: 20px; }
+  }
+  @media (min-width: 1600px) {
+    .ec-main {
+      grid-template-columns: minmax(0, 1300px) 500px;
+      justify-content: center;
+    }
   }
   @media (max-width: 980px) {
     .ec-root { height: auto; overflow: visible; }
@@ -302,11 +327,6 @@ export default function EconomicCalendarPage() {
     filters.toggleCurrency(code);
   };
 
-  const handleDayClick = (isoDate) => {
-    filters.setCustomRange(isoDate, isoDate);
-    filters.setView('list');
-  };
-
   const showInitialSkeleton = eventsQuery.isPending && eventsQuery.data === undefined;
   const showError = eventsQuery.isError;
 
@@ -320,27 +340,27 @@ export default function EconomicCalendarPage() {
     <>
       <style>{CSS}</style>
       <div className="ec-root page-fade-in">
-        <div className="ec-card ec-toolbar">
-          <CalendarFilters
-            availableCurrencies={currencies.data ?? []}
-            currencies={filters.currencies}
-            impacts={filters.impacts}
-            toggleCurrency={filters.toggleCurrency}
-            clearCurrencies={filters.clearCurrencies}
-            toggleImpact={filters.toggleImpact}
-            clearImpacts={filters.clearImpacts}
-            from={filters.from}
-            to={filters.to}
-            rangePreset={filters.rangePreset}
-            applyPreset={filters.applyPreset}
-            setCustomRange={filters.setCustomRange}
-            view={filters.view}
-            setView={filters.setView}
-          />
-        </div>
+        
 
         <div className="ec-main">
           <section className="ec-left">
+  <div className="ec-card ec-toolbar">
+            <CalendarFilters
+              availableCurrencies={currencies.data ?? []}
+              currencies={filters.currencies}
+              impacts={filters.impacts}
+              toggleCurrency={filters.toggleCurrency}
+              clearCurrencies={filters.clearCurrencies}
+              toggleImpact={filters.toggleImpact}
+              clearImpacts={filters.clearImpacts}
+              from={filters.from}
+              to={filters.to}
+              rangePreset={filters.rangePreset}
+              applyPreset={filters.applyPreset}
+              setCustomRange={filters.setCustomRange}
+            />
+          </div>
+
             <StatsStrip events={events} />
 
             <div className="ec-card ec-body">
@@ -360,12 +380,8 @@ export default function EconomicCalendarPage() {
                 </div>
               )}
 
-              {!showInitialSkeleton && !showError && filters.view === 'list' && (
+              {!showInitialSkeleton && !showError && (
                 <EventList events={events} onEventClick={filters.openEvent} />
-              )}
-
-              {!showInitialSkeleton && !showError && filters.view === 'month' && (
-                <CalendarGrid events={events} onDayClick={handleDayClick} />
               )}
             </div>
           </section>

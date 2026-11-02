@@ -1,5 +1,5 @@
-﻿import { useEffect, useMemo, useState } from 'react';
-import { ChevronDown, Search, Check, List, CalendarDays } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { ChevronDown, Search, Check } from 'lucide-react';
 import { Command } from 'cmdk';
 
 import { IMPACT_LEVELS, CURRENCY_NAMES } from '@mavrix/shared';
@@ -139,8 +139,6 @@ const CSS = `
 const IMPACT_LABELS = { high: 'High', medium: 'Medium', low: 'Low' };
 const RANGES = [
   { id: 'today', label: 'Today' },
-  { id: 'week', label: 'Week' },
-  { id: 'month', label: 'Month' },
 ];
 
 const SELECTED_ITEM_STYLE = {
@@ -322,8 +320,6 @@ export default function CalendarFilters({
   rangePreset,
   applyPreset,
   setCustomRange,
-  view,
-  setView,
 }) {
   const handleSelectAllCurrencies = () => {
     availableCurrencies.forEach(({ currency }) => {
@@ -388,7 +384,7 @@ export default function CalendarFilters({
             className={`cf-seg-btn ${impacts.length === 0 ? 'is-active' : ''}`}
             onClick={clearImpacts}
           >
-            All impact
+            All
           </button>
           {IMPACT_LEVELS.map((level) => {
             const active = impacts.includes(level);
@@ -417,20 +413,6 @@ export default function CalendarFilters({
         />
 
         <div className="cf-spacer" />
-
-        {/* View */}
-        <div className="cf-view-toggle" role="tablist" aria-label="View">
-          <button
-            type="button" role="tab" aria-selected={view === 'list'}
-            className={`cf-view-btn ${view === 'list' ? 'is-active' : ''}`}
-            onClick={() => setView('list')}
-          ><List size={12} /> List</button>
-          <button
-            type="button" role="tab" aria-selected={view === 'month'}
-            className={`cf-view-btn ${view === 'month' ? 'is-active' : ''}`}
-            onClick={() => setView('month')}
-          ><CalendarDays size={12} /> Calendar</button>
-        </div>
       </div>
     </>
   );
