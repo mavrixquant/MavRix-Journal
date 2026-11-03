@@ -90,7 +90,7 @@
 
 /* ---------- HERO ---------- */
 .ssp-hero {
-  display: grid; grid-template-columns: minmax(300px, 400px) minmax(0, 1fr);
+  display: grid; grid-template-columns: minmax(200px, 330px) minmax(0, 1fr);
   gap: 28px; padding: 22px 26px; align-items: center;
 }
 .ssp-dial { position: relative; width: 100%; max-width: 400px; aspect-ratio: 1; margin: 0 auto; }

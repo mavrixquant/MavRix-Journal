@@ -1,0 +1,56 @@
+import {
+  Anchor, ArrowLeftRight, Banknote, Calculator, Compass, Coins, Crosshair, Dices, Flag, Flame, Gauge,
+  Globe, Hash, Landmark, Layers, Percent, Repeat, Receipt, Rocket, Ruler, Scale, Scissors, ShieldAlert,
+  Sigma, Skull, Target, TrendingDown, TrendingUp, Wallet, Activity, Divide,
+} from 'lucide-react';
+
+export const CATEGORY_ICONS = {
+  risk: ShieldAlert,
+  edge: Scale,
+  futures: Coins,
+  forex: Globe,
+  leverage: Gauge,
+  growth: Rocket,
+  options: Sigma,
+  levels: Layers,
+};
+
+export const CALC_ICONS = {
+  'position-size': Crosshair,
+  'stock-size': Ruler,
+  'risk-of-ruin': Skull,
+  kelly: Percent,
+  'prop-drawdown': Flag,
+  'losing-streak': Dices,
+  'risk-reward': Scale,
+  expectancy: Sigma,
+  'trade-stats': Hash,
+  'scale-out': Scissors,
+  performance: Gauge,
+  'futures-pnl': Banknote,
+  'tick-converter': ArrowLeftRight,
+  'commission-breakeven': Receipt,
+  'contract-equivalence': Repeat,
+  'forex-position-size': Crosshair,
+  'pip-value': Divide,
+  'pips-pnl': TrendingUp,
+  'futures-margin': Landmark,
+  'forex-margin': Wallet,
+  'perp-liquidation': Flame,
+  'fees-funding': Receipt,
+  compounding: Rocket,
+  'drawdown-recovery': TrendingDown,
+  'goal-planner': Target,
+  'prop-challenge': Flag,
+  'return-calc': Percent,
+  'stock-pnl': TrendingUp,
+  'avg-cost': Layers,
+  'option-expiry': Activity,
+  'black-scholes': Sigma,
+  'expected-move': Compass,
+  'pivot-points': Layers,
+  fibonacci: Ruler,
+  'atr-stop': Anchor,
+};
+
+export const FALLBACK_ICON = Calculator;
