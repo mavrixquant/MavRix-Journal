@@ -38,6 +38,7 @@ const StrategiesPage = lazy(() => import('@/features/manage/strategies/Strategie
 const StrategyDetailPage = lazy(() => import('@/features/manage/strategies/StrategyDetailPage'));
 
 const GexPage = lazy(() => import('@/features/utilities/gex/GexPage'));
+const SessionsPage = lazy(() => import('@/features/utilities/sessions/SessionsPage'));
 
 const ChatsPage = lazy(() => import('@/features/personal/chats/ChatsPage'));
 
@@ -154,6 +155,7 @@ export function AppRoutes() {
         <Route path="/journal/analyse" element={<AnalysePage />} />
         <Route path="/journal/logs" element={<TradeLogsPage />} />
         <Route path="/utilities/calendar" element={<EconomicCalendarPage />} />
+        <Route path="/utilities/sessions" element={<SessionsPage />} />
 
         <Route
           path="/backtester"
