@@ -1,72 +1,127 @@
+// "kpiGrid" panel = the metric ribbon: six hero tiles, each with a micro-visual.
+import { useMemo } from 'react';
 import { useStats } from '@/features/dashboard/hooks/useStats';
+import Sparkline from '@/features/dashboard/components/viz/Sparkline';
+import { summarize } from '@/features/dashboard/components/viz/analytics';
+import { makeFmt, fmtPct, nf } from '@/features/dashboard/components/viz/format';
 import PanelChrome, { PanelEmpty } from './PanelChrome';
 
-const formatR = (v) => (v != null && !Number.isNaN(v) ? `${v >= 0 ? '+' : ''}${v.toFixed(2)}R` : '—');
-const formatPct = (v) => (v != null && !Number.isNaN(v) ? `${v.toFixed(1)}%` : '—');
-const formatMoney = (v) => {
-  if (v == null || Number.isNaN(v)) return '—';
-  const sign = v < 0 ? '-' : '+';
-  return `${sign}$${Math.abs(v).toFixed(2)}`;
-};
+function Dots({ results }) {
+  return (
+    <div className="rb-dots" aria-label="Last 20 trades">
+      {results.map((r, i) => (
+        <i key={i} className={r === 'win' ? 'w' : r === 'loss' ? 'l' : 'b'} />
+      ))}
+    </div>
+  );
+}
+
+function Columns({ scores }) {
+  const max = Math.max(...scores.map((s) => Math.abs(s)), 1e-9);
+  return (
+    <div className="rb-cols" aria-label="Recent trades">
+      {scores.map((s, i) => (
+        <i key={i} className={s >= 0 ? 'w' : 'l'} style={{ height: `${Math.max(12, (Math.abs(s) / max) * 100)}%` }} />
+      ))}
+    </div>
+  );
+}
+
+function Split({ a, b }) {
+  const total = a + b || 1;
+  return (
+    <div className="rb-split">
+      <i className="w" style={{ width: `${(a / total) * 100}%` }} />
+      <i className="l" style={{ width: `${(b / total) * 100}%` }} />
+    </div>
+  );
+}
+
+function Tile({ label, value, sub, tone = 'flat', children }) {
+  return (
+    <div className="rb-tile" data-tone={tone}>
+      <div className="rb-label">{label}</div>
+      <div className="rb-value">{value}</div>
+      <div className="rb-sub">{sub}</div>
+      <div className="rb-viz">{children}</div>
+    </div>
+  );
+}
 
 export default function KPIGrid() {
-  const { stats, currentR, metric } = useStats();
+  const { stats, metric, currentR } = useStats();
   const isMoney = metric === '$';
+  const fmt = makeFmt(isMoney);
+  const s = useMemo(() => (stats?.n ? summarize(stats) : null), [stats]);
 
-  if (!stats || stats.n === 0) {
+  if (!stats || stats.n === 0 || !s) {
     return (
       <PanelChrome title="Performance">
-        <PanelEmpty title="No trading data" hint="Log trades to display performance metrics" />
+        <PanelEmpty title="No trading data" hint="Log trades to see your metrics" />
       </PanelChrome>
     );
   }
 
-  const pf = Number.isFinite(stats.profitFactor) ? stats.profitFactor.toFixed(2) : '∞';
-  const winTone = stats.winRate >= 50 ? 'pos' : 'neg';
-
-  const kpis = isMoney
-    ? [
-        { label: 'Win Rate', value: formatPct(stats.winRate), tone: winTone, sub: `${stats.wins?.length ?? 0}W` },
-        { label: 'Loss Rate', value: formatPct(stats.lossRate), tone: 'neg', sub: `${stats.losses?.length ?? 0}L` },
-        { label: 'Net P&L', value: formatMoney(stats.total), tone: stats.total >= 0 ? 'pos' : 'neg', sub: `${stats.n} trades` },
-        { label: 'Avg P&L', value: formatMoney(stats.expectancy), tone: stats.expectancy >= 0 ? 'pos' : 'neg', sub: 'per trade' },
-        { label: 'Profit Factor', value: pf, tone: 'accent', sub: 'W / L' },
-        { label: 'Avg Win', value: formatMoney(stats.avgWin), tone: 'pos', sub: 'per win' },
-        { label: 'Avg Loss', value: formatMoney(stats.avgLoss), tone: 'neg', sub: 'per loss' },
-        { label: 'Max DD', value: stats.maxDD != null ? formatMoney(stats.maxDD) : '—', tone: 'neg', sub: 'peak → trough' },
-        { label: 'Win Streak', value: stats.bestWinStreak ?? 0, tone: 'pos', sub: 'best' },
-        { label: 'Loss Streak', value: stats.worstLossStreak ?? 0, tone: 'neg', sub: 'worst' },
-        { label: 'Best Trade', value: stats.bestTrade ? formatMoney(stats.bestTrade.score) : '—', tone: 'pos', sub: stats.bestTrade?.date ?? '' },
-        { label: 'Worst Trade', value: stats.worstTrade ? formatMoney(stats.worstTrade.score) : '—', tone: 'neg', sub: stats.worstTrade?.date ?? '' },
-      ]
-    : [
-        { label: 'Win Rate', value: formatPct(stats.winRate), tone: winTone, sub: `${stats.wins?.length ?? 0}W` },
-        { label: 'Loss Rate', value: formatPct(stats.lossRate), tone: 'neg', sub: `${stats.losses?.length ?? 0}L` },
-        { label: 'Total R', value: formatR(stats.totalR), tone: stats.totalR >= 0 ? 'pos' : 'neg', sub: `${stats.n} trades` },
-        { label: 'Expectancy', value: formatR(stats.expectancy), tone: stats.expectancy >= 0 ? 'pos' : 'neg', sub: 'per trade' },
-        { label: 'Profit Factor', value: pf, tone: 'accent', sub: 'W / L' },
-        { label: 'Avg Win', value: formatR(currentR), tone: 'pos', sub: 'at target' },
-        { label: 'Avg Loss', value: '-1.00R', tone: 'neg', sub: 'at stop' },
-        { label: 'Max DD', value: stats.maxDD != null ? `${stats.maxDD.toFixed(2)}R` : '—', tone: 'neg', sub: 'peak → trough' },
-        { label: 'Win Streak', value: stats.bestWinStreak ?? 0, tone: 'pos', sub: 'best' },
-        { label: 'Loss Streak', value: stats.worstLossStreak ?? 0, tone: 'neg', sub: 'worst' },
-        { label: 'Best Trade', value: stats.bestTrade ? formatR(stats.bestTrade.r) : '—', tone: 'pos', sub: stats.bestTrade?.date ?? '' },
-        { label: 'Worst Trade', value: stats.worstTrade ? formatR(stats.worstTrade.r) : '—', tone: 'neg', sub: stats.worstTrade?.date ?? '' },
-      ];
+  const total = isMoney ? stats.total : stats.totalR;
+  const pf = Number.isFinite(stats.profitFactor) ? nf(stats.profitFactor) : '∞';
+  const wins = stats.wins?.length ?? 0;
+  const losses = stats.losses?.length ?? 0;
+  const avgWin = isMoney ? s.avgWin : s.avgWin || currentR;
+  const avgLoss = isMoney ? s.avgLoss : s.avgLoss || 1;
+  const streakLabel = s.streak.type ? `${s.streak.type === 'win' ? 'W' : 'L'}${s.streak.n}` : '—';
 
   return (
-    <PanelChrome title="Performance" note={isMoney ? '$ mode' : `1:${currentR} target`} scrollable>
-      <div className="kx">
-        <div className="kx-grid">
-          {kpis.map((k) => (
-            <div key={k.label} className="kx-card" data-tone={k.tone}>
-              <div className="kx-label">{k.label}</div>
-              <div className="kx-value">{k.value}</div>
-              <div className="kx-sub">{k.sub || '—'}</div>
-            </div>
-          ))}
+    <div className="rb">
+      <Tile
+        label={isMoney ? 'Net P&L' : 'Total R'}
+        value={fmt(total)}
+        sub={`${stats.n} trades`}
+        tone={total >= 0 ? 'pos' : 'neg'}
+      >
+        <Sparkline values={s.equity.slice(-60).map((p) => p.y)} tone={total >= 0 ? 'var(--d-win)' : 'var(--d-loss)'} />
+      </Tile>
+
+      <Tile
+        label="Win rate"
+        value={fmtPct(stats.winRate)}
+        sub={`${wins}W · ${losses}L`}
+        tone={stats.winRate >= 50 ? 'pos' : 'neg'}
+      >
+        <Dots results={s.recentResults} />
+      </Tile>
+
+      <Tile label="Profit factor" value={pf} sub={`payoff ${s.payoff ? nf(s.payoff) : '—'}×`} tone="accent">
+        <Split a={s.grossWin} b={s.grossLoss} />
+      </Tile>
+
+      <Tile
+        label="Expectancy"
+        value={fmt(stats.expectancy)}
+        sub={`avg ${fmt(avgWin, { sign: false })} / ${fmt(-avgLoss, { sign: false })}`}
+        tone={stats.expectancy >= 0 ? 'pos' : 'neg'}
+      >
+        <Columns scores={s.recentScores} />
+      </Tile>
+
+      <Tile
+        label="Max drawdown"
+        value={s.maxDD ? fmt(-s.maxDD, { sign: false }) : '—'}
+        sub={s.curDD > 0 ? `now ${fmt(-s.curDD, { sign: false })}` : 'at equity high'}
+        tone="neg"
+      >
+        <div className="rb-meter">
+          <i style={{ width: `${s.maxDD ? Math.min(100, (s.curDD / s.maxDD) * 100) : 0}%` }} />
         </div>
-      </div>
-    </PanelChrome>
+      </Tile>
+
+      <Tile
+        label="Streak"
+        value={streakLabel}
+        sub={`best W${stats.bestWinStreak ?? 0} · worst L${stats.worstLossStreak ?? 0}`}
+        tone={s.streak.type === 'win' ? 'pos' : s.streak.type === 'loss' ? 'neg' : 'flat'}
+      >
+        <Dots results={s.recentResults.slice(-10)} />
+      </Tile>
+    </div>
   );
 }

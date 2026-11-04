@@ -1,46 +1,52 @@
+// "advancedKpiGrid" panel = risk-adjusted ratios with tiny gauges.
 import { useStats } from '@/features/dashboard/hooks/useStats';
+import { nf } from '@/features/dashboard/components/viz/format';
 import PanelChrome, { PanelEmpty } from './PanelChrome';
 
-const formatRatio = (v) => {
-  if (v == null || Number.isNaN(v) || !Number.isFinite(v)) return '—';
-  return v.toFixed(2);
-};
-
-const tone = (v) => (v > 0 ? 'pos' : v < 0 ? 'neg' : 'accent');
+const ok = (v) => v != null && Number.isFinite(v);
 
 export default function AdvancedKPIGrid() {
   const { stats } = useStats();
 
   if (!stats || stats.n === 0) {
     return (
-      <PanelChrome title="Risk-Adjusted">
+      <PanelChrome title="Risk-adjusted">
         <PanelEmpty title="No data yet" />
       </PanelChrome>
     );
   }
 
   const hasEdge = stats.kellyRaw > 0;
-
-  const kpis = [
-    { label: 'Sharpe', value: formatRatio(stats.sharpe), tone: tone(stats.sharpe), sub: 'μ / σ', tip: 'Mean return divided by standard deviation' },
-    { label: 'Sortino', value: formatRatio(stats.sortino), tone: tone(stats.sortino), sub: 'downside σ', tip: 'Mean return divided by downside deviation' },
-    { label: 'Calmar', value: formatRatio(stats.calmar), tone: tone(stats.calmar), sub: 'total / maxDD', tip: 'Total return divided by max drawdown' },
-    { label: 'MAR', value: formatRatio(stats.mar), tone: tone(stats.mar), sub: 'total / maxDD', tip: 'Return versus max drawdown' },
-    { label: 'Sterling', value: formatRatio(stats.sterling), tone: tone(stats.sterling), sub: 'total / avgDD', tip: 'Total return divided by average drawdown' },
-    { label: 'Kelly %', value: hasEdge ? `${(stats.kelly * 100).toFixed(1)}%` : 'No edge', tone: hasEdge ? 'pos' : 'accent', sub: hasEdge ? 'suggested' : 'no edge', tip: 'Kelly-suggested risk fraction' },
+  const items = [
+    { label: 'Sharpe', v: stats.sharpe, tip: 'Mean return ÷ standard deviation' },
+    { label: 'Sortino', v: stats.sortino, tip: 'Mean return ÷ downside deviation' },
+    { label: 'Calmar', v: stats.calmar, tip: 'Total return ÷ max drawdown' },
+    { label: 'MAR', v: stats.mar, tip: 'Return versus max drawdown' },
+    { label: 'Sterling', v: stats.sterling, tip: 'Total return ÷ average drawdown' },
   ];
 
   return (
-    <PanelChrome title="Risk-Adjusted" note="ratios" scrollable>
-      <div className="kx">
-        <div className="kx-grid is-adv">
-          {kpis.map((k) => (
-            <div key={k.label} className="kx-card" data-tone={k.tone} title={k.tip}>
-              <div className="kx-label">{k.label}</div>
-              <div className="kx-value">{k.value}</div>
-              <div className="kx-sub">{k.sub}</div>
+    <PanelChrome title="Risk-adjusted" subtitle="quality of returns" scrollable>
+      <div className="rk">
+        {items.map((it) => {
+          const pct = ok(it.v) ? Math.max(0, Math.min(1, it.v / 3)) * 100 : 0;
+          const tone = !ok(it.v) ? 'flat' : it.v > 0 ? 'pos' : it.v < 0 ? 'neg' : 'flat';
+          return (
+            <div key={it.label} className="rk-item" data-tone={tone} title={it.tip}>
+              <div className="rk-top">
+                <span className="rk-label">{it.label}</span>
+                <span className="rk-value">{ok(it.v) ? nf(it.v) : '—'}</span>
+              </div>
+              <div className="rk-gauge"><i style={{ width: `${pct}%` }} /></div>
             </div>
-          ))}
+          );
+        })}
+        <div className="rk-item" data-tone={hasEdge ? 'pos' : 'accent'} title="Kelly-suggested risk fraction">
+          <div className="rk-top">
+            <span className="rk-label">Kelly</span>
+            <span className="rk-value">{hasEdge ? `${(stats.kelly * 100).toFixed(1)}%` : 'No edge'}</span>
+          </div>
+          <div className="rk-gauge"><i style={{ width: `${hasEdge ? Math.min(100, stats.kelly * 100 * 4) : 0}%` }} /></div>
         </div>
       </div>
     </PanelChrome>
