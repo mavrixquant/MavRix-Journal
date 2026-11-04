@@ -70,7 +70,10 @@ export default function DashboardView({ kind, header = null }) {
 
   const enriched = useEnrichedTrades(accountIdValid ? accountId : null);
   const editor = useDashboardEditor({ userId: user?.id });
-  const layoutsApi = useUserLayouts(user?.id, { editMode: editor.editMode });
+  const layoutsApi = useUserLayouts({
+    userId: user?.id,
+    suppressRemotePush: editor.editMode,
+  });
   const { layouts: rawLayouts, setLayouts, activeId, setActiveId, layoutsReady } = layoutsApi;
   const gridMetrics = useResponsiveGridMetrics();
 
