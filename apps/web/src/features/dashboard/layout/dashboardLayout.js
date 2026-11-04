@@ -1,6 +1,5 @@
-// Dashboard layout engine (v2).
-// Same exports as before, so useUserLayouts / useResponsiveGridMetrics keep working.
-// New: reconcileLayouts() migrates any saved layout built for the old panel set.
+// Dashboard layout engine (v5 - Simplified).
+// Since layouts were wiped, we removed the complex legacy migration blocks.
 
 export const GRID_COLS = 48;
 export const GRID_ROW_HEIGHT = 40;
@@ -10,20 +9,21 @@ export const MAX_LAYOUTS = 3;
 
 const P = (i, x, y, w, h, minW, minH) => ({ i, x, y, w, h, minW, minH, visible: true });
 
-// 48-column desktop layout
+// 48-column desktop layout — two-column data desk.
+// Left: 0..27  |  Right: 27..48
 export const DEFAULT_LAYOUT = [
-  P('kpiGrid',           0,  0, 48,  3, 16, 3),   // metric ribbon
-  P('hero',              0,  3, 30, 10, 16, 6),   // equity + drawdown
-  P('calendar',         30,  3, 18, 10, 12, 7),   // P&L calendar
-  P('monthly',           0, 13, 16,  6, 10, 4),
-  P('rollingExpectancy',16, 13, 16,  6, 10, 4),
-  P('distribution',     32, 13, 16,  6, 10, 4),
-  P('timeChart',         0, 19, 28,  7, 14, 5),   // weekday x time heatmap
-  P('categoryCharts',   28, 19, 20,  7, 10, 5),   // session / weekday / direction
-  P('rrCompare',         0, 26, 16,  6, 10, 4),
-  P('advancedKpiGrid',  16, 26, 16,  6, 10, 4),
-  P('durationWidget',   32, 26, 16,  6, 10, 4),
-  P('strategyBreakdown', 0, 32, 48,  6, 16, 4),
+  P('kpiGrid',             0,  0, 48,  3, 16, 3),   // pulse ribbon
+  P('hero',                0,  3, 20,  9, 20, 8),   // equity — primary anchor
+  P('calendar',           20,  3, 28,  9, 12, 9),   // calendar — paired with hero
+  P('timeChart',           0, 12, 27,  7, 14, 6),   // left: timing
+  P('rollingExpectancy',   0, 19, 14,  5, 10, 1),
+  P('distribution',       14, 19, 13,  5, 10, 1),
+  P('monthly',             0, 24, 27,  6, 10, 1),
+  P('durationWidget',     27, 12, 21,  4, 10, 1),   // right: scanner (minH: 1 for resizing)
+  P('categoryCharts',     27, 16, 21,  4, 10, 1),
+  P('rrCompare',          27, 20, 21,  4, 10, 1),
+  P('advancedKpiGrid',    27, 24, 21,  4, 10, 1),
+  P('strategyBreakdown',   0, 30, 48,  6, 16, 1),   // full-width shelf
 ];
 
 // Heights (in grid rows) used when the grid collapses to 1 column on phones.
@@ -55,7 +55,6 @@ function proportional(items, targetCols) {
   });
 }
 
-// Reflow into 1 or 2 columns, honouring the original reading order.
 function reflow(items, cols) {
   const out = [];
   let cx = 0;
@@ -127,11 +126,13 @@ export function buildDefaultLayouts() {
   return [{ id: makeLayoutId(), name: makeLayoutName(0), layout: buildFreshLayout() }];
 }
 
-// ---- migration: layouts saved for the old panel set -> new default ----
+// ---- Simplified Migration (Panel set check only) ----
 const DEFAULT_KEY = DEFAULT_LAYOUT.map((i) => i.i).sort().join('|');
 
 export function isCurrentLayout(items) {
-  return Array.isArray(items) && items.map((i) => i.i).sort().join('|') === DEFAULT_KEY;
+  if (!Array.isArray(items)) return false;
+  // If the panel set matches, we assume it's valid. Since DB is wiped, it will build fresh.
+  return items.map((i) => i.i).sort().join('|') === DEFAULT_KEY;
 }
 
 export function reconcileLayouts(layouts) {
