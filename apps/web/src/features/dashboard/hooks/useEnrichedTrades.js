@@ -26,11 +26,12 @@ export function useEnrichedTrades(accountId) {
   const needsDispatch = lastDispatchedRef.current !== enriched.enrichedTrades;
 
   useEffect(() => {
+    if (!accountId) return;
     if (!needsDispatch) return;
     dispatch({ type: 'SET_TRADES', payload: enriched.enrichedTrades });
     dispatch({ type: 'SET_DYNAMIC_FILTER_KEYS', payload: enriched.dynamicKeys });
     lastDispatchedRef.current = enriched.enrichedTrades;
-  }, [enriched, needsDispatch, dispatch]);
+  }, [accountId, enriched, needsDispatch, dispatch]);
 
   const isSynced = !needsDispatch && state.trades === enriched.enrichedTrades;
 

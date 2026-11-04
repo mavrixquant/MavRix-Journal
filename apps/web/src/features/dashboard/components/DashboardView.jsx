@@ -109,8 +109,8 @@ export default function DashboardView({ kind, header = null }) {
   return (
     <div className="dash-root">
       <style>{SKELETON_CSS}</style>
-      {header}
       {!editor.editMode && <DashboardContextBar account={account} />}
+      {header}
       <DashboardGrid editor={editor} layouts={layouts} activeId={activeId} gridMetrics={gridMetrics} />
 
       {!editor.editMode && (
