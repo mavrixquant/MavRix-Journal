@@ -1,207 +1,99 @@
 import { useState, useMemo, useEffect, Fragment } from 'react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useStats } from '@/features/dashboard/hooks/useStats';
+import { PanelEmpty } from './PanelChrome';
 
 const formatR = (v) => (v >= 0 ? '+' : '') + v.toFixed(2) + 'R';
-const formatMoney = (v) => {
-  const sign = v >= 0 ? '+' : '-';
-  return `${sign}$${Math.abs(v).toFixed(2)}`;
+const formatMoney = (v) => `${v >= 0 ? '+' : '-'}$${Math.abs(v).toFixed(2)}`;
+
+const BASE_RGB = [15, 19, 28];
+const WIN_RGB = [53, 196, 161];
+const LOSS_RGB = [255, 92, 92];
+const BE_RGB = [136, 146, 163];
+
+const mixRgb = (a, b, t) => a.map((c, i) => Math.round(c + (b[i] - c) * t));
+const rgbCss = (arr) => `rgb(${arr[0]}, ${arr[1]}, ${arr[2]})`;
+const toneColor = (v) => (v > 0 ? '#35C4A1' : v < 0 ? '#FF5C5C' : '#8892A3');
+
+const todayStr = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 
-const BASE_RGB = [17, 21, 31];
-const WIN_RGB  = [32, 201, 151];
-const LOSS_RGB = [255, 77, 77];
-const BE_RGB   = [143, 155, 186];
-
-const mixRgb = (a, b, t) => [
-  Math.round(a[0] + (b[0] - a[0]) * t),
-  Math.round(a[1] + (b[1] - a[1]) * t),
-  Math.round(a[2] + (b[2] - a[2]) * t),
-];
-const rgbCss = (arr) => `rgb(${arr[0]}, ${arr[1]}, ${arr[2]})`;
-
-const colorForR = (v) =>
-  v > 0 ? rgbCss(WIN_RGB)
-  : v < 0 ? rgbCss(LOSS_RGB)
-  : rgbCss(BE_RGB);
-
 const CAL_CSS = `
-  .cal-root {
-    
-    
-    
-    
-    width: 100%;
-    font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
+  .cx { width: 100%; font-family: var(--d-sans); }
+
+  .cx-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 12px; flex-wrap: wrap; margin-bottom: 12px;
+  }
+  .cx-nav { display: flex; align-items: center; gap: 6px; }
+  .cx-navbtn {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 28px; height: 28px; border-radius: 8px;
+    background: rgba(255,255,255,.035); border: 1px solid var(--d-line);
+    color: var(--d-ink-2); cursor: pointer; transition: all .15s ease;
+  }
+  .cx-navbtn:hover:not(:disabled) { color: var(--d-ink); border-color: var(--d-line-strong); background: rgba(255,255,255,.07); }
+  .cx-navbtn:disabled { opacity: .3; cursor: not-allowed; }
+  .cx-month { font-size: 15px; font-weight: 700; letter-spacing: -.01em; min-width: 132px; text-align: center; color: var(--d-ink); }
+  .cx-latest {
+    margin-left: 4px; padding: 0 10px; height: 28px; border-radius: 8px;
+    font-family: var(--d-mono); font-size: 10.5px; font-weight: 600;
+    color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent);
+    border: 1px solid var(--accent-soft2); cursor: pointer;
+  }
+  .cx-latest:hover { background: color-mix(in srgb, var(--accent) 16%, transparent); }
+
+  .cx-stats { display: flex; gap: 6px; flex-wrap: wrap; }
+  .cx-stat {
+    display: inline-flex; align-items: baseline; gap: 6px;
+    padding: 4px 10px; border-radius: 999px;
+    background: rgba(255,255,255,.035); border: 1px solid var(--d-line);
+    font-family: var(--d-mono); font-size: 10.5px; color: var(--d-ink-3);
+  }
+  .cx-stat b { font-size: 11.5px; font-weight: 700; color: var(--d-ink); }
+
+  .cx-scroll { overflow-x: auto; width: 100%; padding-bottom: 4px; }
+  .cx-scroll::-webkit-scrollbar { height: 6px; }
+  .cx-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,.08); border-radius: 99px; }
+
+  .cx-grid {
+    display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)) minmax(78px, 1.05fr);
+    gap: 6px; min-width: 600px;
   }
 
-  /* ---------- Month tabs ---------- */
-  .cal-tabs {
-    display: flex;
-    gap: 6px;
-    overflow-x: auto;
-    margin-bottom: 14px;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
+  .cx-dow {
+    text-align: center; padding: 2px 0 6px;
+    font-family: var(--d-mono); font-size: 9.5px; font-weight: 600;
+    letter-spacing: .1em; text-transform: uppercase; color: var(--d-ink-3);
   }
-  .cal-tabs::-webkit-scrollbar { display: none; }
+  .cx-dow.is-week { color: var(--accent); }
 
-  .cal-tab {
-    padding: 6px 13px;
-    border-radius: 8px;
-    border: 1px solid rgba(255,255,255,.08);
-    background: rgba(255,255,255,.025);
-    color: #8892A3;
-    font-size: 11px;
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    font-weight: 500;
-    letter-spacing: .02em;
-    cursor: pointer;
-    white-space: nowrap;
-    flex-shrink: 0;
-    transition: all .22s cubic-bezier(.2,.8,.25,1);
+  .cx-cell {
+    position: relative; min-height: 62px; padding: 6px 8px;
+    display: flex; flex-direction: column; justify-content: space-between;
+    border-radius: 10px; border: 1px solid var(--d-line);
+    transition: border-color .15s ease, transform .15s ease;
+    cursor: default; box-sizing: border-box;
   }
-  .cal-tab:hover {
-    color: #E7E9EE;
-    background: rgba(255,255,255,.05);
-    border-color: rgba(255,255,255,.16);
-  }
-  .cal-tab.active {
-    background: linear-gradient(135deg, var(--accent), var(--accent-2));
-    color: #0D1117;
-    border-color: transparent;
-    font-weight: 700;
-    box-shadow:
-      0 8px 20px -10px color-mix(in srgb, var(--accent) 60%, transparent),
-      inset 0 1px 0 rgba(255,255,255,.4);
-  }
+  .cx-cell:not(.is-empty):hover { border-color: var(--d-line-strong); transform: translateY(-1px); }
+  .cx-cell.is-empty { background: transparent; border: 1px dashed rgba(255,255,255,.04); }
+  .cx-cell.is-today { box-shadow: 0 0 0 1.5px var(--accent) inset; }
 
-  /* ---------- Grid ---------- */
-  .cal-scroll {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    width: 100%;
-    padding-bottom: 4px;
-  }
-  .cal-scroll::-webkit-scrollbar { height: 6px; }
-  .cal-scroll::-webkit-scrollbar-thumb {
-    background: rgba(255,255,255,.08);
-    border-radius: 99px;
-  }
-  .cal-scroll::-webkit-scrollbar-thumb:hover {
-    background: color-mix(in srgb, var(--accent) 35%, transparent);
-  }
+  .cx-date { font-family: var(--d-mono); font-size: 10px; font-weight: 600; color: var(--d-ink-3); }
+  .cx-cell.is-today .cx-date { color: var(--accent); }
+  .cx-val { font-family: var(--d-mono); font-size: 11.5px; font-weight: 700; letter-spacing: -.01em; text-align: right; }
+  .cx-n { font-family: var(--d-mono); font-size: 9px; color: var(--d-ink-2); opacity: .8; text-align: right; }
 
-  .cal-grid {
-    display: grid;
-    grid-template-columns: repeat(8, minmax(0, 1fr));
-    gap: 5px;
-    min-width: 620px;
-  }
-
-  .cal-dow {
-    text-align: center;
-    padding: 4px 0 6px;
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: .08em;
-    color: #545E6E;
-    text-transform: uppercase;
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
-  }
-  .cal-dow-week {
-    color: var(--accent);
-    font-weight: 700;
-    border-left: 2px solid var(--accent-soft2);
-    padding-left: 4px;
-  }
-
-  /* ---------- Day cells — solid KPI-card look ---------- */
-  .cal-cell {
-    min-height: 60px;
-    border-radius: 8px;
-    padding: 5px 7px;
-    display: flex;
-    flex-direction: column;
+  .cx-week {
+    min-height: 62px; padding: 6px 9px; display: flex; flex-direction: column; justify-content: space-between;
+    border-radius: 10px; border: 1px solid var(--d-line); border-left: 3px solid var(--accent);
     box-sizing: border-box;
-    border: 1px solid #212836;
-    transition: border-color .15s ease;
-    cursor: default;
   }
-  .cal-cell:not(.cal-cell-empty):hover {
-    border-color: #3A4456;
-  }
-  .cal-cell-empty {
-    background: transparent;
-    border: 1px dashed rgba(255,255,255,.04);
-    min-height: 60px;
-  }
-
-  .cal-date {
-    font-size: 10px;
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    color: #545E6E;
-    font-weight: 500;
-    letter-spacing: .02em;
-  }
-
-  .cal-r {
-    color: inherit;
-    font-weight: 700;
-    font-size: 11.5px;
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    letter-spacing: -.01em;
-  }
-
-  .cal-n {
-    font-size: 9px;
-    color: #8892A3;
-    opacity: .75;
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    letter-spacing: .02em;
-  }
-
-  /* ---------- Weekly summary cell ---------- */
-  .cal-week-cell {
-    min-height: 60px;
-    border-radius: 8px;
-    padding: 5px 7px;
-    display: flex;
-    flex-direction: column;
-    box-sizing: border-box;
-    border: 1px solid #212836;
-    border-left: 3px solid var(--accent);
-    transition: border-color .15s ease;
-    cursor: default;
-  }
-  .cal-week-cell:hover {
-    border-color: #3A4456;
-    border-left-color: var(--accent);
-  }
-  .cal-week-label {
-    font-size: 9px;
-    font-weight: 700;
-    text-transform: uppercase;
-    color: var(--accent);
-    letter-spacing: .08em;
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
-  }
-
-  /* ---------- Empty state ---------- */
-  .cal-empty {
-    padding: 44px 20px;
-    text-align: center;
-    color: #545E6E;
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    font-size: 12px;
-    background: linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,.005));
-    border-radius: 14px;
-    border: 1px dashed rgba(255,255,255,.08);
-    letter-spacing: .02em;
-  }
-  .cal-empty-icon {
-    font-size: 22px;
-    margin-bottom: 8px;
-    opacity: .6;
+  .cx-week-label {
+    font-family: var(--d-mono); font-size: 9px; font-weight: 700;
+    letter-spacing: .1em; text-transform: uppercase; color: var(--accent);
   }
 `;
 
@@ -212,10 +104,8 @@ export default function Calendar() {
   const [selectedMonth, setSelectedMonth] = useState(null);
 
   const months = useMemo(() => {
-    if (!stats || !stats.outcomes || stats.outcomes.length === 0) return [];
-    return [...new Set(stats.outcomes.map((o) => o.date?.slice(0, 7)))]
-      .filter(Boolean)
-      .sort();
+    if (!stats?.outcomes?.length) return [];
+    return [...new Set(stats.outcomes.map((o) => o.date?.slice(0, 7)))].filter(Boolean).sort();
   }, [stats]);
 
   useEffect(() => {
@@ -225,9 +115,8 @@ export default function Calendar() {
   }, [months, selectedMonth]);
 
   const byDate = useMemo(() => {
-    if (!stats || !stats.outcomes) return new Map();
     const map = new Map();
-    stats.outcomes.forEach((o) => {
+    (stats?.outcomes || []).forEach((o) => {
       if (!o.date) return;
       if (!map.has(o.date)) map.set(o.date, { v: 0, n: 0 });
       const d = map.get(o.date);
@@ -240,157 +129,143 @@ export default function Calendar() {
   const calendarData = useMemo(() => {
     if (!selectedMonth || !byDate.size) return null;
     const [y, mo] = selectedMonth.split('-').map(Number);
-    const firstDay = new Date(y, mo - 1, 1);
+    const startOffset = new Date(y, mo - 1, 1).getDay();
     const daysInMonth = new Date(y, mo, 0).getDate();
-    const startOffset = firstDay.getDay();
     const maxAbs = Math.max(1, ...[...byDate.values()].map((d) => Math.abs(d.v)));
 
     const days = [];
-    let weekV = 0, weekN = 0;
     const weeks = [];
+    let weekV = 0;
+    let weekN = 0;
+    let monthV = 0;
+    let monthN = 0;
+    let greenDays = 0;
+    let tradedDays = 0;
 
-    for (let i = 0; i < startOffset; i++) days.push({ date: null, empty: true });
+    for (let i = 0; i < startOffset; i++) days.push({ empty: true });
 
     for (let d = 1; d <= daysInMonth; d++) {
       const dateStr = `${y}-${String(mo).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
       const info = byDate.get(dateStr);
-      let v = 0, n = 0;
-      if (info) { v = info.v; n = info.n; weekV += v; weekN += n; }
-      days.push({ date: dateStr, day: d, v, n, empty: false });
+      let v = 0;
+      let n = 0;
+      if (info) {
+        v = info.v;
+        n = info.n;
+        weekV += v;
+        weekN += n;
+        monthV += v;
+        monthN += n;
+        tradedDays += 1;
+        if (v > 0) greenDays += 1;
+      }
+      days.push({ date: dateStr, day: d, v, n });
       const dow = (startOffset + d - 1) % 7;
       if (dow === 6 || d === daysInMonth) {
         weeks.push({ weekV, weekN });
-        weekV = 0; weekN = 0;
+        weekV = 0;
+        weekN = 0;
       }
     }
 
-    const cells = [];
-    let dayIndex = 0;
-    for (let w = 0; w < weeks.length; w++) {
-      const week = weeks[w];
-      const weekRow = [];
-      for (let i = 0; i < 7; i++) {
-        weekRow.push(days[dayIndex] || { empty: true });
-        dayIndex++;
-      }
-      cells.push({ days: weekRow, weekV: week.weekV, weekN: week.weekN });
-    }
-    return { cells, maxAbs };
+    const rows = weeks.map((week, w) => ({
+      days: Array.from({ length: 7 }, (_, i) => days[w * 7 + i] || { empty: true }),
+      ...week,
+    }));
+
+    return { rows, maxAbs, monthV, monthN, greenDays, tradedDays };
   }, [selectedMonth, byDate]);
 
-  if (!stats || !stats.outcomes || stats.outcomes.length === 0 || months.length === 0 || !calendarData) {
-    return (
-      <>
-        <style>{CAL_CSS}</style>
-        <div className="cal-root">
-          <div className="cal-empty">
-            <div className="cal-empty-icon">📅</div>
-            No calendar performance data available.
-          </div>
-        </div>
-      </>
-    );
+  if (!stats?.outcomes?.length || !months.length || !calendarData) {
+    return <PanelEmpty title="No calendar data" hint="Trades will appear here by day" />;
   }
 
-  const { cells, maxAbs } = calendarData;
+  const { rows, maxAbs, monthV, monthN, greenDays, tradedDays } = calendarData;
+  const idx = months.indexOf(selectedMonth);
+  const [yy, mm] = selectedMonth.split('-').map(Number);
+  const monthLabel = new Date(yy, mm - 1, 1).toLocaleString('en-US', { month: 'long', year: 'numeric' });
+  const today = todayStr();
 
   return (
     <>
       <style>{CAL_CSS}</style>
-      <div className="cal-root">
-        {}
-        <div className="cal-tabs">
-          {months.map((m) => {
-            const [y, mo] = m.split('-');
-            const label = new Date(y, mo - 1, 1).toLocaleString('en-US', {
-              month: 'short',
-              year: '2-digit',
-            });
-            const isActive = m === selectedMonth;
-            return (
-              <button
-                key={m}
-                className={`cal-tab ${isActive ? 'active' : ''}`}
-                onClick={() => setSelectedMonth(m)}
-              >
-                {label}
+      <div className="cx">
+        <div className="cx-bar">
+          <div className="cx-nav">
+            <button type="button" className="cx-navbtn" disabled={idx <= 0} onClick={() => setSelectedMonth(months[idx - 1])} aria-label="Previous month">
+              <ChevronLeft size={15} />
+            </button>
+            <div className="cx-month">{monthLabel}</div>
+            <button type="button" className="cx-navbtn" disabled={idx >= months.length - 1} onClick={() => setSelectedMonth(months[idx + 1])} aria-label="Next month">
+              <ChevronRight size={15} />
+            </button>
+            {idx < months.length - 1 && (
+              <button type="button" className="cx-latest" onClick={() => setSelectedMonth(months[months.length - 1])}>
+                Latest
               </button>
-            );
-          })}
+            )}
+          </div>
+
+          <div className="cx-stats">
+            <span className="cx-stat">
+              Month <b style={{ color: toneColor(monthV) }}>{monthN ? fmt(monthV) : '—'}</b>
+            </span>
+            <span className="cx-stat">
+              Green days <b>{greenDays}/{tradedDays}</b>
+            </span>
+            <span className="cx-stat">
+              Trades <b>{monthN}</b>
+            </span>
+          </div>
         </div>
 
-        {}
-        <div className="cal-scroll">
-          <div className="cal-grid">
+        <div className="cx-scroll">
+          <div className="cx-grid">
             {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => (
-              <div key={d} className="cal-dow">{d}</div>
+              <div key={d} className="cx-dow">{d}</div>
             ))}
-            <div className="cal-dow cal-dow-week">Week</div>
+            <div className="cx-dow is-week">Week</div>
 
-            {cells.map((cell, idx) => {
-              const { days: dayCells, weekV, weekN } = cell;
-
-              const weekTint = !weekN
+            {rows.map((row, ri) => {
+              const weekTint = !row.weekN
                 ? BASE_RGB
-                : weekV > 0
-                  ? mixRgb(BASE_RGB, WIN_RGB, 0.22)
-                  : weekV < 0
-                    ? mixRgb(BASE_RGB, LOSS_RGB, 0.22)
-                    : mixRgb(BASE_RGB, BE_RGB, 0.16);
-              const weekBg = rgbCss(weekTint);
-              const weekColor = weekN ? colorForR(weekV) : '#8892A3';
+                : mixRgb(BASE_RGB, row.weekV > 0 ? WIN_RGB : row.weekV < 0 ? LOSS_RGB : BE_RGB, 0.16);
 
               return (
-                <Fragment key={`week-row-${idx}`}>
-                  {dayCells.map((day, i) => {
-                    if (day.empty) {
-                      return (
-                        <div
-                          key={`empty-${idx}-${i}`}
-                          className="cal-cell cal-cell-empty"
-                        />
-                      );
-                    }
+                <Fragment key={`row-${ri}`}>
+                  {row.days.map((day, i) => {
+                    if (day.empty) return <div key={`e-${ri}-${i}`} className="cx-cell is-empty" />;
 
-                    const intensity = day.n ? Math.min(1, Math.abs(day.v) / maxAbs) : 0;
-
-                    let cellBg = rgbCss(BASE_RGB);
+                    let bg = rgbCss(BASE_RGB);
                     if (day.n) {
                       const target = day.v > 0 ? WIN_RGB : day.v < 0 ? LOSS_RGB : BE_RGB;
-                      const ratio = 0.06 + intensity * 0.24;
-                      cellBg = rgbCss(mixRgb(BASE_RGB, target, ratio));
+                      bg = rgbCss(mixRgb(BASE_RGB, target, 0.08 + Math.min(1, Math.abs(day.v) / maxAbs) * 0.3));
                     }
-                    const dayColor = day.n ? colorForR(day.v) : '#8892A3';
 
                     return (
                       <div
-                        key={`day-${day.date || i}`}
-                        className="cal-cell"
-                        style={{ backgroundColor: cellBg }}
+                        key={day.date}
+                        className={`cx-cell${day.date === today ? ' is-today' : ''}`}
+                        style={{ backgroundColor: bg }}
                       >
-                        <div className="cal-date">{day.day}</div>
+                        <div className="cx-date">{day.day}</div>
                         {day.n > 0 && (
-                          <div style={{ marginTop: 'auto' }}>
-                            <div className="cal-r" style={{ color: dayColor }}>
-                              {fmt(day.v)}
-                            </div>
-                            <div className="cal-n">{day.n}t</div>
+                          <div>
+                            <div className="cx-val" style={{ color: toneColor(day.v) }}>{fmt(day.v)}</div>
+                            <div className="cx-n">{day.n} trade{day.n > 1 ? 's' : ''}</div>
                           </div>
                         )}
                       </div>
                     );
                   })}
 
-                  <div
-                    className="cal-week-cell"
-                    style={{ backgroundColor: weekBg }}
-                  >
-                    <div className="cal-week-label">W{idx + 1}</div>
-                    <div style={{ marginTop: 'auto' }}>
-                      <div className="cal-r" style={{ color: weekColor }}>
-                        {weekN ? fmt(weekV) : '—'}
+                  <div className="cx-week" style={{ backgroundColor: rgbCss(weekTint) }}>
+                    <div className="cx-week-label">W{ri + 1}</div>
+                    <div>
+                      <div className="cx-val" style={{ color: row.weekN ? toneColor(row.weekV) : '#8892A3' }}>
+                        {row.weekN ? fmt(row.weekV) : '—'}
                       </div>
-                      {weekN > 0 && <div className="cal-n">{weekN}t</div>}
+                      {row.weekN > 0 && <div className="cx-n">{row.weekN} trades</div>}
                     </div>
                   </div>
                 </Fragment>
