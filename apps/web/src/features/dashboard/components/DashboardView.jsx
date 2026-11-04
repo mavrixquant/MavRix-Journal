@@ -69,8 +69,8 @@ export default function DashboardView({ kind, header = null }) {
 
   usePageHeader(
     isBacktest
-      ? { title: 'Backtester', badge: account?.type, badgeVariant: 'is-backtest' }
-      : { title: 'Journal', badge: account?.type }
+      ? { title: 'Backtester Dashboard', badge: account?.type, badgeVariant: 'is-backtest' }
+      : { title: 'Journal Dashboard', badge: account?.type }
   );
 
   const bootstrapping =

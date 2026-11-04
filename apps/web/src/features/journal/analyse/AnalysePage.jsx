@@ -1,4 +1,3 @@
-
 import { useAuth } from '@/app/providers/AuthProvider';
 import { useAppContext } from '@/app/providers/AppProvider';
 import { useDashboardAccount } from '@/app/providers/useDashboardAccount';
@@ -14,22 +13,29 @@ import { FaChartBar, FaSearch } from 'react-icons/fa';
 import AnalyseFilters from './AnalyseFilters';
 import { AnalyseSection, AnalysePanel } from './AnalyseSection';
 
+// Dashboard Panels (have their own PanelChrome headers)
 import Hero from '@/features/dashboard/components/panels/Hero';
-import KPIGrid from '@/features/dashboard/components/panels/KPIGrid';
 import AdvancedKPIGrid from '@/features/dashboard/components/panels/AdvancedKPIGrid';
 import DurationWidget from '@/features/dashboard/components/panels/DurationWidget';
-import SymbolBreakdownTable from '@/features/dashboard/components/panels/SymbolBreakdownTable';
-import StrategyBreakdownTable from '@/features/dashboard/components/panels/StrategyBreakdownTable';
 import Calendar from '@/features/dashboard/components/panels/Calendar';
 import WeeklyChart from '@/features/dashboard/components/panels/WeeklyChart';
+
+// Dashboard Tables (no headers, need AnalysePanel wrapper)
+import KPIGrid from '@/features/dashboard/components/panels/KPIGrid';
+import SymbolBreakdownTable from '@/features/dashboard/components/panels/SymbolBreakdownTable';
+import StrategyBreakdownTable from '@/features/dashboard/components/panels/StrategyBreakdownTable';
 import TradeTable from '@/features/dashboard/components/panels/TradeTable';
 
+// Dedicated Analyse Charts
 import MonthlyChart from '@/features/dashboard/components/charts/MonthlyChart';
 import RollingExpectancyChart from '@/features/dashboard/components/charts/RollingExpectancyChart';
 import UnderwaterChart from '@/features/dashboard/components/charts/UnderwaterChart';
 import TimeChart from '@/features/dashboard/components/charts/TimeChart';
 import RRCompareChart from '@/features/dashboard/components/charts/RRCompareChart';
 import CategoryBarChart from '@/features/dashboard/components/charts/CategoryBarChart';
+
+// CRITICAL: Required for the Dashboard panels to render correctly
+import '@/features/dashboard/dashboardShell.css';
 
 const CSS = `
   .analyse-root {
@@ -368,17 +374,14 @@ export default function AnalysePage() {
   const { accountId } = useDashboardAccount();
 
   const enriched = useEnrichedTrades(accountId);
-
   useFilterUrlSync();
-
   const { stats, account } = useStats();
 
   const totalCount = enriched.enrichedTrades.length;
   const filteredCount = stats?.n ?? 0;
-
   const isHydrating = totalCount > 0 && state.trades.length === 0;
-
   const isFiltered = totalCount > 0 && filteredCount !== totalCount;
+
   let subText;
   if (totalCount === 0) {
     subText = 'No trades recorded for this account yet';
@@ -407,7 +410,7 @@ export default function AnalysePage() {
   const hasAnyTrades = totalCount > 0;
 
   return (
-    <div className="analyse-root page-fade-in">
+    <div className="dash-root analyse-root page-fade-in">
       <style>{CSS}</style>
 
       <AnalyseFilters />
@@ -420,11 +423,7 @@ export default function AnalysePage() {
           title="No trades to analyse"
           description="Upload or add trades to this account first. Once there is data, this page will break down performance, timing, edge, and drawdown across seven report sections."
           actions={[
-            {
-              label: 'Open Trade Logs',
-              variant: 'primary',
-              to: '/journal/logs',
-            },
+            { label: 'Open Trade Logs', variant: 'primary', to: '/journal/logs' },
           ]}
         />
       ) : filteredCount === 0 ? (
@@ -437,57 +436,55 @@ export default function AnalysePage() {
         />
       ) : (
         <>
-          {}
+          {/* 01. Snapshot */}
           <AnalyseSection
             num="01"
             title="Snapshot"
             note={`${filteredCount} ${filteredCount === 1 ? 'trade' : 'trades'}`}
           >
-            <Hero />
-            <KPIGrid />
-            <AdvancedKPIGrid />
+            <div className="dash-panel" style={{ height: 400 }}>
+              <Hero />
+            </div>
+            <AnalysePanel title="Key Metrics" height={120}>
+              <div className="dash-panel" style={{ height: '100%', border: 'none', background: 'transparent', boxShadow: 'none' }}>
+                <KPIGrid />
+              </div>
+            </AnalysePanel>
+            <div className="dash-panel" style={{ height: 200 }}>
+              <AdvancedKPIGrid />
+            </div>
           </AnalyseSection>
 
-          {}
+          {/* 02. Equity & Drawdown */}
           <AnalyseSection num="02" title="Equity & Drawdown">
             <div className="analyse-panels cols-2">
-              <AnalysePanel
-                title="Underwater Curve"
-                note="Drawdown from peak"
-                height={320}
-              >
+              <AnalysePanel title="Underwater Curve" note="Drawdown from peak" height={320}>
                 <UnderwaterChart />
               </AnalysePanel>
-              <AnalysePanel
-                title={
-                  account?.type === 'Backtest'
-                    ? 'Target R:R Comparison'
-                    : 'Daily Net P&L'
-                }
-                height={320}
-              >
+              <AnalysePanel title={account?.type === 'Backtest' ? 'Target R:R Comparison' : 'Daily Net P&L'} height={320}>
                 <RRCompareChart />
               </AnalysePanel>
             </div>
           </AnalyseSection>
 
-          {}
-          <AnalyseSection num="03" title="Monthly Performance">
+          {/* 03. Performance */}
+          <AnalyseSection num="03" title="Performance">
             <div className="analyse-panels cols-1">
               <AnalysePanel title="Monthly Breakdown" height={300}>
                 <MonthlyChart />
               </AnalysePanel>
             </div>
             <div className="analyse-panels cols-1">
-              <AnalysePanel title="Calendar & Weekly Summary" height="auto">
+              <div className="dash-panel" style={{ height: 450, marginBottom: 18 }}>
                 <Calendar />
-                <div style={{ height: 20 }} />
+              </div>
+              <div className="dash-panel" style={{ height: 220 }}>
                 <WeeklyChart />
-              </AnalysePanel>
+              </div>
             </div>
           </AnalyseSection>
 
-          {}
+          {/* 04. Timing & Momentum */}
           <AnalyseSection num="04" title="Timing & Momentum">
             <div className="analyse-panels cols-2">
               <AnalysePanel title="Time of Day" height={320}>
@@ -499,7 +496,7 @@ export default function AnalysePage() {
             </div>
           </AnalyseSection>
 
-          {}
+          {/* 05. Breakdowns */}
           <AnalyseSection num="05" title="Breakdowns">
             <div className="analyse-panels cols-3">
               <AnalysePanel title="By Session" height={300}>
@@ -513,37 +510,39 @@ export default function AnalysePage() {
               </AnalysePanel>
             </div>
             <div className="analyse-panels cols-1">
-              <AnalysePanel
-                title="By Strategy"
-                note="net per playbook"
-                height="auto"
-              >
-                <StrategyBreakdownTable />
+              <AnalysePanel title="By Strategy" note="net per playbook" height={340}>
+                <div className="dash-panel" style={{ height: '100%', border: 'none', background: 'transparent', boxShadow: 'none' }}>
+                  <StrategyBreakdownTable />
+                </div>
               </AnalysePanel>
             </div>
           </AnalyseSection>
 
-          {}
+          {/* 06. Symbols & Duration */}
           <AnalyseSection num="06" title="Symbols & Duration">
             <div className="analyse-panels cols-2">
-              <AnalysePanel title="Symbol Breakdown" height="auto">
-                <SymbolBreakdownTable />
+              <AnalysePanel title="Symbol Breakdown" height={320}>
+                <div className="dash-panel" style={{ height: '100%', border: 'none', background: 'transparent', boxShadow: 'none' }}>
+                  <SymbolBreakdownTable />
+                </div>
               </AnalysePanel>
-              <AnalysePanel title="Holding Time" height="auto">
+              <div className="dash-panel" style={{ height: 320 }}>
                 <DurationWidget />
-              </AnalysePanel>
+              </div>
             </div>
           </AnalyseSection>
 
-          {}
+          {/* 07. Trade Log */}
           <AnalyseSection
             num="07"
             title="Trade Log"
             note={`${filteredCount} ${filteredCount === 1 ? 'row' : 'rows'}`}
           >
             <div className="analyse-panels cols-1">
-              <AnalysePanel title="All Filtered Trades" height="auto">
-                <TradeTable />
+              <AnalysePanel title="All Filtered Trades" height={600}>
+                <div className="dash-panel" style={{ height: '100%', border: 'none', background: 'transparent', boxShadow: 'none' }}>
+                  <TradeTable />
+                </div>
               </AnalysePanel>
             </div>
           </AnalyseSection>
