@@ -1,6 +1,6 @@
-
 import { useMemo, useState } from 'react';
-import { Clock, SlidersHorizontal, X, Brain, Target } from 'lucide-react';
+import { Check, Clock, SlidersHorizontal, X, Brain, Target } from 'lucide-react';
+import { Command } from 'cmdk';
 
 import { useFilters } from '@/features/dashboard/hooks/useFilters';
 import { useStrategies } from '@/shared/api/strategies';
@@ -8,182 +8,17 @@ import DynamicFilters from '@/features/dashboard/components/filters/DynamicFilte
 import SessionTimeModal from '@/features/dashboard/components/filters/SessionTimeModal';
 import LimitsModal from '@/features/dashboard/components/filters/LimitsModal';
 import OptimizeModal from '@/features/dashboard/components/optimize/OptimizeModal';
+import { Popover, PopoverContent, PopoverTrigger } from '@/shared/ui/popover';
 
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/shared/ui/popover';
-import { Command } from 'cmdk';
-
-const PICKER_CSS = `
-  .af-strat-trigger {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 14px;
-    border-radius: 10px;
-    border: 1px solid rgba(255,255,255,.1);
-    background: rgba(255,255,255,.03);
-    color: var(--ink-2);
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    font-size: 11.5px;
-    font-weight: 600;
-    letter-spacing: .02em;
-    cursor: pointer;
-    transition: all .22s cubic-bezier(.2,.8,.25,1);
-    white-space: nowrap;
-  }
-  .af-strat-trigger:hover {
-    color: var(--ink-1);
-    background: rgba(255,255,255,.06);
-    border-color: rgba(255,255,255,.2);
-    transform: translateY(-1px);
-  }
-  .af-strat-trigger.is-active {
-    border-color: var(--accent-soft2);
-    background: color-mix(in srgb, var(--accent) 10%, transparent);
-    color: var(--accent);
-    box-shadow: 0 0 20px -8px color-mix(in srgb, var(--accent) 40%, transparent);
-  }
-  .af-strat-trigger svg { flex-shrink: 0; }
-  .af-strat-count {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 18px;
-    height: 18px;
-    padding: 0 6px;
-    border-radius: 9px;
-    background: var(--accent);
-    color: #0D1117;
-    font-size: 10px;
-    font-weight: 700;
-  }
-  .af-strat-pop {
-    width: 280px;
-    padding: 0 !important;
-    background: #11151F !important;
-    border: 1px solid #212836 !important;
-    border-radius: 10px !important;
-    box-shadow: 0 16px 40px -12px rgba(0,0,0,.7) !important;
-    overflow: hidden;
-  }
-  .af-strat-cmd {
-    display: flex;
-    flex-direction: column;
-  }
-  .af-strat-input-wrap {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 10px 12px;
-    border-bottom: 1px solid #1A2029;
-    color: #545E6E;
-  }
-  .af-strat-input {
-    flex: 1;
-    background: transparent;
-    border: none;
-    outline: none;
-    color: #E7E9EE;
-    font-size: 12.5px;
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
-  }
-  .af-strat-input::placeholder { color: #545E6E; }
-  .af-strat-list {
-    max-height: 260px;
-    overflow-y: auto;
-    padding: 6px;
-  }
-  .af-strat-list::-webkit-scrollbar { width: 6px; }
-  .af-strat-list::-webkit-scrollbar-thumb {
-    background: rgba(255,255,255,.08);
-    border-radius: 99px;
-  }
-  .af-strat-empty {
-    padding: 24px 12px;
-    text-align: center;
-    color: #545E6E;
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    font-size: 11.5px;
-    line-height: 1.6;
-  }
-  .af-strat-item {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 7px 10px;
-    border-radius: 6px;
-    cursor: pointer;
-    color: #8892A3;
-    font-size: 12.5px;
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    user-select: none;
-    transition: background-color .12s ease, color .12s ease;
-  }
-  .af-strat-item[data-selected="true"] {
-    background: color-mix(in srgb, var(--accent) 6%, transparent);
-    color: #FFFFFF;
-  }
-  .af-strat-item:hover {
-    background: rgba(255,255,255,.04);
-  }
-  .af-strat-dot {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    flex-shrink: 0;
-  }
-  .af-strat-name {
-    flex: 1;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .af-strat-check {
-    color: var(--accent);
-    opacity: 0;
-    flex-shrink: 0;
-  }
-  .af-strat-item[data-selected="true"] .af-strat-check {
-    opacity: 1;
-  }
-  .af-strat-foot {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 8px 12px;
-    border-top: 1px solid #1A2029;
-    background: rgba(0,0,0,.15);
-  }
-  .af-strat-foot-btn {
-    background: none;
-    border: none;
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    font-size: 10.5px;
-    font-weight: 700;
-    letter-spacing: .04em;
-    text-transform: uppercase;
-    cursor: pointer;
-    padding: 3px 6px;
-    border-radius: 4px;
-  }
-  .af-strat-foot-btn.all { color: var(--accent); }
-  .af-strat-foot-btn.all:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); }
-  .af-strat-foot-btn.clear { color: #545E6E; }
-  .af-strat-foot-btn.clear:hover { color: #8892A3; background: rgba(255,255,255,.04); }
-`;
-
-function StrategyPicker({ strategies, selectedIds, onChange, disabled }) {
+function StrategyPicker({ strategies, selectedIds, onChange }) {
   const [open, setOpen] = useState(false);
 
   const toggle = (id) => {
-    if (selectedIds.includes(id)) {
-      onChange(selectedIds.filter((s) => s !== id));
-    } else {
-      onChange([...selectedIds, id]);
-    }
+    onChange(
+      selectedIds.includes(id)
+        ? selectedIds.filter((s) => s !== id)
+        : [...selectedIds, id]
+    );
   };
 
   const hasSelection = selectedIds.length > 0;
@@ -194,35 +29,23 @@ function StrategyPicker({ strategies, selectedIds, onChange, disabled }) {
         <button
           type="button"
           className={`af-strat-trigger ${hasSelection ? 'is-active' : ''}`}
-          disabled={disabled || strategies.length === 0}
-          title={
-            strategies.length === 0
-              ? 'No strategies defined yet'
-              : 'Filter by strategy'
-          }
+          disabled={strategies.length === 0}
+          title={strategies.length === 0 ? 'No strategies defined yet' : 'Filter by strategy'}
         >
           <Brain size={12} />
           <span>Strategies</span>
-          {hasSelection && (
-            <span className="af-strat-count">{selectedIds.length}</span>
-          )}
+          {hasSelection && <span className="af-strat-count">{selectedIds.length}</span>}
         </button>
       </PopoverTrigger>
 
       <PopoverContent align="start" sideOffset={6} className="af-strat-pop">
         <Command className="af-strat-cmd">
           <div className="af-strat-input-wrap">
-            <Command.Input
-              className="af-strat-input"
-              placeholder="Search strategies…"
-            />
+            <Command.Input className="af-strat-input" placeholder="Search strategies..." />
           </div>
 
           <Command.List className="af-strat-list">
-            <Command.Empty className="af-strat-empty">
-              No strategies match.
-            </Command.Empty>
-
+            <Command.Empty className="af-strat-empty">No strategies match.</Command.Empty>
             {strategies.map((s) => {
               const isSelected = selectedIds.includes(s.id);
               return (
@@ -241,9 +64,7 @@ function StrategyPicker({ strategies, selectedIds, onChange, disabled }) {
                     }}
                   />
                   <span className="af-strat-name">{s.name}</span>
-                  <span className="af-strat-check" style={{ fontWeight: 700 }}>
-                    ✓
-                  </span>
+                  <Check size={13} className="af-strat-check" />
                 </Command.Item>
               );
             })}
@@ -255,14 +76,10 @@ function StrategyPicker({ strategies, selectedIds, onChange, disabled }) {
               className="af-strat-foot-btn all"
               onClick={() => onChange(strategies.map((s) => s.id))}
             >
-              All
+              Select all
             </button>
-            <button
-              type="button"
-              className="af-strat-foot-btn clear"
-              onClick={() => onChange([])}
-            >
-              Reset
+            <button type="button" className="af-strat-foot-btn clear" onClick={() => onChange([])}>
+              Clear
             </button>
           </div>
         </Command>
@@ -298,9 +115,7 @@ export default function AnalyseFilters() {
     const archivedSelected = allStrategies.filter(
       (s) => s.status === 'archived' && strategyIds.includes(s.id)
     );
-    return [...visible, ...archivedSelected].sort((a, b) =>
-      a.name.localeCompare(b.name)
-    );
+    return [...visible, ...archivedSelected].sort((a, b) => a.name.localeCompare(b.name));
   }, [allStrategies, strategyIds]);
 
   const chips = useMemo(() => {
@@ -310,13 +125,9 @@ export default function AnalyseFilters() {
       const names = strategyIds
         .map((id) => allStrategies.find((s) => s.id === id)?.name)
         .filter(Boolean);
-      const label =
-        names.length > 0
-          ? `Strategy: ${names.join(', ')}`
-          : `Strategy: ${strategyIds.length} selected`;
       list.push({
         id: 'strategy',
-        label,
+        label: names.length > 0 ? `Strategy: ${names.join(', ')}` : `Strategy: ${strategyIds.length} selected`,
         onRemove: () => setStrategyIds([]),
       });
     }
@@ -348,20 +159,12 @@ export default function AnalyseFilters() {
 
     if (activeFilterType !== 'none') {
       let label = 'Limits: ';
-      if (activeFilterType === 'session') {
-        label += `Session × ${filterParams.sessionLimit ?? 2}`;
-      } else if (activeFilterType === 'day') {
-        label += `Daily × ${filterParams.dayLimit ?? 2}`;
-      } else if (activeFilterType === 'rrLimit') {
-        label += `± ${filterParams.winLimit ?? 2} / ${filterParams.lossLimit ?? 2}`;
-      } else {
-        label += activeFilterType;
-      }
-      list.push({
-        id: 'limits',
-        label,
-        onRemove: () => setActiveFilterType('none'),
-      });
+      if (activeFilterType === 'session') label += `${filterParams.sessionLimit ?? 2} per session`;
+      else if (activeFilterType === 'day') label += `${filterParams.dayLimit ?? 2} per day`;
+      else if (activeFilterType === 'rrLimit') {
+        label += `stop at +${filterParams.winLimit ?? 2} / -${filterParams.lossLimit ?? 2}`;
+      } else label += activeFilterType;
+      list.push({ id: 'limits', label, onRemove: () => setActiveFilterType('none') });
     }
 
     return list;
@@ -382,23 +185,15 @@ export default function AnalyseFilters() {
   ]);
 
   const hasAnyFilters = chips.length > 0;
-  const sessionTimeActive =
-    selectedSessions.length > 0 || selectedTimeBlocks.length > 0;
+  const sessionTimeActive = selectedSessions.length > 0 || selectedTimeBlocks.length > 0;
   const limitsActive = activeFilterType !== 'none';
 
   return (
     <>
-      <style>{PICKER_CSS}</style>
       <div className="af-root">
         <div className="af-primary">
           <DynamicFilters />
-
-          <StrategyPicker
-            strategies={strategies}
-            selectedIds={strategyIds}
-            onChange={setStrategyIds}
-            disabled={false}
-          />
+          <StrategyPicker strategies={strategies} selectedIds={strategyIds} onChange={setStrategyIds} />
 
           <div className="af-spacer" />
 
@@ -408,7 +203,7 @@ export default function AnalyseFilters() {
             onClick={() => setShowSessionModal(true)}
           >
             <Clock size={12} />
-            <span>Session / Time</span>
+            <span>Session / time</span>
           </button>
 
           <button
@@ -424,7 +219,7 @@ export default function AnalyseFilters() {
             type="button"
             className="af-btn"
             onClick={() => setShowOptimizeModal(true)}
-            title="Optimize filter combinations"
+            title="Test filter combinations"
           >
             <Target size={12} />
             <span>Optimize</span>
@@ -444,12 +239,10 @@ export default function AnalyseFilters() {
 
         {hasAnyFilters && (
           <div className="af-chips">
-            <span className="af-chips-label">Active</span>
+            <span className="af-chips-label">Active filters</span>
             {chips.map((chip) => (
               <span key={chip.id} className="af-chip">
-                <span className="af-chip-text" title={chip.label}>
-                  {chip.label}
-                </span>
+                <span className="af-chip-text" title={chip.label}>{chip.label}</span>
                 <button
                   type="button"
                   className="af-chip-x"
@@ -465,22 +258,13 @@ export default function AnalyseFilters() {
       </div>
 
       {showSessionModal && (
-        <SessionTimeModal
-          isOpen={showSessionModal}
-          onClose={() => setShowSessionModal(false)}
-        />
+        <SessionTimeModal isOpen={showSessionModal} onClose={() => setShowSessionModal(false)} />
       )}
       {showLimitsModal && (
-        <LimitsModal
-          isOpen={showLimitsModal}
-          onClose={() => setShowLimitsModal(false)}
-        />
+        <LimitsModal isOpen={showLimitsModal} onClose={() => setShowLimitsModal(false)} />
       )}
       {showOptimizeModal && (
-        <OptimizeModal
-          isOpen={showOptimizeModal}
-          onClose={() => setShowOptimizeModal(false)}
-        />
+        <OptimizeModal isOpen={showOptimizeModal} onClose={() => setShowOptimizeModal(false)} />
       )}
     </>
   );
