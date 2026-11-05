@@ -209,7 +209,7 @@ const CALC_CSS = `
     border: 1px solid rgba(255,255,255,.12); background: #0E121B;
     box-shadow: 0 40px 90px -20px rgba(0,0,0,.95), 0 0 0 1px rgba(0,0,0,.4); animation: cx-pop .16s cubic-bezier(.2,.8,.25,1);
   }
-  .cx-pal-search { display: flex; align-items: center; gap: 11px; padding: 0 16px; height: 56px; border-bottom: 1px solid var(--line); color: var(--accent); }
+  .cx-pal-search { display: flex; align-items: center; gap: 11px; padding: 16px; height: 56px; border-bottom: 1px solid var(--line); color: var(--accent); }
   .cx-pal-search input { flex: 1; min-width: 0; background: transparent; border: 0; outline: 0; color: var(--ink-1); font-family: var(--mono); font-size: 14.5px; }
   .cx-pal-search input::placeholder { color: var(--ink-3); }
   .cx-pal-list { overflow-y: auto; padding: 6px 8px 10px; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.1) transparent; }
