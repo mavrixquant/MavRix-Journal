@@ -34,11 +34,11 @@ export const SIDEBAR_GROUPS = [
     label: 'Utilities',
     icon: FaTools,
     items: [
-      { to: '/utilities/sessions',    label: 'Sessions',          icon: FaClock},
-      { to: '/utilities/calendar',    label: 'Economic Calendar', icon: FaCalendarAlt           },
-      { to: '/utilities/gex',         label: 'GEX Levels',        icon: FaLayerGroup, pro: true },
-      { to: '/utilities/calculators', label: 'Calculators',       icon: FaCalculator },
-      { to: '/utilities/chart',       label: 'Chart',             icon: FaChartBar              },
+      { to: '/utilities/sessions',    label: 'Sessions',          icon: FaClock                   },
+      { to: '/utilities/calendar',    label: 'Economic Calendar', icon: FaCalendarAlt             },
+      { to: '/utilities/gex',         label: 'GEX Levels',        icon: FaLayerGroup,    pro: true},
+      { to: '/utilities/calculators', label: 'Calculators',       icon: FaCalculator              },
+      { to: '/utilities/chart',       label: 'Chart',             icon: FaChartBar,      pro: true},
     ],
   },
   {

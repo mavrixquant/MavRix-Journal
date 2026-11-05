@@ -184,7 +184,14 @@ export function AppRoutes() {
             </PlanGate>
           }
         />
-        <Route path="/utilities/chart" element={<MarketChartPage />} />
+        <Route
+          path="/utilities/chart"
+          element={
+            <PlanGate feature="Chart">
+              <MarketChartPage />
+            </PlanGate>
+          }
+        />
         <Route path="/utilities/calculators" element={<CalculatorsHubPage />} />
         <Route path="/utilities/calculators/:category" element={<CalculatorCategoryPage />} />
         <Route path="/utilities/calculators/:category/:calcId" element={<CalculatorPage />} />
