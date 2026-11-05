@@ -193,7 +193,7 @@ export function AppRoutes() {
           }
         />
         <Route path="/utilities/calculators" element={<CalculatorsHubPage />} />
-        <Route path="/utilities/calculators/:category" element={<CalculatorCategoryPage />} />
+        <Route path="/utilities/calculators/:calcId" element={<CalculatorPage />} />
         <Route path="/utilities/calculators/:category/:calcId" element={<CalculatorPage />} />
 
         <Route path="/manage/accounts" element={<AccountsPage />} />

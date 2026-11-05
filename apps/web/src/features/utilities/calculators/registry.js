@@ -39,14 +39,27 @@ export const CALCULATORS = [
   ...levelsCalculators,
 ].map((c) => ({ ...c, icon: CALC_ICONS[c.id] ?? FALLBACK_ICON }));
 
+/* Calculator ids are globally unique, so every calculator lives at ONE flat URL: /utilities/calculators/<id> */
+if (import.meta.env?.DEV) {
+  const seen = new Set();
+  CALCULATORS.forEach((c) => {
+    if (seen.has(c.id)) console.warn(`[calculators] duplicate id "${c.id}" — flat URLs need unique ids`);
+    seen.add(c.id);
+  });
+}
+
+/** Shown as one-click chips under the hub search. Unknown ids are ignored. */
+export const POPULAR_IDS = ['position-size', 'risk-reward', 'risk-of-ruin', 'kelly', 'pip-value', 'compounding'];
+
 export const getCategory = (id) => CATEGORIES.find((c) => c.id === id) ?? null;
 
 export const calculatorsIn = (categoryId) => CALCULATORS.filter((c) => c.category === categoryId);
 
-export const getCalculator = (categoryId, id) =>
-  CALCULATORS.find((c) => c.category === categoryId && c.id === id) ?? null;
+export const findCalculator = (id) => CALCULATORS.find((c) => c.id === id) ?? null;
 
-export const calculatorPath = (c) => `${HUB_PATH}/${c.category}/${c.id}`;
+export const calculatorPath = (c) => `${HUB_PATH}/${c.id}`;
+
+export const categoryPath = (categoryId) => `${HUB_PATH}?cat=${categoryId}`;
 
 export function searchCalculators(query) {
   const terms = query.trim().toLowerCase().split(/\s+/).filter(Boolean);

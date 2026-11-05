@@ -2,28 +2,27 @@ import { Link } from 'react-router-dom';
 import { ChevronLeft } from 'lucide-react';
 
 /**
- * Shared page frame for the hub, category pages and calculators:
- * breadcrumb + back link, icon header, description, optional actions.
+ * Page frame for a single calculator: one "back" link, a category pill,
+ * a toolbar slot (switch / pin / share) and the icon header.
  *
- * back: { to, label }        crumbs: [{ to?, label }]
+ * back: { to, label }     category: { to, label }
  */
-export default function CalculatorShell({ back, crumbs = [], eyebrow, title, description, icon: Icon, color, actions, children }) {
+export default function CalculatorShell({ back, category, toolbar, title, description, icon: Icon, color, children }) {
   return (
     <div className="cx-root page-fade-in" style={color ? { '--cat': color } : undefined}>
-      <nav className="cx-crumbs" aria-label="Breadcrumb">
+      <div className="cx-topbar">
         {back && (
-          <>
-            <Link to={back.to}><ChevronLeft size={13} /> {back.label}</Link>
-            <span className="cx-sep">|</span>
-          </>
+          <Link to={back.to} className="cx-back">
+            <ChevronLeft size={14} /> {back.label}
+          </Link>
         )}
-        {crumbs.map((c, i) => (
-          <span key={`${c.label}-${i}`} style={{ display: 'inline-flex', gap: 8, alignItems: 'center' }}>
-            {c.to ? <Link to={c.to}>{c.label}</Link> : <b>{c.label}</b>}
-            {i < crumbs.length - 1 && <span className="cx-sep">/</span>}
-          </span>
-        ))}
-      </nav>
+        {category && (
+          <Link to={category.to} className="cx-catpill" title={`More ${category.label} calculators`}>
+            <i /> {category.label}
+          </Link>
+        )}
+        <div className="cx-topbar-actions">{toolbar}</div>
+      </div>
 
       <header className="cx-head">
         {Icon && (
@@ -32,11 +31,9 @@ export default function CalculatorShell({ back, crumbs = [], eyebrow, title, des
           </span>
         )}
         <div className="cx-head-text">
-          {eyebrow && <div className="cx-eyebrow">{eyebrow}</div>}
           <h1 className="cx-title">{title}</h1>
           {description && <p className="cx-desc">{description}</p>}
         </div>
-        {actions}
       </header>
 
       {children}

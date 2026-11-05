@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, Calculator, Clipboard, ClipboardCheck, Info, RotateCcw } from 'lucide-react';
+import { AlertTriangle, Calculator, Clipboard, ClipboardCheck, Info, Link2, RotateCcw } from 'lucide-react';
 import { NumberField, SegmentField, SelectField, TextAreaField } from './Fields';
 import ResultTile, { copyToClipboard } from './ResultTile';
 import ResultTable from './ResultTable';
@@ -8,6 +8,18 @@ import { formatValue } from '../lib/format.js';
 import { loadValues, saveValues } from '../lib/storage.js';
 
 const resolve = (x, p) => (typeof x === 'function' ? x(p) : x);
+
+/* Shareable inputs: ?v=<base64 of the input values>. Read once on load, then removed from the address bar. */
+const encodeShare = (values) => btoa(encodeURIComponent(JSON.stringify(values)));
+function readShared() {
+  try {
+    const v = new URLSearchParams(window.location.search).get('v');
+    const obj = v ? JSON.parse(decodeURIComponent(atob(v))) : null;
+    return obj && typeof obj === 'object' ? obj : {};
+  } catch {
+    return {};
+  }
+}
 
 /**
  * Renders any calculator definition from the registry:
@@ -24,13 +36,21 @@ export default function CalculatorEngine({ calc }) {
   );
 
   const [values, setValues] = useState(() => {
-    const saved = loadValues(calc.id);
+    const saved = { ...loadValues(calc.id), ...readShared() };
     const merged = { ...defaults };
     Object.keys(defaults).forEach((k) => {
       if (typeof saved[k] === 'string') merged[k] = saved[k];
     });
     return merged;
   });
+
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (url.searchParams.has('v')) {
+      url.searchParams.delete('v');
+      window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash);
+    }
+  }, []);
 
   useEffect(() => saveValues(calc.id, values), [calc.id, values]);
   useEffect(() => () => clearTimeout(copyTimer.current), []);
@@ -75,6 +95,11 @@ export default function CalculatorEngine({ calc }) {
     }
   };
 
+  const copyLink = () => {
+    const url = `${window.location.origin}${window.location.pathname}?v=${encodeShare(values)}`;
+    copyToClipboard(url, 'Link with your inputs copied');
+  };
+
   const tables = result?.tables ?? (result?.table ? [result.table] : []);
 
   return (
@@ -83,6 +108,9 @@ export default function CalculatorEngine({ calc }) {
         <div className="cx-phead">
           <span className="cx-ptitle">Inputs</span>
           <div className="cx-pactions">
+            <button type="button" className="cx-btn" onClick={copyLink} title="Copy a link that opens this calculator with these exact inputs">
+              <Link2 size={11} /> Share
+            </button>
             <button type="button" className="cx-btn" onClick={reset} title="Restore default values">
               <RotateCcw size={11} /> Reset
             </button>

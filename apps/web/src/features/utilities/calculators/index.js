@@ -1,1 +1,1 @@
-export { CATEGORIES, CALCULATORS, HUB_PATH } from './registry';
+export { CATEGORIES, CALCULATORS, HUB_PATH, calculatorPath, categoryPath, findCalculator } from './registry';
