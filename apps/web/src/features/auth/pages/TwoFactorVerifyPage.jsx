@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ShieldCheck, Mail, Smartphone, ArrowRight, Loader2 } from 'lucide-react';
 
@@ -25,6 +25,7 @@ export default function TwoFactorVerifyPage() {
   const [submitting, setSubmitting] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
   const [sendingEmail, setSendingEmail] = useState(false);
+  const autoSentRef = useRef(false);
 
   // If no challenge is pending, bounce back to login.
   useEffect(() => {
@@ -47,7 +48,14 @@ export default function TwoFactorVerifyPage() {
   }, [pending2FA]);
 
   useEffect(() => {
-    if (method === 'email' && hasEmail && !emailSent && !sendingEmail) {
+    if (
+      !autoSentRef.current &&
+      method === 'email' &&
+      hasEmail &&
+      !emailSent &&
+      !sendingEmail
+    ) {
+      autoSentRef.current = true;
       sendEmailOtp();
     }
   }, [method, hasEmail, emailSent, sendingEmail, sendEmailOtp]);

@@ -453,7 +453,7 @@ export default function AdminHealthCheckPage() {
 
   const phasesQuery = useQuery({
     queryKey: ['admin', 'health-check', 'phases'],
-    queryFn: () => apiJson('/admin/health-check/phases'),
+    queryFn: () => apiJson('/api/admin/health-check/phases'),
     staleTime: 5 * 60_000,
   });
 
@@ -469,7 +469,7 @@ export default function AdminHealthCheckPage() {
 
   const startMutation = useMutation({
     mutationFn: (phasesList) =>
-      apiJson('/admin/health-check/run', {
+      apiJson('/api/admin/health-check/run', {
         method: 'POST',
         body: JSON.stringify({ phases: phasesList }),
       }),
@@ -630,7 +630,7 @@ export default function AdminHealthCheckPage() {
     const consume = async () => {
       try {
         const res = await apiFetch(
-          `/admin/health-check/stream/${runState.runId}`,
+          `/api/admin/health-check/stream/${runState.runId}`,
           { signal: controller.signal }
         );
 
@@ -671,7 +671,7 @@ export default function AdminHealthCheckPage() {
         if (!cancelled && err.name !== 'AbortError') {
           try {
             const data = await apiJson(
-              `/admin/health-check/status/${runState.runId}`
+              `/api/admin/health-check/status/${runState.runId}`
             );
             if (data.status !== 'running') {
               setRunState((prev) => ({

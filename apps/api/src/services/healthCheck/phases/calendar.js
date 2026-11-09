@@ -39,7 +39,7 @@ export async function run(ctx) {
     const started = Date.now();
     const res = await ctx.fetch('/api/calendar/sync', {
       method: 'POST',
-      token: tokens.a,
+      token: tokens.admin,
     });
     ctx.assertStatus(res, 200);
     return { notes: `sync completed in ${Date.now() - started}ms` };

@@ -252,7 +252,6 @@ const marketDataWipeSchema = z.object({
 });
 
 adminRoutes.get('/market-data/stats', marketDataCtrl.stats);
-adminRoutes.get('/market-data/stats', marketDataCtrl.stats);
 adminRoutes.post(
   '/market-data/import',
   writeLimiter,
