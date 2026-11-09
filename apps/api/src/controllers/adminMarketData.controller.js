@@ -13,7 +13,7 @@ export async function stats(_req, res, next) {
   try { res.json(await svc.getStats()); } catch (e) { next(e); }
 }
 
-// 202 Accepted — the actual work runs async; poll GET /jobs/:id or /jobs.
+// 202 Accepted â€” the actual work runs async; poll GET /jobs/:id or /jobs.
 export async function startJob(req, res, next) {
   try {
     const actor = await buildActor(req);

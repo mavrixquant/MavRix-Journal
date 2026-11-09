@@ -243,7 +243,7 @@ async function recomputeCoverage(symbol, interval, resolved) {
 }
 
 // ---------------------------------------------------------------------------
-// refreshTail â€” opportunistic background catch-up.
+// refreshTail — opportunistic background catch-up.
 //
 // Called (fire-and-forget) after every getBars() that returned data. Fetches
 // the small window between coverage.toTime and now, so users see fresh bars

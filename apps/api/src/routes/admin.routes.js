@@ -1,4 +1,4 @@
-﻿import { Router } from 'express';
+import { Router } from 'express';
 import { z } from 'zod';
 import {
   gexDaySchema,
@@ -230,7 +230,7 @@ adminRoutes.get(
 );
 
 // ---------------------------------------------------------------------------
-// Market data cache � read stats, force import chunks, wipe per (symbol, interval).
+// Market data cache — read stats, force import chunks, wipe per (symbol, interval).
 // ---------------------------------------------------------------------------
 const marketDataIntervalEnum = z.enum(['1m', '5m', '15m', '1h', '4h', '1d']);
 

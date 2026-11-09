@@ -4,7 +4,7 @@
 // Import design:
 //   • POST /import creates a MarketImportJob row + registers an in-memory
 //     runner; returns 202 immediately with the jobId.
-//   � The runner is a setImmediate() loop — OUTSIDE the HTTP lifecycle —
+//   • The runner is a setImmediate() loop — OUTSIDE the HTTP lifecycle —
 //     that writes progress at every chunk boundary.
 //   • On boot, markInterruptedJobs() flips any leftover `running` rows to
 //     `interrupted` (data already committed to market_bars is preserved).
@@ -271,7 +271,7 @@ async function computeMissingChunks(symbol, interval, from, to) {
   const covTo = coverage.toTime.getTime();
 
   // Front/back gap detection: only skips chunks that sit entirely outside
-  // the already-covered range. Interior gaps (rare � job aborts on first
+  // the already-covered range. Interior gaps (rare — job aborts on first
   // hard failure) are not filled. To refill interior gaps, wipe + reimport.
   const missing = allChunks.filter((c) => {
     const cFrom = c.from.getTime();
@@ -320,7 +320,7 @@ export async function startImportJob({ symbol, interval, from, to, mode = 'range
 
   // One job per (symbol, interval) at a time.
   if (activeKeys.has(key)) {
-    throw new HttpError(409, `An import for ${sym} � ${interval} is already running.`);
+    throw new HttpError(409, `An import for ${sym} — ${interval} is already running.`);
   }
   // Global cap.
   if (running.size >= MAX_CONCURRENT_JOBS) {
@@ -332,7 +332,7 @@ export async function startImportJob({ symbol, interval, from, to, mode = 'range
   if (mode !== 'full' && missing.length > MAX_CHUNKS_PER_JOB) {
     throw new HttpError(
       400,
-      `Range too large � ${missing.length} chunks needed (max ${MAX_CHUNKS_PER_JOB}). Split the range.`
+      `Range too large — ${missing.length} chunks needed (max ${MAX_CHUNKS_PER_JOB}). Split the range.`
     );
   }
 
@@ -416,7 +416,7 @@ async function runImportJob(jobId, chunks, resolved, fetchFn, mode = 'range') {
   const maxDurationMs = mode === 'full' ? FULL_IMPORT_MAX_DURATION_MS : MAX_JOB_DURATION_MS;
   let consecutiveFailures = 0;
 
-  // Chunk rows � created in startImportJob, matched 1:1 with the chunks array.
+  // Chunk rows — created in startImportJob, matched 1:1 with the chunks array.
   const chunkRows = await prisma.marketImportChunk.findMany({
     where: { jobId },
     orderBy: { index: 'asc' },
@@ -429,7 +429,7 @@ async function runImportJob(jobId, chunks, resolved, fetchFn, mode = 'range') {
   let finalStatus = 'completed';
   let lastError = null;
 
-  // Self-ping � keeps Render free tier awake during long imports. Opt-in.
+  // Self-ping — keeps Render free tier awake during long imports. Opt-in.
   const keepAliveHandle = setInterval(() => {
     if (process.env.MARKET_DATA_KEEPALIVE !== 'true') return;
     const port = process.env.PORT || 4000;
@@ -509,7 +509,7 @@ async function runImportJob(jobId, chunks, resolved, fetchFn, mode = 'range') {
             continue;
           }
 
-          // Out of retries � write provider cooldown, mark job failed.
+          // Out of retries — write provider cooldown, mark job failed.
           const backoffUntil = new Date(Date.now() + (isRate ? 5 * 60_000 : 60_000));
           await prisma.marketBarCoverage.upsert({
             where: { symbol_interval: { symbol, interval } },
@@ -606,7 +606,7 @@ async function runImportJob(jobId, chunks, resolved, fetchFn, mode = 'range') {
   } finally {
     clearInterval(keepAliveHandle);
 
-    // Safety sweep � resolve any chunk still flagged 'running' after a crash.
+    // Safety sweep — resolve any chunk still flagged 'running' after a crash.
     try {
       await prisma.marketImportChunk.updateMany({
         where: { jobId, status: 'running' },
@@ -773,7 +773,7 @@ export async function markInterruptedJobs() {
 }
 
 // ---------------------------------------------------------------------------
-// wipeCache � unchanged behavior. Group wipe passes interval=undefined.
+// wipeCache — unchanged behavior. Group wipe passes interval=undefined.
 // ---------------------------------------------------------------------------
 
 export async function wipeCache({ symbol, interval, actor }) {
