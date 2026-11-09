@@ -1,4 +1,3 @@
-
 import { runMonteCarlo } from '@/shared/trading/monteCarlo';
 
 let activeRunId = null;

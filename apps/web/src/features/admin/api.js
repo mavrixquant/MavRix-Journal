@@ -1,4 +1,4 @@
-
+﻿
 import {
   useQuery,
   useMutation,
@@ -387,6 +387,182 @@ export function useAdminCalendarWipe() {
     mutationFn: () =>
       apiJson('/api/admin/calendar/cache', { method: 'DELETE' }),
     onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'audit'] });
+    },
+  });
+}
+// ---------------------------------------------------------------------------
+// Market data cache — coverage stats, async import jobs, wipe.
+//
+// Imports are async: POST /import returns 202 { jobId }. Progress is polled
+// via GET /jobs (fast when a job is running, slow otherwise) and pushed via
+// the `market-data:job:update` SSE event (see shared/api/sse.js).
+// ---------------------------------------------------------------------------
+export function useAdminMarketDataStats({ refetchInterval } = {}) {
+  return useQuery({
+    queryKey: ['admin', 'market-data', 'stats'],
+    queryFn: () => apiJson('/api/admin/market-data/stats'),
+    staleTime: 5_000,
+    refetchInterval,
+  });
+}
+
+export function useAdminMarketDataJobChunks(jobId, { enabled = true } = {}) {
+  return useQuery({
+    queryKey: ['admin', 'market-data', 'job-chunks', jobId],
+    queryFn: () =>
+      apiJson(`/api/admin/market-data/jobs/${encodeURIComponent(jobId)}/chunks?limit=2000`),
+    enabled: enabled && !!jobId,
+    // Self-driving poll: keep fetching as long as ANY chunk is active.
+    // This guarantees the table updates even if the job completes exactly
+    // between two polls.
+    refetchInterval: (query) => {
+      const chunks = query.state.data?.chunks || [];
+      const hasActive = chunks.some(c => c.status === 'running' || c.status === 'pending');
+      return hasActive ? 1500 : false;
+    },
+    refetchOnWindowFocus: false,
+    staleTime: 0,
+  });
+}
+
+export function useAdminMarketDataJobs({ enabled = true } = {}) {
+  return useQuery({
+    queryKey: ['admin', 'market-data', 'jobs'],
+    queryFn: () => apiJson('/api/admin/market-data/jobs'),
+    enabled,
+    // Fast poll while a job is running; slow idle poll to catch jobs started
+    // from another tab (or after this tab reloaded).
+    refetchInterval: (query) => {
+      const data = query.state.data;
+      if (!data?.jobs) return false;
+      const anyRunning = data.jobs.some(
+        (j) => j.status === 'running' || j.status === 'stopping'
+      );
+      return anyRunning ? 1500 : 10_000;
+    },
+    refetchOnWindowFocus: true,
+  });
+}
+
+export function useAdminStartMarketDataImport() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload) =>
+      apiJson('/api/admin/market-data/import', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'market-data', 'jobs'] });
+      qc.invalidateQueries({ queryKey: ['admin', 'audit'] });
+    },
+  });
+}
+
+export function useAdminStopMarketDataImport() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (jobId) =>
+      apiJson(`/api/admin/market-data/jobs/${encodeURIComponent(jobId)}/stop`, {
+        method: 'POST',
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'market-data', 'jobs'] });
+      qc.invalidateQueries({ queryKey: ['admin', 'audit'] });
+    },
+  });
+}
+
+export function useAdminMarketDataWipe() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload) =>
+      apiJson('/api/admin/market-data/cache', {
+        method: 'DELETE',
+        body: JSON.stringify(payload),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'market-data', 'stats'] });
+      qc.invalidateQueries({ queryKey: ['admin', 'market-data', 'jobs'] });
+      qc.invalidateQueries({ queryKey: ['admin', 'audit'] });
+    },
+  });
+}
+// ---------------------------------------------------------------------------
+// Calendar admin — view, sync range, import, delete.
+// These sit alongside the existing useAdminCalendarLogs / Sync / Wipe hooks.
+// ---------------------------------------------------------------------------
+
+export function useAdminCalendarEvents(filters = {}) {
+  return useQuery({
+    queryKey: ['admin', 'calendar', 'events', filters],
+    queryFn: () => apiJson(`/api/admin/calendar/events${buildQS(filters)}`),
+    staleTime: 15_000,
+    placeholderData: (prev) => prev,
+  });
+}
+
+export function useAdminCalendarEvent(id) {
+  return useQuery({
+    queryKey: ['admin', 'calendar', 'event', id],
+    queryFn: () =>
+      apiJson(`/api/admin/calendar/events/${encodeURIComponent(id)}`),
+    enabled: !!id,
+  });
+}
+
+export function useAdminCalendarStats() {
+  return useQuery({
+    queryKey: ['admin', 'calendar', 'stats'],
+    queryFn: () => apiJson('/api/admin/calendar/stats'),
+    staleTime: 30_000,
+  });
+}
+
+export function useAdminSyncCalendarRange() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload) =>
+      apiJson('/api/admin/calendar/sync-range', {
+        method: 'POST',
+        body: JSON.stringify(payload || {}),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'calendar'] });
+      qc.invalidateQueries({ queryKey: ['calendar'] });
+      qc.invalidateQueries({ queryKey: ['admin', 'audit'] });
+    },
+  });
+}
+
+export function useAdminImportCalendar() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload) =>
+      apiJson('/api/admin/calendar/import', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'calendar'] });
+      qc.invalidateQueries({ queryKey: ['calendar'] });
+      qc.invalidateQueries({ queryKey: ['admin', 'audit'] });
+    },
+  });
+}
+
+export function useAdminDeleteCalendarEvents() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload) =>
+      apiJson('/api/admin/calendar/events', {
+        method: 'DELETE',
+        body: JSON.stringify(payload),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'calendar'] });
+      qc.invalidateQueries({ queryKey: ['calendar'] });
       qc.invalidateQueries({ queryKey: ['admin', 'audit'] });
     },
   });

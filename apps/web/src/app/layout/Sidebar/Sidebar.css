@@ -379,7 +379,7 @@
     0 0 0 1px color-mix(in srgb, var(--accent) 8%, transparent);
   color: var(--ink-1);
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
-  z-index: 60;
+  z-index: 1100000000000;
   -webkit-font-smoothing: antialiased;
   animation: sbFlyoutIn .18s cubic-bezier(.2,.8,.25,1);
 }
@@ -445,4 +445,22 @@
 @media (prefers-reduced-motion: reduce) {
   .sb-item, .sb-toggle, .sb-icon { transition: none !important; }
   .sb-flyout { animation: none !important; }
+}
+/* ------------------------------------------------------------------
+   PRO feature lock indicator
+   ------------------------------------------------------------------ */
+.sb-pro-lock {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  border-radius: 4px;
+  padding: 2px 4px;
+  flex-shrink: 0;
+}
+.sb-flyout-item .sb-pro-lock {
+  margin-left: auto;
 }

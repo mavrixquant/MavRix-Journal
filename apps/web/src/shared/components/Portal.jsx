@@ -9,7 +9,13 @@ export default function Portal({ children }) {
     document.body.appendChild(container);
 
     return () => {
-      document.body.removeChild(container);
+      // .remove() is idempotent and safe even if the node was moved by an
+      // extension or already detached (strict-mode double-invocation, etc.).
+      try {
+        container.remove();
+      } catch {
+        // no-op
+      }
     };
   }, [container]);
 

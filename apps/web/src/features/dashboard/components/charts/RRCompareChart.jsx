@@ -14,7 +14,7 @@ import {
 import { useChartColors } from '@/shared/charts';
 import { ChartExportButton } from '@/shared/ui/chart-export';
 
-const RR_LEVELS = [1, 2, 3, 4, 5, 6, 7, 8];
+const RR_LEVELS = [1, 2, 3, 4];
 
 function useResponsiveBarConfig() {
   const [config, setConfig] = useState({

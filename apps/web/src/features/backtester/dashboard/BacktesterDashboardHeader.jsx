@@ -1,5 +1,5 @@
-
 import { useState } from 'react';
+import { Clock, SlidersHorizontal, Sparkles, X } from 'lucide-react';
 
 import { useAppContext } from '@/app/providers/AppProvider';
 import { useDashboardAccount } from '@/app/providers/useDashboardAccount';
@@ -13,127 +13,7 @@ import SessionTimeModal from '@/features/dashboard/components/filters/SessionTim
 import LimitsModal from '@/features/dashboard/components/filters/LimitsModal';
 import OptimizeModal from '@/features/dashboard/components/optimize/OptimizeModal';
 
-const HDR_CSS = `
-  .hdr-root {
-    --line: rgba(255,255,255,.085);
-    --line-soft: rgba(255,255,255,.05);
-    --ink-1: #E7E9EE;
-    --ink-2: #8892A3;
-    --ink-3: #545E6E;
 
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    padding: 2px 0 20px;
-  }
-
-
-
-
-  /* ---------- Toolbar row ---------- */
-  .hdr-toolbar {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    padding-top: 4px;
-  }
-  .hdr-toolbar-section {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex-wrap: wrap;
-  }
-  .hdr-rr-label {
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    font-size: 10.5px;
-    font-weight: 700;
-    letter-spacing: .14em;
-    text-transform: uppercase;
-    color: var(--ink-3);
-    white-space: nowrap;
-  }
-  .hdr-actions {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 8px;
-    margin-left: auto;
-  }
-
-  /* ---------- Toolbar buttons ---------- */
-  .hdr-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    padding: 8px 14px;
-    border-radius: 10px;
-    border: 1px solid rgba(255,255,255,.1);
-    background: rgba(255,255,255,.03);
-    color: var(--ink-2);
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    font-size: 11.5px;
-    font-weight: 600;
-    letter-spacing: .02em;
-    cursor: pointer;
-    transition: all .22s cubic-bezier(.2,.8,.25,1);
-    white-space: nowrap;
-  }
-  .hdr-btn:hover {
-    color: var(--ink-1);
-    background: rgba(255,255,255,.06);
-    border-color: rgba(255,255,255,.2);
-    transform: translateY(-1px);
-  }
-  .hdr-btn:active { transform: translateY(0) scale(.98); }
-  .hdr-btn svg { flex-shrink: 0; }
-
-  .hdr-btn.is-optimize {
-    border-color: var(--accent-soft2);
-    background: color-mix(in srgb, var(--accent) 6%, transparent);
-    color: var(--accent);
-  }
-  .hdr-btn.is-optimize:hover {
-    background: color-mix(in srgb, var(--accent) 12%, transparent);
-    border-color: var(--accent);
-    color: var(--accent-2);
-    box-shadow: 0 0 20px -6px color-mix(in srgb, var(--accent) 50%, transparent);
-  }
-
-  .hdr-btn-reset {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 8px 14px;
-    border-radius: 10px;
-    border: 1px solid rgba(239,68,68,.28);
-    background: rgba(239,68,68,.05);
-    color: #f87171;
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    font-size: 11.5px;
-    font-weight: 600;
-    letter-spacing: .02em;
-    cursor: pointer;
-    transition: all .22s cubic-bezier(.2,.8,.25,1);
-    white-space: nowrap;
-  }
-  .hdr-btn-reset:hover {
-    background: rgba(239,68,68,.12);
-    border-color: rgba(239,68,68,.55);
-    color: #fca5a5;
-    transform: translateY(-1px);
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .hdr-btn, .hdr-btn-reset { transition: none !important; }
-  }
-
-  @media (max-width: 768px) {
-    .hdr-toolbar { flex-direction: column; align-items: stretch; }
-    .hdr-actions { width: 100%; margin-left: 0; }
-  }
-`;
 
 export default function BacktesterDashboardHeader() {
   const { state } = useAppContext();
@@ -145,8 +25,7 @@ export default function BacktesterDashboardHeader() {
   const [showLimitsModal, setShowLimitsModal] = useState(false);
   const [showOptimizeModal, setShowOptimizeModal] = useState(false);
 
-  const selectedAccount =
-    state.accounts.find((acc) => acc.id === accountId) || null;
+  const selectedAccount = state.accounts.find((acc) => acc.id === accountId) || null;
 
   usePageHeader({
     title: 'Backtester',
@@ -156,87 +35,49 @@ export default function BacktesterDashboardHeader() {
 
   return (
     <>
-      <style>{HDR_CSS}</style>
-      <div className="hdr-root">
-        <div className="hdr-toolbar" id="hdr-toolbar">
-              <div className="hdr-toolbar-section">
-                <span className="hdr-rr-label">Target R:R</span>
-                <RRTabs />
-              </div>
+<div className="hdr-root">
+        <div className="hdr-bar" id="hdr-toolbar">
+          <div className="hdr-section">
+            <span className="hdr-label">Target R:R</span>
+            <RRTabs />
+          </div>
 
-              <div className="hdr-toolbar-section hdr-actions">
-                <DynamicFilters />
+          <div className="hdr-section hdr-actions">
+            <DynamicFilters />
 
-                <button
-                  type="button"
-                  className="hdr-btn"
-                  onClick={() => setShowSessionModal(true)}
-                >
-                  <svg className="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <circle cx="12" cy="12" r="10" />
-                    <polyline points="12 6 12 12 16 14" />
-                  </svg>
-                  <span>Session / Time</span>
-                </button>
+            <span className="hdr-divider" />
 
-                <button
-                  type="button"
-                  className="hdr-btn"
-                  onClick={() => setShowLimitsModal(true)}
-                >
-                  <svg className="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <circle cx="12" cy="12" r="3" />
-                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
-                  </svg>
-                  <span>Limits</span>
-                </button>
+            <button type="button" className="hdr-btn" onClick={() => setShowSessionModal(true)}>
+              <Clock size={14} />
+              <span>Session / Time</span>
+            </button>
 
-                <button
-                  type="button"
-                  className="hdr-btn is-optimize"
-                  onClick={() => setShowOptimizeModal(true)}
-                >
-                  <svg className="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <circle cx="11" cy="11" r="8" />
-                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                    <line x1="11" y1="8" x2="11" y2="14" />
-                    <line x1="8" y1="11" x2="14" y2="11" />
-                  </svg>
-                  <span>Optimize</span>
-                </button>
+            <button type="button" className="hdr-btn" onClick={() => setShowLimitsModal(true)}>
+              <SlidersHorizontal size={14} />
+              <span>Limits</span>
+            </button>
 
-                <button
-                  type="button"
-                  className="hdr-btn-reset"
-                  onClick={resetAllFilters}
-                >
-                  <svg className="btn-icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <line x1="18" y1="6" x2="6" y2="18" />
-                    <line x1="6" y1="6" x2="18" y2="18" />
-                  </svg>
-                  <span>Reset filters</span>
-                </button>
-              </div>
-            </div>
+            <button type="button" className="hdr-btn is-optimize" onClick={() => setShowOptimizeModal(true)}>
+              <Sparkles size={14} />
+              <span>Optimize</span>
+            </button>
+
+            <button type="button" className="hdr-btn-reset" onClick={resetAllFilters}>
+              <X size={13} />
+              <span>Reset</span>
+            </button>
+          </div>
+        </div>
       </div>
 
       {showSessionModal && (
-        <SessionTimeModal
-          isOpen={showSessionModal}
-          onClose={() => setShowSessionModal(false)}
-        />
+        <SessionTimeModal isOpen={showSessionModal} onClose={() => setShowSessionModal(false)} />
       )}
       {showLimitsModal && (
-        <LimitsModal
-          isOpen={showLimitsModal}
-          onClose={() => setShowLimitsModal(false)}
-        />
+        <LimitsModal isOpen={showLimitsModal} onClose={() => setShowLimitsModal(false)} />
       )}
       {showOptimizeModal && (
-        <OptimizeModal
-          isOpen={showOptimizeModal}
-          onClose={() => setShowOptimizeModal(false)}
-        />
+        <OptimizeModal isOpen={showOptimizeModal} onClose={() => setShowOptimizeModal(false)} />
       )}
     </>
   );

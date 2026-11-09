@@ -2,8 +2,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import {
   DEFAULT_CALENDAR_CURRENCIES,
-  DEFAULT_CALENDAR_DAYS_BACK,
-  DEFAULT_CALENDAR_DAYS_FORWARD,
 } from '@mavrix/shared';
 
 
@@ -14,27 +12,11 @@ function toIsoDate(d) {
   return `${y}-${m}-${day}`;
 }
 
-function addDays(d, n) {
-  const out = new Date(d);
-  out.setDate(out.getDate() + n);
-  return out;
-}
-
 function rangeFromPreset(preset) {
   const today = new Date();
   switch (preset) {
     case 'today':
       return { from: toIsoDate(today), to: toIsoDate(today) };
-    case 'week':
-      return {
-        from: toIsoDate(addDays(today, -DEFAULT_CALENDAR_DAYS_BACK)),
-        to: toIsoDate(addDays(today, DEFAULT_CALENDAR_DAYS_FORWARD)),
-      };
-    case 'month':
-      return {
-        from: toIsoDate(addDays(today, -15)),
-        to: toIsoDate(addDays(today, 15)),
-      };
     default:
       return null;
   }
@@ -54,8 +36,6 @@ export function useCalendarFilters() {
   const [currencies, setCurrencies] = useState([]);
   const [impacts, setImpacts] = useState([]);
 
-  const [view, setView] = useState('list');
-
   const [selectedEventId, setSelectedEventId] = useState(null);
 
 
@@ -70,7 +50,7 @@ export function useCalendarFilters() {
   const setCustomRange = useCallback((nextFrom, nextTo) => {
     setFrom(nextFrom);
     setTo(nextTo);
-    setRangePreset(null);
+    setRangePreset('custom');
   }, []);
 
   const goToToday = useCallback(() => {
@@ -92,10 +72,12 @@ export function useCalendarFilters() {
   );
 
   const toggleImpact = useCallback((level) => {
-    setImpacts((prev) =>
-      prev.includes(level) ? prev.filter((i) => i !== level) : [...prev, level]
-    );
-  }, []);
+  setImpacts((prev) => {
+    const next = prev.includes(level) ? prev.filter((i) => i !== level) : [...prev, level];
+    // All 3 impacts selected = same as "All" (no filter)
+    return next.length >= 3 ? [] : next;
+  });
+}, []);
 
   const clearImpacts = useCallback(() => setImpacts([]), []);
 
@@ -124,9 +106,6 @@ export function useCalendarFilters() {
     useDefaultCurrencies,
     toggleImpact,
     clearImpacts,
-
-    view,
-    setView,
 
     selectedEventId,
     openEvent,

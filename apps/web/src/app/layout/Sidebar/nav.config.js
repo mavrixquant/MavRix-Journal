@@ -1,4 +1,3 @@
-
 import {
   FaBook,
   FaProjectDiagram,
@@ -6,6 +5,7 @@ import {
   FaComments,
   FaThLarge,
   FaCalendarAlt,
+  FaClock,
   FaChartPie,
   FaChartLine,
   FaClipboardList,
@@ -15,6 +15,7 @@ import {
   FaCommentDots,
   FaTools,
   FaLayerGroup,
+  FaCalculator,
 } from 'react-icons/fa';
 
 export const SIDEBAR_GROUPS = [
@@ -26,18 +27,18 @@ export const SIDEBAR_GROUPS = [
       { to: '/journal',          label: 'Dashboard',         icon: FaThLarge,     end: true },
       { to: '/journal/analyse',  label: 'Analyse',           icon: FaChartPie },
       { to: '/journal/logs',     label: 'Trade logs',        icon: FaBook },
-      { to: '/journal/calendar', label: 'Economic Calendar', icon: FaCalendarAlt },
     ],
   },
   {
-    id: 'backtester',
-    label: 'Backtester',
-    icon: FaProjectDiagram,
+    id: 'utilities',
+    label: 'Utilities',
+    icon: FaTools,
     items: [
-      { to: '/backtester',           label: 'Dashboard', icon: FaChartLine, end: true },
-      { to: '/backtester/logs',      label: 'Test logs', icon: FaClipboardList },
-      { to: '/backtester/simulator', label: 'Simulator', icon: FaProjectDiagram },
-      { to: '/backtester/chart',     label: 'Chart',     icon: FaChartBar },
+      { to: '/utilities/sessions',    label: 'Sessions',          icon: FaClock                   },
+      { to: '/utilities/calendar',    label: 'Economic Calendar', icon: FaCalendarAlt             },
+      { to: '/utilities/gex',         label: 'GEX Levels',        icon: FaLayerGroup,    pro: true},
+      { to: '/utilities/calculators', label: 'Calculators',       icon: FaCalculator              },
+      { to: '/utilities/chart',       label: 'Chart',             icon: FaChartBar,      pro: true},
     ],
   },
   {
@@ -50,11 +51,13 @@ export const SIDEBAR_GROUPS = [
     ],
   },
   {
-    id: 'utilities',
-    label: 'Utilities',
-    icon: FaTools,
+    id: 'backtester',
+    label: 'Backtest',
+    icon: FaProjectDiagram,
     items: [
-      { to: '/utilities/gex', label: 'GEX Levels', icon: FaLayerGroup },
+      { to: '/backtester',           label: 'Dashboard', icon: FaChartLine, end: true, pro: true },
+      { to: '/backtester/logs',      label: 'Test logs', icon: FaClipboardList, pro: true },
+      { to: '/backtester/simulator', label: 'Simulator', icon: FaProjectDiagram, pro: true },
     ],
   },
   {

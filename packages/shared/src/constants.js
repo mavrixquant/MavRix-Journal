@@ -13,7 +13,7 @@ export const SESSION_RANGES = [
 export const DOW_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 
-export const RR_LEVELS = [1, 2, 3, 4, 5, 6, 7, 8];
+export const RR_LEVELS = [1, 2, 3, 4];
 export const TICKS_PER_POINT = 4;
 
 

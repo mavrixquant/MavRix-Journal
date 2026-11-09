@@ -1,20 +1,19 @@
-
 export const chartTheme = {
   background: 'transparent',
 
   text: '#8892A3',
   textLight: '#E7E9EE',
-  border: 'rgba(255,255,255,.085)',
-  grid: 'rgba(255,255,255,.045)',
-  crosshair: 'rgba(255,255,255,.28)',
+  border: 'rgba(255,255,255,.09)',
+  grid: 'rgba(255,255,255,.035)',
+  crosshair: 'rgba(255,255,255,.30)',
 
   up: '#35C4A1',
   down: '#FF5C5C',
-  upWick: '#35C4A1',
-  downWick: '#FF5C5C',
+  upWick: '#2BB392',
+  downWick: '#F04747',
 
-  volumeUp: 'rgba(53, 196, 161, 0.42)',
-  volumeDown: 'rgba(255, 92, 92, 0.42)',
+  volumeUp: 'rgba(53, 196, 161, 0.32)',
+  volumeDown: 'rgba(255, 92, 92, 0.32)',
 
   get accent() {
     if (typeof window === 'undefined') return '#F59E0B';
@@ -23,49 +22,24 @@ export const chartTheme = {
         .getPropertyValue('--accent')
         .trim() || '#F59E0B'
     );
-  }
+  },
 };
 
-export const baseChartOptions = {
-  layout: {
-    background: { type: 'solid', color: 'transparent' },
-    textColor: chartTheme.text,
-    fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-    fontSize: 11,
-    attributionLogo: false,
-  },
-  grid: {
-    vertLines: { color: chartTheme.grid },
-    horzLines: { color: chartTheme.grid },
-  },
-  rightPriceScale: {
-    borderColor: chartTheme.border,
-    scaleMargins: { top: 0.08, bottom: 0.24 },
-  },
-  timeScale: {
-    borderColor: chartTheme.border,
-    timeVisible: true,
-    secondsVisible: false,
-    rightOffset: 6,
-    barSpacing: 8,
-    minBarSpacing: 0.5,
-  },
-  crosshair: {
-    mode: 0,
-    vertLine: {
-      color: chartTheme.crosshair,
-      width: 1,
-      style: 2,
-      labelBackgroundColor: chartTheme.accent,
-    },
-    horzLine: {
-      color: chartTheme.crosshair,
-      width: 1,
-      style: 2,
-      labelBackgroundColor: chartTheme.accent,
-    },
-  },
-  handleScroll: true,
-  handleScale: true,
-  autoSize: true,
-};
+// '#RRGGBB' + alpha -> rgba(); other formats pass through untouched.
+export function alpha(color, a) {
+  const c = String(color || '');
+  if (c.startsWith('#') && c.length === 7) {
+    const r = parseInt(c.slice(1, 3), 16);
+    const g = parseInt(c.slice(3, 5), 16);
+    const b = parseInt(c.slice(5, 7), 16);
+    return `rgba(${r},${g},${b},${a})`;
+  }
+  return c;
+}
+
+// Decimal places for the price scale, by instrument.
+export function pricePrecision(symbolInfo, code) {
+  const sym = String(code || symbolInfo?.code || '').toUpperCase();
+  if (symbolInfo?.category === 'Forex') return sym.includes('JPY') ? 3 : 5;
+  return 2;
+}

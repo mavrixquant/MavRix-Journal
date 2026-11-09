@@ -34,6 +34,7 @@ const publicUser = (u) => ({
   photoUrl: u.photoUrl,
   hasGoogle: !!u.googleId,
   role: u.role || 'user',
+  plan: u.plan || 'free',
   isBanned: !!u.isBanned,
   hasPassword: !!u.passwordHash,
   twoFactorEnabled: !!u.twoFactorEnabled,

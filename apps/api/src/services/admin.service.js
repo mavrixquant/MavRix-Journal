@@ -24,6 +24,7 @@ const adminUserShape = (u) => ({
   photoUrl: u.photoUrl,
   hasGoogle: !!u.googleId,
   role: u.role,
+  plan: u.plan || 'free',
   isBanned: u.isBanned,
   bannedAt: u.bannedAt,
   bannedReason: u.bannedReason,
@@ -198,6 +199,7 @@ export async function listUsers({
         photoUrl: true,
         googleId: true,
         role: true,
+        plan: true,
         isBanned: true,
         bannedAt: true,
         bannedReason: true,
@@ -295,6 +297,21 @@ export async function updateUser(actor, targetId, patch) {
 
   if (patch.firstName !== undefined) data.firstName = String(patch.firstName).trim();
   if (patch.lastName !== undefined) data.lastName = String(patch.lastName).trim();
+
+  if (patch.plan !== undefined) {
+    if (!['admin', 'superadmin'].includes(actor.role)) {
+      throw new HttpError(403, 'Only admins can change plans');
+    }
+    const next = String(patch.plan);
+    if (!['free', 'pro'].includes(next)) {
+      throw new HttpError(400, 'Invalid plan');
+    }
+    if (next !== target.plan) {
+      data.plan = next;
+      data.planGrantedAt = next === 'pro' ? new Date() : null;
+      data.planGrantedBy = next === 'pro' ? actor.id : null;
+    }
+  }
 
   if (patch.role !== undefined) {
     if (actor.role !== 'superadmin') {

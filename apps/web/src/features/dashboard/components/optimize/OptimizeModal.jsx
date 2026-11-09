@@ -9,7 +9,7 @@ import {
   PopoverTrigger,
 } from '@/shared/ui/popover';
 
-const RR_LEVELS = [1, 2, 3, 4, 5, 6, 7, 8];
+const RR_LEVELS = [1, 2, 3, 4];
 const OPTIMIZE_PAGE_SIZE = 50;
 
 

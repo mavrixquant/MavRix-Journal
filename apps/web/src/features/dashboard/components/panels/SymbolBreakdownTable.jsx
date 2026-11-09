@@ -1,130 +1,41 @@
-import { useMemo } from 'react';
 import { useStats } from '@/features/dashboard/hooks/useStats';
-import DataTable from '@/shared/ui/data-table';
+import { makeFmt, fmtPct, toneColor } from '@/features/dashboard/components/viz/format';
+import { PanelEmpty } from './PanelChrome';
 
-function formatMoney(v) {
-  if (v == null || Number.isNaN(Number(v))) return '—';
-  const n = Number(v);
-  const sign = n < 0 ? '-' : '+';
-  return `${sign}$${Math.abs(n).toFixed(2)}`;
-}
-
-function formatPct(v) {
-  if (v == null || Number.isNaN(Number(v))) return '—';
-  return `${Number(v).toFixed(1)}%`;
-}
-
+/** $-mode body of the rrCompare panel: net result per symbol. Defensive about the shape. */
 export default function SymbolBreakdownTable() {
   const { symbolBreakdown } = useStats();
+  const fmt = makeFmt(true);
 
-  const columns = useMemo(
-    () => [
-      {
-        id: 'symbol',
-        accessorKey: 'symbol',
-        header: 'Symbol',
-        meta: { label: 'Symbol' },
-        size: 140,
-        cell: (ctx) => (
-          <span style={{ color: '#E7E9EE', fontWeight: 600 }}>
-            {ctx.getValue()}
-          </span>
-        ),
-      },
-      {
-        id: 'n',
-        accessorKey: 'n',
-        header: 'Trades',
-        meta: { label: 'Trades' },
-        size: 90,
-        cell: (ctx) => String(ctx.getValue() ?? 0),
-      },
-      {
-        id: 'winRate',
-        accessorKey: 'winRate',
-        header: 'Win %',
-        meta: { label: 'Win Rate' },
-        size: 90,
-        cell: (ctx) => {
-          const v = Number(ctx.getValue() ?? 0);
-          return (
-            <span className={v >= 50 ? 'dt-cell-pos' : 'dt-cell-neg'}>
-              {formatPct(v)}
-            </span>
-          );
-        },
-      },
-      {
-        id: 'total',
-        accessorKey: 'total',
-        header: 'Net P&L',
-        meta: { label: 'Net P&L' },
-        size: 110,
-        cell: (ctx) => {
-          const v = Number(ctx.getValue() ?? 0);
-          return (
-            <span className={v >= 0 ? 'dt-cell-pos' : 'dt-cell-neg'}>
-              {formatMoney(v)}
-            </span>
-          );
-        },
-      },
-      {
-        id: 'avgWin',
-        accessorKey: 'avgWin',
-        header: 'Avg Win',
-        meta: { label: 'Avg Win' },
-        size: 100,
-        cell: (ctx) => (
-          <span className="dt-cell-pos">{formatMoney(ctx.getValue())}</span>
-        ),
-      },
-      {
-        id: 'avgLoss',
-        accessorKey: 'avgLoss',
-        header: 'Avg Loss',
-        meta: { label: 'Avg Loss' },
-        size: 100,
-        cell: (ctx) => (
-          <span className="dt-cell-neg">{formatMoney(ctx.getValue())}</span>
-        ),
-      },
-    ],
-    []
-  );
+  const raw = Array.isArray(symbolBreakdown) ? symbolBreakdown : Object.values(symbolBreakdown || {});
+  const rows = raw
+    .map((r) => ({
+      symbol: r.symbol ?? r.name ?? r.key ?? '—',
+      n: r.n ?? r.trades ?? r.count ?? 0,
+      total: Number(r.total ?? r.net ?? r.pnl ?? 0),
+      winRate: r.winRate ?? (r.wins != null && r.n ? (r.wins / r.n) * 100 : null),
+    }))
+    .sort((a, b) => b.total - a.total);
 
-  if (!symbolBreakdown || symbolBreakdown.length === 0) {
-    return (
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          height: '100%',
-          minHeight: 200,
-          color: '#545E6E',
-          fontFamily: "'IBM Plex Mono', monospace",
-          fontSize: 12,
-          border: '1px dashed #1A2029',
-          borderRadius: 10,
-          background: 'rgba(17,21,31,.4)',
-        }}
-      >
-        No symbol data available
-      </div>
-    );
-  }
+  if (!rows.length) return <PanelEmpty title="No symbols yet" />;
+  const maxAbs = Math.max(1e-9, ...rows.map((r) => Math.abs(r.total)));
 
   return (
-    <DataTable
-      data={symbolBreakdown}
-      columns={columns}
-      getRowId={(row) => row.symbol}
-      searchPlaceholder="Search symbols…"
-      initialSort={[{ id: 'total', desc: true }]}
-      estimateRowHeight={38}
-      maxHeight={360}
-      emptyMessage="No symbols match."
-    />
+    <div className="st">
+      <div className="st-row st-headrow st-sym">
+        <span>Symbol</span><span className="st-n">Trades</span><span className="st-w">Win %</span><span>Net</span>
+      </div>
+      {rows.map((r) => (
+        <div key={r.symbol} className="st-row st-sym">
+          <span className="st-name">{r.symbol}</span>
+          <span className="st-n">{r.n}</span>
+          <span className="st-w">{r.winRate == null ? '—' : fmtPct(r.winRate, 0)}</span>
+          <span className="st-net">
+            <i className="st-bar"><b className={r.total >= 0 ? 'w' : 'l'} style={{ width: `${(Math.abs(r.total) / maxAbs) * 100}%` }} /></i>
+            <em style={{ color: toneColor(r.total) }}>{fmt(r.total)}</em>
+          </span>
+        </div>
+      ))}
+    </div>
   );
 }

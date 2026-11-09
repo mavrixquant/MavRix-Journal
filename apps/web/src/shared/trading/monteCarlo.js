@@ -1,4 +1,3 @@
-
 function mulberry32(seed) {
   let s = seed >>> 0;
   return function () {
@@ -171,6 +170,17 @@ export function runMonteCarlo(scores, options = {}) {
   const randInt = (max) => Math.floor(rand() * max);
   const buf = new Float64Array(n);
 
+  // One contiguous Float32 block for all equity paths instead of `runs`
+  // separate Float64Arrays: ~half the memory and far less GC pressure.
+  const stride = n + 1;
+  const MAX_CELLS = 200_000_000;
+  if (stride * runs > MAX_CELLS) {
+    throw new Error(
+      `Simulation too large (${runs.toLocaleString()} runs x ${n.toLocaleString()} trades). ` +
+      'Reduce the number of runs.'
+    );
+  }
+  const matrix = new Float32Array(stride * runs);
   const curves = new Array(runs);
 
   const finalValues = new Float64Array(runs);
@@ -226,7 +236,7 @@ export function runMonteCarlo(scores, options = {}) {
       );
     }
 
-    const curve = new Float64Array(n + 1);
+    const curve = matrix.subarray(r * stride, (r + 1) * stride);
     curve[0] = 0;
 
     let cum = 0;

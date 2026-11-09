@@ -6,6 +6,7 @@ import { RequireAuth, RequireVerified, RequireGuest, RequireTwoFactor } from './
 import { useAuth } from '@/app/providers/AuthProvider';
 import { useSettings } from '@/app/layout/Settings/SettingsProvider';
 import { RequireAdmin, RequireSuperadmin } from '@/features/admin/guards';
+import PlanGate from '@/features/plan/PlanGate';
 import { BootLoader } from '@/shared/ui/boot-loader';
 
 const LandingPage = lazy(() => import('@/features/landing/LandingPage'));
@@ -37,6 +38,10 @@ const StrategiesPage = lazy(() => import('@/features/manage/strategies/Strategie
 const StrategyDetailPage = lazy(() => import('@/features/manage/strategies/StrategyDetailPage'));
 
 const GexPage = lazy(() => import('@/features/utilities/gex/GexPage'));
+const SessionsPage = lazy(() => import('@/features/utilities/sessions/SessionsPage'));
+const CalculatorsHubPage = lazy(() => import('@/features/utilities/calculators/CalculatorsHubPage'));
+const CalculatorCategoryPage = lazy(() => import('@/features/utilities/calculators/CalculatorCategoryPage'));
+const CalculatorPage = lazy(() => import('@/features/utilities/calculators/CalculatorPage'));
 
 const ChatsPage = lazy(() => import('@/features/personal/chats/ChatsPage'));
 
@@ -57,6 +62,7 @@ const AdminBroadcastPage    = lazy(() => import('@/features/admin/pages/AdminBro
 const AdminGexPage          = lazy(() => import('@/features/admin/pages/AdminGexPage'));
 const AdminHealthCheckPage  = lazy(() => import('@/features/admin/pages/AdminHealthCheckPage'));
 const AdminBugReportsPage   = lazy(() => import('@/features/admin/pages/AdminBugReportsPage'));
+const AdminMarketDataPage   = lazy(() => import('@/features/admin/pages/AdminMarketDataPage'));
 
 const LAST_PATH_KEY = 'mavrix:lastPath';
 
@@ -134,6 +140,7 @@ export function AppRoutes() {
         <Route path="groups"    element={<AdminGroupsPage />} />
         <Route path="audit"     element={<AdminAuditPage />} />
         <Route path="bug-reports" element={<AdminBugReportsPage />} />
+        <Route path="market-data" element={<AdminMarketDataPage />} />
         <Route path="sessions"  element={<AdminSessionsPage />} />
         <Route path="system"    element={<AdminSystemPage />} />
         <Route path="calendar"  element={<AdminCalendarPage />} />
@@ -150,18 +157,57 @@ export function AppRoutes() {
         <Route path="/journal" element={<DashboardPage />} />
         <Route path="/journal/analyse" element={<AnalysePage />} />
         <Route path="/journal/logs" element={<TradeLogsPage />} />
-        <Route path="/journal/calendar" element={<EconomicCalendarPage />} />
+        <Route path="/utilities/calendar" element={<EconomicCalendarPage />} />
+        <Route path="/utilities/sessions" element={<SessionsPage />} />
 
-        <Route path="/backtester" element={<BacktesterDashboardPage />} />
-        <Route path="/backtester/logs" element={<TestLogsPage />} />
-        <Route path="/backtester/simulator" element={<SimulatorPage />} />
-        <Route path="/backtester/chart" element={<MarketChartPage />} />
+        <Route
+          path="/backtester"
+          element={
+            <PlanGate feature="Backtester">
+              <BacktesterDashboardPage />
+            </PlanGate>
+          }
+        />
+        <Route
+          path="/backtester/logs"
+          element={
+            <PlanGate feature="Test Logs">
+              <TestLogsPage />
+            </PlanGate>
+          }
+        />
+        <Route
+          path="/backtester/simulator"
+          element={
+            <PlanGate feature="Monte Carlo Simulator">
+              <SimulatorPage />
+            </PlanGate>
+          }
+        />
+        <Route
+          path="/utilities/chart"
+          element={
+            <PlanGate feature="Chart">
+              <MarketChartPage />
+            </PlanGate>
+          }
+        />
+        <Route path="/utilities/calculators" element={<CalculatorsHubPage />} />
+        <Route path="/utilities/calculators/:calcId" element={<CalculatorPage />} />
+        <Route path="/utilities/calculators/:category/:calcId" element={<CalculatorPage />} />
 
         <Route path="/manage/accounts" element={<AccountsPage />} />
         <Route path="/manage/strategies" element={<StrategiesPage />} />
         <Route path="/manage/strategies/:id" element={<StrategyDetailPage />} />
 
-        <Route path="/utilities/gex" element={<GexPage />} />
+        <Route
+          path="/utilities/gex"
+          element={
+            <PlanGate feature="GEX Levels">
+              <GexPage />
+            </PlanGate>
+          }
+        />
 
         <Route path="/personal/chats" element={<ChatsPage />} />
       </Route>

@@ -1,0 +1,44 @@
+/**
+ * Convert a trade's `date` (YYYY-MM-DD) and `entryTime` (HH:MM), which are
+ * stored in US Eastern Time (the app's session model), into a UTC unix
+ * timestamp in SECONDS. Returns null when inputs are invalid.
+ *
+ * DST-aware: uses Intl.DateTimeFormat with 'shortOffset' to look up the ET
+ * offset for the specific calendar date, so a March trade gets -4 (EDT) and
+ * a January trade gets -5 (EST).
+ */
+export function tradeTimeToUtcSeconds(dateStr, timeStr) {
+  if (!dateStr || !timeStr) return null;
+
+  const dateParts = String(dateStr).split('-').map(Number);
+  const timeParts = String(timeStr).split(':').map(Number);
+  if (dateParts.length < 3 || timeParts.length < 2) return null;
+
+  const [y, mo, d] = dateParts;
+  const [h, mi] = timeParts;
+  if (![y, mo, d, h, mi].every(Number.isFinite)) return null;
+
+  // Probe with the naive UTC time to get the correct ET offset for THIS date.
+  const probe = new Date(Date.UTC(y, mo - 1, d, h, mi));
+
+  let offsetHours = -5; // EST fallback
+  try {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/New_York',
+      timeZoneName: 'shortOffset',
+    }).formatToParts(probe);
+    const name = parts.find((p) => p.type === 'timeZoneName')?.value || '';
+    const m = name.match(/GMT([+-])(\d{1,2})(?::(\d{2}))?/);
+    if (m) {
+      const sign = m[1] === '-' ? -1 : 1;
+      const hours = parseInt(m[2], 10);
+      const mins = m[3] ? parseInt(m[3], 10) : 0;
+      offsetHours = sign * (hours + mins / 60);
+    }
+  } catch {
+    /* fallback to EST */
+  }
+
+  // UTC = ET + |offsetHours| when offset is negative (e.g. -5 => +5h)
+  return Math.floor(Date.UTC(y, mo - 1, d, h - offsetHours, mi) / 1000);
+}

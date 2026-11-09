@@ -1,99 +1,72 @@
-import { useMemo } from 'react';
-import { useStats } from '@/features/dashboard/hooks/useStats';
-import { computeStats } from '@/shared/trading/stats';
-import EquityChart from '@/features/dashboard/components/charts/EquityChart';
-import { FaProjectDiagram } from 'react-icons/fa';
+// "hero" panel = equity curve with drawdown strip, range switch, simulator shortcut.
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-
-const RR_LEVELS = [1, 2, 3, 4, 5, 6, 7, 8];
-
-const formatR = (v) => (v != null && !Number.isNaN(v) ? `${v >= 0 ? '+' : ''}${v.toFixed(2)}R` : '—');
-const formatPct = (v) => (v != null && !Number.isNaN(v) ? `${v.toFixed(1)}%` : '—');
-const formatMoney = (v) => {
-  if (v == null || Number.isNaN(v)) return '—';
-  const sign = v < 0 ? '-' : '+';
-  return `${sign}$${Math.abs(v).toFixed(2)}`;
-};
+import { FaProjectDiagram } from 'react-icons/fa';
+import { useStats } from '@/features/dashboard/hooks/useStats';
+import EquityDrawdownChart from '@/features/dashboard/components/viz/EquityDrawdownChart';
+import Segmented from '@/features/dashboard/components/viz/Segmented';
+import { summarize } from '@/features/dashboard/components/viz/analytics';
+import { makeFmt, nf } from '@/features/dashboard/components/viz/format';
+import PanelChrome, { PanelEmpty } from './PanelChrome';
 
 export default function Hero() {
   const navigate = useNavigate();
-  const { stats, filteredTrades, account, metric } = useStats();
+  const { stats, metric, currentR } = useStats();
+  const [range, setRange] = useState('all');
   const isMoney = metric === '$';
-  const fmt = isMoney ? formatMoney : formatR;
+  const fmt = makeFmt(isMoney);
+  const s = useMemo(() => (stats?.n ? summarize(stats) : null), [stats]);
 
-  const bestRR = useMemo(() => {
-    if (isMoney) return null;
-    if (!filteredTrades || filteredTrades.length === 0) return { r: 1, totalR: 0, winRate: 0 };
-    return RR_LEVELS.reduce((best, r) => {
-      const s = computeStats(filteredTrades, r, account);
-      if (s.totalR > best.totalR) return { r, totalR: s.totalR, winRate: s.winRate };
-      return best;
-    }, { r: 1, totalR: -Infinity, winRate: 0 });
-  }, [filteredTrades, account, isMoney]);
-
-  if (!stats || stats.n === 0) {
-    return <div className="panel"><div style={{ color: 'var(--text-faint)', textAlign: 'center', padding: '20px' }}>No data</div></div>;
+  if (!stats || stats.n === 0 || !s) {
+    return (
+      <PanelChrome title="Equity curve">
+        <PanelEmpty title="No equity data yet" hint="Log trades to draw your curve" />
+      </PanelChrome>
+    );
   }
 
-  const totalValue = isMoney ? stats.total : stats.totalR;
-  const maxDD = stats.maxDD;
+  const options = [{ value: 'all', label: 'All' }, ...[100, 50, 20].filter((n) => n < stats.n).map((n) => ({ value: n, label: String(n) }))];
+  const activeRange = options.some((o) => o.value === range) ? range : 'all';
+  const total = isMoney ? stats.total : stats.totalR;
   const canSimulate = stats.n >= 5;
 
-  const handleSimulate = () => {
-    if (canSimulate) navigate('/backtester/simulator');
-  };
-
   return (
-    <div className="hero">
-      <div className="hero-left">
-        <div className="hero-head">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-            <div className="hero-title">
-              {isMoney ? 'Cumulative Equity — Net P&L' : 'Cumulative Equity — R Multiples'}
-            </div>
-            <button
-              onClick={handleSimulate}
-              disabled={!canSimulate}
-              title={canSimulate ? 'Open Monte Carlo Simulator' : 'Need at least 5 trades'}
-              style={{
-                display: 'inline-flex', alignItems: 'center', gap: '6px',
-                padding: '5px 11px',
-                background: canSimulate ? 'color-mix(in srgb, var(--accent) 10%, transparent)' : 'rgba(255, 255, 255, 0.03)',
-                border: `1px solid ${canSimulate ? 'color-mix(in srgb, var(--accent) 35%, transparent)' : 'rgba(255, 255, 255, 0.08)'}`,
-                borderRadius: '6px',
-                color: canSimulate ? 'var(--accent)' : '#545E6E',
-                fontSize: '11px', fontWeight: 600,
-                cursor: canSimulate ? 'pointer' : 'not-allowed',
-                fontFamily: "'IBM Plex Mono', monospace",
-                transition: 'all 0.15s ease',
-              }}
-              onMouseEnter={(e) => { if (canSimulate) e.currentTarget.style.background = 'color-mix(in srgb, var(--accent) 18%, transparent)'; }}
-              onMouseLeave={(e) => { if (canSimulate) e.currentTarget.style.background = 'color-mix(in srgb, var(--accent) 10%, transparent)'; }}
-            >
-              <FaProjectDiagram size={10} />
-              Open Simulator
-            </button>
+    <PanelChrome
+      title="Equity curve"
+      subtitle={isMoney ? 'cumulative net P&L' : `cumulative R · 1:${currentR} target`}
+      actions={
+        <>
+          <button
+            type="button"
+            className="ghost-btn"
+            onClick={() => canSimulate && navigate('/backtester/simulator')}
+            disabled={!canSimulate}
+            title={canSimulate ? 'Open Monte Carlo simulator' : 'Need at least 5 trades'}
+          >
+            <FaProjectDiagram size={10} />
+            <span>Simulate</span>
+          </button>
+          <Segmented label="Range" options={options} value={activeRange} onChange={setRange} />
+        </>
+      }
+    >
+      <div className="ep">
+        <div className="ep-top">
+          <div className={`ep-value ${total >= 0 ? 'pos' : 'neg'}`}>{fmt(total)}</div>
+          <div className="ep-chips">
+            <span className="chip">PF <b>{Number.isFinite(stats.profitFactor) ? nf(stats.profitFactor) : '∞'}</b></span>
+            <span className="chip">Exp <b>{fmt(stats.expectancy)}</b></span>
+            <span className="chip">Max DD <b className="neg">{s.maxDD ? fmt(-s.maxDD, { sign: false }) : '—'}</b></span>
           </div>
-          <div className={`hero-value ${totalValue >= 0 ? 'pos' : 'neg'}`}>
-            {fmt(totalValue)}
+          <div className="ep-legend">
+            <span><i style={{ background: 'var(--accent)' }} />Equity</span>
+            <span><i style={{ background: 'var(--d-loss)' }} />Drawdown</span>
           </div>
         </div>
-        <div className="chart-box">
-          <EquityChart />
+        <div className="ep-chart">
+          <EquityDrawdownChart equity={s.equity} isMoney={isMoney} range={activeRange} />
         </div>
       </div>
-      <div className="hero-right">
-        {!isMoney && bestRR && (
-          <div className="best-badge">
-            BEST TARGET: 1:{bestRR.r}  ·  {formatR(bestRR.totalR)}  ·  {formatPct(bestRR.winRate)} WIN
-          </div>
-        )}
-        <div className="hero-metric-row"><span className="k">Win Rate</span><span className="v num">{formatPct(stats.winRate)}</span></div>
-        <div className="hero-metric-row"><span className="k">{isMoney ? 'Avg P&L / trade' : 'Expectancy / trade'}</span><span className="v num">{fmt(stats.expectancy)}</span></div>
-        <div className="hero-metric-row"><span className="k">Profit Factor</span><span className="v num">{Number.isFinite(stats.profitFactor) ? stats.profitFactor.toFixed(2) : '∞'}</span></div>
-        <div className="hero-metric-row"><span className="k">Max Drawdown</span><span className="v num">{maxDD != null ? (isMoney ? formatMoney(maxDD) : `${maxDD.toFixed(2)}R`) : '—'}</span></div>
-        <div className="hero-metric-row"><span className="k">Total Trades</span><span className="v num">{stats.n}</span></div>
-      </div>
-    </div>
+    </PanelChrome>
   );
 }

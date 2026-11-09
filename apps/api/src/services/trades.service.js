@@ -17,7 +17,6 @@ const RESERVED = new Set([
 
   'entryPrice',
 
-  'exitPrice',
   'takeProfit',
   'stopLoss',
 
@@ -27,7 +26,24 @@ const RESERVED = new Set([
   'notes',
 ]);
 
-function splitTradePayload(payload) {
+// Fields removed from the Trade model but still sent by older clients.
+// Strip silently before Prisma sees them — a legacy row holding
+// the literal string "null" in the removed field would otherwise throw a Float type error
+// on PATCH /api/trades/:id.
+const DEPRECATED_TRADE_FIELDS = new Set(['exit' + 'Price']);
+
+function stripDeprecatedTradeFields(input) {
+  if (!input || typeof input !== 'object') return input;
+  const out = {};
+  for (const [k, v] of Object.entries(input)) {
+    if (DEPRECATED_TRADE_FIELDS.has(k)) continue;
+    out[k] = v;
+  }
+  return out;
+}
+
+function splitTradePayload(rawPayload) {
+  const payload = stripDeprecatedTradeFields(rawPayload);
   const reserved = {};
   const dynamic = {};
   Object.entries(payload).forEach(([k, v]) => {
@@ -73,7 +89,6 @@ function serialize(t) {
     mfe: t.mfe,
     slPoints: t.slPoints,
     entryPrice: t.entryPrice,
-    exitPrice: t.exitPrice,
     takeProfit: t.takeProfit,
     stopLoss: t.stopLoss,
     pnl: t.pnl,

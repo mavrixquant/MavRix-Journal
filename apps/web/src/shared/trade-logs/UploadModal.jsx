@@ -58,7 +58,7 @@ const RESERVED_MAP_JOURNAL = {
   'Entry Price': 'entryPrice',
   'Take Profit': 'takeProfit',
   'Stop Loss': 'stopLoss',
-  'Exit Price': 'exitPrice',
+  'Exit Price': '__legacy_skip',
   'P&L': 'pnl',
   'Quantity': 'quantity',
   'Commission': 'commission',
@@ -230,7 +230,6 @@ function parseFile(workbook, account, existingTrades, strategies) {
       delete trade.entryPrice;
       delete trade.takeProfit;
       delete trade.stopLoss;
-      delete trade.exitPrice;
     } else {
       if (trade.pnl === undefined || trade.pnl === '' || isNaN(parseFloat(trade.pnl))) {
         invalidPnlRows.push(excelRowNum);
@@ -243,11 +242,9 @@ function parseFile(workbook, account, existingTrades, strategies) {
       const ep = trade.entryPrice === '' || trade.entryPrice == null ? null : Number(trade.entryPrice);
       const tp = trade.takeProfit === '' || trade.takeProfit == null ? null : Number(trade.takeProfit);
       const sl = trade.stopLoss === '' || trade.stopLoss == null ? null : Number(trade.stopLoss);
-      const xp = trade.exitPrice === '' || trade.exitPrice == null ? null : Number(trade.exitPrice);
       trade.entryPrice = Number.isFinite(ep) ? ep : null;
       trade.takeProfit = Number.isFinite(tp) ? tp : null;
       trade.stopLoss = Number.isFinite(sl) ? sl : null;
-      trade.exitPrice = Number.isFinite(xp) ? xp : null;
 
       delete trade.mae;
       delete trade.mfe;
@@ -322,7 +319,7 @@ function parseFile(workbook, account, existingTrades, strategies) {
     const unionVals = [...fileVals, ...existingVals].filter(hasAnyValue);
 
     if (unionVals.length === 0) {
-      return { name: col, type: 'text', locked: true, reason: 'No data — defaults to Text', uniqueCount: 0, sampleValues: [], options: [] };
+      return { name: col, type: 'text', locked: true, reason: 'No data — defaults to Text', uniqueCount: 0, sampleValues: [], options: [] };
     }
 
     const allNumeric = unionVals.every(isNumericValue);
@@ -334,7 +331,7 @@ function parseFile(workbook, account, existingTrades, strategies) {
     const uniqueCount = uniqueSet.size;
 
     if (uniqueCount > MAX_DROPDOWN_UNIQUES) {
-      return { name: col, type: 'text', locked: true, reason: `${uniqueCount} unique values (over ${MAX_DROPDOWN_UNIQUES}) — Text required`, uniqueCount, sampleValues: [...uniqueSet].slice(0, 5), options: [] };
+      return { name: col, type: 'text', locked: true, reason: `${uniqueCount} unique values (over ${MAX_DROPDOWN_UNIQUES}) — Text required`, uniqueCount, sampleValues: [...uniqueSet].slice(0, 5), options: [] };
     }
 
     const stored = storedConfigs[col];
@@ -356,6 +353,10 @@ function parseFile(workbook, account, existingTrades, strategies) {
       options: sortedValues,
     };
   });
+
+  // Silently drop any '__legacy_skip' markers left by old Excel columns
+  // (e.g. the removed "Exit Price" column). Prevents spurious custom columns.
+  tradesData.forEach((t) => { delete t.__legacy_skip; });
 
   return { trades: tradesData, customColumns, errors, hasSLColumn, tradesCount: tradesData.length };
 }
@@ -1220,7 +1221,7 @@ function ColumnCard({
       <div className="upl-col-types">
         {draft.locked ? (
           <span className="upl-locked-pill">
-            🔒 {draft.type === 'number' ? 'Number' : draft.type === 'dropdown' ? 'Dropdown' : 'Text'} (locked)
+             {draft.type === 'number' ? 'Number' : draft.type === 'dropdown' ? 'Dropdown' : 'Text'} (locked)
           </span>
         ) : (
           <>
@@ -1519,7 +1520,7 @@ export default function UploadModal({
                     <>
                       <span className="req-list">Entry Price</span>
                       <span className="req-list">Take Profit</span>
-                      <span className="req-list">Stop Loss</span><span className="req-list">Exit Price</span>
+                      <span className="req-list">Stop Loss</span>
                     </>
                   )}
                   {isBacktest && (
@@ -1601,7 +1602,7 @@ export default function UploadModal({
                 {!hasErrors && drafts.length === 0 && (
                   <div className="upl-ready">
                     <FaCheckCircle />
-                    No custom columns to configure — ready to upload.
+                    No custom columns to configure — ready to upload.
                   </div>
                 )}
               </>

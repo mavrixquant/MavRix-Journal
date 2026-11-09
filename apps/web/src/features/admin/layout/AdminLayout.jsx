@@ -73,6 +73,8 @@ export default function AdminLayout() {
                     flex: 1,
                     overflowY: 'auto',
                     padding: 24,
+                    maxWidth: 'none',
+                    width: '100%',
                   }}
                 >
                   <Suspense key={location.pathname} fallback={<PageSkeleton />}><div className="page-fade-in"><Outlet /></div></Suspense>

@@ -1,496 +1,525 @@
-
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { AlertTriangle, RotateCw, X } from 'lucide-react';
 
-import {
-  useMarketCatalog,
-  useMarketBars,
-} from '@/shared/api/marketData';
+import { useMarketCatalog, useMarketBars } from '@/shared/api/marketData';
+import { queryClient } from '@/shared/api/queryClient';
+import { useJournalTrades } from '@/shared/api/journalTrades';
+import { getTimezoneOffsetSeconds, toDisplaySeconds, tradeTimeToUtcSeconds } from '@/shared/trading/tradeTime';
+import { resolveTimezone } from '@/shared/format/datetime';
+import { useSettings } from '@/app/layout/Settings/SettingsProvider';
 import { usePageHeader } from '@/app/layout/PageHeaderProvider';
 
-import { PageSkeleton } from '@/shared/ui/page-skeleton';
-import { computeIndicators } from './lib/indicators';
-import {
-  DRAWING_MODES,
-  DEFAULT_DRAWING_COLOR,
-  makeDrawingId,
-  normalizeTrendlinePoints,
-  loadDrawings,
-  saveDrawings,
-} from './lib/drawingTools';
-
 import CandlestickChart from './components/CandlestickChart';
-import ChartToolbar from './components/ChartToolbar';
 import QuoteHeader from './components/QuoteHeader';
-import WatchlistSidebar from './components/WatchlistSidebar';
-import IndicatorOverlay from './components/IndicatorOverlay';
+import ChartToolbar from './components/ChartToolbar';
 import DrawingToolbar from './components/DrawingToolbar';
+import SidePanel from './components/SidePanel';
+import SymbolPalette from './components/SymbolPalette';
+import StatusBar from './components/StatusBar';
+import { CSS } from './lib/chartStyles';
+import { pricePrecision } from './lib/chartTheme';
+import { DRAW_COLORS } from './lib/drawings';
 
 const DEFAULT_SYMBOL = 'NQ';
 const DEFAULT_INTERVAL = '5m';
+const INTERVAL_KEYS = { 1: '1m', 2: '5m', 3: '15m', 4: '1h', 5: '4h', 6: '1d' };
+const TOOL_KEYS = { h: 'hline', l: 'trend', y: 'ray', b: 'rect', g: 'fib', p: 'rr', m: 'measure' };
+const DAY = 86400000;
+const EMPTY = [];
+const PRESETS = [
+  { id: 'default', label: 'Live', days: null },
+  { id: '1d', label: '1D', days: 1 },
+  { id: '5d', label: '5D', days: 5 },
+  { id: '1m', label: '1M', days: 30 },
+  { id: '3m', label: '3M', days: 90 },
+  { id: '6m', label: '6M', days: 180 },
+  { id: 'ytd', label: 'YTD', ytd: true },
+];
+const SHORTCUTS = [
+  ['1 – 6', 'Switch timeframe'],
+  ['/  or  Ctrl K', 'Search symbols'],
+  ['[', 'Show or hide side panel'],
+  ['F', 'Fullscreen'],
+  ['R', 'Refresh data'],
+  ['I', 'Indicators'],
+  ['J', 'Show or hide journal trades'],
+  ['H', 'Horizontal line'],
+  ['L', 'Trend line'],
+  ['Y', 'Ray'],
+  ['B', 'Rectangle'],
+  ['G', 'Fib retracement'],
+  ['P', 'Risk / reward position'],
+  ['M', 'Measure'],
+  ['Q', 'Magnet (snap to OHLC)'],
+  ['Drag', 'Move a drawing, or drag its handles to resize'],
+  ['Del', 'Delete selected drawing'],
+  ['Ctrl Z', 'Undo drawing change'],
+  ['Esc', 'Cancel tool, deselect, close'],
+];
 
-const CSS = `
-  .chart-root {
-     
-     
-    --line: rgba(255,255,255,.085); --line-soft: rgba(255,255,255,.05);
-    --ink-1: #E7E9EE; --ink-2: #8892A3; --ink-3: #545E6E;
-    --win: #35C4A1; --loss: #FF5C5C;
-    width: 100%; max-width: 1800px; margin: 0 auto; box-sizing: border-box;
-    display: flex; flex-direction: column; gap: 16px;
-    color: var(--ink-1);
-    font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
-    -webkit-font-smoothing: antialiased;
-  }
-  .chart-layout {
-    display: grid;
-    grid-template-columns: 260px minmax(0, 1fr);
-    gap: 16px;
-    align-items: start;
-  }
-  @media (max-width: 1100px) { .chart-layout { grid-template-columns: 1fr; } }
+/* -------------------------------- storage -------------------------------- */
+const PREF_KEY = 'mavrix:chart:prefs:v2';
+const OLD_PREF_KEY = 'mavrix:chart:prefs';
+const drawKey = (s) => `mavrix:chart:drawings:${s}`;
+const oldLinesKey = (s) => `mavrix:chart:lines:${s}`;
 
-  .chart-main { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+function readJson(key, fallback) {
+  try { const r = window.localStorage.getItem(key); return r ? JSON.parse(r) : fallback; } catch { return fallback; }
+}
+function writeJson(key, value) { try { window.localStorage.setItem(key, JSON.stringify(value)); } catch { /* ignore */ } }
 
-  /* ---------- QuoteHeader ---------- */
-  .qh-root {
-    display: flex; align-items: center; gap: 20px;
-    padding: 12px 16px; border-radius: 12px;
-    background: rgba(15,18,25,.6); border: 1px solid var(--line);
-    flex-wrap: wrap;
-  }
-  .qh-main { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
-  .qh-code {
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    font-size: 14px; font-weight: 700; color: var(--accent);
-    letter-spacing: .04em;
-  }
-  .qh-name { font-size: 12px; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px; }
-  .qh-price-block { display: flex; align-items: baseline; gap: 12px; }
-  .qh-price {
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    font-size: 22px; font-weight: 700; letter-spacing: -.01em;
-  }
-  .qh-price.is-up { color: var(--win); }
-  .qh-price.is-down { color: var(--loss); }
-  .qh-change {
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    font-size: 12px; font-weight: 600;
-  }
-  .qh-change.is-up { color: var(--win); }
-  .qh-change.is-down { color: var(--loss); }
-  .qh-stats {
-    display: flex; align-items: center; gap: 14px; margin-left: auto;
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    font-size: 11px; color: var(--ink-2); flex-wrap: wrap;
-  }
-  .qh-stats em { color: var(--ink-3); font-style: normal; margin-right: 3px; }
-  .qh-market-state {
-    padding: 2px 7px; border-radius: 4px;
-    background: rgba(255,255,255,.04); text-transform: uppercase;
-    font-size: 9.5px; letter-spacing: .06em; font-weight: 700;
-  }
-  .qh-delayed {
-    padding: 2px 7px; border-radius: 4px;
-    background: color-mix(in srgb, var(--accent) 10%, transparent); color: var(--accent);
-    font-size: 9.5px; letter-spacing: .06em; text-transform: uppercase;
-    font-weight: 700; border: 1px solid var(--accent-soft2);
-  }
-  .qh-loading {
-    display: flex; align-items: center; gap: 8px;
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    font-size: 11px; color: var(--ink-3); margin-left: auto;
-  }
-  .qh-pulse {
-    width: 6px; height: 6px; border-radius: 50%;
-    background: var(--accent); box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 70%, transparent);
-    animation: qhPulse 1.6s ease-in-out infinite;
-  }
-  @keyframes qhPulse {
-    0%,100% { opacity: .35; transform: scale(.8); }
-    50%     { opacity: 1; transform: scale(1.15); }
-  }
+function loadPrefs() {
+  const p = readJson(PREF_KEY, null);
+  if (p) return p;
+  const old = readJson(OLD_PREF_KEY, {});
+  return {
+    chartType: old.ha ? 'ha' : 'candles',
+    volume: old.volume !== false,
+    log: !!old.log,
+    indicators: Array.isArray(old.indicators) ? old.indicators.filter((i) => ['ema20', 'ema50', 'sma200', 'vwap', 'bb', 'rsi'].includes(i)) : ['ema20'],
+  };
+}
 
-  /* ---------- IndicatorOverlay ---------- */
-  .ind-root {
-    display: inline-flex; align-items: center; gap: 6px;
-    padding: 4px 8px; border-radius: 9px;
-    background: rgba(0,0,0,.32); border: 1px solid var(--line-soft);
-    flex-wrap: wrap;
+function loadDrawings(symbol) {
+  const saved = readJson(drawKey(symbol), null);
+  if (Array.isArray(saved)) return saved;
+  // Migrate horizontal lines saved by the previous chart version.
+  const old = readJson(oldLinesKey(symbol), []);
+  if (Array.isArray(old) && old.length) {
+    const t = Math.floor(Date.now() / 1000);
+    return old.filter((p) => Number.isFinite(p)).map((p, i) => ({ id: `legacy${i}`, type: 'hline', color: '#F5B544', pts: [{ t, p }] }));
   }
-  .ind-label {
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    font-size: 9.5px; font-weight: 700; letter-spacing: .14em;
-    text-transform: uppercase; color: var(--ink-3);
-    margin-right: 4px;
-  }
-  .ind-toggle {
-    display: inline-flex; align-items: center; gap: 6px;
-    padding: 5px 10px; border-radius: 6px;
-    border: 1px solid transparent; background: transparent;
-    color: var(--ink-2); font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    font-size: 10.5px; font-weight: 600; letter-spacing: .02em;
-    cursor: pointer; transition: all .15s; white-space: nowrap;
-  }
-  .ind-toggle:hover { color: var(--ink-1); background: rgba(255,255,255,.05); }
-  .ind-toggle.is-active {
-    background: rgba(255,255,255,.06); color: var(--ink-1);
-    border-color: rgba(255,255,255,.14);
-  }
-  .ind-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
-  .ind-toggle:not(.is-active) .ind-dot { opacity: .35; }
+  return [];
+}
 
-  /* ---------- DrawingToolbar ---------- */
-  .dt-root {
-    display: inline-flex; align-items: center; gap: 6px;
-    padding: 4px 8px; border-radius: 9px;
-    background: rgba(0,0,0,.32); border: 1px solid var(--line-soft);
-    flex-wrap: wrap;
+// Latest bar index with time <= t (bars sorted ascending).
+function snapToBar(bars, t) {
+  let lo = 0, hi = bars.length - 1, ans = -1;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    if (bars[mid].time <= t) { ans = mid; lo = mid + 1; } else hi = mid - 1;
   }
-  .dt-label {
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    font-size: 9.5px; font-weight: 700; letter-spacing: .14em;
-    text-transform: uppercase; color: var(--ink-3);
-    margin-right: 4px;
-  }
-  .dt-tool {
-    display: inline-flex; align-items: center; gap: 6px;
-    padding: 5px 10px; border-radius: 6px;
-    border: 1px solid transparent; background: transparent;
-    color: var(--ink-2); font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    font-size: 10.5px; font-weight: 600; letter-spacing: .02em;
-    cursor: pointer; transition: all .15s; white-space: nowrap;
-  }
-  .dt-tool:hover { color: var(--ink-1); background: rgba(255,255,255,.05); }
-  .dt-tool.is-active {
-    background: linear-gradient(135deg, var(--accent), var(--accent-2));
-    color: #0D1117; border-color: transparent;
-    box-shadow: 0 4px 12px -6px color-mix(in srgb, var(--accent) 60%, transparent);
-  }
-  .dt-hint {
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    font-size: 10px; color: var(--accent); font-weight: 600;
-    padding: 3px 8px; border-radius: 5px;
-    background: color-mix(in srgb, var(--accent) 10%, transparent); border: 1px solid var(--accent-soft2);
-    white-space: nowrap;
-  }
-  .dt-spacer { flex: 1; min-width: 8px; }
-  .dt-clear {
-    display: inline-flex; align-items: center; gap: 5px;
-    padding: 5px 10px; border-radius: 6px;
-    border: 1px solid rgba(239,68,68,.28); background: rgba(239,68,68,.05);
-    color: #f87171; font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    font-size: 10.5px; font-weight: 600; cursor: pointer;
-    transition: all .15s; white-space: nowrap;
-  }
-  .dt-clear:hover:not(:disabled) {
-    background: rgba(239,68,68,.12); border-color: rgba(239,68,68,.55);
-  }
-  .dt-clear:disabled { opacity: .35; cursor: not-allowed; }
+  return ans;
+}
 
-  .chart-tools-row {
-    display: flex; align-items: center; gap: 12px;
-    flex-wrap: wrap;
+function formatChartTime(t, interval, tz) {
+  if (t == null) return null;
+  const z = tz || undefined;
+  if (interval === '1d') {
+    const d = new Date(`${t}T00:00:00`);
+    return Number.isNaN(d.getTime()) ? String(t) : d.toLocaleDateString('en-US', { timeZone: z, month: 'short', day: 'numeric', year: 'numeric' });
   }
-
-  /* ---------- ChartToolbar ---------- */
-  .ct-root {
-    display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
-    padding: 10px 14px; border-radius: 12px;
-    background: rgba(15,18,25,.6); border: 1px solid var(--line);
-  }
-  .ct-intervals {
-    display: inline-flex; gap: 3px; padding: 3px;
-    background: rgba(0,0,0,.32); border: 1px solid var(--line-soft);
-    border-radius: 9px;
-  }
-  .ct-tf {
-    padding: 6px 12px; border-radius: 6px; border: none;
-    background: transparent; color: var(--ink-2);
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    font-size: 11px; font-weight: 600; letter-spacing: .04em;
-    cursor: pointer; transition: all .18s; white-space: nowrap;
-  }
-  .ct-tf:hover { color: var(--ink-1); background: rgba(255,255,255,.04); }
-  .ct-tf.is-active {
-    background: linear-gradient(135deg, var(--accent), var(--accent-2));
-    color: #0D1117; font-weight: 700;
-    box-shadow: 0 6px 16px -8px color-mix(in srgb, var(--accent) 60%, transparent);
-  }
-  .ct-status {
-    display: inline-flex; align-items: center; gap: 8px;
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    font-size: 10.5px; letter-spacing: .04em; color: var(--ink-3);
-  }
-  .ct-pulse {
-    width: 6px; height: 6px; border-radius: 50%;
-    background: var(--accent); box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 70%, transparent);
-    animation: ctPulse 1.6s ease-in-out infinite;
-  }
-  @keyframes ctPulse {
-    0%,100% { opacity: .35; transform: scale(.8); }
-    50%     { opacity: 1; transform: scale(1.15); }
-  }
-  .ct-fs {
-    margin-left: auto; display: inline-flex; align-items: center; gap: 6px;
-    padding: 7px 13px; border-radius: 9px;
-    border: 1px solid rgba(255,255,255,.1);
-    background: rgba(255,255,255,.03); color: var(--ink-2);
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    font-size: 11px; font-weight: 600; letter-spacing: .02em;
-    cursor: pointer; transition: all .2s; white-space: nowrap;
-  }
-  .ct-fs:hover {
-    color: var(--accent); border-color: var(--accent-soft2);
-    background: color-mix(in srgb, var(--accent) 6%, transparent);
-  }
-
-  /* ---------- Chart shell ---------- */
-  .chart-shell {
-    position: relative; width: 100%; height: 640px;     max-height: calc(100vh - 280px);     max-height: calc(100dvh - 280px);     min-height: 400px;
-    border-radius: 14px; border: 1px solid var(--line);
-    background: linear-gradient(180deg, rgba(15,18,25,.72), rgba(15,18,25,.55));
-    box-shadow: 0 20px 50px -30px rgba(0,0,0,.9); overflow: hidden;
-  }
-  .chart-shell:fullscreen, .chart-shell:-webkit-full-screen {
-    border-radius: 0; border: none; height: 100vh; min-height: 100vh;
-    background: #07090D;
-  }
-
-  /* ---------- CandlestickChart internal ---------- */
-  .cx-root { position: relative; width: 100%; height: 100%; }
-  .cx-canvas { width: 100%; height: 100%; }
-  .cx-overlay {
-    position: absolute; inset: 0; display: flex;
-    align-items: center; justify-content: center;
-    background: rgba(7,9,13,.35); backdrop-filter: blur(2px);
-    pointer-events: none;
-  }
-  .cx-spinner {
-    width: 26px; height: 26px;
-    border: 2.5px solid var(--line); border-top-color: var(--accent);
-    border-radius: 50%; animation: cxSpin .8s linear infinite;
-  }
-  @keyframes cxSpin { to { transform: rotate(360deg); } }
-  .cx-empty {
-    position: absolute; inset: 0; display: flex;
-    flex-direction: column; align-items: center; justify-content: center;
-    gap: 6px; text-align: center; color: var(--ink-2);
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    font-size: 12.5px; line-height: 1.7; pointer-events: none;
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .cx-spinner, .ct-pulse, .qh-pulse { animation: none !important; }
-    .ind-toggle, .dt-tool, .dt-clear, .ct-tf, .ct-fs { transition: none !important; }
-  }
-`;
-
+  const d = new Date(Number(t) * 1000);
+  return Number.isNaN(d.getTime()) ? null : d.toLocaleString('en-US', { timeZone: z, month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
+}
 
 export default function MarketChartPage() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const { settings } = useSettings();
+  const chartRef = useRef(null);
 
   const symbol = (searchParams.get('symbol') || DEFAULT_SYMBOL).toUpperCase();
   const interval = searchParams.get('interval') || DEFAULT_INTERVAL;
+  const fromParam = searchParams.get('from') || null;
+  const toParam = searchParams.get('to') || null;
+  const presetParam = searchParams.get('range') || null;
 
+  /* ------------------------------ persisted prefs ------------------------------ */
+  const prefs = useRef(loadPrefs()).current;
+  const [chartType, setChartType] = useState(prefs.chartType || 'candles');
+  const [showVolume, setShowVolume] = useState(prefs.volume !== false);
+  const [logScale, setLogScale] = useState(!!prefs.log);
+  const [magnet, setMagnet] = useState(!!prefs.magnet);
+  const [indicators, setIndicators] = useState(Array.isArray(prefs.indicators) ? prefs.indicators : ['ema20']);
+  const [panelOpen, setPanelOpen] = useState(prefs.panelOpen !== false);
+  const [panelTab, setPanelTab] = useState(prefs.panelTab || 'watch');
+  const [drawColor, setDrawColor] = useState(prefs.drawColor || DRAW_COLORS[0]);
+  const [showTrades, setShowTrades] = useState(prefs.showTrades !== false);
+  const [showLabels, setShowLabels] = useState(!!prefs.showLabels);
+  useEffect(() => {
+    writeJson(PREF_KEY, { chartType, volume: showVolume, log: logScale, magnet, indicators, panelOpen, panelTab, drawColor, showTrades, showLabels });
+  }, [chartType, showVolume, logScale, magnet, indicators, panelOpen, panelTab, drawColor, showTrades, showLabels]);
+
+  /* ----------------------------------- UI state ----------------------------------- */
+  const [drawer, setDrawer] = useState(false);
+  const [full, setFull] = useState(false);
+  const [help, setHelp] = useState(false);
+  const [palette, setPalette] = useState(false);
+  const [indOpen, setIndOpen] = useState(false);
+  const [tool, setTool] = useState('cursor');
+  const [selectedId, setSelectedId] = useState(null);
+  const [hideDrawings, setHideDrawings] = useState(false);
+  const [focus, setFocus] = useState(null);
+  const [activeTradeId, setActiveTradeId] = useState(null);
+  const fullRef = useRef(false);
+  fullRef.current = full;
+
+  /* ----------------------------------- drawings ----------------------------------- */
+  const [drawings, setDrawingsState] = useState(() => loadDrawings(symbol));
+  const historyRef = useRef([]);
+  const [canUndo, setCanUndo] = useState(false);
+  const symbolRef = useRef(symbol);
+  const drawingsRef = useRef(drawings);
+  drawingsRef.current = drawings;
+
+  useEffect(() => {
+    symbolRef.current = symbol;
+    setDrawingsState(loadDrawings(symbol));
+    historyRef.current = [];
+    setCanUndo(false);
+    setSelectedId(null);
+    setTool('cursor');
+    setFocus(null);
+    setActiveTradeId(null);
+  }, [symbol]);
+
+  const setDrawings = useCallback((next) => {
+    historyRef.current = [...historyRef.current.slice(-39), drawingsRef.current];
+    setCanUndo(true);
+    setDrawingsState(next);
+    writeJson(drawKey(symbolRef.current), next);
+  }, []);
+
+  const undo = useCallback(() => {
+    const prev = historyRef.current.pop();
+    if (!prev) return;
+    setCanUndo(historyRef.current.length > 0);
+    setDrawingsState(prev);
+    writeJson(drawKey(symbolRef.current), prev);
+    setSelectedId(null);
+  }, []);
+
+  const removeDrawing = useCallback((id) => {
+    setDrawings(drawingsRef.current.filter((d) => d.id !== id));
+    setSelectedId((cur) => (cur === id ? null : cur));
+  }, [setDrawings]);
+
+  const clearDrawings = useCallback(() => { if (drawingsRef.current.length) setDrawings([]); setSelectedId(null); }, [setDrawings]);
+
+  /* --------------------------------- URL params --------------------------------- */
   const setSymbol = useCallback((next) => {
     const sp = new URLSearchParams(searchParams);
     sp.set('symbol', next);
+    sp.delete('from'); sp.delete('to'); sp.delete('range');
     setSearchParams(sp, { replace: true });
+    setDrawer(false);
   }, [searchParams, setSearchParams]);
 
-  const setInterval = useCallback((next) => {
+  const setIntervalParam = useCallback((next) => {
     const sp = new URLSearchParams(searchParams);
     sp.set('interval', next);
     setSearchParams(sp, { replace: true });
   }, [searchParams, setSearchParams]);
 
+  const setRange = useCallback((fromDate, toDate, presetId = null) => {
+    const sp = new URLSearchParams(searchParams);
+    if (fromDate && toDate) {
+      sp.set('from', fromDate.toISOString());
+      sp.set('to', toDate.toISOString());
+      if (presetId) sp.set('range', presetId); else sp.delete('range');
+    } else {
+      sp.delete('from'); sp.delete('to'); sp.delete('range');
+    }
+    setSearchParams(sp, { replace: true });
+  }, [searchParams, setSearchParams]);
 
-  const { data: catalog, isLoading: catalogLoading } = useMarketCatalog();
+  /* ------------------------------------- data ------------------------------------- */
+  const displayTz = useMemo(() => resolveTimezone(settings?.preferences?.timezone || 'auto'), [settings]);
+  const { data: catalog } = useMarketCatalog();
+  const barsQuery = useMarketBars({ symbol, interval, from: fromParam, to: toParam, enabled: !!catalog });
 
-  const {
-    data: barPayload,
-    isLoading: barsLoading,
-    isFetching: barsFetching,
-    dataUpdatedAt,
-  } = useMarketBars({ symbol, interval, enabled: !!catalog });
+  const bars = useMemo(() => {
+    if (!barsQuery.data) return [];
+    const pages = [...barsQuery.data.pages];
+    if (!fromParam) pages.reverse();
+    const flat = pages.flatMap((p) => p.bars || []);
+    const seen = new Map();
+    for (const b of flat) {
+      const isFlat = b.open === b.high && b.high === b.low && b.low === b.close;
+      if (isFlat && (!b.volume || Number(b.volume) === 0)) continue;
+      seen.set(b.time, b);
+    }
+    const out = [...seen.values()];
+    out.sort((a, b) => {
+      const at = typeof a.time === 'number' ? a.time : new Date(a.time).getTime();
+      const bt = typeof b.time === 'number' ? b.time : new Date(b.time).getTime();
+      return at - bt;
+    });
+    return out;
+  }, [barsQuery.data, fromParam]);
 
-  const symbols = useMemo(() => catalog?.symbols ?? [], [catalog]);
-  const bars = useMemo(() => barPayload?.bars ?? [], [barPayload]);
+  const filling = barsQuery.data?.pages?.[0]?.filling;
+  const hasMoreOlder = barsQuery.data?.pages?.[barsQuery.data.pages.length - 1]?.hasMoreOlder;
 
-  const currentSymbol = useMemo(
-    () => symbols.find((s) => s.code === symbol),
-    [symbols, symbol]
-  );
+  const displayOffset = useMemo(() => {
+    if (interval === '1d') return 0;
+    const ref = bars.length > 0 ? bars[Math.floor(bars.length / 2)].time : Math.floor(Date.now() / 1000);
+    return getTimezoneOffsetSeconds(displayTz, ref);
+  }, [bars, interval, displayTz]);
 
+  // Shift to the display timezone. Drop any bar whose shifted time would not be strictly
+  // increasing (can happen around DST changes) because the chart library throws on duplicates.
+  const displayBars = useMemo(() => {
+    if (displayOffset === 0 || interval === '1d') return bars;
+    const out = [];
+    let prev = -Infinity;
+    for (const b of bars) {
+      const t = b.time + displayOffset;
+      if (t <= prev) continue;
+      out.push({ ...b, time: t });
+      prev = t;
+    }
+    return out;
+  }, [bars, displayOffset, interval]);
 
-  const [indicators, setIndicators] = useState({
-    ema20: false,
-    ema50: false,
-    vwap: false,
-    bb: false,
-  });
+  const lastBarTime = bars.length > 0 ? bars[bars.length - 1].time : null;
+  const fitKey = `${symbol}-${interval}-${fromParam}-${toParam}`;
+  const symInfo = catalog?.symbols?.find((s) => s.code === symbol);
+  const precision = pricePrecision(symInfo, symbol);
 
-  const toggleIndicator = useCallback((key) => {
-    setIndicators((prev) => ({ ...prev, [key]: !prev[key] }));
+  /* ------------------------ journal trades -> boxes, markers, list ------------------------ */
+  const journalResult = useJournalTrades();
+  const journal = journalResult?.trades || EMPTY;
+  const { chartTrades, chartMarkers, tradeRows, journalTotal } = useMemo(() => {
+    const symTrades = journal.filter((t) => {
+      const s = String(t.symbol || t.instrument || '').toUpperCase();
+      return !s || s === symbol;
+    });
+    if (interval === '1d' || displayBars.length === 0) return { chartTrades: [], chartMarkers: [], tradeRows: [], journalTotal: symTrades.length };
+    const first = displayBars[0].time;
+    const last = displayBars[displayBars.length - 1].time;
+    const boxes = [], marks = [], rows = [];
+    for (const t of symTrades) {
+      const entryUtc = tradeTimeToUtcSeconds(t.date, t.entryTime, displayTz);
+      if (entryUtc == null) continue;
+      const entry = toDisplaySeconds(entryUtc, displayTz);
+      if (entry < first || entry > last) continue;
+      const exitUtc = t.exitTime ? tradeTimeToUtcSeconds(t.exitDate || t.date, t.exitTime, displayTz) : null;
+      const exit = exitUtc != null ? toDisplaySeconds(exitUtc, displayTz) : null;
+      const long = /long|buy/i.test(String(t.side || t.direction || ''));
+      const pnl = Number(t.pnl ?? t.netPnl);
+      const win = Number.isFinite(pnl) ? pnl >= 0 : null;
+      const idx = snapToBar(displayBars, entry);
+      if (idx < 0) continue;
+      const label = Number.isFinite(pnl) ? `${pnl >= 0 ? '+' : ''}${pnl.toFixed(0)}` : '';
+      marks.push({
+        time: displayBars[idx].time,
+        position: long ? 'belowBar' : 'aboveBar',
+        shape: long ? 'arrowUp' : 'arrowDown',
+        color: win === false ? '#FF5C5C' : win ? '#35C4A1' : '#F5B544',
+        text: label,
+      });
+      rows.push({
+        id: t.id || `${t.date}-${t.entryTime}`, date: t.date, time: t.entryTime, long,
+        net: (Number(t.pnl) || 0) - (Number(t.commission) || 0), displayTs: displayBars[idx].time,
+      });
+      if (exit != null) {
+        const exitIdx = snapToBar(displayBars, exit);
+        boxes.push({
+          entryTimeSec: displayBars[idx].time,
+          exitTimeSec: displayBars[Math.max(exitIdx, idx)].time,
+          entryPrice: Number(t.entryPrice) || null,
+          stopLoss: Number(t.stopLoss) || null,
+          takeProfit: Number(t.takeProfit) || null,
+          label, win,
+        });
+      }
+    }
+    marks.sort((a, b) => a.time - b.time);
+    rows.sort((a, b) => b.displayTs - a.displayTs);
+    return { chartTrades: boxes, chartMarkers: marks, tradeRows: rows, journalTotal: symTrades.length };
+  }, [journal, displayBars, interval, symbol, displayTz]);
+
+  const rangeStats = useMemo(() => {
+    if (bars.length === 0) return null;
+    let hi = -Infinity, lo = Infinity;
+    for (const b of bars) {
+      const h = Number(b.high), l = Number(b.low);
+      if (h > hi) hi = h;
+      if (l < lo) lo = l;
+    }
+    const first = Number(bars[0].open), last = Number(bars[bars.length - 1].close);
+    if (!Number.isFinite(hi) || !Number.isFinite(lo)) return null;
+    return { hi, lo, pct: first ? ((last - first) / first) * 100 : 0 };
+  }, [bars]);
+
+  /* ----------------------------------- ranges ----------------------------------- */
+  const activePreset = !fromParam ? 'default' : PRESETS.some((p) => p.id === presetParam) ? presetParam : 'custom';
+  const applyPreset = useCallback((p) => {
+    if (p.id === 'default') return setRange(null, null);
+    const to = new Date(); to.setHours(23, 59, 59, 999);
+    const from = new Date();
+    if (p.ytd) from.setMonth(0, 1);
+    else from.setTime(from.getTime() - p.days * DAY);
+    from.setHours(0, 0, 0, 0);
+    return setRange(from, to, p.id);
+  }, [setRange]);
+  const handleRangeChange = useCallback((f, t) => setRange(f, t, null), [setRange]);
+
+  const handleLoadOlder = useCallback(() => {
+    if (barsQuery.hasNextPage && !barsQuery.isFetchingNextPage) return barsQuery.fetchNextPage();
+    return undefined;
+  }, [barsQuery]);
+
+  const handleRefresh = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ['market-data', 'bars'] });
+    queryClient.invalidateQueries({ queryKey: ['market-data', 'quote'] });
+    queryClient.invalidateQueries({ queryKey: ['market-data', 'quotes'] });
   }, []);
 
-  const indicatorData = useMemo(
-    () => computeIndicators(bars, indicators),
-    [bars, indicators]
-  );
-
-
-  const [drawings, setDrawings] = useState([]);
-  const [drawingMode, setDrawingMode] = useState(DRAWING_MODES.NONE);
-  const [pendingPoint, setPendingPoint] = useState(null);
-
+  // Fullscreen the whole document so portaled popovers stay visible.
+  const toggleFull = useCallback(() => {
+    const next = !fullRef.current;
+    setFull(next);
+    try {
+      if (next) document.documentElement.requestFullscreen?.()?.catch?.(() => {});
+      else if (document.fullscreenElement) document.exitFullscreen?.()?.catch?.(() => {});
+    } catch { /* overlay mode still works */ }
+  }, []);
   useEffect(() => {
-    setDrawings(loadDrawings(symbol));
-    setPendingPoint(null);
-  }, [symbol]);
+    const onFs = () => { if (!document.fullscreenElement) setFull(false); };
+    document.addEventListener('fullscreenchange', onFs);
+    return () => {
+      document.removeEventListener('fullscreenchange', onFs);
+      if (document.fullscreenElement) document.exitFullscreen?.()?.catch?.(() => {});
+    };
+  }, []);
 
+  usePageHeader({ title: 'Chart', subtitle: `${symbol} · ${interval.toUpperCase()} · ${displayTz}` });
+
+  /* ---------------------------------- handlers ---------------------------------- */
+  const toggleIndicator = useCallback((id) => setIndicators((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id])), []);
+  const focusTrade = useCallback((row) => {
+    setActiveTradeId(row.id);
+    setFocus({ time: row.displayTs, nonce: Date.now() });
+    setDrawer(false);
+  }, []);
+  const openPanel = useCallback((tab) => {
+    if (tab) setPanelTab(tab);
+    setPanelOpen(true);
+    if (window.matchMedia('(max-width: 1100px)').matches) setDrawer(true);
+  }, []);
+
+  /* ------------------------------ keyboard shortcuts ------------------------------ */
   useEffect(() => {
-    saveDrawings(symbol, drawings);
-  }, [symbol, drawings]);
-
-  const handleChartClick = useCallback(
-    ({ time, price }) => {
-      if (drawingMode === DRAWING_MODES.HLINE) {
-        setDrawings((prev) => [
-          ...prev,
-          {
-            id: makeDrawingId(),
-            mode: DRAWING_MODES.HLINE,
-            color: DEFAULT_DRAWING_COLOR,
-            points: [{ time, price }],
-          },
-        ]);
-        setDrawingMode(DRAWING_MODES.NONE);
-        setPendingPoint(null);
+    const onKey = (e) => {
+      const el = e.target;
+      const typing = el?.tagName === 'INPUT' || el?.tagName === 'TEXTAREA' || el?.isContentEditable;
+      const k = e.key;
+      if ((e.metaKey || e.ctrlKey) && k.toLowerCase() === 'k') { e.preventDefault(); setPalette(true); return; }
+      if ((e.metaKey || e.ctrlKey) && !e.shiftKey && k.toLowerCase() === 'z' && !typing) { e.preventDefault(); undo(); return; }
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (k === 'Escape') {
+        if (help) setHelp(false);
+        else if (tool !== 'cursor') setTool('cursor');
+        else if (selectedId) setSelectedId(null);
+        else if (drawer) setDrawer(false);
+        else if (fullRef.current) toggleFull();
         return;
       }
+      if (typing || palette) return;
+      const lower = k.length === 1 ? k.toLowerCase() : k;
+      if (INTERVAL_KEYS[k]) setIntervalParam(INTERVAL_KEYS[k]);
+      else if (k === '/') { e.preventDefault(); setPalette(true); }
+      else if (k === '?') setHelp((v) => !v);
+      else if (k === '[') setPanelOpen((v) => !v);
+      else if (lower === 'f') toggleFull();
+      else if (lower === 'r') handleRefresh();
+      else if (lower === 'i') setIndOpen((v) => !v);
+      else if (lower === 'j') setShowTrades((v) => !v);
+      else if (lower === 'q') setMagnet((v) => !v);
+      else if (TOOL_KEYS[lower]) setTool((cur) => (cur === TOOL_KEYS[lower] ? 'cursor' : TOOL_KEYS[lower]));
+      else if ((k === 'Delete' || k === 'Backspace') && selectedId) { e.preventDefault(); removeDrawing(selectedId); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [help, tool, selectedId, drawer, palette, undo, setIntervalParam, handleRefresh, toggleFull, removeDrawing]);
 
-      if (drawingMode === DRAWING_MODES.TRENDLINE) {
-        if (!pendingPoint) {
-          setPendingPoint({ time, price });
-          return;
-        }
-
-        const sorted = normalizeTrendlinePoints(pendingPoint, { time, price });
-        setPendingPoint(null);
-        setDrawingMode(DRAWING_MODES.NONE);
-
-        if (!sorted) return;
-
-        setDrawings((prev) => [
-          ...prev,
-          {
-            id: makeDrawingId(),
-            mode: DRAWING_MODES.TRENDLINE,
-            color: DEFAULT_DRAWING_COLOR,
-            points: sorted,
-          },
-        ]);
-      }
-    },
-    [drawingMode, pendingPoint]
-  );
-
-  const handleClearDrawings = useCallback(() => {
-    setDrawings([]);
-    setPendingPoint(null);
-  }, []);
-
-  const handleModeChange = useCallback((mode) => {
-    setDrawingMode(mode);
-    setPendingPoint(null);
-  }, []);
-
-
-  const shellRef = useRef(null);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-
-  useEffect(() => {
-    const onChange = () => setIsFullscreen(document.fullscreenElement === shellRef.current);
-    document.addEventListener('fullscreenchange', onChange);
-    return () => document.removeEventListener('fullscreenchange', onChange);
-  }, []);
-
-  const toggleFullscreen = useCallback(async () => {
-    const shell = shellRef.current;
-    if (!shell) return;
-    try {
-      if (document.fullscreenElement === shell) await document.exitFullscreen();
-      else if (shell.requestFullscreen) await shell.requestFullscreen();
-    } catch (err) {
-      console.warn('[chart] fullscreen rejected:', err);
-    }
-  }, []);
-
-
-  usePageHeader({
-    title: 'Chart',
-    subtitle: `${symbol} · ${interval.toUpperCase()}`,
-  });
-
-
-  if (catalogLoading) return <PageSkeleton />;
+  /* ------------------------------------ render ------------------------------------ */
+  const isLive = !fromParam;
+  const panelProps = {
+    tab: panelTab, onTab: setPanelTab, onClose: () => { setDrawer(false); setPanelOpen(false); },
+    catalog: catalog?.symbols ?? EMPTY, activeSymbol: symbol, onSymbol: setSymbol,
+    tradeRows, tradeCount: tradeRows.length, journalTotal, activeTradeId, onFocusTrade: focusTrade,
+    showTrades, onToggleTrades: setShowTrades, showLabels, onToggleLabels: setShowLabels,
+    drawings, selectedId, onSelect: (id) => { setSelectedId(id); setTool('cursor'); }, onRemoveDrawing: removeDrawing, onClearDrawings: clearDrawings,
+    precision, enabledIndicators: indicators, onToggleIndicator: toggleIndicator,
+  };
 
   return (
     <>
       <style>{CSS}</style>
-      <div className="chart-root page-fade-in">
-        <div className="chart-layout">
-          <WatchlistSidebar
-            catalog={symbols}
-            activeSymbol={symbol}
-            onChange={setSymbol}
+      <div className={`mk-root${full ? ' is-full' : ' page-fade-in'}${panelOpen ? '' : ' is-panel-closed'}${drawer ? ' is-drawer' : ''}`}>
+        <div className="mk-shell">
+          <QuoteHeader symbol={symbol} symInfo={symInfo} precision={precision} onOpenSymbols={() => setPalette(true)} onOpenDrawer={() => openPanel()} />
+
+          <ChartToolbar
+            interval={interval} onIntervalChange={setIntervalParam}
+            chartType={chartType} onChartType={setChartType}
+            enabledIndicators={indicators} onToggleIndicator={toggleIndicator} onClearIndicators={() => setIndicators([])}
+            indicatorsOpen={indOpen} onIndicatorsOpenChange={setIndOpen}
+            showVolume={showVolume} onToggleVolume={() => setShowVolume((v) => !v)} logScale={logScale} onToggleLog={() => setLogScale((v) => !v)}
+            from={fromParam} to={toParam} presets={PRESETS} activePreset={activePreset} onPreset={applyPreset} onRangeChange={handleRangeChange}
+            canUndo={canUndo} onUndo={undo} onScreenshot={() => chartRef.current?.screenshot()}
+            onRefresh={handleRefresh} isRefreshing={barsQuery.isFetching && !barsQuery.isFetchingNextPage}
+            onToggleFullscreen={toggleFull} isFullscreen={full} onHelp={() => setHelp(true)}
+            panelOpen={panelOpen} onTogglePanel={() => setPanelOpen((v) => !v)}
           />
 
-          <div className="chart-main">
-            <QuoteHeader
-              symbol={symbol}
-              displayName={currentSymbol?.label || ''}
+          <div className="mk-body">
+            <DrawingToolbar
+              tool={tool} onTool={setTool} magnet={magnet} onMagnet={() => setMagnet((v) => !v)}
+              color={drawColor} onColor={setDrawColor} hidden={hideDrawings} onToggleHidden={() => setHideDrawings((v) => !v)}
+              count={drawings.length} onClear={clearDrawings}
             />
 
-            <ChartToolbar
-              interval={interval}
-              onIntervalChange={setInterval}
-              isFullscreen={isFullscreen}
-              onToggleFullscreen={toggleFullscreen}
-              isLoading={barsFetching && !bars.length}
-              lastUpdated={dataUpdatedAt}
-            />
-
-            <div className="chart-tools-row">
-              <IndicatorOverlay
-                indicators={indicators}
-                onToggle={toggleIndicator}
+            <div className="mk-stage">
+              {(filling || barsQuery.isFetchingNextPage) && <div className="mk-bar"><i /></div>}
+              <CandlestickChart
+                ref={chartRef}
+                bars={displayBars} interval={interval} symbol={symbol} precision={precision}
+                chartType={chartType} enabledIndicators={indicators} onToggleIndicator={toggleIndicator}
+                showVolume={showVolume} logScale={logScale} magnet={magnet}
+                tool={tool} onToolChange={setTool}
+                drawings={hideDrawings ? EMPTY : drawings} onDrawingsChange={setDrawings}
+                selectedId={selectedId} onSelect={setSelectedId} drawColor={drawColor}
+                markers={chartMarkers} trades={chartTrades} showTrades={showTrades} showTradeLabels={showLabels}
+                focus={focus} fitKey={fitKey} fitMode={fromParam ? 'all' : 'recent'}
+                hasMoreOlder={hasMoreOlder} onRequestOlder={handleLoadOlder} displayOffset={displayOffset}
               />
-              <DrawingToolbar
-                mode={drawingMode}
-                onModeChange={handleModeChange}
-                onClearAll={handleClearDrawings}
-                drawingCount={drawings.length}
-                pendingFirstPoint={!!pendingPoint}
-              />
+              {barsQuery.isLoading && bars.length === 0 && <div className="mk-skel" aria-hidden />}
+              {barsQuery.isError && bars.length === 0 && (
+                <div className="mk-state" role="alert">
+                  <AlertTriangle size={22} color="#F5B544" />
+                  <b>Couldn’t load {symbol} {interval.toUpperCase()} data</b>
+                  <p>The market data service didn’t respond. Check your connection and try again.</p>
+                  <button type="button" className="mk-retry" onClick={() => barsQuery.refetch()}><RotateCw size={12} /> Retry</button>
+                </div>
+              )}
             </div>
 
-            <div className="chart-shell" ref={shellRef}>
-              <CandlestickChart
-                bars={bars}
-                interval={interval}
-                isLoading={barsLoading}
-                indicators={indicators}
-                indicatorData={indicatorData}
-                drawings={drawings}
-                drawingMode={drawingMode}
-                onChartClick={handleChartClick}
-              />
+            {drawer && <div className="mk-scrim" onClick={() => setDrawer(false)} />}
+            <SidePanel {...panelProps} />
+          </div>
+
+          <StatusBar
+            barCount={bars.length} rangeStats={rangeStats} precision={precision} tz={displayTz}
+            lastCandle={formatChartTime(lastBarTime, interval, displayTz)} isLive={isLive}
+            loadingOlder={barsQuery.isFetchingNextPage} filling={!!filling}
+          />
+        </div>
+
+        <SymbolPalette open={palette} onClose={() => setPalette(false)} catalog={catalog?.symbols ?? EMPTY} value={symbol} onPick={setSymbol} />
+
+        {help && (
+          <div className="mk-help-scrim" onClick={() => setHelp(false)}>
+            <div className="mk-help" role="dialog" aria-label="Keyboard shortcuts" onClick={(e) => e.stopPropagation()}>
+              <div className="mk-help-head">Keyboard shortcuts <button type="button" onClick={() => setHelp(false)} aria-label="Close"><X size={13} /></button></div>
+              <ul>{SHORTCUTS.map(([k, d]) => (<li key={k}><span>{d}</span><span className="mk-kbd">{k}</span></li>))}</ul>
             </div>
           </div>
-        </div>
+        )}
       </div>
     </>
   );

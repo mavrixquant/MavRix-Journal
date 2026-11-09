@@ -1,6 +1,6 @@
 
 import { useState, useMemo, useCallback, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   FaFileUpload,
   FaFolderOpen,
@@ -9,6 +9,7 @@ import {
   FaColumns,
   FaEdit,
   FaTrash,
+  FaChartLine,
 } from 'react-icons/fa';
 import { toast } from 'sonner';
 
@@ -16,6 +17,9 @@ import { useAccounts } from '@/shared/api/accounts';
 import { useTrades, useDeleteTrade } from '@/shared/api/trades';
 import { useStrategies } from '@/shared/api/strategies';
 import { enrichTradesFromDB } from '@/shared/trading/enrich';
+import { tradeTimeToUtcSeconds } from '@/shared/trading/tradeTime';
+import { resolveTimezone } from '@/shared/format/datetime';
+import { useSettings } from '@/app/layout/Settings/SettingsProvider';
 import UploadModal from './UploadModal';
 import AddTradeModal from './AddTradeModal';
 import ColumnManagerModal from './ColumnManagerModal';
@@ -36,7 +40,7 @@ const CSS = `
     --loss: #ef4444;
 
     width: 100%;
-    max-width: 1440px;
+    max-width: none;
     margin: 0 auto;
     box-sizing: border-box;
     display: flex;
@@ -326,7 +330,7 @@ function StrategyCell({ strategy }) {
   );
 }
 
-function buildColumns(dynamicKeys, currency, isBacktest, { onEdit, onDelete }) {
+function buildColumns(dynamicKeys, currency, isBacktest, { onEdit, onDelete, onViewChart }) {
   const common = [
     {
       id: 'date',
@@ -439,17 +443,6 @@ function buildColumns(dynamicKeys, currency, isBacktest, { onEdit, onDelete }) {
             return v == null ? '—' : Number(v).toLocaleString('en-US', { maximumFractionDigits: 6 });
           },
         },
-        {
-          id: 'exitPrice',
-          accessorKey: 'exitPrice',
-          header: 'Exit Price',
-          meta: { label: 'Exit Price' },
-          size: 110,
-          cell: (ctx) => {
-            const v = ctx.getValue();
-            return v == null ? '—' : Number(v).toLocaleString('en-US', { maximumFractionDigits: 6 });
-          },
-        },
       ];
 
   const common2 = [
@@ -519,6 +512,17 @@ function buildColumns(dynamicKeys, currency, isBacktest, { onEdit, onDelete }) {
       const row = ctx.row.original;
       return (
         <div className="jm-row-actions">
+          {onViewChart && (
+            <button
+              type="button"
+              className="jm-row-btn"
+              onClick={() => onViewChart(row)}
+              title="View on Chart"
+              aria-label="View on Chart"
+            >
+              <FaChartLine size={11} />
+            </button>
+          )}
           <button
             type="button"
             className="jm-row-btn"
@@ -553,7 +557,13 @@ function buildColumns(dynamicKeys, currency, isBacktest, { onEdit, onDelete }) {
   noAccountsTitle,
   noAccountsMessage,
 }) {
-  const { data: accounts = [], isLoading: accountsLoading } = useAccounts();
+  const navigate = useNavigate();
+  const { settings } = useSettings();
+  const userTz = useMemo(
+    () => resolveTimezone(settings?.preferences?.timezone || 'auto'),
+    [settings?.preferences?.timezone]
+  );
+const { data: accounts = [], isLoading: accountsLoading } = useAccounts();
 
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -576,6 +586,19 @@ function buildColumns(dynamicKeys, currency, isBacktest, { onEdit, onDelete }) {
   const { data: rawTrades = [], isLoading: tradesLoading } = useTrades(accountId);
 
   const { data: strategies = [] } = useStrategies();
+
+  const [dataTableMaxHeight, setDataTableMaxHeight] = useState(620);
+  useEffect(() => {
+    const updateHeight = () => {
+      const w = window.innerWidth;
+      setDataTableMaxHeight(
+        w >= 2560 ? 960 : w >= 1920 ? 840 : w >= 1440 ? 720 : 620
+      );
+    };
+    updateHeight();
+    window.addEventListener('resize', updateHeight);
+    return () => window.removeEventListener('resize', updateHeight);
+  }, []);
 
   const { enrichedTrades, dynamicKeys } = useMemo(
     () => enrichTradesFromDB(rawTrades),
@@ -621,13 +644,26 @@ function buildColumns(dynamicKeys, currency, isBacktest, { onEdit, onDelete }) {
     setEditingTrade(null);
   }, []);
 
-  const columns = useMemo(
+  
+  const handleViewOnChart = useCallback((row) => {
+    if (!row || !row.symbol) {
+      toast.error('This trade has no symbol — cannot open chart.');
+      return;
+    }
+    const ts = tradeTimeToUtcSeconds(row.date, row.entry, userTz);
+    const params = new URLSearchParams();
+    params.set('symbol', String(row.symbol).toUpperCase());
+    if (ts != null) params.set('focusTs', String(ts));
+    navigate(`/utilities/chart?${params.toString()}`);
+  }, [navigate, userTz]);
+const columns = useMemo(
     () =>
       buildColumns(dynamicKeys, currency, isBacktest, {
         onEdit: handleEdit,
         onDelete: handleDeleteRequest,
+        onViewChart: isBacktest ? null : handleViewOnChart,
       }),
-    [dynamicKeys, currency, isBacktest, handleEdit, handleDeleteRequest]
+    [dynamicKeys, currency, isBacktest, handleEdit, handleDeleteRequest, handleViewOnChart]
   );
 
   const kpis = useMemo(() => {
@@ -782,7 +818,7 @@ function buildColumns(dynamicKeys, currency, isBacktest, { onEdit, onDelete }) {
             searchableColumnIds={searchableIds}
             initialSort={[{ id: 'date', desc: true }]}
             estimateRowHeight={36}
-            maxHeight={620}
+            maxHeight={dataTableMaxHeight}
             emptyMessage="No records match your search."
             stickyFirstColumn={false}
             stickyLastColumn={true}

@@ -1,9 +1,13 @@
+// Chart.js theme — refined tooltips, softer grid, consistent typography.
+// Same exports as before (chartColors, chartFonts, getChartColors, baseTooltip,
+// baseAxis, baseCategoryAxis, baseLegend, decimationConfig, baseAnimation),
+// so every chart that imports from here keeps working.
 
 export const chartColors = {
   win: '#35C4A1',
-  winHover: '#45D1AD',
+  winHover: '#4DD6B3',
   loss: '#FF5C5C',
-  lossHover: '#FF7070',
+  lossHover: '#FF7676',
   be: '#6C7686',
 
   amber: '#FFB020',
@@ -19,12 +23,12 @@ export const chartColors = {
   textLight: '#E7E9EE',
   textDim: '#545E6E',
 
-  grid: '#1A2029',
-  zeroLine: 'rgba(255,255,255,.16)',
+  grid: 'rgba(255,255,255,.05)',
+  zeroLine: 'rgba(255,255,255,.18)',
   threshold: 'rgba(239,68,68,.60)',
 
-  tooltipBg: '#11151F',
-  tooltipBorder: '#212836',
+  tooltipBg: 'rgba(10,13,20,.96)',
+  tooltipBorder: 'rgba(255,255,255,.12)',
 };
 
 export const chartFonts = {
@@ -32,7 +36,6 @@ export const chartFonts = {
   display: "'Space Grotesk', sans-serif",
   body: "'Inter', sans-serif",
 };
-
 
 function hexToRgba(hex, alpha) {
   const h = String(hex || '').replace('#', '');
@@ -66,19 +69,21 @@ export function getChartColors(accentHex) {
   };
 }
 
-
 export function baseTooltip(overrides = {}) {
   return {
     enabled: true,
     backgroundColor: chartColors.tooltipBg,
     borderColor: chartColors.tooltipBorder,
     borderWidth: 1,
-    padding: 12,
-    cornerRadius: 8,
-    bodySpacing: 4,
+    padding: { top: 10, right: 12, bottom: 10, left: 12 },
+    cornerRadius: 10,
+    caretSize: 0,
+    caretPadding: 8,
+    bodySpacing: 5,
+    titleMarginBottom: 8,
     displayColors: false,
     titleColor: chartColors.textLight,
-    titleFont: { family: chartFonts.display, size: 12, weight: '600' },
+    titleFont: { family: chartFonts.body, size: 12, weight: '600' },
     bodyColor: chartColors.text,
     bodyFont: { family: chartFonts.mono, size: 11 },
     ...overrides,
@@ -87,10 +92,12 @@ export function baseTooltip(overrides = {}) {
 
 export function baseAxis(overrides = {}) {
   return {
-    grid: { color: chartColors.grid, drawBorder: false },
+    grid: { color: chartColors.grid, drawBorder: false, drawTicks: false },
+    border: { display: false },
     ticks: {
       color: chartColors.text,
       font: { family: chartFonts.mono, size: 10 },
+      padding: 8,
     },
     ...overrides,
   };
@@ -99,9 +106,11 @@ export function baseAxis(overrides = {}) {
 export function baseCategoryAxis(overrides = {}) {
   return {
     grid: { display: false },
+    border: { display: false },
     ticks: {
-      color: chartColors.textLight,
+      color: chartColors.text,
       font: { family: chartFonts.body, size: 11, weight: 500 },
+      padding: 6,
     },
     ...overrides,
   };
@@ -131,4 +140,4 @@ export const decimationConfig = {
   samples: 500,
 };
 
-export const baseAnimation = { duration: 300, easing: 'easeOutQuart' };
+export const baseAnimation = { duration: 380, easing: 'easeOutQuart' };

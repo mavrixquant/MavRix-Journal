@@ -5,7 +5,8 @@ import {
 } from '@tanstack/react-query';
 import { apiJson } from './client.js';
 import { useSSEFallback } from './sse.js';
-import { DEFAULT_GEX_SYMBOL } from '@mavrix/shared';
+import { useEffect } from 'react';
+import { DEFAULT_GEX_SYMBOL, GEX_SYMBOLS } from '@mavrix/shared';
 
 
 export const gexKeys = {
@@ -94,6 +95,58 @@ export function useGexDay(date, symbol = DEFAULT_GEX_SYMBOL) {
     enabled: !!date && !!symbol,
     staleTime: FIVE_MIN,
   });
+}
+
+
+// ---------------------------------------------------------------------------
+// Prefetch warm-up.
+//
+// Called once from GexPage on mount. Silently warms the day list AND the
+// newest day's detail for every GEX symbol. This makes switching between NQ
+// and ES instant — no sequential blank-state fetch -> date-effect -> fetch
+// round-trip that previously caused the visible lag.
+//
+// Idempotent: respects staleTime (5 min), so re-running within the same
+// session is a no-op for any symbol already warm.
+// ---------------------------------------------------------------------------
+export function useGexPrefetch() {
+  const qc = useQueryClient();
+
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      for (const sym of GEX_SYMBOLS) {
+        if (cancelled) return;
+
+        try {
+          // 1. Warm the day list (no-op if fresh).
+          await qc.prefetchQuery({
+            queryKey: gexKeys.days(sym),
+            queryFn: () => getGexDays(sym),
+            staleTime: FIVE_MIN,
+          });
+
+          if (cancelled) return;
+
+          // 2. Prefetch the newest day's detail — the exact date the page
+          //    auto-selects the moment the user switches to this symbol.
+          const days = qc.getQueryData(gexKeys.days(sym));
+          if (!Array.isArray(days) || days.length === 0) continue;
+
+          qc.prefetchQuery({
+            queryKey: gexKeys.day(days[0].date, sym),
+            queryFn: () => getGexDay(days[0].date, sym),
+            staleTime: FIVE_MIN,
+          });
+        } catch {
+          // Silent — a prefetch failure must never affect the page.
+        }
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [qc]);
 }
 
 

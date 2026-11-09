@@ -45,10 +45,7 @@ export function useUserLayouts({ userId, suppressRemotePush = false } = {}) {
         return;
       }
 
-      if (hasRemote && !suppressRef.current) {
-        setLayouts(remote.layouts);
-        setActiveId(remote.activeId);
-      }
+      // (dead branch removed — subscribeToUserLayouts fires exactly once)
     });
 
     return () => {

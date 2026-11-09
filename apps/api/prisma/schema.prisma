@@ -25,6 +25,9 @@ model User {
   updatedAt         DateTime  @updatedAt
 
   role String @default("user")
+  plan String @default("free")
+  planGrantedAt DateTime?
+  planGrantedBy String?
 
   isBanned     Boolean   @default(false)
   bannedAt     DateTime?
@@ -77,6 +80,7 @@ model User {
   bugReports BugReport[]
 
   @@index([role])
+  @@index([plan])
   @@index([isBanned])
   @@index([isAi])
   @@index([twoFactorEnabled])
@@ -117,7 +121,6 @@ model Trade {
   slPoints Float?
 
   entryPrice Float?
-  exitPrice  Float?
   takeProfit Float?
   stopLoss   Float?
 
@@ -440,4 +443,117 @@ model BugReport {
   @@index([createdAt])
   @@index([status, createdAt])
   @@map("bug_reports")
+}
+// ---------------------------------------------------------------------------
+// Market data cache — server-wide OHLC bar storage.
+//
+// The provider (Yahoo / Biquote) is the source of truth but we NEVER serve it
+// directly to clients. Every read goes through market_bars. The provider is
+// only touched to (a) keep the tail fresh via marketDataSync, and (b) fill
+// historical gaps requested by a date-range or scroll-back.
+// ---------------------------------------------------------------------------
+model MarketBar {
+  id        String   @id @default(cuid())
+  symbol    String
+  interval  String
+  time      DateTime
+  open      Float
+  high      Float
+  low       Float
+  close     Float
+  volume    Float    @default(0)
+  provider  String
+  fetchedAt DateTime @default(now())
+
+  @@unique([symbol, interval, time])
+  @@index([symbol, interval, time])
+  @@map("market_bars")
+}
+
+// Tracks the contiguous time window we currently have in market_bars for a
+// given (symbol, interval). Also carries provider backoff state so cold starts
+// never hammer the provider with 429s.
+model MarketBarCoverage {
+  id             String    @id @default(cuid())
+  symbol         String
+  interval       String
+  provider       String
+  providerSymbol String
+  fromTime       DateTime
+  toTime         DateTime
+  lastFetchedAt  DateTime  @default(now())
+  lastError      String?
+  backoffUntil   DateTime?
+
+  @@unique([symbol, interval])
+  @@map("market_bar_coverage")
+}
+
+// ---------------------------------------------------------------------------
+// MarketImportJob — async import tracking.
+//
+// Rows are created when an admin clicks Import. The runner loop writes
+// progress fields (chunksDone / fetched / inserted) at every chunk boundary.
+// On server restart, markInterruptedJobs() flips any running rows to
+// `interrupted`; data already committed to market_bars is preserved.
+//
+// status ∈ running | completed | stopped | failed | interrupted
+// ---------------------------------------------------------------------------
+model MarketImportJob {
+  id            String    @id @default(cuid())
+  symbol        String
+  interval      String
+  fromTime      DateTime
+  toTime        DateTime
+  status        String    @default("running")
+  totalChunks   Int       @default(0)
+  chunksDone    Int       @default(0)
+  fetched       Int       @default(0)
+  inserted      Int       @default(0)
+  lastError     String?
+  stopRequested Boolean   @default(false)
+  startedById   String
+  startedAt     DateTime  @default(now())
+  finishedAt    DateTime?
+
+  chunks MarketImportChunk[]
+
+  @@index([symbol, interval, status])
+  @@index([startedAt])
+  @@map("market_import_jobs")
+}
+
+// ---------------------------------------------------------------------------
+// MarketImportChunk — one row per chunk inside an import job.
+//
+// Status lifecycle:
+//   pending   ? created at job start, never touched
+//   running   ? attempt in flight
+//   succeeded ? fetched + inserted without error
+//   failed    ? retries exhausted (or interrupted by server restart)
+//   stopped   ? user stopped the job before this chunk could finish
+//
+// `attempt` is incremented once per retry attempt so a chunk that succeeded
+// on its 2nd try has attempt = 2.
+// ---------------------------------------------------------------------------
+model MarketImportChunk {
+  id         String    @id @default(cuid())
+  jobId      String
+  index      Int
+  fromTime   DateTime
+  toTime     DateTime
+  status     String    @default("pending")
+  attempt    Int       @default(0)
+  fetched    Int       @default(0)
+  inserted   Int       @default(0)
+  error      String?
+  startedAt  DateTime?
+  finishedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  job MarketImportJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([jobId, index])
+  @@index([jobId, status])
+  @@map("market_import_chunks")
 }

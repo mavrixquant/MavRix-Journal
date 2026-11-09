@@ -1,4 +1,4 @@
-const SESSION_RANGES = [
+export const SESSION_RANGES = [
   { name: 'Asia', start: 1080, end: 120 },
   { name: 'London', start: 120, end: 300 },
   { name: 'NY Pre-Market', start: 300, end: 510 },

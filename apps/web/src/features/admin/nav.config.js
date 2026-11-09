@@ -1,8 +1,8 @@
-import {
+﻿import {
   LayoutDashboard, Users, Wallet, TrendingUp,
   Calendar, Radio, MessageSquare, Layers, Brain,
   MessagesSquare, ScrollText, Settings, Activity,
-  Stethoscope, Bug,
+  Stethoscope, Bug, Database,
 } from 'lucide-react';
 
 export const ADMIN_NAV = [
@@ -27,6 +27,7 @@ export const ADMIN_NAV = [
     items: [
       { to: '/admin/calendar',  label: 'Calendar',   icon: Calendar },
       { to: '/admin/gex',       label: 'GEX Levels', icon: Layers },
+      { to: '/admin/market-data', label: 'Market Data', icon: Database },
       { to: '/admin/sessions',  label: 'Sessions',   icon: Radio },
       { to: '/admin/broadcast', label: 'Broadcast',  icon: MessageSquare },
     ],
