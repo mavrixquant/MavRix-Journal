@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { PanelLeftClose, PanelLeftOpen, Menu, X, Briefcase, AlertTriangle, RotateCw, Keyboard, Loader2 } from 'lucide-react';
+import { AlertTriangle, RotateCw, X } from 'lucide-react';
 
 import { useMarketCatalog, useMarketBars } from '@/shared/api/marketData';
 import { queryClient } from '@/shared/api/queryClient';
@@ -12,12 +12,19 @@ import { usePageHeader } from '@/app/layout/PageHeaderProvider';
 
 import CandlestickChart from './components/CandlestickChart';
 import QuoteHeader from './components/QuoteHeader';
-import WatchlistSidebar from './components/WatchlistSidebar';
-import ChartLoadingOverlay from './components/ChartLoadingOverlay';
+import ChartToolbar from './components/ChartToolbar';
+import DrawingToolbar from './components/DrawingToolbar';
+import SidePanel from './components/SidePanel';
+import SymbolPalette from './components/SymbolPalette';
+import StatusBar from './components/StatusBar';
+import { CSS } from './lib/chartStyles';
+import { pricePrecision } from './lib/chartTheme';
+import { DRAW_COLORS } from './lib/drawings';
 
 const DEFAULT_SYMBOL = 'NQ';
 const DEFAULT_INTERVAL = '5m';
 const INTERVAL_KEYS = { 1: '1m', 2: '5m', 3: '15m', 4: '1h', 5: '4h', 6: '1d' };
+const TOOL_KEYS = { h: 'hline', l: 'trend', y: 'ray', b: 'rect', g: 'fib', p: 'rr', m: 'measure' };
 const DAY = 86400000;
 const EMPTY = [];
 const PRESETS = [
@@ -31,82 +38,60 @@ const PRESETS = [
 ];
 const SHORTCUTS = [
   ['1 – 6', 'Switch timeframe'],
-  ['/', 'Search symbols'],
-  ['[', 'Show or hide watchlist'],
+  ['/  or  Ctrl K', 'Search symbols'],
+  ['[', 'Show or hide side panel'],
   ['F', 'Fullscreen'],
-  ['T', 'Show or hide journal trades'],
   ['R', 'Refresh data'],
-  ['H', 'Horizontal line'],
-  ['M', 'Measure'],
   ['I', 'Indicators'],
-  ['Esc', 'Cancel tool or close panel'],
+  ['J', 'Show or hide journal trades'],
+  ['H', 'Horizontal line'],
+  ['L', 'Trend line'],
+  ['Y', 'Ray'],
+  ['B', 'Rectangle'],
+  ['G', 'Fib retracement'],
+  ['P', 'Risk / reward position'],
+  ['M', 'Measure'],
+  ['Q', 'Magnet (snap to OHLC)'],
+  ['Drag', 'Move a drawing, or drag its handles to resize'],
+  ['Del', 'Delete selected drawing'],
+  ['Ctrl Z', 'Undo drawing change'],
+  ['Esc', 'Cancel tool, deselect, close'],
 ];
 
-const CSS = `
-  .mc-root { --mc-h: calc(100dvh - 150px); width: 100%; display: grid; grid-template-columns: 264px minmax(0,1fr); gap: 14px; align-items: stretch; height: max(580px, var(--mc-h)); transition: grid-template-columns .25s cubic-bezier(.2,.8,.25,1); }
-  .mc-root.is-rail-closed { grid-template-columns: 0 minmax(0,1fr); gap: 0; }
-  .mc-rail { min-width: 0; overflow: hidden; display: flex; }
-  .mc-rail > aside { position: static !important; max-height: none !important; width: 264px; flex: 1; }
-  .mc-root.is-rail-closed .mc-rail { visibility: hidden; }
-  .mc-stage { min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: 10px; }
+/* -------------------------------- storage -------------------------------- */
+const PREF_KEY = 'mavrix:chart:prefs:v2';
+const OLD_PREF_KEY = 'mavrix:chart:prefs';
+const drawKey = (s) => `mavrix:chart:drawings:${s}`;
+const oldLinesKey = (s) => `mavrix:chart:lines:${s}`;
 
-  .mc-panel { position: relative; flex: 1; min-height: 0; border-radius: 16px; border: 1px solid rgba(255,255,255,.08); background: linear-gradient(180deg, rgba(15,18,25,.78), rgba(10,13,19,.6)); overflow: hidden; }
-  .mc-bar { position: absolute; top: 0; left: 0; right: 0; height: 2px; z-index: 20; overflow: hidden; }
-  .mc-bar i { display: block; height: 100%; width: 30%; background: linear-gradient(90deg, transparent, var(--accent), transparent); animation: mcSlide 1.3s ease infinite; }
-  @keyframes mcSlide { 0% { transform: translateX(-100%); } 100% { transform: translateX(400%); } }
+function readJson(key, fallback) {
+  try { const r = window.localStorage.getItem(key); return r ? JSON.parse(r) : fallback; } catch { return fallback; }
+}
+function writeJson(key, value) { try { window.localStorage.setItem(key, JSON.stringify(value)); } catch { /* ignore */ } }
 
-  .mc-foot { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; flex-shrink: 0; padding: 0 2px; font: 600 11px 'IBM Plex Mono', monospace; color: #545E6E; }
-  .mc-btn { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,.08); background: transparent; color: #8892A3; font: inherit; font-weight: 700; cursor: pointer; transition: color .15s, border-color .15s, background-color .15s; }
-  .mc-btn:hover { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 30%, transparent); }
-  .mc-btn.is-on { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, transparent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
-  .mc-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-  .mc-btn-n { padding: 0 6px; border-radius: 4px; background: rgba(255,255,255,.07); font-size: 10px; line-height: 16px; }
-  .mc-menu { display: none; }
-  .mc-stats { display: inline-flex; align-items: center; gap: 16px; padding: 0 4px; }
-  .mc-stats span { display: inline-flex; gap: 6px; }
-  .mc-stats b { color: #C9CFDA; font-weight: 600; font-variant-numeric: tabular-nums; }
-  .mc-stats b.is-up { color: #35C4A1; } .mc-stats b.is-down { color: #FF5C5C; }
-  .mc-grow { flex: 1; min-width: 0; }
-  .mc-live { display: inline-flex; align-items: center; gap: 7px; }
-  .mc-dot { width: 6px; height: 6px; border-radius: 50%; background: #35C4A1; box-shadow: 0 0 0 3px rgba(53,196,161,.18); }
-  .mc-dot.is-hist { background: #545E6E; box-shadow: none; }
-  .mc-spin { animation: mcSpin .8s linear infinite; }
-  @keyframes mcSpin { to { transform: rotate(360deg); } }
+function loadPrefs() {
+  const p = readJson(PREF_KEY, null);
+  if (p) return p;
+  const old = readJson(OLD_PREF_KEY, {});
+  return {
+    chartType: old.ha ? 'ha' : 'candles',
+    volume: old.volume !== false,
+    log: !!old.log,
+    indicators: Array.isArray(old.indicators) ? old.indicators.filter((i) => ['ema20', 'ema50', 'sma200', 'vwap', 'bb', 'rsi'].includes(i)) : ['ema20'],
+  };
+}
 
-  .mc-state { position: absolute; inset: 0; z-index: 8; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; text-align: center; padding: 24px; background: rgba(10,13,19,.82); color: #C9CFDA; font-size: 13px; }
-  .mc-state b { font: 700 14px Inter, sans-serif; color: #E7E9EE; }
-  .mc-state p { margin: 0; max-width: 360px; color: #8892A3; line-height: 1.5; }
-  .mc-retry { display: inline-flex; align-items: center; gap: 7px; height: 32px; padding: 0 14px; border-radius: 8px; border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent); background: color-mix(in srgb, var(--accent) 10%, transparent); color: var(--accent); font: 700 11px 'IBM Plex Mono', monospace; cursor: pointer; }
-  .mc-skel { position: absolute; inset: 0; z-index: 7; pointer-events: none; background: linear-gradient(100deg, transparent 30%, rgba(255,255,255,.045) 50%, transparent 70%) 0 0 / 250% 100%, repeating-linear-gradient(90deg, rgba(255,255,255,.025) 0 10px, transparent 10px 22px); animation: mcShimmer 1.4s linear infinite; }
-  @keyframes mcShimmer { from { background-position: 150% 0, 0 0; } to { background-position: -100% 0, 0 0; } }
-
-  .mc-root.is-full { position: fixed; inset: 0; z-index: 2000; height: 100dvh; padding: 14px; background: #0A0D13; }
-
-  .mc-scrim { display: none; }
-  .mc-drawer-x { display: none; position: absolute; top: 18px; right: 18px; z-index: 3; width: 26px; height: 26px; align-items: center; justify-content: center; border-radius: 6px; border: 1px solid rgba(255,255,255,.1); background: rgba(255,255,255,.04); color: #8892A3; cursor: pointer; }
-
-  .mc-help-scrim { position: fixed; inset: 0; z-index: 3500; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(0,0,0,.6); backdrop-filter: blur(4px); }
-  .mc-help { width: min(420px, 100%); padding: 18px 20px; border-radius: 14px; background: #11151F; border: 1px solid #212836; box-shadow: 0 24px 60px -20px rgba(0,0,0,.95); color: #C9CFDA; font-family: Inter, sans-serif; }
-  .mc-help-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; font-weight: 700; font-size: 14px; color: #E7E9EE; }
-  .mc-help-head button { display: inline-flex; width: 26px; height: 26px; align-items: center; justify-content: center; border-radius: 6px; border: 1px solid rgba(255,255,255,.1); background: transparent; color: #8892A3; cursor: pointer; }
-  .mc-help ul { list-style: none; margin: 0; padding: 0; }
-  .mc-help li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 0; border-top: 1px solid rgba(255,255,255,.05); font-size: 12.5px; }
-  .mc-help li:first-child { border-top: 0; }
-  .mc-kbd { padding: 2px 7px; border-radius: 5px; border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.04); color: #E7E9EE; font: 600 11px 'IBM Plex Mono', monospace; }
-
-  @media (max-width: 1100px) {
-    .mc-root, .mc-root.is-rail-closed { grid-template-columns: minmax(0,1fr); gap: 0; height: max(540px, calc(100dvh - 130px)); }
-    .mc-desk { display: none; }
-    .mc-menu { display: inline-flex; }
-    .mc-rail { position: fixed; inset: 0 auto 0 0; z-index: 2500; width: min(300px, 86vw); padding: 12px; background: #0A0D13; border-right: 1px solid rgba(255,255,255,.08); transform: translateX(-102%); transition: transform .25s cubic-bezier(.2,.8,.25,1); visibility: visible !important; }
-    .mc-rail > aside { display: flex !important; width: 100%; }
-    .mc-root.is-drawer .mc-rail { transform: none; }
-    .mc-scrim { display: block; position: fixed; inset: 0; z-index: 2400; background: rgba(0,0,0,.55); }
-    .mc-drawer-x { display: inline-flex; }
+function loadDrawings(symbol) {
+  const saved = readJson(drawKey(symbol), null);
+  if (Array.isArray(saved)) return saved;
+  // Migrate horizontal lines saved by the previous chart version.
+  const old = readJson(oldLinesKey(symbol), []);
+  if (Array.isArray(old) && old.length) {
+    const t = Math.floor(Date.now() / 1000);
+    return old.filter((p) => Number.isFinite(p)).map((p, i) => ({ id: `legacy${i}`, type: 'hline', color: '#F5B544', pts: [{ t, p }] }));
   }
-  @media (max-width: 760px) { .mc-stats { display: none; } }
-  @media (prefers-reduced-motion: reduce) { .mc-root, .mc-rail, .mc-bar i, .mc-skel, .mc-spin { transition: none; animation: none; } }
-`;
+  return [];
+}
 
 // Latest bar index with time <= t (bars sorted ascending).
 function snapToBar(bars, t) {
@@ -118,11 +103,21 @@ function snapToBar(bars, t) {
   return ans;
 }
 
-const fmtN = (n) => Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+function formatChartTime(t, interval, tz) {
+  if (t == null) return null;
+  const z = tz || undefined;
+  if (interval === '1d') {
+    const d = new Date(`${t}T00:00:00`);
+    return Number.isNaN(d.getTime()) ? String(t) : d.toLocaleDateString('en-US', { timeZone: z, month: 'short', day: 'numeric', year: 'numeric' });
+  }
+  const d = new Date(Number(t) * 1000);
+  return Number.isNaN(d.getTime()) ? null : d.toLocaleString('en-US', { timeZone: z, month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
+}
 
 export default function MarketChartPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { settings } = useSettings();
+  const chartRef = useRef(null);
 
   const symbol = (searchParams.get('symbol') || DEFAULT_SYMBOL).toUpperCase();
   const interval = searchParams.get('interval') || DEFAULT_INTERVAL;
@@ -130,14 +125,79 @@ export default function MarketChartPage() {
   const toParam = searchParams.get('to') || null;
   const presetParam = searchParams.get('range') || null;
 
-  const [railOpen, setRailOpen] = useState(true);
+  /* ------------------------------ persisted prefs ------------------------------ */
+  const prefs = useRef(loadPrefs()).current;
+  const [chartType, setChartType] = useState(prefs.chartType || 'candles');
+  const [showVolume, setShowVolume] = useState(prefs.volume !== false);
+  const [logScale, setLogScale] = useState(!!prefs.log);
+  const [magnet, setMagnet] = useState(!!prefs.magnet);
+  const [indicators, setIndicators] = useState(Array.isArray(prefs.indicators) ? prefs.indicators : ['ema20']);
+  const [panelOpen, setPanelOpen] = useState(prefs.panelOpen !== false);
+  const [panelTab, setPanelTab] = useState(prefs.panelTab || 'watch');
+  const [drawColor, setDrawColor] = useState(prefs.drawColor || DRAW_COLORS[0]);
+  const [showTrades, setShowTrades] = useState(prefs.showTrades !== false);
+  const [showLabels, setShowLabels] = useState(!!prefs.showLabels);
+  useEffect(() => {
+    writeJson(PREF_KEY, { chartType, volume: showVolume, log: logScale, magnet, indicators, panelOpen, panelTab, drawColor, showTrades, showLabels });
+  }, [chartType, showVolume, logScale, magnet, indicators, panelOpen, panelTab, drawColor, showTrades, showLabels]);
+
+  /* ----------------------------------- UI state ----------------------------------- */
   const [drawer, setDrawer] = useState(false);
   const [full, setFull] = useState(false);
-  const [showTrades, setShowTrades] = useState(true);
   const [help, setHelp] = useState(false);
+  const [palette, setPalette] = useState(false);
+  const [indOpen, setIndOpen] = useState(false);
+  const [tool, setTool] = useState('cursor');
+  const [selectedId, setSelectedId] = useState(null);
+  const [hideDrawings, setHideDrawings] = useState(false);
+  const [focus, setFocus] = useState(null);
+  const [activeTradeId, setActiveTradeId] = useState(null);
   const fullRef = useRef(false);
   fullRef.current = full;
 
+  /* ----------------------------------- drawings ----------------------------------- */
+  const [drawings, setDrawingsState] = useState(() => loadDrawings(symbol));
+  const historyRef = useRef([]);
+  const [canUndo, setCanUndo] = useState(false);
+  const symbolRef = useRef(symbol);
+  const drawingsRef = useRef(drawings);
+  drawingsRef.current = drawings;
+
+  useEffect(() => {
+    symbolRef.current = symbol;
+    setDrawingsState(loadDrawings(symbol));
+    historyRef.current = [];
+    setCanUndo(false);
+    setSelectedId(null);
+    setTool('cursor');
+    setFocus(null);
+    setActiveTradeId(null);
+  }, [symbol]);
+
+  const setDrawings = useCallback((next) => {
+    historyRef.current = [...historyRef.current.slice(-39), drawingsRef.current];
+    setCanUndo(true);
+    setDrawingsState(next);
+    writeJson(drawKey(symbolRef.current), next);
+  }, []);
+
+  const undo = useCallback(() => {
+    const prev = historyRef.current.pop();
+    if (!prev) return;
+    setCanUndo(historyRef.current.length > 0);
+    setDrawingsState(prev);
+    writeJson(drawKey(symbolRef.current), prev);
+    setSelectedId(null);
+  }, []);
+
+  const removeDrawing = useCallback((id) => {
+    setDrawings(drawingsRef.current.filter((d) => d.id !== id));
+    setSelectedId((cur) => (cur === id ? null : cur));
+  }, [setDrawings]);
+
+  const clearDrawings = useCallback(() => { if (drawingsRef.current.length) setDrawings([]); setSelectedId(null); }, [setDrawings]);
+
+  /* --------------------------------- URL params --------------------------------- */
   const setSymbol = useCallback((next) => {
     const sp = new URLSearchParams(searchParams);
     sp.set('symbol', next);
@@ -164,6 +224,7 @@ export default function MarketChartPage() {
     setSearchParams(sp, { replace: true });
   }, [searchParams, setSearchParams]);
 
+  /* ------------------------------------- data ------------------------------------- */
   const displayTz = useMemo(() => resolveTimezone(settings?.preferences?.timezone || 'auto'), [settings]);
   const { data: catalog } = useMarketCatalog();
   const barsQuery = useMarketBars({ symbol, interval, from: fromParam, to: toParam, enabled: !!catalog });
@@ -198,7 +259,7 @@ export default function MarketChartPage() {
   }, [bars, interval, displayTz]);
 
   // Shift to the display timezone. Drop any bar whose shifted time would not be strictly
-  // increasing (can happen around DST changes) — the chart library throws on duplicates.
+  // increasing (can happen around DST changes) because the chart library throws on duplicates.
   const displayBars = useMemo(() => {
     if (displayOffset === 0 || interval === '1d') return bars;
     const out = [];
@@ -213,20 +274,23 @@ export default function MarketChartPage() {
   }, [bars, displayOffset, interval]);
 
   const lastBarTime = bars.length > 0 ? bars[bars.length - 1].time : null;
-  const fitContentKey = `${symbol}-${interval}-${fromParam}-${toParam}`;
+  const fitKey = `${symbol}-${interval}-${fromParam}-${toParam}`;
+  const symInfo = catalog?.symbols?.find((s) => s.code === symbol);
+  const precision = pricePrecision(symInfo, symbol);
 
-  // ---- Journal trades -> boxes + entry markers (intraday only) ----
+  /* ------------------------ journal trades -> boxes, markers, list ------------------------ */
   const journalResult = useJournalTrades();
   const journal = journalResult?.trades || EMPTY;
-  const { chartTrades, chartMarkers, tradeCount } = useMemo(() => {
-    if (interval === '1d' || displayBars.length === 0) return { chartTrades: [], chartMarkers: [], tradeCount: 0 };
+  const { chartTrades, chartMarkers, tradeRows, journalTotal } = useMemo(() => {
+    const symTrades = journal.filter((t) => {
+      const s = String(t.symbol || t.instrument || '').toUpperCase();
+      return !s || s === symbol;
+    });
+    if (interval === '1d' || displayBars.length === 0) return { chartTrades: [], chartMarkers: [], tradeRows: [], journalTotal: symTrades.length };
     const first = displayBars[0].time;
     const last = displayBars[displayBars.length - 1].time;
-    const boxes = [];
-    const marks = [];
-    for (const t of journal) {
-      const tSym = String(t.symbol || t.instrument || '').toUpperCase();
-      if (tSym && tSym !== symbol) continue;
+    const boxes = [], marks = [], rows = [];
+    for (const t of symTrades) {
       const entryUtc = tradeTimeToUtcSeconds(t.date, t.entryTime, displayTz);
       if (entryUtc == null) continue;
       const entry = toDisplaySeconds(entryUtc, displayTz);
@@ -238,15 +302,19 @@ export default function MarketChartPage() {
       const win = Number.isFinite(pnl) ? pnl >= 0 : null;
       const idx = snapToBar(displayBars, entry);
       if (idx < 0) continue;
+      const label = Number.isFinite(pnl) ? `${pnl >= 0 ? '+' : ''}${pnl.toFixed(0)}` : '';
       marks.push({
         time: displayBars[idx].time,
         position: long ? 'belowBar' : 'aboveBar',
         shape: long ? 'arrowUp' : 'arrowDown',
         color: win === false ? '#FF5C5C' : win ? '#35C4A1' : '#F5B544',
-        text: Number.isFinite(pnl) ? `${pnl >= 0 ? '+' : ''}${pnl.toFixed(0)}` : '',
+        text: label,
+      });
+      rows.push({
+        id: t.id || `${t.date}-${t.entryTime}`, date: t.date, time: t.entryTime, long,
+        net: (Number(t.pnl) || 0) - (Number(t.commission) || 0), displayTs: displayBars[idx].time,
       });
       if (exit != null) {
-        // Snap both ends to real bar times so the box always has coordinates to draw at.
         const exitIdx = snapToBar(displayBars, exit);
         boxes.push({
           entryTimeSec: displayBars[idx].time,
@@ -254,14 +322,15 @@ export default function MarketChartPage() {
           entryPrice: Number(t.entryPrice) || null,
           stopLoss: Number(t.stopLoss) || null,
           takeProfit: Number(t.takeProfit) || null,
+          label, win,
         });
       }
     }
     marks.sort((a, b) => a.time - b.time);
-    return { chartTrades: boxes, chartMarkers: marks, tradeCount: marks.length };
+    rows.sort((a, b) => b.displayTs - a.displayTs);
+    return { chartTrades: boxes, chartMarkers: marks, tradeRows: rows, journalTotal: symTrades.length };
   }, [journal, displayBars, interval, symbol, displayTz]);
 
-  // ---- Loaded-range stats ----
   const rangeStats = useMemo(() => {
     if (bars.length === 0) return null;
     let hi = -Infinity, lo = Infinity;
@@ -275,7 +344,7 @@ export default function MarketChartPage() {
     return { hi, lo, pct: first ? ((last - first) / first) * 100 : 0 };
   }, [bars]);
 
-  // ---- Range presets ----
+  /* ----------------------------------- ranges ----------------------------------- */
   const activePreset = !fromParam ? 'default' : PRESETS.some((p) => p.id === presetParam) ? presetParam : 'custom';
   const applyPreset = useCallback((p) => {
     if (p.id === 'default') return setRange(null, null);
@@ -296,9 +365,10 @@ export default function MarketChartPage() {
   const handleRefresh = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ['market-data', 'bars'] });
     queryClient.invalidateQueries({ queryKey: ['market-data', 'quote'] });
+    queryClient.invalidateQueries({ queryKey: ['market-data', 'quotes'] });
   }, []);
 
-  // Fullscreen the whole document so portaled popovers (date picker) stay visible.
+  // Fullscreen the whole document so portaled popovers stay visible.
   const toggleFull = useCallback(() => {
     const next = !fullRef.current;
     setFull(next);
@@ -318,135 +388,135 @@ export default function MarketChartPage() {
 
   usePageHeader({ title: 'Chart', subtitle: `${symbol} · ${interval.toUpperCase()} · ${displayTz}` });
 
-  // ---- Keyboard shortcuts ----
+  /* ---------------------------------- handlers ---------------------------------- */
+  const toggleIndicator = useCallback((id) => setIndicators((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id])), []);
+  const focusTrade = useCallback((row) => {
+    setActiveTradeId(row.id);
+    setFocus({ time: row.displayTs, nonce: Date.now() });
+    setDrawer(false);
+  }, []);
+  const openPanel = useCallback((tab) => {
+    if (tab) setPanelTab(tab);
+    setPanelOpen(true);
+    if (window.matchMedia('(max-width: 1100px)').matches) setDrawer(true);
+  }, []);
+
+  /* ------------------------------ keyboard shortcuts ------------------------------ */
   useEffect(() => {
     const onKey = (e) => {
       const el = e.target;
+      const typing = el?.tagName === 'INPUT' || el?.tagName === 'TEXTAREA' || el?.isContentEditable;
+      const k = e.key;
+      if ((e.metaKey || e.ctrlKey) && k.toLowerCase() === 'k') { e.preventDefault(); setPalette(true); return; }
+      if ((e.metaKey || e.ctrlKey) && !e.shiftKey && k.toLowerCase() === 'z' && !typing) { e.preventDefault(); undo(); return; }
       if (e.metaKey || e.ctrlKey || e.altKey) return;
-      if (el?.tagName === 'INPUT' || el?.tagName === 'TEXTAREA' || el?.isContentEditable) return;
-      if (INTERVAL_KEYS[e.key]) setIntervalParam(INTERVAL_KEYS[e.key]);
-      else if (e.key === '/') {
-        e.preventDefault();
-        setRailOpen(true);
-        if (window.matchMedia('(max-width: 1100px)').matches) setDrawer(true);
-        setTimeout(() => document.querySelector('.wl-search-input')?.focus(), 60);
+      if (k === 'Escape') {
+        if (help) setHelp(false);
+        else if (tool !== 'cursor') setTool('cursor');
+        else if (selectedId) setSelectedId(null);
+        else if (drawer) setDrawer(false);
+        else if (fullRef.current) toggleFull();
+        return;
       }
-      else if (e.key === '?') setHelp((v) => !v);
-      else if (e.key === 'f' || e.key === 'F') toggleFull();
-      else if (e.key === 't' || e.key === 'T') setShowTrades((v) => !v);
-      else if (e.key === '[') setRailOpen((v) => !v);
-      else if (e.key === 'r' || e.key === 'R') handleRefresh();
-      else if (e.key === 'Escape') { setHelp(false); setDrawer(false); if (fullRef.current) toggleFull(); }
+      if (typing || palette) return;
+      const lower = k.length === 1 ? k.toLowerCase() : k;
+      if (INTERVAL_KEYS[k]) setIntervalParam(INTERVAL_KEYS[k]);
+      else if (k === '/') { e.preventDefault(); setPalette(true); }
+      else if (k === '?') setHelp((v) => !v);
+      else if (k === '[') setPanelOpen((v) => !v);
+      else if (lower === 'f') toggleFull();
+      else if (lower === 'r') handleRefresh();
+      else if (lower === 'i') setIndOpen((v) => !v);
+      else if (lower === 'j') setShowTrades((v) => !v);
+      else if (lower === 'q') setMagnet((v) => !v);
+      else if (TOOL_KEYS[lower]) setTool((cur) => (cur === TOOL_KEYS[lower] ? 'cursor' : TOOL_KEYS[lower]));
+      else if ((k === 'Delete' || k === 'Backspace') && selectedId) { e.preventDefault(); removeDrawing(selectedId); }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [setIntervalParam, handleRefresh, toggleFull]);
+  }, [help, tool, selectedId, drawer, palette, undo, setIntervalParam, handleRefresh, toggleFull, removeDrawing]);
 
-  // ---- One-shot load animation per chart context ----
-  const [showLoader, setShowLoader] = useState(false);
-  const timerRef = useRef(null);
-  const shownRef = useRef(new Set());
-  const ctxKey = `${symbol}-${interval}-${fromParam || ''}-${toParam || ''}`;
-
-  useEffect(() => {
-    clearTimeout(timerRef.current);
-    setShowLoader(false);
-    return () => clearTimeout(timerRef.current);
-  }, [ctxKey]);
-
-  useEffect(() => {
-    if (barsQuery.isLoading || bars.length === 0 || shownRef.current.has(ctxKey)) return;
-    shownRef.current.add(ctxKey);
-    setShowLoader(true);
-    timerRef.current = setTimeout(() => setShowLoader(false), 2200);
-  }, [barsQuery.isLoading, bars.length, ctxKey]);
-
-  const symInfo = catalog?.symbols?.find((s) => s.code === symbol);
+  /* ------------------------------------ render ------------------------------------ */
   const isLive = !fromParam;
+  const panelProps = {
+    tab: panelTab, onTab: setPanelTab, onClose: () => { setDrawer(false); setPanelOpen(false); },
+    catalog: catalog?.symbols ?? EMPTY, activeSymbol: symbol, onSymbol: setSymbol,
+    tradeRows, tradeCount: tradeRows.length, journalTotal, activeTradeId, onFocusTrade: focusTrade,
+    showTrades, onToggleTrades: setShowTrades, showLabels, onToggleLabels: setShowLabels,
+    drawings, selectedId, onSelect: (id) => { setSelectedId(id); setTool('cursor'); }, onRemoveDrawing: removeDrawing, onClearDrawings: clearDrawings,
+    precision, enabledIndicators: indicators, onToggleIndicator: toggleIndicator,
+  };
 
   return (
     <>
       <style>{CSS}</style>
-      <div className={`mc-root${full ? '' : ' page-fade-in'}${railOpen ? '' : ' is-rail-closed'}${drawer ? ' is-drawer' : ''}${full ? ' is-full' : ''}`}>
-        {drawer && <div className="mc-scrim" onClick={() => setDrawer(false)} />}
-        <div className="mc-rail">
-          <button type="button" className="mc-drawer-x" onClick={() => setDrawer(false)} aria-label="Close watchlist"><X size={13} /></button>
-          <WatchlistSidebar catalog={catalog?.symbols ?? []} activeSymbol={symbol} onChange={setSymbol} />
-        </div>
+      <div className={`mk-root${full ? ' is-full' : ' page-fade-in'}${panelOpen ? '' : ' is-panel-closed'}${drawer ? ' is-drawer' : ''}`}>
+        <div className="mk-shell">
+          <QuoteHeader symbol={symbol} symInfo={symInfo} precision={precision} onOpenSymbols={() => setPalette(true)} onOpenDrawer={() => openPanel()} />
 
-        <div className="mc-stage">
-          <QuoteHeader
-            symbol={symbol} displayName={symInfo?.label || ''} hasData={!!symInfo?.hasData}
+          <ChartToolbar
             interval={interval} onIntervalChange={setIntervalParam}
-            lastBarTime={lastBarTime} displayTz={displayTz}
+            chartType={chartType} onChartType={setChartType}
+            enabledIndicators={indicators} onToggleIndicator={toggleIndicator} onClearIndicators={() => setIndicators([])}
+            indicatorsOpen={indOpen} onIndicatorsOpenChange={setIndOpen}
+            showVolume={showVolume} onToggleVolume={() => setShowVolume((v) => !v)} logScale={logScale} onToggleLog={() => setLogScale((v) => !v)}
+            from={fromParam} to={toParam} presets={PRESETS} activePreset={activePreset} onPreset={applyPreset} onRangeChange={handleRangeChange}
+            canUndo={canUndo} onUndo={undo} onScreenshot={() => chartRef.current?.screenshot()}
             onRefresh={handleRefresh} isRefreshing={barsQuery.isFetching && !barsQuery.isFetchingNextPage}
-            onToggleFullscreen={toggleFull} isFullscreen={full}
-            from={fromParam} to={toParam} onRangeChange={handleRangeChange}
-            presets={PRESETS} activePreset={activePreset} onPreset={applyPreset}
-            onOpenWatchlist={() => setDrawer(true)}
+            onToggleFullscreen={toggleFull} isFullscreen={full} onHelp={() => setHelp(true)}
+            panelOpen={panelOpen} onTogglePanel={() => setPanelOpen((v) => !v)}
           />
 
-          <div className="mc-panel">
-            {(filling || barsQuery.isFetchingNextPage) && <div className="mc-bar"><i /></div>}
-            <CandlestickChart
-              bars={displayBars}
-              interval={interval}
-              symbol={symbol}
-              markers={showTrades ? chartMarkers : EMPTY}
-              trades={showTrades ? chartTrades : EMPTY}
-              fitContentKey={fitContentKey}
-              hasMoreOlder={hasMoreOlder}
-              onRequestOlder={handleLoadOlder}
+          <div className="mk-body">
+            <DrawingToolbar
+              tool={tool} onTool={setTool} magnet={magnet} onMagnet={() => setMagnet((v) => !v)}
+              color={drawColor} onColor={setDrawColor} hidden={hideDrawings} onToggleHidden={() => setHideDrawings((v) => !v)}
+              count={drawings.length} onClear={clearDrawings}
             />
-            {barsQuery.isLoading && bars.length === 0 && <div className="mc-skel" aria-hidden />}
-            {barsQuery.isError && bars.length === 0 && (
-              <div className="mc-state" role="alert">
-                <AlertTriangle size={22} color="#F5B544" />
-                <b>Couldn’t load {symbol} {interval.toUpperCase()} data</b>
-                <p>The market data service didn’t respond. Check your connection and try again.</p>
-                <button type="button" className="mc-retry" onClick={() => barsQuery.refetch()}><RotateCw size={12} /> Retry</button>
-              </div>
-            )}
-            {showLoader && <ChartLoadingOverlay symbol={symbol} interval={interval} />}
-          </div>
 
-          <div className="mc-foot">
-            <button type="button" className="mc-btn mc-desk" onClick={() => setRailOpen((v) => !v)} title="Toggle watchlist ([)">
-              {railOpen ? <PanelLeftClose size={13} /> : <PanelLeftOpen size={13} />} Watchlist
-            </button>
-            <button type="button" className="mc-btn mc-menu" onClick={() => setDrawer(true)}><Menu size={13} /> Symbols</button>
-            {interval !== '1d' && (
-              <button type="button" className={`mc-btn${showTrades ? ' is-on' : ''}`} onClick={() => setShowTrades((v) => !v)} aria-pressed={showTrades} title="Show journal trades on the chart (T)">
-                <Briefcase size={12} /> Journal trades <span className="mc-btn-n">{tradeCount}</span>
-              </button>
-            )}
-
-            <div className="mc-stats">
-              <span>Bars <b>{bars.length.toLocaleString()}</b></span>
-              {rangeStats && (
-                <>
-                  <span>High <b>{fmtN(rangeStats.hi)}</b></span>
-                  <span>Low <b>{fmtN(rangeStats.lo)}</b></span>
-                  <span>Change <b className={rangeStats.pct >= 0 ? 'is-up' : 'is-down'}>{rangeStats.pct >= 0 ? '+' : ''}{rangeStats.pct.toFixed(2)}%</b></span>
-                </>
+            <div className="mk-stage">
+              {(filling || barsQuery.isFetchingNextPage) && <div className="mk-bar"><i /></div>}
+              <CandlestickChart
+                ref={chartRef}
+                bars={displayBars} interval={interval} symbol={symbol} precision={precision}
+                chartType={chartType} enabledIndicators={indicators} onToggleIndicator={toggleIndicator}
+                showVolume={showVolume} logScale={logScale} magnet={magnet}
+                tool={tool} onToolChange={setTool}
+                drawings={hideDrawings ? EMPTY : drawings} onDrawingsChange={setDrawings}
+                selectedId={selectedId} onSelect={setSelectedId} drawColor={drawColor}
+                markers={chartMarkers} trades={chartTrades} showTrades={showTrades} showTradeLabels={showLabels}
+                focus={focus} fitKey={fitKey} fitMode={fromParam ? 'all' : 'recent'}
+                hasMoreOlder={hasMoreOlder} onRequestOlder={handleLoadOlder} displayOffset={displayOffset}
+              />
+              {barsQuery.isLoading && bars.length === 0 && <div className="mk-skel" aria-hidden />}
+              {barsQuery.isError && bars.length === 0 && (
+                <div className="mk-state" role="alert">
+                  <AlertTriangle size={22} color="#F5B544" />
+                  <b>Couldn’t load {symbol} {interval.toUpperCase()} data</b>
+                  <p>The market data service didn’t respond. Check your connection and try again.</p>
+                  <button type="button" className="mk-retry" onClick={() => barsQuery.refetch()}><RotateCw size={12} /> Retry</button>
+                </div>
               )}
             </div>
 
-            <span className="mc-grow" />
-
-            {barsQuery.isFetchingNextPage && <span className="mc-live"><Loader2 size={12} className="mc-spin" />Loading older history</span>}
-            <button type="button" className="mc-btn" onClick={() => setHelp(true)} title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts"><Keyboard size={13} /></button>
-            <span className="mc-live"><i className={`mc-dot${isLive ? '' : ' is-hist'}`} />{isLive ? 'Live, refreshes every 60s' : 'Historical range'}</span>
+            {drawer && <div className="mk-scrim" onClick={() => setDrawer(false)} />}
+            <SidePanel {...panelProps} />
           </div>
+
+          <StatusBar
+            barCount={bars.length} rangeStats={rangeStats} precision={precision} tz={displayTz}
+            lastCandle={formatChartTime(lastBarTime, interval, displayTz)} isLive={isLive}
+            loadingOlder={barsQuery.isFetchingNextPage} filling={!!filling}
+          />
         </div>
 
+        <SymbolPalette open={palette} onClose={() => setPalette(false)} catalog={catalog?.symbols ?? EMPTY} value={symbol} onPick={setSymbol} />
+
         {help && (
-          <div className="mc-help-scrim" onClick={() => setHelp(false)}>
-            <div className="mc-help" role="dialog" aria-label="Keyboard shortcuts" onClick={(e) => e.stopPropagation()}>
-              <div className="mc-help-head">Keyboard shortcuts <button type="button" onClick={() => setHelp(false)} aria-label="Close"><X size={13} /></button></div>
-              <ul>
-                {SHORTCUTS.map(([k, d]) => (<li key={k}><span>{d}</span><span className="mc-kbd">{k}</span></li>))}
-              </ul>
+          <div className="mk-help-scrim" onClick={() => setHelp(false)}>
+            <div className="mk-help" role="dialog" aria-label="Keyboard shortcuts" onClick={(e) => e.stopPropagation()}>
+              <div className="mk-help-head">Keyboard shortcuts <button type="button" onClick={() => setHelp(false)} aria-label="Close"><X size={13} /></button></div>
+              <ul>{SHORTCUTS.map(([k, d]) => (<li key={k}><span>{d}</span><span className="mk-kbd">{k}</span></li>))}</ul>
             </div>
           </div>
         )}

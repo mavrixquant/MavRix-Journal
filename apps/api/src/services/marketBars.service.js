@@ -35,7 +35,7 @@ export async function getBars({ symbol, interval, from: rawFrom, to: rawTo, befo
   const before = rawBefore ? new Date(rawBefore) : null;
   const after = rawAfter ? new Date(rawAfter) : null;
 
-  const coverage = await prisma.marketBarCoverage.findUnique({
+  let coverage = await prisma.marketBarCoverage.findUnique({
     where: { symbol_interval: { symbol: sym, interval } },
   });
 
@@ -43,6 +43,18 @@ export async function getBars({ symbol, interval, from: rawFrom, to: rawTo, befo
   const isBackwardPaging = !hasExplicitRange && !!before;
   const isForwardPaging = !hasExplicitRange && !!after;
   const isDefaultRange = !hasExplicitRange && !before && !after;
+
+  // On the default (initial) load, await a tail refresh BEFORE reading the
+  // DB so the first response already includes the current forming candle.
+  // Paginated (before / after) and explicit-range queries are strictly
+  // historical and skip this step. After the refresh, re-read coverage so
+  // the returned oldestInDb / newestInDb reflect the newly inserted bars.
+  if (isDefaultRange) {
+    await ensureFreshTail(sym, interval);
+    coverage = await prisma.marketBarCoverage.findUnique({
+      where: { symbol_interval: { symbol: sym, interval } },
+    });
+  }
 
   // Default window: the last DEFAULT_WINDOW_DAYS. Pagination extends it via
   // the `before` cursor, which overrides this clause entirely.
@@ -260,6 +272,30 @@ async function recomputeCoverage(symbol, interval, resolved) {
 //     provider page limit.
 //   - On provider error, sets backoffUntil so we don't hammer again.
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// ensureFreshTail - awaitable, bounded tail refresh.
+//
+// Called from getBars() on the *default* (initial) load before querying the
+// DB. This makes the first API response include the current forming candle
+// instead of racing ahead of refreshTail's fire-and-forget background run
+// (which was the reason the chart showed stale data on first load and only
+// looked correct after a manual reload).
+//
+// Capped at 2.5 s so a slow provider cannot stall the chart response. If
+// the cap is hit, the client's 60 s refetch interval picks up the finished
+// refresh. refreshTail() has its own freshness / backoff gates, so calling
+// it unconditionally is safe - it returns immediately when data is fresh or
+// the provider is in cooldown.
+// ---------------------------------------------------------------------------
+async function ensureFreshTail(sym, interval) {
+  const resolved = resolveSymbol(sym);
+  if (!resolved) return;
+
+  await Promise.race([
+    refreshTail(sym, interval).catch(() => {}),
+    new Promise((r) => setTimeout(r, 2500)),
+  ]);
+}
 export async function refreshTail(symbol, interval) {
   const sym = String(symbol || '').toUpperCase();
   if (!sym || !interval) return;
