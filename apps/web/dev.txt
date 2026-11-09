@@ -1,5 +1,10 @@
-git checkout main
-git pull origin main
+git checkout prod
+git pull origin prod
 git merge dev
-git push origin main
+git push origin prod
 git checkout dev
+
+
+npx prisma migrate deploy
+npx prisma generate
+npx prisma migrate status
