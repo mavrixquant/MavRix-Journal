@@ -1,4 +1,4 @@
-﻿// ============================================================================
+// ============================================================================
 // ImportChunksModal — live per-chunk log for a market-data import job.
 //
 // Shows every chunk with its status (pending / running / succeeded / failed /
@@ -346,7 +346,7 @@ export default function ImportChunksModal({ job, onClose }) {
               </h2>
               <p className="icm-sub">
                 Job {String(job.id).slice(0, 14)}… ·{' '}
-                {formatDate(job.fromTime)} ? {formatDate(job.toTime)} ·{' '}
+c                {formatDate(job.fromTime)} → {formatDate(job.toTime)} ·{' '}
                 {job.status}
               </p>
             </div>
@@ -428,7 +428,7 @@ export default function ImportChunksModal({ job, onClose }) {
                       >
                         <td className="icm-idx">{c.index + 1}</td>
                         <td className="icm-range">
-                          {formatDate(c.fromTime)} ? {formatDate(c.toTime)}
+                          {formatDate(c.fromTime)} → {formatDate(c.toTime)}
                         </td>
                         <td>
                           <span className={`icm-badge ${meta.cls}`}>

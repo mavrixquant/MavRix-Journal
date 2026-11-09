@@ -1,17 +1,17 @@
 // ============================================================================
-// Admin market-data service — async import jobs + coverage stats + wipe.
+// Admin market-data service â€” async import jobs + coverage stats + wipe.
 //
 // Import design:
-//   • POST /import creates a MarketImportJob row + registers an in-memory
+//   â€¢ POST /import creates a MarketImportJob row + registers an in-memory
 //     runner; returns 202 immediately with the jobId.
-//   • The runner is a setImmediate() loop — OUTSIDE the HTTP lifecycle —
+//   ï¿½ The runner is a setImmediate() loop â€” OUTSIDE the HTTP lifecycle â€”
 //     that writes progress at every chunk boundary.
-//   • On boot, markInterruptedJobs() flips any leftover `running` rows to
+//   â€¢ On boot, markInterruptedJobs() flips any leftover `running` rows to
 //     `interrupted` (data already committed to market_bars is preserved).
-//   • POST /jobs/:id/stop sets stopRequested; the runner exits at the next
+//   â€¢ POST /jobs/:id/stop sets stopRequested; the runner exits at the next
 //     chunk boundary (current chunk always finishes).
-//   • SSE broadcast (`market-data:job:update`) fires at every state change so
-//     the UI updates without polling — polling is the fallback.
+//   â€¢ SSE broadcast (`market-data:job:update`) fires at every state change so
+//     the UI updates without polling â€” polling is the fallback.
 //
 // Providers: Yahoo (futures, crypto) and Biquote (forex, metals), resolved
 // via lib/marketData/symbolMap.js.
@@ -57,7 +57,7 @@ const FULL_IMPORT_LOOKBACK_DAYS = {
 const FULL_IMPORT_MAX_DURATION_MS = 6 * 60 * 60 * 1000; // 6 hours
 const FULL_IMPORT_CONSECUTIVE_FAILURES = 3;
 
-// In-memory registry — cleared on process restart (boot sweep handles
+// In-memory registry â€” cleared on process restart (boot sweep handles
 // the DB side; the map only holds live runners in THIS process).
 const running = new Map();   // jobId -> { stopped: boolean }
 const activeKeys = new Map(); // `${symbol}:${interval}` -> jobId
@@ -186,7 +186,7 @@ async function recomputeCoverage(symbol, interval, provider, providerSymbol) {
 }
 
 // ---------------------------------------------------------------------------
-// getStats — unchanged shape from the previous version.
+// getStats â€” unchanged shape from the previous version.
 // ---------------------------------------------------------------------------
 
 export async function getStats() {
@@ -271,7 +271,7 @@ async function computeMissingChunks(symbol, interval, from, to) {
   const covTo = coverage.toTime.getTime();
 
   // Front/back gap detection: only skips chunks that sit entirely outside
-  // the already-covered range. Interior gaps (rare — job aborts on first
+  // the already-covered range. Interior gaps (rare ï¿½ job aborts on first
   // hard failure) are not filled. To refill interior gaps, wipe + reimport.
   const missing = allChunks.filter((c) => {
     const cFrom = c.from.getTime();
@@ -320,7 +320,7 @@ export async function startImportJob({ symbol, interval, from, to, mode = 'range
 
   // One job per (symbol, interval) at a time.
   if (activeKeys.has(key)) {
-    throw new HttpError(409, `An import for ${sym} · ${interval} is already running.`);
+    throw new HttpError(409, `An import for ${sym} ï¿½ ${interval} is already running.`);
   }
   // Global cap.
   if (running.size >= MAX_CONCURRENT_JOBS) {
@@ -332,7 +332,7 @@ export async function startImportJob({ symbol, interval, from, to, mode = 'range
   if (mode !== 'full' && missing.length > MAX_CHUNKS_PER_JOB) {
     throw new HttpError(
       400,
-      `Range too large — ${missing.length} chunks needed (max ${MAX_CHUNKS_PER_JOB}). Split the range.`
+      `Range too large ï¿½ ${missing.length} chunks needed (max ${MAX_CHUNKS_PER_JOB}). Split the range.`
     );
   }
 
@@ -416,7 +416,7 @@ async function runImportJob(jobId, chunks, resolved, fetchFn, mode = 'range') {
   const maxDurationMs = mode === 'full' ? FULL_IMPORT_MAX_DURATION_MS : MAX_JOB_DURATION_MS;
   let consecutiveFailures = 0;
 
-  // Chunk rows — created in startImportJob, matched 1:1 with the chunks array.
+  // Chunk rows ï¿½ created in startImportJob, matched 1:1 with the chunks array.
   const chunkRows = await prisma.marketImportChunk.findMany({
     where: { jobId },
     orderBy: { index: 'asc' },
@@ -429,7 +429,7 @@ async function runImportJob(jobId, chunks, resolved, fetchFn, mode = 'range') {
   let finalStatus = 'completed';
   let lastError = null;
 
-  // Self-ping — keeps Render free tier awake during long imports. Opt-in.
+  // Self-ping ï¿½ keeps Render free tier awake during long imports. Opt-in.
   const keepAliveHandle = setInterval(() => {
     if (process.env.MARKET_DATA_KEEPALIVE !== 'true') return;
     const port = process.env.PORT || 4000;
@@ -444,7 +444,7 @@ async function runImportJob(jobId, chunks, resolved, fetchFn, mode = 'range') {
       // ---- Stop check (in-memory fast path) ----
       if (reg.stopped) { finalStatus = 'stopped'; break; }
 
-      // ---- Stop check (DB, every N chunks — multi-instance safety) ----
+      // ---- Stop check (DB, every N chunks â€” multi-instance safety) ----
       if (chunksDone - lastDbStopCheck >= DB_STOP_CHECK_EVERY_N_CHUNKS) {
         lastDbStopCheck = chunksDone;
         const fresh = await prisma.marketImportJob.findUnique({
@@ -470,7 +470,7 @@ async function runImportJob(jobId, chunks, resolved, fetchFn, mode = 'range') {
       let chunkInserted = 0;
       let chunkStopped = false;
 
-      // Retry chain per chunk — increment attempt per try.
+      // Retry chain per chunk â€” increment attempt per try.
       for (let attempt = 0; attempt <= CHUNK_RETRY_BACKOFF_MS.length; attempt++) {
         if (reg.stopped) { chunkStopped = true; break; }
 
@@ -509,7 +509,7 @@ async function runImportJob(jobId, chunks, resolved, fetchFn, mode = 'range') {
             continue;
           }
 
-          // Out of retries — write provider cooldown, mark job failed.
+          // Out of retries ï¿½ write provider cooldown, mark job failed.
           const backoffUntil = new Date(Date.now() + (isRate ? 5 * 60_000 : 60_000));
           await prisma.marketBarCoverage.upsert({
             where: { symbol_interval: { symbol, interval } },
@@ -606,7 +606,7 @@ async function runImportJob(jobId, chunks, resolved, fetchFn, mode = 'range') {
   } finally {
     clearInterval(keepAliveHandle);
 
-    // Safety sweep — resolve any chunk still flagged 'running' after a crash.
+    // Safety sweep ï¿½ resolve any chunk still flagged 'running' after a crash.
     try {
       await prisma.marketImportChunk.updateMany({
         where: { jobId, status: 'running' },
@@ -773,7 +773,7 @@ export async function markInterruptedJobs() {
 }
 
 // ---------------------------------------------------------------------------
-// wipeCache — unchanged behavior. Group wipe passes interval=undefined.
+// wipeCache ï¿½ unchanged behavior. Group wipe passes interval=undefined.
 // ---------------------------------------------------------------------------
 
 export async function wipeCache({ symbol, interval, actor }) {

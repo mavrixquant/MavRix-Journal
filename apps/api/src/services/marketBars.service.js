@@ -275,7 +275,7 @@ export async function refreshTail(symbol, interval) {
     const coverage = await prisma.marketBarCoverage.findUnique({
       where: { symbol_interval: { symbol: sym, interval } },
     });
-    if (!coverage) return; // no DB data â†’ "Coming Soon" state persists
+    if (!coverage) return; // no DB data → "Coming Soon" state persists
 
     const now = new Date();
     if (coverage.backoffUntil && coverage.backoffUntil > now) return;

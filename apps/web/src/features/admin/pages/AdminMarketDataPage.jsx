@@ -1033,7 +1033,7 @@ export default function AdminMarketDataPage() {
               >
                 Full import pulls <b>all available history</b> for this interval
                 (up to the provider's maximum lookback). Large imports may take
-                several hours and can be stopped at any time � re-run
+                several hours and can be stopped at any time — re-run
                 <b> Start again </b> from the interrupted banner to resume.
               </div>
             )}
@@ -1170,12 +1170,12 @@ export default function AdminMarketDataPage() {
                               <td className="mdp-td right">{fmtNum(row.barCount)}</td>
                               <td className="mdp-td muted">
                                 {row.dbFromTime && row.dbToTime
-                                  ? `${fmtDate(row.dbFromTime)} ? ${fmtDate(row.dbToTime)}`
+                                  ? `${fmtDate(row.dbFromTime)} → ${fmtDate(row.dbToTime)}`
                                   : '—'}
                               </td>
                               <td className="mdp-td muted">
                                 {row.coverageFrom && row.coverageTo
-                                  ? `${fmtDate(row.coverageFrom)} ? ${fmtDate(row.coverageTo)}`
+                                  ? `${fmtDate(row.coverageFrom)} → ${fmtDate(row.coverageTo)}`
                                   : '—'}
                               </td>
                               <td className="mdp-td muted">{ago(row.lastFetchedAt)}</td>
