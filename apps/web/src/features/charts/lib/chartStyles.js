@@ -232,7 +232,7 @@ export const CSS = `
   .mk-pal-group [cmdk-group-heading] { padding: 9px 10px 4px; font: 700 9px 'IBM Plex Mono', monospace; letter-spacing: .14em; text-transform: uppercase; color: var(--mk-ink-3); }
   .mk-pal-item { display: flex; align-items: center; gap: 11px; padding: 9px 10px; border-radius: 8px; cursor: pointer; color: var(--mk-ink-2); font: 12.5px 'IBM Plex Mono', monospace; }
   .mk-pal-item b { min-width: 56px; color: var(--mk-ink-1); letter-spacing: .02em; }
-  .mk-pal-item span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--mk-ink-3); font-size: 11.5px; }
+  .mk-pal-item span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--mk-ink-3); font-size: 11.5px; }
   .mk-pal-item em { font-style: normal; font-size: 10px; color: var(--mk-ink-3); }
   .mk-pal-item u { text-decoration: none; font-size: 9.5px; padding: 1px 6px; border-radius: 4px; background: rgba(255,255,255,.05); color: var(--mk-ink-3); }
   .mk-pal-item[data-selected="true"] { background: color-mix(in srgb, var(--accent) 9%, transparent); }
