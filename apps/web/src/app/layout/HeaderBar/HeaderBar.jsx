@@ -175,6 +175,13 @@ export default function HeaderBar({
         />
 
         <IconButton
+          icon={<Bell size={16} />}
+          label="Notifications"
+          onClick={onNotificationsClick}
+          badge={notifUnread}
+        />
+
+        <IconButton
           icon={<Settings size={16} />}
           label="Settings"
           onClick={onSettingsClick}

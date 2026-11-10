@@ -1,13 +1,13 @@
 // ============================================================================
-// Notifications sidebar — the right-edge panel opened by the bell icon.
+// Notifications sidebar - the right-edge panel opened by the bell icon.
 //
 // Two tabs:
-//   • Common     — chat messages, friend requests, GEX uploads
-//   • Broadcasts — admin announcements (changelog reserved for later)
+//   - Common     : chat messages, friend requests, GEX uploads
+//   - Broadcasts : admin announcements (changelog reserved for later)
 //
 // Backed by per-user rows in Postgres. Live updates arrive via the
 // `notification:new` SSE event which invalidates the ['notifications']
-// query prefix — this panel refreshes itself automatically.
+// query prefix - this panel refreshes itself automatically.
 // ============================================================================
 
 import { useEffect, useMemo, useState } from 'react';
@@ -166,7 +166,6 @@ export default function NotificationsSidebar({ isOpen = false, onClose }) {
         aria-label="Notifications"
       >
         <aside className="notif-sidebar">
-          {/* header */}
           <header className="notif-header">
             <span className="notif-header-icon" aria-hidden>
               <Bell size={17} />
@@ -190,7 +189,6 @@ export default function NotificationsSidebar({ isOpen = false, onClose }) {
             </button>
           </header>
 
-          {/* tabs */}
           <div className="notif-tabs" role="tablist">
             {TABS.map((t) => {
               const unread = t.id === 'common' ? commonUnread : broadcastsUnread;
@@ -215,7 +213,6 @@ export default function NotificationsSidebar({ isOpen = false, onClose }) {
             })}
           </div>
 
-          {/* action bar */}
           {(unreadForTab > 0 || hasRead) && (
             <div className="notif-actions">
               <button
@@ -241,12 +238,11 @@ export default function NotificationsSidebar({ isOpen = false, onClose }) {
             </div>
           )}
 
-          {/* list */}
           <div className="notif-body">
             {loading ? (
               <div className="notif-loading">
                 <Loader2 size={20} className="notif-spinner" />
-                <span>Loading notifications…</span>
+                <span>Loading notifications...</span>
               </div>
             ) : items.length === 0 ? (
               <div className="notif-empty">
