@@ -11,6 +11,7 @@ import { HttpError } from '../middleware/error.js';
 import { broadcastToUser } from '../lib/broadcaster.js';
 import { triggerAiResponse, stopAiForConversation } from './ai.service.js';
 import { pushNotification, markChatNotificationsReadByConversation } from './notifications.service.js';
+import { setViewing as setPresence, isViewing } from '../lib/presence.js';
 import {
   getPersonaForAiId,
   isAnyMaveAiId,
@@ -142,6 +143,18 @@ async function assertParticipant(userId, conversationId) {
   });
   if (!row) throw new HttpError(404, 'Conversation not found');
   return row;
+}
+
+// ---------------------------------------------------------------------------
+// Viewing heartbeat — the client tells us which conversation they have open.
+// Used by sendMessage to SKIP notification creation for recipients already
+// looking at the thread. assertParticipant guarantees they can't spoof access
+// to a conversation they're not a member of.
+// ---------------------------------------------------------------------------
+export async function setViewingState(userId, conversationId, active) {
+  await assertParticipant(userId, conversationId);
+  setPresence(userId, conversationId, !!active);
+  return { ok: true, active: !!active };
 }
 
 async function assertAccessibleConversation(userId, conversationId) {
@@ -724,11 +737,15 @@ export async function sendMessage(userId, conversationId, { body, replyToId }) {
     [message.sender?.firstName, message.sender?.lastName].filter(Boolean).join(' ').trim() ||
     message.sender?.username ||
     'Someone';
-  const preview = trimmed.length > 80 ? trimmed.slice(0, 80) + '�' : trimmed;
+  const preview = trimmed.length > 80 ? trimmed.slice(0, 80) + '�' : trimmed;
   const notifTitle = conv?.type === 'dm' ? senderName : `${senderName} in group`;
   await Promise.all(
     participantIds
       .filter((pid) => pid !== userId && !isAnyMaveAiId(pid))
+      // Skip creation entirely for recipients with the thread open — the
+      // message still arrives via SSE and their client's markRead effect
+      // sweeps any older notifications. Zero bell-badge flicker.
+      .filter((pid) => !isViewing(pid, conversationId))
       .map((pid) =>
         pushNotification(pid, {
           type: 'chat',

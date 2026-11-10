@@ -13,6 +13,7 @@ import {
   useSendTyping,
   useUpdateConversation,
   useStopAi,
+  setConversationViewing,
 } from '@/shared/api/chat';
 import { useSendFriendRequest, useFriendStatus } from '@/shared/api/friends';
 import ChatHeader from './ChatHeader';
@@ -266,6 +267,47 @@ export default function MessageThread({
     if (document.visibilityState !== 'visible') return;
     markRead.mutate(conversationId);
   }, [conversationId, messages.length, sendReadReceipts, markRead]);
+
+  // ---------------------------------------------------------------------
+  // Viewing heartbeat.
+  //
+  // Tells the backend this user is currently inside this conversation so
+  // sendMessage can SKIP notification creation for them. Without this, a
+  // notification row is created then immediately swept by markRead — the
+  // bell-badge flickers and the row briefly appears in the sidebar list.
+  //
+  // Rules:
+  //   • active:true on mount (user opened the thread)
+  //   • refresh active:true every 30s while the tab is visible
+  //   • active:false when the tab goes to background (they're elsewhere,
+  //     they SHOULD be notified) and again when it comes back to front
+  //   • active:false on unmount (switched conversations, navigated away)
+  //
+  // Failures are silent — worst case is one stray notification the
+  // markRead sweep clears in ~100ms.
+  // ---------------------------------------------------------------------
+  useEffect(() => {
+    if (!conversationId) return undefined;
+
+    const ping = (active) => {
+      setConversationViewing(conversationId, active).catch(() => {});
+    };
+
+    ping(true);
+
+    const onVisibility = () => ping(!document.hidden);
+    document.addEventListener('visibilitychange', onVisibility);
+
+    const heartbeat = setInterval(() => {
+      if (!document.hidden) ping(true);
+    }, 30_000);
+
+    return () => {
+      clearInterval(heartbeat);
+      document.removeEventListener('visibilitychange', onVisibility);
+      ping(false);
+    };
+  }, [conversationId]);
 
   const [ctxMenu, setCtxMenu] = useState(null);
   const openContextMenu = useCallback((message, event) => {

@@ -702,3 +702,17 @@ export function useSendTyping() {
     onError: () => {},
   });
 }
+// ---------------------------------------------------------------------------
+// Viewing heartbeat — tells the server this user is currently inside the
+// conversation. sendMessage uses it to SKIP notification creation for
+// recipients already looking at the thread (see apps/api/src/lib/presence.js).
+//
+// Fire-and-forget: callers must `.catch(() => {})`. A failure means the user
+// gets a normal notification, which the markRead sweep clears ~100ms later.
+// ---------------------------------------------------------------------------
+export async function setConversationViewing(conversationId, active) {
+  return apiJson(
+    `/api/chat/conversations/${encodeURIComponent(conversationId)}/viewing`,
+    { method: 'POST', body: JSON.stringify({ active: !!active }) }
+  );
+}

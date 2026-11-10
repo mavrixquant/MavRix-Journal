@@ -69,6 +69,7 @@ chatRoutes.post('/conversations/:id/stop-ai', stopAiLimiter, ctrl.stopAi);
 chatRoutes.get('/conversations/:id/messages', ctrl.listMessages);
 chatRoutes.post('/conversations/:id/messages', sendLimiter, validate(sendMessageSchema), ctrl.sendMessage);
 chatRoutes.patch('/conversations/:id/read', ctrl.markRead);
+chatRoutes.post('/conversations/:id/viewing', ctrl.setViewing);
 chatRoutes.post('/conversations/:id/typing', typingLimiter, validate(typingSchema), ctrl.typing);
 
 chatRoutes.post('/messages/:messageId/delivered', deliveredLimiter, ctrl.markDelivered);

@@ -79,6 +79,17 @@ export async function markRead(req, res, next) {
   } catch (e) { next(e); }
 }
 
+// The client pings this on mount, every 30s while the thread is open, and
+// on unmount / tab-hide. The backend uses it to skip notification creation
+// for a recipient who is already inside the conversation.
+export async function setViewing(req, res, next) {
+  try {
+    const active = req.body?.active !== false;
+    const result = await svc.setViewingState(req.userId, req.params.id, active);
+    res.json(result);
+  } catch (e) { next(e); }
+}
+
 export async function markDelivered(req, res, next) {
   try {
     const result = await svc.markDelivered(req.userId, req.params.messageId);
