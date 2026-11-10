@@ -1,49 +1,19 @@
+import { MessageCircle, Users, UserRoundPlus, Settings } from 'lucide-react';
 
-import {
-  MessageCircle,
-  Users,
-  UserRoundPlus,
-  Settings,
-} from 'lucide-react';
-
-import {
-  Tooltip,
-  TooltipTrigger,
-  TooltipContent,
-} from '@/shared/ui/tooltip';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/shared/ui/tooltip';
 import { useAuth } from '@/app/providers/AuthProvider';
+import { initialsOf } from './Avatar';
 
 const TABS = [
-  { id: 'dms',     icon: MessageCircle, label: 'Direct Messages' },
-  { id: 'groups',  icon: Users,         label: 'Groups' },
-  { id: 'friends', icon: UserRoundPlus, label: 'Friends' },
+  { id: 'dms',     icon: MessageCircle, label: 'Direct Messages', short: 'Chats' },
+  { id: 'groups',  icon: Users,         label: 'Groups',          short: 'Groups' },
+  { id: 'friends', icon: UserRoundPlus, label: 'Friends',         short: 'Friends' },
 ];
 
-function initialsOf(user) {
-  if (!user) return '?';
-  const a = (user.firstName || '').trim();
-  const b = (user.lastName || '').trim();
-  if (a && b) return (a[0] + b[0]).toUpperCase();
-  if (a) return a.slice(0, 2).toUpperCase();
-  if (user.email) return user.email.slice(0, 2).toUpperCase();
-  return '?';
-}
-
-function RailButton({
-  icon: Icon,
-  label,
-  active = false,
-  badge,
-  muted = false,
-  variant,
-  onClick,
-}) {
-  const cls = [
-    'chat-rail-btn',
-    active ? 'is-active' : '',
-    variant === 'secondary' ? 'is-secondary' : '',
-  ].filter(Boolean).join(' ');
-
+function RailButton({ icon: Icon, label, short, active = false, badge, variant, onClick }) {
+  const cls = ['chat-rail-btn', active ? 'is-active' : '', variant === 'secondary' ? 'is-secondary' : '']
+    .filter(Boolean)
+    .join(' ');
   const showBadge = typeof badge === 'number' && badge > 0;
 
   return (
@@ -57,10 +27,11 @@ function RailButton({
           aria-current={active ? 'page' : undefined}
         >
           <span className="chat-rail-icon" aria-hidden>
-            <Icon size={variant === 'secondary' ? 18 : 20} strokeWidth={2} />
+            <Icon size={20} strokeWidth={active ? 2.25 : 1.9} />
           </span>
+          {short && <span className="chat-rail-label" aria-hidden>{short}</span>}
           {showBadge && (
-            <span className={`chat-rail-badge${muted ? ' is-muted' : ''}`} aria-hidden>
+            <span className="chat-rail-badge" aria-hidden>
               {badge > 99 ? '99+' : badge}
             </span>
           )}
@@ -99,6 +70,7 @@ export default function ChatRail({
             key={t.id}
             icon={t.icon}
             label={t.label}
+            short={t.short}
             active={activeTab === t.id}
             badge={badgeFor(t.id)}
             onClick={() => onTabChange(t.id)}
@@ -112,6 +84,7 @@ export default function ChatRail({
         <RailButton
           icon={Settings}
           label="Chat settings"
+          short="Settings"
           variant="secondary"
           onClick={onOpenSettings}
         />
@@ -128,17 +101,11 @@ export default function ChatRail({
               onClick={onOpenProfile}
               aria-label="Your profile"
             >
-              {user.photoUrl ? (
-                <img src={user.photoUrl} alt="" />
-              ) : (
-                <span>{initialsOf(user)}</span>
-              )}
+              {user.photoUrl ? <img src={user.photoUrl} alt="" /> : <span>{initialsOf(user)}</span>}
             </button>
           </TooltipTrigger>
           <TooltipContent side="right" sideOffset={12} className="chat-rail-tip">
-            {[user.firstName, user.lastName].filter(Boolean).join(' ') ||
-              user.email ||
-              'You'}
+            {[user.firstName, user.lastName].filter(Boolean).join(' ') || user.email || 'You'}
           </TooltipContent>
         </Tooltip>
       )}

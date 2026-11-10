@@ -1,10 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import {
-  ArrowLeft,
-  Archive,
-  MessageSquare,
-  Users,
-} from 'lucide-react';
+import { ArrowLeft, Archive, MessageSquare, Users, ChevronRight } from 'lucide-react';
 
 import { useTypingConversations } from '@/shared/api/chat';
 import { useSettings } from '@/app/layout/Settings/SettingsProvider';
@@ -54,22 +49,30 @@ export default function ConversationList({
   const [search, setSearch] = useState('');
 
   const listRef = useRef(null);
+  const searchRef = useRef(null);
 
   useEffect(() => {
-    const t = setTimeout(
-      () => setSearch(searchInput.trim().toLowerCase()),
-      SEARCH_DEBOUNCE_MS
-    );
+    const t = setTimeout(() => setSearch(searchInput.trim().toLowerCase()), SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(t);
   }, [searchInput]);
+
+  // Ctrl/⌘ + K focuses the search box.
+  useEffect(() => {
+    const onKey = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        searchRef.current?.focus();
+        searchRef.current?.select();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   const { archived, active } = useMemo(() => {
     const arch = [];
     const main = [];
-    for (const c of conversations) {
-      if (c.isArchived) arch.push(c);
-      else main.push(c);
-    }
+    for (const c of conversations) (c.isArchived ? arch : main).push(c);
     return { archived: arch, active: main };
   }, [conversations]);
 
@@ -80,7 +83,7 @@ export default function ConversationList({
     return base.filter((c) => {
       const name = c.isGroup
         ? (c.name || '').toLowerCase()
-        : `${c.peer?.firstName || ''} ${c.peer?.lastName || ''} ${c.peer?.email || ''}`.toLowerCase();
+        : `${c.peer?.firstName || ''} ${c.peer?.lastName || ''} ${c.peer?.username || ''} ${c.peer?.email || ''}`.toLowerCase();
       return name.includes(search);
     });
   }, [base, search]);
@@ -91,10 +94,7 @@ export default function ConversationList({
     let dms = 0;
     let groups = 0;
     for (const c of active) {
-      if (c.unreadCount > 0) {
-        if (c.isGroup) groups += 1;
-        else dms += 1;
-      }
+      if (c.unreadCount > 0) (c.isGroup ? (groups += 1) : (dms += 1));
     }
     return { dms, groups };
   }, [active]);
@@ -102,22 +102,16 @@ export default function ConversationList({
   const handleListKeyDown = (e) => {
     const list = listRef.current;
     if (!list) return;
-
     const rows = Array.from(list.querySelectorAll('button[data-conv-row]'));
     if (rows.length === 0) return;
-
     const idx = rows.indexOf(document.activeElement);
 
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
       e.preventDefault();
       let next;
-      if (idx === -1) {
-        next = e.key === 'ArrowDown' ? 0 : rows.length - 1;
-      } else if (e.key === 'ArrowDown') {
-        next = Math.min(idx + 1, rows.length - 1);
-      } else {
-        next = Math.max(idx - 1, 0);
-      }
+      if (idx === -1) next = e.key === 'ArrowDown' ? 0 : rows.length - 1;
+      else if (e.key === 'ArrowDown') next = Math.min(idx + 1, rows.length - 1);
+      else next = Math.max(idx - 1, 0);
       rows[next].focus();
     } else if (e.key === 'Home') {
       e.preventDefault();
@@ -128,12 +122,7 @@ export default function ConversationList({
     }
   };
 
-  const headerTitle = archivedMode
-    ? 'Archived'
-    : activeTab === 'groups'
-      ? 'Groups'
-      : 'Messages';
-
+  const headerTitle = archivedMode ? 'Archived' : activeTab === 'groups' ? 'Groups' : 'Messages';
   const headerCount = archivedMode ? archived.length : filtered.length;
 
   const emptyTitle = archivedMode
@@ -149,8 +138,25 @@ export default function ConversationList({
     : search
       ? 'Try a different search term.'
       : activeTab === 'groups'
-        ? 'Use the Discover button below to find a public group.'
-        : 'Tap "New message" below to start chatting.';
+        ? 'Use Discover groups below to find a public group.'
+        : 'Tap “New message” below to start chatting.';
+
+  const pinned = visible.filter((c) => c.isPinned);
+  const rest = visible.filter((c) => !c.isPinned);
+  const showSections = !archivedMode && !search && pinned.length > 0;
+
+  const renderRow = (c) => (
+    <ConversationRow
+      key={c.id}
+      conversation={c}
+      selected={c.id === selectedId}
+      currentUserId={currentUserId}
+      onClick={() => onSelect(c.id)}
+      timeFormat={timeFormat}
+      timezone={timezone}
+      isTyping={showTypingInList && typingSet.has(c.id)}
+    />
+  );
 
   return (
     <>
@@ -159,28 +165,21 @@ export default function ConversationList({
           {archivedMode && (
             <button
               type="button"
-              className="chat-sidebar-icon-btn"
+              className="chat-sidebar-back"
               onClick={onArchivedToggle}
-              aria-label="Back"
+              aria-label="Back to conversations"
               title="Back to conversations"
-              style={{ width: 28, height: 28 }}
             >
-              <ArrowLeft size={13} />
+              <ArrowLeft size={16} />
             </button>
           )}
-          <span className="chat-sidebar-title">{headerTitle}</span>
+          <h2 className="chat-sidebar-title">{headerTitle}</h2>
           <span className="chat-sidebar-count">{headerCount}</span>
         </div>
 
-        <SidebarSearch value={searchInput} onChange={setSearchInput} />
+        <SidebarSearch ref={searchRef} value={searchInput} onChange={setSearchInput} />
 
-        {!archivedMode && (
-          <SidebarTabs
-            active={activeTab}
-            onChange={onTabChange}
-            counts={counts}
-          />
-        )}
+        {!archivedMode && <SidebarTabs active={activeTab} onChange={onTabChange} counts={counts} />}
       </div>
 
       <div
@@ -190,16 +189,17 @@ export default function ConversationList({
         role="list"
         aria-label={headerTitle}
       >
-        {!archivedMode && archived.length > 0 && (
+        {!archivedMode && archived.length > 0 && !search && (
           <button
             type="button"
             className="chat-sidebar-archived"
             onClick={onArchivedToggle}
             aria-label={`Archived chats (${archived.length})`}
           >
-            <Archive size={13} />
-            <span style={{ flex: 1 }}>Archived</span>
-            <span className="chat-sidebar-count">{archived.length}</span>
+            <Archive size={15} />
+            <span className="chat-sidebar-archived-label">Archived</span>
+            <span className="chat-sidebar-archived-count">{archived.length}</span>
+            <ChevronRight size={14} />
           </button>
         )}
 
@@ -216,19 +216,19 @@ export default function ConversationList({
               description={emptyDescription}
             />
           </div>
+        ) : showSections ? (
+          <>
+            <div className="chat-sidebar-section">Pinned</div>
+            {pinned.map(renderRow)}
+            {rest.length > 0 && (
+              <div className="chat-sidebar-section">
+                {activeTab === 'groups' ? 'All groups' : 'All messages'}
+              </div>
+            )}
+            {rest.map(renderRow)}
+          </>
         ) : (
-          visible.map((c) => (
-            <ConversationRow
-              key={c.id}
-              conversation={c}
-              selected={c.id === selectedId}
-              currentUserId={currentUserId}
-              onClick={() => onSelect(c.id)}
-              timeFormat={timeFormat}
-              timezone={timezone}
-              isTyping={showTypingInList && typingSet.has(c.id)}
-            />
-          ))
+          visible.map(renderRow)
         )}
       </div>
 

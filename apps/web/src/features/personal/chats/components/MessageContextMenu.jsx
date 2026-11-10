@@ -1,22 +1,24 @@
 
 import { useEffect, useRef } from 'react';
-import { CornerUpLeft, Pencil, Trash2 } from 'lucide-react';
+import { CornerUpLeft, Pencil, Trash2, Copy } from 'lucide-react';
 
 import Portal from '@/shared/components/Portal';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 
-const MENU_WIDTH = 200;
-const MENU_ITEM_H = 34;
-const MENU_PAD_V = 8;
+const MENU_WIDTH = 216;
+const MENU_ITEM_H = 38;
+const MENU_PAD_V = 12;
 const VIEWPORT_PAD = 8;
 
 export default function MessageContextMenu({
   x,
   y,
   canReply = true,
+  canCopy = true,
   canEdit,
   canDeleteAll,
   onReply,
+  onCopy,
   onEdit,
   onDeleteMe,
   onDeleteAll,
@@ -46,6 +48,7 @@ export default function MessageContextMenu({
 
   const itemCount =
     (canReply ? 1 : 0) +
+    (canCopy ? 1 : 0) +
     (canEdit ? 1 : 0) +
     1 +
     (canDeleteAll ? 1 : 0);
@@ -72,8 +75,20 @@ export default function MessageContextMenu({
               className="chat-ctx-item"
               onClick={onReply}
             >
-              <CornerUpLeft size={13} />
+              <CornerUpLeft size={15} />
               <span>Reply</span>
+            </button>
+          )}
+
+          {canCopy && (
+            <button
+              type="button"
+              role="menuitem"
+              className="chat-ctx-item"
+              onClick={onCopy}
+            >
+              <Copy size={15} />
+              <span>Copy text</span>
             </button>
           )}
 
@@ -84,10 +99,12 @@ export default function MessageContextMenu({
               className="chat-ctx-item"
               onClick={onEdit}
             >
-              <Pencil size={13} />
+              <Pencil size={15} />
               <span>Edit</span>
             </button>
           )}
+
+          <div className="chat-ctx-sep" role="separator" />
 
           <button
             type="button"
@@ -95,7 +112,7 @@ export default function MessageContextMenu({
             className="chat-ctx-item"
             onClick={onDeleteMe}
           >
-            <Trash2 size={13} />
+            <Trash2 size={15} />
             <span>Delete for me</span>
           </button>
 
@@ -106,7 +123,7 @@ export default function MessageContextMenu({
               className="chat-ctx-item is-danger"
               onClick={onDeleteAll}
             >
-              <Trash2 size={13} />
+              <Trash2 size={15} />
               <span>Delete for everyone</span>
             </button>
           )}
@@ -115,3 +132,4 @@ export default function MessageContextMenu({
     </Portal>
   );
 }
+

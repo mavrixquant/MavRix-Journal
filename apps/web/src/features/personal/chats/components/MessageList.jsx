@@ -1,31 +1,25 @@
-
 import { useMemo, useRef, useEffect, useCallback } from 'react';
-import { MessageSquare } from 'lucide-react';
+import { MessageSquare, Users } from 'lucide-react';
 
-import EmptyState from '@/shared/components/EmptyState';
 import { formatDayLabel, dayKey } from '@/shared/format/datetime';
 import MessageBubble from './MessageBubble';
 import TypingIndicator from './TypingIndicator';
 import ThreadSkeleton from './ThreadSkeleton';
 import MaveAiTyping from './MaveAiTyping';
+import { displayNameOf } from './Avatar';
 
 const GROUP_WINDOW_MS = 5 * 60 * 1000;
 const LONG_PRESS_MS = 550;
 const HIGHLIGHT_MS = 2000;
 
-function displayNameOf(user) {
-  if (!user) return 'Unknown';
-  const a = (user.firstName || '').trim();
-  const b = (user.lastName || '').trim();
-  if (a && b) return `${a} ${b}`;
-  if (a) return a;
-  return user.username || 'Unknown';
-}
+const QUICK_DM = ['👋 Hey!', 'How’s it going?', '😊'];
+const QUICK_GROUP = ['👋 Hello everyone!', '🎉'];
 
 export default function MessageList({
   messages,
   currentUserId,
   isGroup,
+  isAi = false,
   headerName,
   typingUserIds = [],
   showTypingInThread = true,
@@ -44,6 +38,7 @@ export default function MessageList({
   onEditStart,
   onReply,
   onContextMenu,
+  onQuickSend,
   unreadBoundaryMsgId,
   scrollRef,
   sentinelRef,
@@ -66,11 +61,7 @@ export default function MessageList({
     longPressRef.current.fired = false;
     longPressRef.current.timer = setTimeout(() => {
       longPressRef.current.fired = true;
-      onContextMenu(msg, {
-        preventDefault: () => {},
-        clientX: touch.clientX,
-        clientY: touch.clientY,
-      });
+      onContextMenu(msg, { preventDefault: () => {}, clientX: touch.clientX, clientY: touch.clientY });
     }, LONG_PRESS_MS);
   };
 
@@ -86,18 +77,12 @@ export default function MessageList({
     (messageId) => {
       const container = scrollRef?.current;
       if (!container || !messageId) return;
-
-      const target = container.querySelector(
-        `[data-msg-id="${CSS.escape(String(messageId))}"]`
-      );
+      const target = container.querySelector(`[data-msg-id="${CSS.escape(String(messageId))}"]`);
       if (!target) return;
 
       target.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
-      container.querySelectorAll('.is-jump-highlight').forEach((el) => {
-        el.classList.remove('is-jump-highlight');
-      });
-
+      container.querySelectorAll('.is-jump-highlight').forEach((el) => el.classList.remove('is-jump-highlight'));
       const highlightEl = target.closest('.chat-msg-group') || target;
       highlightEl.classList.add('is-jump-highlight');
 
@@ -110,9 +95,10 @@ export default function MessageList({
     [scrollRef]
   );
 
-  const groups = useMemo(() => {
-    const list = [];
-    for (let i = 0; i < messages.length; i++) {
+  // Messages → per-day sections (so the day chip can be sticky within its day).
+  const sections = useMemo(() => {
+    const out = [];
+    for (let i = 0; i < messages.length; i += 1) {
       const msg = messages[i];
       const prev = messages[i - 1];
       const next = messages[i + 1];
@@ -122,18 +108,23 @@ export default function MessageList({
       const isFirstInGroup =
         !prev ||
         prev.senderId !== msg.senderId ||
+        prev.kind === 'system' || prev.kind === 'ai_switch' ||
         dayKey(prev.createdAt, timezone) !== day ||
         t - new Date(prev.createdAt).getTime() > GROUP_WINDOW_MS;
 
       const isLastInGroup =
         !next ||
         next.senderId !== msg.senderId ||
+        next.kind === 'system' || next.kind === 'ai_switch' ||
         dayKey(next.createdAt, timezone) !== day ||
         new Date(next.createdAt).getTime() - t > GROUP_WINDOW_MS;
 
-      list.push({ msg, prev, next, day, isFirstInGroup, isLastInGroup });
+      const item = { msg, isFirstInGroup, isLastInGroup };
+      const last = out[out.length - 1];
+      if (last && last.day === day) last.items.push(item);
+      else out.push({ day, iso: msg.createdAt, items: [item] });
     }
-    return list;
+    return out;
   }, [messages, timezone]);
 
   const byId = useMemo(() => {
@@ -144,13 +135,7 @@ export default function MessageList({
 
   const getReplyParent = (msg) => {
     if (!msg.replyToId) return null;
-    return (
-      byId.get(msg.replyToId) || {
-        id: msg.replyToId,
-        body: 'earlier message',
-        sender: null,
-      }
-    );
+    return byId.get(msg.replyToId) || { id: msg.replyToId, body: 'earlier message', sender: null };
   };
 
   if (isLoading && messages.length === 0) {
@@ -162,28 +147,33 @@ export default function MessageList({
   }
 
   if (messages.length === 0) {
+    const chips = isAi ? [] : isGroup ? QUICK_GROUP : QUICK_DM;
+    const Icon = isGroup ? Users : MessageSquare;
     return (
       <div className="chat-messages-scroll" ref={scrollRef}>
-        <div className="chat-messages-empty">
-          <EmptyState
-            size="md"
-            variant="bare"
-            icon={MessageSquare}
-            eyebrow="No messages"
-            title="Say hi 👋"
-            description={
-              isGroup
-                ? `This is the beginning of ${headerName}. Send a message to get started.`
-                : `This is the beginning of your conversation with ${headerName}. Send a message to get started.`
-            }
-          />
+        <div className="chat-hello">
+          <div className="chat-hello-icon"><Icon size={26} /></div>
+          <h3 className="chat-hello-title">Say hi 👋</h3>
+          <p className="chat-hello-text">
+            {isGroup
+              ? `This is the beginning of ${headerName}. Send a message to get things started.`
+              : `This is the beginning of your conversation with ${headerName}.`}
+          </p>
+          {onQuickSend && chips.length > 0 && (
+            <div className="chat-hello-chips">
+              {chips.map((c) => (
+                <button key={c} type="button" className="chat-hello-chip" onClick={() => onQuickSend(c)}>
+                  {c}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
         <div ref={sentinelRef} />
       </div>
     );
   }
 
-  let lastDay = null;
   let unreadSeparatorRendered = false;
 
   return (
@@ -209,74 +199,65 @@ export default function MessageList({
         </button>
       )}
 
-      {groups.map(({ msg, day, isFirstInGroup, isLastInGroup }) => {
-        const isOwn = msg.senderId === currentUserId;
-        const showDaySep = day !== lastDay;
-        lastDay = day;
-
-        const showUnreadSep =
-          !unreadSeparatorRendered &&
-          unreadBoundaryMsgId &&
-          msg.id === unreadBoundaryMsgId;
-
-        if (showUnreadSep) unreadSeparatorRendered = true;
-
-        const replyParent = getReplyParent(msg);
-        const canEdit =
-          isOwn && !msg.deleted && !msg._optimistic && canEditMessage(msg);
-
-        return (
-          <div key={msg.id} className="chat-msg-group">
-            {showDaySep && (
-              <div className="chat-day-sep" role="separator">
-                <time dateTime={msg.createdAt}>
-                  {formatDayLabel(msg.createdAt, timezone)}
-                </time>
-              </div>
-            )}
-            {showUnreadSep && (
-              <div className="chat-unread-sep">
-                <span>New messages</span>
-              </div>
-            )}
-
-            <MessageBubble
-              message={msg}
-              isOwn={isOwn}
-              isGroup={isGroup}
-              isFirstInGroup={isFirstInGroup}
-              isLastInGroup={isLastInGroup}
-              timeFormat={timeFormat}
-              timezone={timezone}
-              isEditing={editingId === msg.id}
-              editText={editText}
-              onEditChange={onEditChange}
-              onEditSubmit={onEditSubmit}
-              onEditCancel={onEditCancel}
-              onEditStart={onEditStart}
-              onReply={onReply}
-              onContextMenu={onContextMenu}
-              canEdit={canEdit}
-              replyParent={replyParent}
-              onJumpToReply={handleJumpToMessage}
-              onTouchStart={handleTouchStart}
-              onTouchMove={cancelLongPress}
-              onTouchEnd={cancelLongPress}
-              onTouchCancel={cancelLongPress}
-            />
+      {sections.map((section) => (
+        <section key={section.day} className="chat-day">
+          <div className="chat-day-sep" role="separator">
+            <time dateTime={section.iso}>{formatDayLabel(section.iso, timezone)}</time>
           </div>
-        );
-      })}
 
-      {}
+          {section.items.map(({ msg, isFirstInGroup, isLastInGroup }) => {
+            const isOwn = msg.senderId === currentUserId;
+
+            const showUnreadSep =
+              !unreadSeparatorRendered && unreadBoundaryMsgId && msg.id === unreadBoundaryMsgId;
+            if (showUnreadSep) unreadSeparatorRendered = true;
+
+            const canEdit = isOwn && !msg.deleted && !msg._optimistic && canEditMessage(msg);
+
+            return (
+              <div key={msg.id} className="chat-msg-group">
+                {showUnreadSep && (
+                  <div className="chat-unread-sep">
+                    <span>New messages</span>
+                  </div>
+                )}
+
+                <MessageBubble
+                  message={msg}
+                  isOwn={isOwn}
+                  isGroup={isGroup}
+                  isFirstInGroup={isFirstInGroup}
+                  isLastInGroup={isLastInGroup}
+                  timeFormat={timeFormat}
+                  timezone={timezone}
+                  isEditing={editingId === msg.id}
+                  editText={editText}
+                  onEditChange={onEditChange}
+                  onEditSubmit={onEditSubmit}
+                  onEditCancel={onEditCancel}
+                  onEditStart={onEditStart}
+                  onReply={onReply}
+                  onContextMenu={onContextMenu}
+                  canEdit={canEdit}
+                  replyParent={getReplyParent(msg)}
+                  onJumpToReply={handleJumpToMessage}
+                  onTouchStart={handleTouchStart}
+                  onTouchMove={cancelLongPress}
+                  onTouchEnd={cancelLongPress}
+                  onTouchCancel={cancelLongPress}
+                />
+              </div>
+            );
+          })}
+        </section>
+      ))}
+
       {waitingForAi && <MaveAiTyping />}
 
       {typingUserIds.length > 0 && showTypingInThread && (
         <TypingIndicator
           names={typingUserIds.map((id) => {
-            for (const m of messages) {
-              if (m.senderId === id) return displayNameOf(m.sender);
-            }
+            for (const m of messages) if (m.senderId === id) return displayNameOf(m.sender);
             return 'Someone';
           })}
         />

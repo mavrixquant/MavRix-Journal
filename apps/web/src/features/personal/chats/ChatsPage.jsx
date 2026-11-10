@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { MessageSquare } from 'lucide-react';
+import { MessageSquare, MessageSquarePlus, Compass, Lock } from 'lucide-react';
 
 import { useAuth } from '@/app/providers/AuthProvider';
 import { useChatConversations } from '@/shared/api/chat';
@@ -8,7 +8,6 @@ import { useFriendRequests } from '@/shared/api/friends';
 import { usePageHeader } from '@/app/layout/PageHeaderProvider';
 import { useSettingsModal } from '@/app/layout/Settings/SettingsModalContext';
 import { PageSkeleton } from '@/shared/ui/page-skeleton';
-import EmptyState from '@/shared/components/EmptyState';
 
 import ChatRail from './components/ChatRail';
 import ConversationList from './components/ConversationList';
@@ -20,6 +19,7 @@ import CreateGroupModal from './components/CreateGroupModal';
 import AddFriendModal from './components/AddFriendModal';
 import { useSwipeBack } from './hooks/useSwipeBack';
 
+import './ChatsPanels.css';
 import './ChatsShell.css';
 
 export default function ChatsPage() {
@@ -206,14 +206,33 @@ export default function ChatsPage() {
             />
           ) : (
             <div className="chat-thread-empty">
-              <EmptyState
-                size="md"
-                variant="bare"
-                icon={MessageSquare}
-                eyebrow="Select a conversation"
-                title="No conversation selected"
-                description="Pick a conversation from the sidebar, or start a new one. Only you and the other participants can see these messages."
-              />
+              <div className="chat-landing">
+                <div className="chat-landing-art" aria-hidden>
+                  <span className="chat-landing-ring is-1" />
+                  <span className="chat-landing-ring is-2" />
+                  <span className="chat-landing-icon"><MessageSquare size={34} strokeWidth={1.75} /></span>
+                </div>
+                <h2 className="chat-landing-title">
+                  {activeTab === 'groups' ? 'Pick a group to jump in' : 'Your messages live here'}
+                </h2>
+                <p className="chat-landing-text">
+                  Select a conversation from the list, or start a new one.
+                </p>
+                <div className="chat-landing-actions">
+                  {activeTab === 'groups' ? (
+                    <button type="button" className="chat-landing-btn is-primary" onClick={() => setDiscoverOpen(true)}>
+                      <Compass size={16} /> Discover groups
+                    </button>
+                  ) : (
+                    <button type="button" className="chat-landing-btn is-primary" onClick={() => setNewChatOpen(true)}>
+                      <MessageSquarePlus size={16} /> New message
+                    </button>
+                  )}
+                </div>
+                <div className="chat-landing-note">
+                  <Lock size={12} aria-hidden /> Only you and the people in a conversation can see its messages.
+                </div>
+              </div>
             </div>
           )}
         </section>
@@ -264,3 +283,4 @@ export default function ChatsPage() {
     </>
   );
 }
+

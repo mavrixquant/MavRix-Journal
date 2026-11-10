@@ -1,27 +1,7 @@
-
-import { Pin, Lock } from 'lucide-react';
+import { Pin, Lock, BellOff } from 'lucide-react';
 import { formatRelative } from '@/shared/format/datetime';
 import GroupAvatar from './GroupAvatar';
-
-function initialsOf(user) {
-  if (!user) return '?';
-  const a = (user.firstName || '').trim();
-  const b = (user.lastName || '').trim();
-  if (a && b) return (a[0] + b[0]).toUpperCase();
-  if (a) return a.slice(0, 2).toUpperCase();
-  if (user.username) return user.username.slice(0, 2).toUpperCase();
-  if (user.email) return user.email.slice(0, 2).toUpperCase();
-  return '?';
-}
-
-function displayNameOf(user) {
-  if (!user) return 'Unknown';
-  const a = (user.firstName || '').trim();
-  const b = (user.lastName || '').trim();
-  if (a && b) return `${a} ${b}`;
-  if (a) return a;
-  return user.username || 'Unknown';
-}
+import Avatar, { displayNameOf } from './Avatar';
 
 export default function ConversationRow({
   conversation,
@@ -34,6 +14,7 @@ export default function ConversationRow({
 }) {
   const isGroup = conversation.isGroup;
   const isOwn = conversation.lastMessageById === currentUserId;
+  const unread = conversation.unreadCount || 0;
 
   const preview = conversation.lastMessageText
     ? (isOwn ? `You: ${conversation.lastMessageText}` : conversation.lastMessageText)
@@ -46,11 +27,7 @@ export default function ConversationRow({
     conversation.isFriend === false &&
     typeof conversation.messagesRemaining === 'number';
 
-  const name = isGroup
-    ? (conversation.name || 'Untitled group')
-    : displayNameOf(conversation.peer);
-
-  const unread = conversation.unreadCount || 0;
+  const name = isGroup ? (conversation.name || 'Untitled group') : displayNameOf(conversation.peer);
 
   const ariaLabel = [
     name,
@@ -63,25 +40,28 @@ export default function ConversationRow({
     .filter(Boolean)
     .join(', ');
 
+  const cls = [
+    'conv-row',
+    selected ? 'is-active' : '',
+    unread > 0 ? 'has-unread' : '',
+    conversation.isMuted ? 'is-muted' : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
   return (
     <button
       type="button"
-      className={`conv-row${selected ? ' is-active' : ''}`}
+      className={cls}
       onClick={onClick}
       data-conv-row=""
       aria-current={selected ? 'true' : undefined}
       aria-label={ariaLabel}
     >
       {isGroup ? (
-        <GroupAvatar group={conversation} size={40} />
+        <GroupAvatar group={conversation} size={46} />
       ) : (
-        <div className="conv-avatar">
-          {conversation.peer?.photoUrl ? (
-            <img src={conversation.peer.photoUrl} alt="" />
-          ) : (
-            initialsOf(conversation.peer)
-          )}
-        </div>
+        <Avatar user={conversation.peer} size={46} />
       )}
 
       <div className="conv-body">
@@ -97,27 +77,24 @@ export default function ConversationRow({
             {isTyping ? 'typing…' : preview}
           </span>
 
-          {showFriendPill && (
-            <span
-              className={`chat-list-friend-pill${conversation.messagesRemaining === 0 ? ' is-locked' : ''}`}
-              title={
-                conversation.messagesRemaining === 0
-                  ? 'Add as friend to keep chatting'
-                  : `${conversation.messagesRemaining} free messages left`
-              }
-            >
-              <Lock size={9} />
-              {conversation.messagesRemaining}/3
-            </span>
-          )}
-
-          {conversation.isPinned && <Pin size={10} className="conv-pin" />}
-
-          {unread > 0 && (
-            <span className="conv-badge">
-              {unread > 99 ? '99+' : unread}
-            </span>
-          )}
+          <span className="conv-flags">
+            {showFriendPill && (
+              <span
+                className={`chat-list-friend-pill${conversation.messagesRemaining === 0 ? ' is-locked' : ''}`}
+                title={
+                  conversation.messagesRemaining === 0
+                    ? 'Add as friend to keep chatting'
+                    : `${conversation.messagesRemaining} free messages left`
+                }
+              >
+                <Lock size={9} />
+                {conversation.messagesRemaining}/3
+              </span>
+            )}
+            {conversation.isMuted && <BellOff size={12} className="conv-muted" aria-hidden />}
+            {conversation.isPinned && <Pin size={12} className="conv-pin" aria-hidden />}
+            {unread > 0 && <span className="conv-badge">{unread > 99 ? '99+' : unread}</span>}
+          </span>
         </div>
       </div>
     </button>

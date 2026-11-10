@@ -10,12 +10,10 @@ export default function TypingIndicator({ names = [] }) {
 
   return (
     <div className="typing-indicator" aria-live="polite">
-      <span className="typing-dots" aria-hidden>
-        <span />
-        <span />
-        <span />
+      <span className="typing-pill">
+        <span className="typing-dots" aria-hidden><span /><span /><span /></span>
+        <span className="typing-label">{label}</span>
       </span>
-      <span className="typing-label">{label}</span>
     </div>
   );
 }

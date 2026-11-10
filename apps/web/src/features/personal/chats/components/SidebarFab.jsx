@@ -1,11 +1,9 @@
+import { MessageSquarePlus, Compass, UserRoundPlus, Plus } from 'lucide-react';
 
-import {
-  MessageSquarePlus,
-  Users,
-  UserRoundPlus,
-  Plus,
-} from 'lucide-react';
-
+/**
+ * Bottom action bar of the sidebar: one clear primary action + optional
+ * admin "create group" button.
+ */
 export default function SidebarFab({
   activeTab,
   archivedMode = false,
@@ -17,75 +15,35 @@ export default function SidebarFab({
 }) {
   if (archivedMode) return null;
 
-  if (activeTab === 'dms') {
-    return (
-      <div className="chat-sidebar-foot">
+  const primary =
+    activeTab === 'groups'
+      ? { icon: Compass, label: 'Discover groups', title: 'Discover public groups', onClick: onDiscover }
+      : activeTab === 'friends'
+        ? { icon: UserRoundPlus, label: 'Add friend', title: 'Send a friend request', onClick: onAddFriend }
+        : { icon: MessageSquarePlus, label: 'New message', title: 'Start a new direct message', onClick: onCreateDm };
+
+  if (activeTab !== 'dms' && activeTab !== 'groups' && activeTab !== 'friends') return null;
+
+  const Icon = primary.icon;
+  const showCreateGroup = isAdmin && (activeTab === 'dms' || activeTab === 'groups');
+
+  return (
+    <div className="chat-sidebar-foot">
+      <button type="button" className="chat-sidebar-cta" onClick={primary.onClick} title={primary.title}>
+        <Icon size={16} />
+        <span>{primary.label}</span>
+      </button>
+      {showCreateGroup && (
         <button
           type="button"
-          className="chat-sidebar-cta"
-          onClick={onCreateDm}
-          title="Start a new direct message"
+          className="chat-sidebar-icon-btn"
+          onClick={onCreateGroup}
+          title="Create group"
+          aria-label="Create group"
         >
-          <MessageSquarePlus size={12} />
-          <span>New message</span>
+          <Plus size={18} />
         </button>
-        {isAdmin && (
-          <button
-            type="button"
-            className="chat-sidebar-icon-btn"
-            onClick={onCreateGroup}
-            title="Create group"
-            aria-label="Create group"
-          >
-            <Plus size={14} />
-          </button>
-        )}
-      </div>
-    );
-  }
-
-  if (activeTab === 'groups') {
-    return (
-      <div className="chat-sidebar-foot">
-        <button
-          type="button"
-          className="chat-sidebar-cta"
-          onClick={onDiscover}
-          title="Discover public groups"
-        >
-          <Users size={12} />
-          <span>Discover groups</span>
-        </button>
-        {isAdmin && (
-          <button
-            type="button"
-            className="chat-sidebar-icon-btn"
-            onClick={onCreateGroup}
-            title="Create group"
-            aria-label="Create group"
-          >
-            <Plus size={14} />
-          </button>
-        )}
-      </div>
-    );
-  }
-
-  if (activeTab === 'friends') {
-    return (
-      <div className="chat-sidebar-foot">
-        <button
-          type="button"
-          className="chat-sidebar-cta"
-          onClick={onAddFriend}
-          title="Send a friend request"
-        >
-          <UserRoundPlus size={12} />
-          <span>Add friend</span>
-        </button>
-      </div>
-    );
-  }
-
-  return null;
+      )}
+    </div>
+  );
 }

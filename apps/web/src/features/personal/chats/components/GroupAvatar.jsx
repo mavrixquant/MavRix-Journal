@@ -23,7 +23,7 @@ export default function GroupAvatar({ group, size = 40, badge = false }) {
         style={{
           width: s,
           height: s,
-          borderRadius: '50%',
+          borderRadius: '32%',
           display: 'inline-flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -76,3 +76,4 @@ function hexA(hex, alpha) {
   const b = parseInt(h.slice(4, 6), 16);
   return `rgba(${r},${g},${b},${alpha})`;
 }
+

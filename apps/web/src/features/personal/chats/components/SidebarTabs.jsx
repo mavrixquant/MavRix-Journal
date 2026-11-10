@@ -1,11 +1,18 @@
 const TABS = [
-  { id: 'dms',    label: 'DMs' },
+  { id: 'dms',    label: 'Direct' },
   { id: 'groups', label: 'Groups' },
 ];
 
 export default function SidebarTabs({ active, onChange, counts = {} }) {
+  const index = Math.max(0, TABS.findIndex((t) => t.id === active));
+
   return (
-    <div className="chat-sidebar-tabs" role="tablist">
+    <div
+      className="chat-sidebar-tabs"
+      role="tablist"
+      style={{ '--tab-i': index, '--tab-n': TABS.length }}
+    >
+      <span className="chat-sidebar-tab-thumb" aria-hidden />
       {TABS.map((t) => {
         const count = counts[t.id] || 0;
         return (
@@ -19,9 +26,7 @@ export default function SidebarTabs({ active, onChange, counts = {} }) {
           >
             <span>{t.label}</span>
             {count > 0 && (
-              <span className="chat-sidebar-tab-count">
-                {count > 99 ? '99+' : count}
-              </span>
+              <span className="chat-sidebar-tab-count">{count > 99 ? '99+' : count}</span>
             )}
           </button>
         );

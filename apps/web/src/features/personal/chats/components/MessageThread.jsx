@@ -24,19 +24,12 @@ import MessageContextMenu from './MessageContextMenu';
 import ScrollToBottom from './ScrollToBottom';
 import ThreadSkeleton from './ThreadSkeleton';
 import GroupSettingsModal from './GroupSettingsModal';
+import { displayNameOf } from './Avatar';
 
 const EDIT_WINDOW_MS = 15 * 60 * 1000;
 const AI_WAITING_WINDOW_MS = 60 * 1000;
 const PANEL_STORAGE_PREFIX = 'mavrix:chat:panel:';
 
-function displayNameOf(user) {
-  if (!user) return 'Unknown';
-  const a = (user.firstName || '').trim();
-  const b = (user.lastName || '').trim();
-  if (a && b) return `${a} ${b}`;
-  if (a) return a;
-  return user.email || 'Unknown';
-}
 
 export default function MessageThread({
   conversationId,
@@ -222,6 +215,16 @@ export default function MessageThread({
     lastCountRef.current = n;
   }, [messages.length, waitingForAi]);
 
+  // Keep the "is typing" row visible when the user is already at the bottom.
+  const typingCount = showTypingInThread ? typingUserIds.length : 0;
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el || typingCount === 0 || !atBottomRef.current) return;
+    requestAnimationFrame(() => {
+      el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+    });
+  }, [typingCount]);
+
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
@@ -378,6 +381,22 @@ export default function MessageThread({
     [conversationId, currentUserId, sendMessage, replyTo]
   );
 
+  const handleQuickSend = useCallback(
+    (body) => {
+      sendMessage.mutate({ conversationId, body, senderId: currentUserId });
+    },
+    [conversationId, currentUserId, sendMessage]
+  );
+
+  const handleCopy = useCallback((msg) => {
+    const text = msg?.body || '';
+    const done = () => toast.success('Copied to clipboard');
+    const fail = () => toast.error('Could not copy');
+    if (navigator.clipboard?.writeText) navigator.clipboard.writeText(text).then(done, fail);
+    else fail();
+    setCtxMenu(null);
+  }, []);
+
   const handleTyping = useCallback(
     (isTyping) => sendTyping.mutate({ conversationId, isTyping }),
     [conversationId, sendTyping]
@@ -424,6 +443,7 @@ export default function MessageThread({
             messages={messages}
             currentUserId={currentUserId}
             isGroup={isGroup}
+            isAi={isAi}
             headerName={isGroup ? (conversation.name || 'this group') : displayNameOf(peer)}
             typingUserIds={typingUserIds}
             showTypingInThread={showTypingInThread}
@@ -442,6 +462,7 @@ export default function MessageThread({
             onEditStart={startEdit}
             onReply={handleReply}
             onContextMenu={openContextMenu}
+            onQuickSend={handleQuickSend}
             unreadBoundaryMsgId={unreadBoundaryRef.current || undefined}
             scrollRef={scrollRef}
             sentinelRef={sentinelRef}
@@ -450,25 +471,6 @@ export default function MessageThread({
 
           <ScrollToBottom visible={showScrollPill} onClick={handleScrollToBottom} />
         </div>
-
-        {replyTo && (
-          <div className="chat-reply-banner">
-            <div className="chat-reply-banner-body">
-              <div className="chat-reply-banner-label">Replying to</div>
-              <div className="chat-reply-banner-text">
-                {(replyTo.body || '').slice(0, 100)}
-              </div>
-            </div>
-            <button
-              type="button"
-              className="chat-reply-banner-cancel"
-              onClick={cancelReply}
-              aria-label="Cancel reply"
-            >
-              ✕
-            </button>
-          </div>
-        )}
 
         <MessageComposer
           conversationId={conversationId}
@@ -486,6 +488,8 @@ export default function MessageThread({
           waitingForAi={waitingForAi}
           onStopAi={handleStopAi}
           stoppingAi={stopAi.isPending}
+          replyTo={replyTo}
+          onCancelReply={cancelReply}
         />
       </div>
 
@@ -506,6 +510,7 @@ export default function MessageThread({
           x={ctxMenu.x}
           y={ctxMenu.y}
           canReply={!ctxMenu.message.deleted}
+          canCopy={!ctxMenu.message.deleted && !!ctxMenu.message.body}
           canEdit={
             ctxMenu.message.senderId === currentUserId &&
             !ctxMenu.message.deleted &&
@@ -513,6 +518,7 @@ export default function MessageThread({
           }
           canDeleteAll={ctxMenu.message.senderId === currentUserId && !ctxMenu.message.deleted}
           onReply={() => handleReply(ctxMenu.message)}
+          onCopy={() => handleCopy(ctxMenu.message)}
           onEdit={() => startEdit(ctxMenu.message)}
           onDeleteMe={() => handleDeleteMe(ctxMenu.message)}
           onDeleteAll={() => handleDeleteAll(ctxMenu.message)}

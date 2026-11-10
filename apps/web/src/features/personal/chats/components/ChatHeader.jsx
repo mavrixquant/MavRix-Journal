@@ -1,26 +1,7 @@
-
-import { ArrowLeft, Info } from 'lucide-react';
+import { ArrowLeft, Info, Sparkles } from 'lucide-react';
 import GroupAvatar from './GroupAvatar';
-
-function initialsOf(user) {
-  if (!user) return '?';
-  const a = (user.firstName || '').trim();
-  const b = (user.lastName || '').trim();
-  if (a && b) return (a[0] + b[0]).toUpperCase();
-  if (a) return a.slice(0, 2).toUpperCase();
-  if (user.username) return user.username.slice(0, 2).toUpperCase();
-  if (user.email) return user.email.slice(0, 2).toUpperCase();
-  return '?';
-}
-
-function displayNameOf(user) {
-  if (!user) return 'Unknown';
-  const a = (user.firstName || '').trim();
-  const b = (user.lastName || '').trim();
-  if (a && b) return `${a} ${b}`;
-  if (a) return a;
-  return user.username || 'Unknown';
-}
+import MaveAiAvatar from './MaveAiAvatar';
+import Avatar, { displayNameOf } from './Avatar';
 
 export default function ChatHeader({
   conversation,
@@ -35,12 +16,10 @@ export default function ChatHeader({
   const peer = conversation?.peer;
   const isTyping = typingUserIds.length > 0 && showTypingInThread;
 
-  const name = isGroup
-    ? (conversation?.name || 'Untitled group')
-    : displayNameOf(peer);
+  const name = isGroup ? (conversation?.name || 'Untitled group') : displayNameOf(peer);
 
   const subText = (() => {
-    if (isTyping) return 'typing…';
+    if (isTyping) return 'typing';
     if (isGroup) {
       const mc = conversation?.memberCount ?? 0;
       const vis = conversation?.visibility === 'private' ? 'Private' : 'Public';
@@ -52,45 +31,44 @@ export default function ChatHeader({
   })();
 
   return (
-    <div className="chat-header">
-      <button
-        type="button"
-        className="chat-header-back"
-        onClick={onBack}
-        aria-label="Back to conversations"
-      >
-        <ArrowLeft size={15} />
+    <header className="chat-header">
+      <button type="button" className="chat-header-back" onClick={onBack} aria-label="Back to conversations">
+        <ArrowLeft size={20} />
       </button>
 
       {isGroup ? (
-        <GroupAvatar group={conversation} size={36} />
+        <GroupAvatar group={conversation} size={42} />
+      ) : isAi ? (
+        <MaveAiAvatar size={42} />
       ) : (
-        <div className="chat-header-avatar">
-          {peer?.photoUrl ? (
-            <img src={peer.photoUrl} alt="" />
-          ) : (
-            initialsOf(peer)
-          )}
-        </div>
+        <Avatar user={peer} size={42} />
       )}
 
       <div className="chat-header-text">
-        <span className="chat-header-name">{name}</span>
+        <h3 className="chat-header-name">{name}</h3>
         <span className={`chat-header-sub${isTyping ? ' is-typing' : ''}`}>
+          {isAi && !isTyping && <Sparkles size={11} aria-hidden />}
           {subText}
+          {isTyping && (
+            <span className="typing-dots is-inline" aria-hidden>
+              <span /><span /><span />
+            </span>
+          )}
         </span>
       </div>
 
-      <button
-        type="button"
-        className={`chat-header-action${panelOpen ? ' is-active' : ''}`}
-        onClick={onTogglePanel}
-        title={isGroup ? 'Group info' : 'Profile'}
-        aria-label={isGroup ? 'Toggle group info' : 'Toggle profile'}
-        aria-pressed={panelOpen}
-      >
-        <Info size={15} />
-      </button>
-    </div>
+      <div className="chat-header-actions">
+        <button
+          type="button"
+          className={`chat-header-action${panelOpen ? ' is-active' : ''}`}
+          onClick={onTogglePanel}
+          title={isGroup ? 'Group info' : 'Profile'}
+          aria-label={isGroup ? 'Toggle group info' : 'Toggle profile'}
+          aria-pressed={panelOpen}
+        >
+          <Info size={19} />
+        </button>
+      </div>
+    </header>
   );
 }
