@@ -1,4 +1,3 @@
-
 import { useEffect, useMemo, useState } from 'react';
 import { FaTimes, FaPlus, FaCheck } from 'react-icons/fa';
 
@@ -1007,7 +1006,7 @@ export default function AddTradeModal({ isOpen, onClose, account, trade = null, 
               <div style={{ flex: 1 }} />
               <button
                 type="submit"
-                className="at-btn at-btn"
+                className="at-btn at-btn-primary"
                 disabled={saving}
               >
                 {saving ? (

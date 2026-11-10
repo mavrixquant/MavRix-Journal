@@ -1,0 +1,103 @@
+/* Visual harmonisation for the Trade Logs modals (Add / Upload / Columns).
+   Selectors are doubled (.x.x) so they win over the <style> blocks the
+   modals inject at render time, without touching their logic. */
+
+.at-overlay.at-overlay,
+.upl-overlay.upl-overlay,
+.cm-overlay.cm-overlay {
+  background: radial-gradient(1200px 600px at 50% -10%, color-mix(in srgb, var(--accent) 7%, transparent), transparent 60%),
+              rgba(3,5,8,.78);
+  backdrop-filter: blur(14px) saturate(120%);
+  -webkit-backdrop-filter: blur(14px) saturate(120%);
+}
+
+.at-modal.at-modal,
+.upl-modal.upl-modal,
+.cm-modal.cm-modal {
+  border-radius: 22px;
+  background: linear-gradient(180deg, #131824 0%, #0B0F16 100%);
+  border-color: rgba(255,255,255,.1);
+  box-shadow:
+    0 50px 120px -30px rgba(0,0,0,.98),
+    0 0 0 1px var(--accent-soft),
+    0 0 80px -40px var(--accent);
+}
+
+.at-head.at-head,
+.upl-head.upl-head,
+.cm-head.cm-head {
+  padding: 22px 26px 16px;
+  background: linear-gradient(180deg, rgba(255,255,255,.025), transparent);
+}
+.at-title.at-title,
+.upl-title.upl-title,
+.cm-title.cm-title {
+  font-size: 18px;
+  letter-spacing: -.02em;
+}
+
+.at-body.at-body,
+.upl-body.upl-body,
+.cm-body.cm-body {
+  padding: 22px 26px;
+}
+.at-foot.at-foot,
+.upl-foot.upl-foot,
+.cm-foot.cm-foot {
+  padding: 16px 26px;
+  background: rgba(0,0,0,.28);
+}
+
+/* Form surfaces */
+.at-section.at-section {
+  padding: 16px;
+  border-radius: 14px;
+  background: rgba(255,255,255,.025);
+}
+.at-input.at-input,
+.at-select.at-select,
+.cm-input.cm-input,
+.cm-select.cm-select {
+  min-height: 40px;
+  border-radius: 11px;
+  background: rgba(6,9,14,.75);
+}
+.at-textarea.at-textarea { border-radius: 11px; background: rgba(6,9,14,.75); }
+
+/* Buttons */
+.at-btn.at-btn,
+.upl-btn.upl-btn,
+.cm-btn.cm-btn {
+  height: 40px;
+  padding: 0 18px;
+  border-radius: 11px;
+  justify-content: center;
+}
+.at-btn-primary.at-btn-primary,
+.upl-btn-primary.upl-btn-primary,
+.cm-btn-primary.cm-btn-primary {
+  height: 40px;
+  padding: 0 22px;
+  border-radius: 11px;
+}
+
+/* Upload drop-zone */
+.upl-drop.upl-drop {
+  padding: 56px 24px;
+  border-radius: 18px;
+  border-width: 2px;
+  background:
+    radial-gradient(420px 160px at 50% 0%, color-mix(in srgb, var(--accent) 7%, transparent), transparent 70%),
+    rgba(255,255,255,.018);
+}
+.upl-drop-icon.upl-drop-icon { width: 64px; height: 64px; border-radius: 18px; font-size: 24px; }
+
+/* Cards inside the Upload / Columns modals */
+.upl-col-row.upl-col-row,
+.cm-row.cm-row { border-radius: 14px; padding: 14px 16px; }
+
+@media (max-width: 560px) {
+  .at-head.at-head, .upl-head.upl-head, .cm-head.cm-head { padding: 18px 18px 14px; }
+  .at-body.at-body, .upl-body.upl-body, .cm-body.cm-body { padding: 16px 18px; }
+  .at-foot.at-foot, .upl-foot.upl-foot, .cm-foot.cm-foot { padding: 14px 18px; }
+}
