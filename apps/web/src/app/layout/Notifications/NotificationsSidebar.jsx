@@ -5,6 +5,11 @@
 //   - Common     : chat messages, friend requests, GEX uploads
 //   - Broadcasts : admin announcements (changelog reserved for later)
 //
+// Broadcast notifications are colour-coded by severity (info / warning /
+// critical) using the same palette the Admin -> Broadcast page shows, so
+// the level a user sees in the feed matches the level an admin picked when
+// composing it.
+//
 // Backed by per-user rows in Postgres. Live updates arrive via the
 // `notification:new` SSE event which invalidates the ['notifications']
 // query prefix - this panel refreshes itself automatically.
@@ -41,6 +46,7 @@ import {
 
 import './NotificationsSidebar.css';
 
+/* Non-broadcast types still use a fixed colour per type. */
 const TYPE_META = {
   chat:           { icon: MessageCircle, color: '#378ADD', label: 'Chat' },
   friend_request: { icon: UserPlus,      color: '#A78BFA', label: 'Friend request' },
@@ -50,6 +56,55 @@ const TYPE_META = {
   changelog:      { icon: Sparkles,      color: '#22D3EE', label: 'Changelog' },
   system:         { icon: Info,          color: '#8892A3', label: 'System' },
 };
+
+/* Broadcast colour scale - mirrors Admin -> Broadcast page levels.
+ *  info     : var(--accent)   (amber, subtle)      - matches .abp-preview.info
+ *  warning  : var(--accent-2) (brighter amber + glow) - matches .abp-preview.warning
+ *  critical : red + glow                             - matches .abp-preview.critical
+ * Using CSS custom properties so the palette follows the user's accent choice.
+ */
+const BROADCAST_LEVEL_STYLE = {
+  info: {
+    color: 'var(--accent)',
+    background: 'color-mix(in srgb, var(--accent) 12%, transparent)',
+    border: '1px solid color-mix(in srgb, var(--accent) 32%, transparent)',
+    boxShadow: undefined,
+  },
+  warning: {
+    color: 'var(--accent-2, #FDE68A)',
+    background: 'color-mix(in srgb, var(--accent) 22%, transparent)',
+    border: '1px solid color-mix(in srgb, var(--accent) 55%, transparent)',
+    boxShadow: '0 0 12px -4px color-mix(in srgb, var(--accent) 55%, transparent)',
+  },
+  critical: {
+    color: '#f87171',
+    background: 'rgba(239,68,68,.14)',
+    border: '1px solid rgba(239,68,68,.48)',
+    boxShadow: '0 0 14px -4px rgba(239,68,68,.55)',
+  },
+};
+
+function resolveVisual(n) {
+  if (n.type === 'broadcast') {
+    const lvl = String(n.data && n.data.level ? n.data.level : 'info').toLowerCase();
+    const s = BROADCAST_LEVEL_STYLE[lvl] || BROADCAST_LEVEL_STYLE.info;
+    return {
+      icon: Megaphone,
+      color: s.color,
+      background: s.background,
+      border: s.border,
+      boxShadow: s.boxShadow,
+    };
+  }
+  const base = TYPE_META[n.type] || TYPE_META.system;
+  return {
+    icon: base.icon,
+    color: base.color,
+    background: base.color + '18',
+    border: '1px solid ' + base.color + '44',
+    boxShadow: undefined,
+  };
+}
 
 const TABS = [
   { id: 'common',     label: 'Common' },
@@ -62,17 +117,17 @@ function relTime(iso) {
   const s = Math.max(0, Math.floor(ms / 1000));
   if (s < 60) return 'now';
   const m = Math.floor(s / 60);
-  if (m < 60) return `${m}m`;
+  if (m < 60) return m + 'm';
   const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h`;
+  if (h < 24) return h + 'h';
   const d = Math.floor(h / 24);
-  if (d < 7) return `${d}d`;
+  if (d < 7) return d + 'd';
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
 function dayKey(iso) {
   const d = new Date(iso);
-  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+  return d.getFullYear() + '-' + d.getMonth() + '-' + d.getDate();
 }
 
 function groupByDay(items) {
@@ -91,7 +146,7 @@ function groupByDay(items) {
       month: 'short', day: 'numeric',
       year: d.getFullYear() !== today.getFullYear() ? 'numeric' : undefined,
     });
-    if (!groups.has(dk)) groups.set(dk, { label, items: [] });
+    if (!groups.has(dk)) groups.set(dk, { label: label, items: [] });
     groups.get(dk).items.push(n);
   }
   return [...groups.values()];
@@ -174,7 +229,7 @@ export default function NotificationsSidebar({ isOpen = false, onClose }) {
               <h2 className="notif-header-title">Notifications</h2>
               <p className="notif-header-sub">
                 {commonUnread + broadcastsUnread > 0
-                  ? `${commonUnread + broadcastsUnread} unread`
+                  ? (commonUnread + broadcastsUnread) + ' unread'
                   : 'All caught up'}
               </p>
             </div>
@@ -199,7 +254,7 @@ export default function NotificationsSidebar({ isOpen = false, onClose }) {
                   type="button"
                   role="tab"
                   aria-selected={active}
-                  className={`notif-tab${active ? ' is-active' : ''}`}
+                  className={'notif-tab' + (active ? ' is-active' : '')}
                   onClick={() => setTab(t.id)}
                 >
                   <span>{t.label}</span>
@@ -261,22 +316,24 @@ export default function NotificationsSidebar({ isOpen = false, onClose }) {
                 <div key={group.label}>
                   <div className="notif-day-header">{group.label}</div>
                   {group.items.map((n) => {
-                    const meta = TYPE_META[n.type] || TYPE_META.system;
-                    const Icon = meta.icon;
+                    const v = resolveVisual(n);
+                    const Icon = v.icon;
                     const unread = !n.readAt;
                     return (
                       <button
                         key={n.id}
                         type="button"
-                        className={`notif-item${unread ? ' is-unread' : ''}`}
+                        className={'notif-item' + (unread ? ' is-unread' : '')}
+                        style={{ '--notif-accent': v.color }}
                         onClick={() => handleClick(n)}
                       >
                         <span
                           className="notif-icon"
                           style={{
-                            background: `${meta.color}18`,
-                            border: `1px solid ${meta.color}44`,
-                            color: meta.color,
+                            background: v.background,
+                            border: v.border,
+                            color: v.color,
+                            boxShadow: v.boxShadow,
                           }}
                         >
                           <Icon size={16} />

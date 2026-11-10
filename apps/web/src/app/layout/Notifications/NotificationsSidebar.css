@@ -246,8 +246,8 @@
   bottom: 14px;
   width: 3px;
   border-radius: 0 3px 3px 0;
-  background: var(--accent);
-  box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 60%, transparent);
+  background: var(--notif-accent, var(--accent));
+  box-shadow: 0 0 10px color-mix(in srgb, var(--notif-accent, var(--accent)) 60%, transparent);
 }
 
 .notif-icon {
