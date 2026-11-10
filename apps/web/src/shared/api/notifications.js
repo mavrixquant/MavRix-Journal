@@ -110,3 +110,16 @@ export function useClearReadNotifications() {
     onSuccess: () => qc.invalidateQueries({ queryKey: notificationKeys.all }),
   });
 }
+/* -------- friend requests: mark all pending request notifications read ---- */
+
+export async function markFriendRequestsRead() {
+  return apiJson('/api/notifications/read-friends', { method: 'POST' });
+}
+
+export function useMarkFriendRequestsRead() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: markFriendRequestsRead,
+    onSuccess: () => qc.invalidateQueries({ queryKey: notificationKeys.all }),
+  });
+}

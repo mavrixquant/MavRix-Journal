@@ -10,7 +10,7 @@ import { prisma } from '../lib/prisma.js';
 import { HttpError } from '../middleware/error.js';
 import { broadcastToUser } from '../lib/broadcaster.js';
 import { isAnyMaveAiId } from './maveAiBootstrap.js';
-import { pushNotification } from './notifications.service.js';
+import { pushNotification, markFriendRequestNotificationFromSenderRead } from './notifications.service.js';
 
 const PUBLIC_USER_SELECT = {
   id: true,
@@ -380,6 +380,13 @@ export async function acceptFriendRequest(userId, requestId) {
     body: 'You can now message each other freely.',
     data: { peerId: result.toUserId },
   }).catch(() => {});
+
+  try {
+    const cleared = await markFriendRequestNotificationFromSenderRead(userId, result.fromUserId);
+    if (cleared > 0) {
+      broadcastToUser(userId, 'invalidate', { keys: [['notifications']] });
+    }
+  } catch {}
   return serialized;
 }
 
@@ -394,6 +401,13 @@ export async function declineFriendRequest(userId, requestId) {
     data: { status: 'declined', respondedAt: new Date() },
   });
   broadcastToUser(req.fromUserId, 'friend:request:declined', { requestId: req.id });
+
+  try {
+    const cleared = await markFriendRequestNotificationFromSenderRead(userId, req.fromUserId);
+    if (cleared > 0) {
+      broadcastToUser(userId, 'invalidate', { keys: [['notifications']] });
+    }
+  } catch {}
   return { ok: true };
 }
 

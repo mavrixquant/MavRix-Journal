@@ -151,3 +151,73 @@ export async function clearRead(userId) {
   });
   return { ok: true, deleted: res.count };
 }
+
+/* -------------------------------------------------------------------------- */
+/* targeted mark-as-read helpers                                              */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Clear every unread chat notification whose `data.conversationId` matches.
+ * Called from chat.service.markRead so a user reading a thread also clears
+ * the corresponding bell-badge entries.
+ */
+export async function markChatNotificationsReadByConversation(userId, conversationId) {
+  if (!userId || !conversationId) return 0;
+  try {
+    const result = await prisma.notification.updateMany({
+      where: {
+        userId,
+        type: 'chat',
+        readAt: null,
+        data: { path: ['conversationId'], equals: conversationId },
+      },
+      data: { readAt: new Date() },
+    });
+    return result.count;
+  } catch (err) {
+    console.error('[notifications] mark-chat-by-conversation failed:', err?.message || err);
+    return 0;
+  }
+}
+
+/**
+ * Clear every unread friend-request notification for a user. Called from
+ * the /notifications/read-friends endpoint when they open the requests panel.
+ */
+export async function markFriendRequestNotificationsRead(userId) {
+  if (!userId) return 0;
+  try {
+    const result = await prisma.notification.updateMany({
+      where: { userId, type: 'friend_request', readAt: null },
+      data: { readAt: new Date() },
+    });
+    return result.count;
+  } catch (err) {
+    console.error('[notifications] mark-friend-requests failed:', err?.message || err);
+    return 0;
+  }
+}
+
+/**
+ * Clear the friend_request notification coming from a specific sender.
+ * Called from accept/decline so an actioned request disappears from the bell
+ * without waiting for a manual read.
+ */
+export async function markFriendRequestNotificationFromSenderRead(userId, fromUserId) {
+  if (!userId || !fromUserId) return 0;
+  try {
+    const result = await prisma.notification.updateMany({
+      where: {
+        userId,
+        type: 'friend_request',
+        readAt: null,
+        data: { path: ['fromUserId'], equals: fromUserId },
+      },
+      data: { readAt: new Date() },
+    });
+    return result.count;
+  } catch (err) {
+    console.error('[notifications] mark-friend-request-by-sender failed:', err?.message || err);
+    return 0;
+  }
+}

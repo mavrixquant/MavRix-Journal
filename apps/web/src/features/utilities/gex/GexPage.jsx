@@ -1,4 +1,5 @@
-import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import { useEffect, useLayoutEffect, useState, useCallback, useMemo, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Layers,
   Clipboard,
@@ -514,6 +515,19 @@ export default function GexPage() {
   const [kind, setKind] = useState('all');
   const [query, setQuery] = useState('');
   const activeChipRef = useRef(null);
+
+  // Deep-link from the notification sidebar:
+  //   /utilities/gex?symbol=ES&date=2026-12-10
+  // useLayoutEffect runs BEFORE the auto-select effect so the URL-supplied
+  // date is committed before days is evaluated on first paint.
+  const [searchParams] = useSearchParams();
+  useLayoutEffect(() => {
+    const s = searchParams.get('symbol');
+    const d = searchParams.get('date');
+    if (s && GEX_SYMBOLS.includes(s)) setSymbol(s);
+    if (d) setSelectedDate(d);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Warm NQ + ES so switching symbols is instant.
   useGexPrefetch();

@@ -45,3 +45,9 @@ export async function clearRead(req, res, next) {
     res.json(result);
   } catch (e) { next(e); }
 }
+export async function markFriendRequestsRead(req, res, next) {
+  try {
+    const cleared = await svc.markFriendRequestNotificationsRead(req.userId);
+    res.json({ ok: true, cleared });
+  } catch (e) { next(e); }
+}

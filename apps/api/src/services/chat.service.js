@@ -10,7 +10,7 @@ import { prisma } from '../lib/prisma.js';
 import { HttpError } from '../middleware/error.js';
 import { broadcastToUser } from '../lib/broadcaster.js';
 import { triggerAiResponse, stopAiForConversation } from './ai.service.js';
-import { pushNotification } from './notifications.service.js';
+import { pushNotification, markChatNotificationsReadByConversation } from './notifications.service.js';
 import {
   getPersonaForAiId,
   isAnyMaveAiId,
@@ -719,11 +719,6 @@ export async function sendMessage(userId, conversationId, { body, replyToId }) {
     return { message: created, participantIds: rows.map((r) => r.userId) };
   });
 
-  const payload = { conversationId, message: serializeMessage(message) };
-  for (const pid of participantIds) {
-    broadcastToUser(pid, 'chat:message:new', payload);
-  }
-
   // Persistent notifications for recipients (skip sender + AI personas).
   const senderName =
     [message.sender?.firstName, message.sender?.lastName].filter(Boolean).join(' ').trim() ||
@@ -731,15 +726,23 @@ export async function sendMessage(userId, conversationId, { body, replyToId }) {
     'Someone';
   const preview = trimmed.length > 80 ? trimmed.slice(0, 80) + '…' : trimmed;
   const notifTitle = conv?.type === 'dm' ? senderName : `${senderName} in group`;
+  await Promise.all(
+    participantIds
+      .filter((pid) => pid !== userId && !isAnyMaveAiId(pid))
+      .map((pid) =>
+        pushNotification(pid, {
+          type: 'chat',
+          section: 'common',
+          title: notifTitle,
+          body: preview,
+          data: { conversationId, messageId: message.id, senderId: userId },
+        }).catch(() => {})
+      )
+  );
+
+  const payload = { conversationId, message: serializeMessage(message) };
   for (const pid of participantIds) {
-    if (pid === userId || isAnyMaveAiId(pid)) continue;
-    pushNotification(pid, {
-      type: 'chat',
-      section: 'common',
-      title: notifTitle,
-      body: preview,
-      data: { conversationId, messageId: message.id, senderId: userId },
-    }).catch(() => {});
+    broadcastToUser(pid, 'chat:message:new', payload);
   }
   // Trigger AI reply if peer is an AI persona
   if (conv?.type === 'dm') {
@@ -940,6 +943,17 @@ export async function markRead(userId, conversationId) {
       },
     });
   });
+
+  // Reading a conversation clears its chat notifications for THIS user.
+  // Broadcast invalidate so the bell badge disappears immediately.
+  try {
+    const cleared = await markChatNotificationsReadByConversation(userId, conversationId);
+    if (cleared > 0) {
+      broadcastToUser(userId, 'invalidate', { keys: [['notifications']] });
+    }
+  } catch (err) {
+    console.warn('[chat] markRead notification sweep failed:', err?.message || err);
+  }
 
   const participantIds = await getParticipantIds(conversationId);
   const payload = {

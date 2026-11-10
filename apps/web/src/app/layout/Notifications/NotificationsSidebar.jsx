@@ -194,12 +194,20 @@ export default function NotificationsSidebar({ isOpen = false, onClose }) {
   const handleClick = (n) => {
     if (!n.readAt) markRead.mutate(n.id);
     const d = n.data || {};
+
     if (n.type === 'chat' && d.conversationId) {
       onClose();
-      navigate('/personal/chats');
+      navigate(`/personal/chats?c=${encodeURIComponent(d.conversationId)}`);
+    } else if (n.type === 'friend_request' || n.type === 'friend_accept') {
+      onClose();
+      navigate('/personal/chats?tab=friends&requests=1');
     } else if (n.type === 'gex_update') {
       onClose();
-      navigate('/utilities/gex');
+      const params = new URLSearchParams();
+      if (d.symbol) params.set('symbol', d.symbol);
+      if (d.date) params.set('date', d.date);
+      const qs = params.toString();
+      navigate(`/utilities/gex${qs ? `?${qs}` : ''}`);
     } else if (d.link) {
       onClose();
       navigate(d.link);

@@ -11,6 +11,7 @@ notificationsRoutes.use(requireAuth);
 notificationsRoutes.get('/unread-count',   ctrl.unreadCount);
 notificationsRoutes.post('/read-all',      ctrl.markAllRead);
 notificationsRoutes.post('/read-clear',    ctrl.clearRead);
+notificationsRoutes.post('/read-friends',  ctrl.markFriendRequestsRead);
 notificationsRoutes.post('/:id/read',      ctrl.markRead);
 notificationsRoutes.delete('/:id',         ctrl.remove);
 notificationsRoutes.get('/',               ctrl.list);

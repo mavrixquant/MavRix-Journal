@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   UserRoundPlus,
   MessageCircle,
@@ -18,6 +18,7 @@ import {
   useRemoveFriend,
 } from '@/shared/api/friends';
 import { useCreateConversation, useUpdateConversation } from '@/shared/api/chat';
+import { useMarkFriendRequestsRead } from '@/shared/api/notifications';
 import Alert from '@/shared/components/Alert';
 import EmptyState from '@/shared/components/EmptyState';
 import BlockConfirmModal from './BlockConfirmModal';
@@ -75,8 +76,19 @@ function CountBadge({ count }) {
 export default function FriendsTab({
   onOpenAddFriend,
   onOpenThread,
+  requestsOpen = false,
+  onRequestsOpenChange,
 }) {
-  const [requestsOpen, setRequestsOpen] = useState(false);
+  const setRequestsOpen = (v) => onRequestsOpenChange?.(v);
+
+  const markFriendRequestsRead = useMarkFriendRequestsRead();
+
+  // Opening the requests panel marks every pending friend_request
+  // notification read so the bell badge drops as the panel shows.
+  useEffect(() => {
+    if (requestsOpen) markFriendRequestsRead.mutate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [requestsOpen]);
 
   const { data: friends = [], isLoading } = useFriends();
   const { data: requests } = useFriendRequests();

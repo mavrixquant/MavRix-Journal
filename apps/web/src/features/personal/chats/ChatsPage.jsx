@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { MessageSquare } from 'lucide-react';
 
 import { useAuth } from '@/app/providers/AuthProvider';
@@ -34,6 +35,41 @@ export default function ChatsPage() {
   const [discoverOpen, setDiscoverOpen] = useState(false);
   const [createGroupOpen, setCreateGroupOpen] = useState(false);
   const [addFriendOpen, setAddFriendOpen] = useState(false);
+
+  // -- Notification / deep-link routing ------------------------------------
+  // Handles three params from the notification sidebar:
+  //   ?c=<conversationId>       ? open that DM/group
+  //   ?tab=friends|groups|dms   ? switch sidebar tab
+  //   ?requests=1               ? auto-open the friend-request panel
+  // Params are cleared after consumption so closing the panel stays closed.
+  const [friendRequestsOpen, setFriendRequestsOpen] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  useEffect(() => {
+    const c       = searchParams.get('c');
+    const tab     = searchParams.get('tab');
+    const requests = searchParams.get('requests');
+
+    if (!c && !tab && !requests) return;
+
+    if (c) {
+      setActiveTab('dms');
+      setSelectedId(c);
+      setMobileThreadOpen(true);
+    }
+    if (tab === 'friends' || tab === 'groups' || tab === 'dms') {
+      setActiveTab(tab);
+    }
+    if (requests === '1') {
+      setFriendRequestsOpen(true);
+    }
+
+    const next = new URLSearchParams(searchParams);
+    next.delete('c');
+    next.delete('tab');
+    next.delete('requests');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   const { data: allConversations = [], isLoading } = useChatConversations();
   const { data: friendRequestsData } = useFriendRequests();
@@ -129,6 +165,8 @@ export default function ChatsPage() {
         <FriendsTab
           onOpenAddFriend={() => setAddFriendOpen(true)}
           onOpenThread={handleOpenThread}
+          requestsOpen={friendRequestsOpen}
+          onRequestsOpenChange={setFriendRequestsOpen}
         />
       );
     }
