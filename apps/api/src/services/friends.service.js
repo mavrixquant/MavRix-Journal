@@ -10,6 +10,7 @@ import { prisma } from '../lib/prisma.js';
 import { HttpError } from '../middleware/error.js';
 import { broadcastToUser } from '../lib/broadcaster.js';
 import { isAnyMaveAiId } from './maveAiBootstrap.js';
+import { pushNotification } from './notifications.service.js';
 
 const PUBLIC_USER_SELECT = {
   id: true,
@@ -304,6 +305,22 @@ export async function sendFriendRequest(userId, { toUserId, username, message })
 
   const serialized = serializeRequest(created);
   broadcastToUser(targetId, 'friend:request:new', { request: serialized });
+  // Persistent notification for the recipient
+  const requester = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { firstName: true, lastName: true, username: true },
+  });
+  const requesterName =
+    [requester?.firstName, requester?.lastName].filter(Boolean).join(' ').trim() ||
+    requester?.username ||
+    'Someone';
+  pushNotification(targetId, {
+    type: 'friend_request',
+    section: 'common',
+    title: `${requesterName} sent you a friend request`,
+    body: message ? String(message).slice(0, 120) : 'Open Chats to accept or decline.',
+    data: { fromUserId: userId },
+  }).catch(() => {});
   return serialized;
 }
 
@@ -350,6 +367,19 @@ export async function acceptFriendRequest(userId, requestId) {
     peer: requester,
     request: serialized,
   });
+  // Persistent notification for the original requester (the one whose request
+  // was accepted just now).
+  const accepterName =
+    [result.toUser?.firstName, result.toUser?.lastName].filter(Boolean).join(' ').trim() ||
+    result.toUser?.username ||
+    'Someone';
+  pushNotification(result.fromUserId, {
+    type: 'friend_accept',
+    section: 'common',
+    title: `${accepterName} accepted your friend request`,
+    body: 'You can now message each other freely.',
+    data: { peerId: result.toUserId },
+  }).catch(() => {});
   return serialized;
 }
 

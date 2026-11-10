@@ -10,6 +10,7 @@ import { prisma } from '../lib/prisma.js';
 import { HttpError } from '../middleware/error.js';
 import { broadcastToUser } from '../lib/broadcaster.js';
 import { triggerAiResponse, stopAiForConversation } from './ai.service.js';
+import { pushNotification } from './notifications.service.js';
 import {
   getPersonaForAiId,
   isAnyMaveAiId,
@@ -723,6 +724,23 @@ export async function sendMessage(userId, conversationId, { body, replyToId }) {
     broadcastToUser(pid, 'chat:message:new', payload);
   }
 
+  // Persistent notifications for recipients (skip sender + AI personas).
+  const senderName =
+    [message.sender?.firstName, message.sender?.lastName].filter(Boolean).join(' ').trim() ||
+    message.sender?.username ||
+    'Someone';
+  const preview = trimmed.length > 80 ? trimmed.slice(0, 80) + '…' : trimmed;
+  const notifTitle = conv?.type === 'dm' ? senderName : `${senderName} in group`;
+  for (const pid of participantIds) {
+    if (pid === userId || isAnyMaveAiId(pid)) continue;
+    pushNotification(pid, {
+      type: 'chat',
+      section: 'common',
+      title: notifTitle,
+      body: preview,
+      data: { conversationId, messageId: message.id, senderId: userId },
+    }).catch(() => {});
+  }
   // Trigger AI reply if peer is an AI persona
   if (conv?.type === 'dm') {
     const peerId = conv.participants.find((p) => p.userId !== userId)?.userId;

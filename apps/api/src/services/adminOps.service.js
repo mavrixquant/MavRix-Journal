@@ -6,6 +6,7 @@ import { broadcastToAll, disconnectUser, getTotalClientCount } from '../lib/broa
 import { runCalendarSyncOnce } from '../lib/calendarSync.js';
 import { pushSyncLog, getSyncLogs, clearSyncLogs } from '../lib/syncLog.js';
 import { sendBroadcastEmail } from '../lib/mailer.js';
+import { pushNotificationBulk } from './notifications.service.js';
 
 export async function listAuditLog({
   actorId,
@@ -90,6 +91,31 @@ export async function broadcast(actor, { message, level = 'info', sendEmail = fa
     ts: Date.now(),
     sentBy: actor.email,
   });
+  // Persistent notifications for every non-banned, non-AI user.
+  try {
+    const recipients = await prisma.user.findMany({
+      where: { isBanned: false, isAi: false },
+      select: { id: true },
+    });
+    const notifTitle =
+      cleanLevel === 'critical'
+        ? 'Important announcement'
+        : cleanLevel === 'warning'
+          ? 'Warning'
+          : 'New announcement';
+    await pushNotificationBulk(
+      recipients.map((u) => u.id),
+      {
+        type: 'broadcast',
+        section: 'broadcasts',
+        title: notifTitle,
+        body: clean,
+        data: { level: cleanLevel, sentBy: actor.email },
+      }
+    );
+  } catch (err) {
+    console.error('[notify] broadcast bulk push failed:', err?.message || err);
+  }
 
   let emailsSent = 0;
   let emailsFailed = 0;

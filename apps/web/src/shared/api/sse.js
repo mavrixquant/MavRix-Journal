@@ -329,6 +329,10 @@ export function useSSEBridge({ enabled = true, currentUserId = null } = {}) {
       // Market-data import job updates — invalidate admin queries on every
       // job state change. Invalidate the stats query only on terminal states
       // (cheap — no point refetching coverage mid-run).
+            es.addEventListener('notification:new', () => {
+        queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      });
+
       es.addEventListener('market-data:job:update', (e) => {
         queryClient.invalidateQueries({ queryKey: ['admin', 'market-data', 'jobs'] });
         try {

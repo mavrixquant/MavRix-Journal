@@ -18,7 +18,7 @@ export function HBTooltip({ label, children }) {
   );
 }
 
-export function IconButton({ icon, label, onClick, variant, text }) {
+export function IconButton({ icon, label, onClick, variant, text, badge }) {
   const variantClass =
     variant === 'danger' ? ' is-danger'
     : variant === 'accent' ? ' is-accent'
@@ -37,6 +37,9 @@ export function IconButton({ icon, label, onClick, variant, text }) {
       >
         {icon}
         {hasText && <span className="hb-icon-btn-text">{text}</span>}
+        {typeof badge === 'number' && badge > 0 && (
+          <span className="hb-notif-badge" aria-hidden>{badge > 99 ? '99+' : badge}</span>
+        )}
       </button>
     </HBTooltip>
   );

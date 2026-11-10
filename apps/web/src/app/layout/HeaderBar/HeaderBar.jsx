@@ -7,6 +7,7 @@ import {
   Bug,
   Shield,
   Sparkles,
+  Bell,
 } from 'lucide-react';
 
 import { useAuth } from '@/app/providers/AuthProvider';
@@ -16,6 +17,7 @@ import { useAccounts } from '@/shared/api/accounts';
 import { AccountSelect } from './AccountSelect';
 import { IconButton, HBTooltip } from './IconButton';
 import { usePageHeaderContext } from '../PageHeaderProvider';
+import { useUnreadNotificationCount } from '@/shared/api/notifications';
 
 import './HeaderBar.css';
 
@@ -56,10 +58,12 @@ export default function HeaderBar({
   onSettingsClick,
   onMaveAiClick,
   onReportBugClick,
+  onNotificationsClick,
   onLogout,
 }) {
   const { dispatch } = useAppContext();
   const { user } = useAuth();
+  const { data: notifUnread = 0 } = useUnreadNotificationCount({ enabled: !!user });
   const { data: accountsData } = useAccounts();
 
   const accounts = useMemo(() => accountsData ?? [], [accountsData]);

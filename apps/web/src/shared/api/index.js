@@ -13,3 +13,4 @@ export * from './marketData.js';
 export * from './chat.js';
 export * from './friends.js';
 export * from './bugReport.js';
+export * from './notifications.js';

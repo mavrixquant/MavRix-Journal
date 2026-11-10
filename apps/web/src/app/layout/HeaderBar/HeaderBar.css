@@ -662,3 +662,25 @@
     display: none;
   }
 }
+/* ------------------------------------------------------------------
+   Notification badge on the bell icon (added in notifications feature)
+   ------------------------------------------------------------------ */
+.hb-icon-btn { position: relative; }
+.hb-notif-badge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: #0D1117;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+  box-shadow: 0 0 0 2px #0F121A;
+  pointer-events: none;
+}

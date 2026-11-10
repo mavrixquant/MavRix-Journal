@@ -1,6 +1,7 @@
 import { prisma } from '../lib/prisma.js';
 import { HttpError } from '../middleware/error.js';
 import { writeAudit } from '../lib/audit.js';
+import { pushNotificationBulk } from './notifications.service.js';
 import {
   serializeGexLevels,
   GEX_DEFAULT_TIMEZONE,
@@ -129,6 +130,30 @@ export async function upsertGexDay(actor, payload, { overwrite = false } = {}) {
     },
     req: actor.req,
   });
+
+  // Notify every Pro user (GEX is a Pro feature) + admins. Fire-and-forget.
+  try {
+    const recipients = await prisma.user.findMany({
+      where: {
+        isAi: false,
+        isBanned: false,
+        OR: [{ plan: 'pro' }, { role: { in: ['admin', 'superadmin'] } }],
+      },
+      select: { id: true },
+    });
+    await pushNotificationBulk(
+      recipients.map((u) => u.id),
+      {
+        type: 'gex_update',
+        section: 'common',
+        title: `New ${symbol} GEX levels uploaded`,
+        body: `Fresh ${symbol} gamma-exposure levels are available for ${date}.`,
+        data: { symbol, date },
+      }
+    );
+  } catch (err) {
+    console.error('[notify] gex bulk push failed:', err?.message || err);
+  }
 
   return serializeFull(row);
 }

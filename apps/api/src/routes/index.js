@@ -12,6 +12,7 @@ import { chatRoutes } from './chat.routes.js';
 import { friendsRoutes } from './friends.routes.js';
 import { aiRoutes } from './ai.routes.js';
 import { bugReportRoutes } from './bugReport.routes.js';
+import { notificationsRoutes } from './notifications.routes.js';
 
 export const apiRouter = Router();
 
@@ -29,4 +30,5 @@ apiRouter.use('/chat', chatRoutes);
 apiRouter.use('/friends', friendsRoutes);
 apiRouter.use('/ai', aiRoutes);
 apiRouter.use('/bug-reports', bugReportRoutes);
+apiRouter.use('/notifications', notificationsRoutes);
 apiRouter.use('/admin', adminRoutes);

@@ -15,6 +15,7 @@ import { useSSEBridge } from '@/shared/api/sse';
 import { PageHeaderProvider } from './PageHeaderProvider';
 import MaveAiSidebar from '@/features/mave-ai/MaveAiSidebar';
 import BugReportModal from '@/features/bug-report/BugReportModal';
+import NotificationsSidebar from '@/app/layout/Notifications/NotificationsSidebar';
 
 const STORAGE_KEY = 'mavrix:sidebar:collapsed';
 const LAST_PATH_KEY = 'mavrix:lastPath';
@@ -40,6 +41,7 @@ export default function AppLayout() {
   const [settings, setSettings] = useState({ open: false, tab: 'account' });
   const [maveAiOpen, setMaveAiOpen] = useState(false);
   const [bugReportOpen, setBugReportOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, collapsed ? '1' : '0');
@@ -71,6 +73,9 @@ export default function AppLayout() {
 
   const openBugReport = () => setBugReportOpen(true);
   const closeBugReport = () => setBugReportOpen(false);
+
+  const openNotifications = () => setNotificationsOpen(true);
+  const closeNotifications = () => setNotificationsOpen(false);
 
   const handleLogout = async () => {
     await logout();
@@ -113,6 +118,7 @@ export default function AppLayout() {
               onSettingsClick={() => openSettings('preferences')}
               onMaveAiClick={openMaveAi}
               onReportBugClick={openBugReport}
+              onNotificationsClick={openNotifications}
               onLogout={handleLogout}
             />
 
@@ -132,6 +138,11 @@ export default function AppLayout() {
           <BugReportModal
             isOpen={bugReportOpen}
             onClose={closeBugReport}
+          />
+
+          <NotificationsSidebar
+            isOpen={notificationsOpen}
+            onClose={closeNotifications}
           />
         </PageHeaderProvider>
       </SettingsModalProvider>
