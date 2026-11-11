@@ -23,6 +23,7 @@ import * as groupCtrl from '../controllers/adminGroups.controller.js';
 import * as hcCtrl from '../controllers/healthCheck.controller.js';
 import * as bugCtrl from '../controllers/adminBugReports.controller.js';
 import * as marketDataCtrl from '../controllers/adminMarketData.controller.js';
+import * as changelogCtrl from '../controllers/adminChangelog.controller.js';
 
 export const adminRoutes = Router();
 
@@ -340,3 +341,9 @@ adminRoutes.delete(
   validate(calendarDeleteSchema),
   calendarCtrl.deleteEvents
 );
+
+// ---------------------------------------------------------------------------
+// Changelog - list releases and publish pending changes as broadcasts.
+// ---------------------------------------------------------------------------
+adminRoutes.get('/changelog', changelogCtrl.listChangelog);
+adminRoutes.post('/changelog/publish', sensitive, changelogCtrl.publishChangelog);

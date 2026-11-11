@@ -61,7 +61,7 @@ export default function AboutPanel() {
           <div className="settings-options-text">
             <span className="settings-options-label">Terms of Service</span>
             <span className="settings-options-desc">
-              Placeholder â€” final document coming soon.
+              Placeholder — final document coming soon.
             </span>
           </div>
           <span className="settings-btn" aria-disabled="true">
@@ -73,7 +73,7 @@ export default function AboutPanel() {
           <div className="settings-options-text">
             <span className="settings-options-label">Privacy Policy</span>
             <span className="settings-options-desc">
-              Placeholder â€” final document coming soon.
+              Placeholder — final document coming soon.
             </span>
           </div>
           <span className="settings-btn" aria-disabled="true">

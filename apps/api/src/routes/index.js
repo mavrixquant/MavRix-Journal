@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { APP_VERSION } from '../lib/version.js';
-import { getVersion } from '../controllers/version.controller.js';
+import { getVersion, getChangelog } from '../controllers/version.controller.js';
 import { authRoutes } from './auth.routes.js';
 import { accountsRoutes } from './accounts.routes.js';
 import { tradesRoutes } from './trades.routes.js';
@@ -23,6 +23,7 @@ apiRouter.get('/health', (_req, res) =>
 );
 
 apiRouter.get('/version', getVersion);
+apiRouter.get('/changelog', getChangelog);
 
 apiRouter.use('/auth', authRoutes);
 apiRouter.use('/accounts', accountsRoutes);

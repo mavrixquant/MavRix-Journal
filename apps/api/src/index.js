@@ -1,4 +1,4 @@
-﻿import express from 'express';
+import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
@@ -13,6 +13,7 @@ import { startCalendarSync, stopCalendarSync } from './lib/calendarSync.js';
 import { ensureSuperadmin } from './lib/adminBootstrap.js';
 import { ensureMaveAi } from './services/maveAiBootstrap.js';
 import { markInterruptedJobs } from './services/adminMarketData.service.js';
+import { publishPendingChangelog } from './services/changelog.service.js';
 
 const app = express();
 
@@ -38,6 +39,8 @@ const server = app.listen(env.port, async () => {
   try { await ensureMaveAi(); } catch (err) { console.error('[mave-ai] bootstrap failed:', err); }
   try { await markInterruptedJobs(); } catch (err) { console.error('[market-data] boot sweep failed:', err); }
   if (env.calendar.syncEnabled) startCalendarSync();
+
+  try { await publishPendingChangelog(); } catch (err) { console.error('[changelog] boot publish failed:', err); }
   
   // Background market sync removed. We rely strictly on lazy loading.
 });

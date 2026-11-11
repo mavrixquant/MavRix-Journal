@@ -119,7 +119,7 @@ export default function DataPanel() {
             {exporting ? (
               <>
                 <Loader2 size={12} className="settings-spin" />
-                Exportingâ€¦
+                Exporting…
               </>
             ) : (
               <>

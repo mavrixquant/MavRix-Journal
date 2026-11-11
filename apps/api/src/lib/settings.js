@@ -11,6 +11,8 @@ export const DEFAULTS = Object.freeze({
   maxAccountsPerUser: 10,
   maxTradesPerAccount: 10_000,
   announcementBanner: '',
+  lastPublishedChangelogVersion: null,
+  changelogAutoPublish: true,
 });
 
 let cache = null;
