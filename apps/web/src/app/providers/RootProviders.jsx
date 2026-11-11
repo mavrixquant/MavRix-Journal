@@ -2,6 +2,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from '@/shared/api/queryClient';
 
 import { SettingsProvider } from '@/app/layout/Settings/SettingsProvider';
+import { ChangelogProvider } from '@/features/changelog/ChangelogContext';
 import { AuthProvider, useAuth } from './AuthProvider';
 import { AppProvider } from './AppProvider';
 
@@ -27,7 +28,9 @@ export function RootProviders({ children }) {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <KeyedSettingsProvider>
-          <KeyedAppProvider>{children}</KeyedAppProvider>
+          <ChangelogProvider>
+            <KeyedAppProvider>{children}</KeyedAppProvider>
+          </ChangelogProvider>
         </KeyedSettingsProvider>
       </AuthProvider>
     </QueryClientProvider>

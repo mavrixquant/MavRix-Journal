@@ -30,6 +30,7 @@ export const DEFAULT_SETTINGS = Object.freeze({
     dateFormat: 'iso',
     confirmDestructive: true,
     lastSeenChangelogVersion: null,
+    lastAcknowledgedChangelogVersion: null,
   },
   notifications: {
     broadcastBanner: true,

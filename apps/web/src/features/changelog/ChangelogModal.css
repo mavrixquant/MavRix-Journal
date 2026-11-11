@@ -223,3 +223,55 @@
 @media (prefers-reduced-motion: reduce) {
   .cm-inline-link { transition: none; }
 }
+
+/* ---------- All Releases List Mode ---------- */
+.cm-body.is-all-mode {
+  overflow-y: auto;
+  max-height: 60vh;
+  padding-right: 12px; /* for scrollbar */
+}
+.cm-all-list {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  padding-bottom: 10px;
+}
+.cm-release {
+  border-bottom: 1px solid var(--line-soft);
+  padding-bottom: 24px;
+}
+.cm-release:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+.cm-release-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.cm-release-version {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--ink-1);
+  letter-spacing: -.01em;
+}
+.cm-current-badge {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 99px;
+  border: 1px solid var(--accent-soft2);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.cm-release-date {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11.5px;
+  color: var(--ink-3);
+  margin-left: auto;
+}

@@ -44,7 +44,7 @@ const CalculatorCategoryPage = lazy(() => import('@/features/utilities/calculato
 const CalculatorPage = lazy(() => import('@/features/utilities/calculators/CalculatorPage'));
 
 const ChatsPage = lazy(() => import('@/features/personal/chats/ChatsPage'));
-const ChangelogPage = lazy(() => import('@/features/changelog/ChangelogPage'));
+
 
 const AdminLayout = lazy(() => import('@/features/admin/layout/AdminLayout'));
 const AdminDashboardPage    = lazy(() => import('@/features/admin/pages/AdminDashboardPage'));
@@ -213,7 +213,7 @@ export function AppRoutes() {
         />
 
         <Route path="/personal/chats" element={<ChatsPage />} />
-        <Route path="/changelog" element={<ChangelogPage />} />
+
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

@@ -35,6 +35,7 @@ import {
 } from 'lucide-react';
 
 import Portal from '@/shared/components/Portal';
+import { useChangelogModal } from '@/features/changelog/ChangelogContext';
 import {
   useNotifications,
   useUnreadNotificationCount,
@@ -155,6 +156,7 @@ function groupByDay(items) {
 export default function NotificationsSidebar({ isOpen = false, onClose }) {
   const navigate = useNavigate();
   const [tab, setTab] = useState('common');
+  const { openSpecific } = useChangelogModal();
 
   const { data: common = [], isLoading: loadingCommon } = useNotifications({
     section: 'common', limit: 100, enabled: isOpen,
@@ -208,6 +210,9 @@ export default function NotificationsSidebar({ isOpen = false, onClose }) {
       if (d.date) params.set('date', d.date);
       const qs = params.toString();
       navigate(`/utilities/gex${qs ? `?${qs}` : ''}`);
+    } else if (n.type === 'changelog' && d.version) {
+      onClose();
+      openSpecific(d.version);
     } else if (d.link) {
       onClose();
       navigate(d.link);

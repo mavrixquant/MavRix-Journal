@@ -1,8 +1,8 @@
 import { Mail, ExternalLink } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
 
 import { useVersion } from '@/shared/api/version';
 import { useSettingsModal } from '@/app/layout/Settings/SettingsModalContext';
+import { useChangelogModal } from '@/features/changelog/ChangelogContext';
 import { APP_VERSION } from '@/generated/version';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:4000';
@@ -10,8 +10,8 @@ const MODE = import.meta.env.MODE || 'development';
 const SUPPORT_EMAIL = 'support@mavrix.trade';
 
 export default function AboutPanel() {
-  const navigate = useNavigate();
   const { closeSettings } = useSettingsModal();
+  const { openAll } = useChangelogModal();
   const { data: versionData, isLoading } = useVersion();
 
   const currentRelease = versionData?.version || '—';
@@ -20,7 +20,7 @@ export default function AboutPanel() {
 
   const openChangelog = () => {
     closeSettings();
-    navigate('/changelog');
+    openAll();
   };
 
   return (
