@@ -1,4 +1,4 @@
-﻿// ============================================================================
+// ============================================================================
 // Raw CHANGELOG.json reader. Only used by lib/seedReleases.js on first boot.
 //
 // All runtime changelog/version reads go through services/releases.service.js.

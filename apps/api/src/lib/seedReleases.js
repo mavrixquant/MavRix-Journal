@@ -1,4 +1,4 @@
-﻿// ============================================================================
+// ============================================================================
 // One-shot seed of app_releases from CHANGELOG.json.
 //
 // Runs on every boot; no-ops when the table already has rows. After the first

@@ -1,4 +1,4 @@
-﻿// ============================================================================
+// ============================================================================
 // /api/version and /api/changelog — DB-backed.
 //
 // `version` reflects the latest PUBLISHED release (admin-controlled, no

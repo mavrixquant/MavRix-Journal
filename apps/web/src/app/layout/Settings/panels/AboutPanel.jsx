@@ -1,4 +1,4 @@
-﻿import { Mail, ExternalLink } from 'lucide-react';
+import { Mail, ExternalLink } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 import { useVersion } from '@/shared/api/version';

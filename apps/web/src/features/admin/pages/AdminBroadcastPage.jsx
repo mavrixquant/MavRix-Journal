@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import { Send, Radio, Mail, AlertTriangle, Info, Siren } from 'lucide-react';
 import { toast } from 'sonner';
 

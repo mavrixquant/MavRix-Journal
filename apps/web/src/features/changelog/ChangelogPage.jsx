@@ -1,4 +1,4 @@
-﻿// ============================================================================
+// ============================================================================
 // /changelog — full release history.
 //
 // Renders every entry from CHANGELOG.json newest-first with the current

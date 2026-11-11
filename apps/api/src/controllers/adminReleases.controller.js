@@ -1,4 +1,4 @@
-﻿import { prisma } from '../lib/prisma.js';
+import { prisma } from '../lib/prisma.js';
 import * as svc from '../services/releases.service.js';
 
 async function buildActor(req) {

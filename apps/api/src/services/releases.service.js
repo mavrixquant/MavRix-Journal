@@ -1,4 +1,4 @@
-﻿// ============================================================================
+// ============================================================================
 // Releases service — DB-backed changelog + version.
 //
 // The DB (app_releases) is the single source of truth for "what is the

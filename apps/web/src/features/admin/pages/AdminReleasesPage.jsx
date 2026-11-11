@@ -1,6 +1,6 @@
-﻿import { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
-  Rocket, Plus, Save, Send, RotateCw, EyeOff, Eye, Pencil, Trash2, X,
+  Rocket, Save, Send, RotateCw, EyeOff, Eye, Pencil, Trash2, X,
 } from 'lucide-react';
 import { toast } from 'sonner';
 

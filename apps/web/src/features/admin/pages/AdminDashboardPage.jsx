@@ -1,4 +1,4 @@
-﻿import { useMemo, useEffect } from 'react';
+import { useMemo, useEffect } from 'react';
 import {
   Users,
   UserCheck,
@@ -178,6 +178,7 @@ export default function AdminDashboardPage() {
   const stats  = statsQuery.data;
   const health = healthQuery.data;
   const apiVersion = apiVersionQuery.data;
+  const inSync = apiVersion?.buildVersion === APP_VERSION;
   const statsLoading = statsQuery.isLoading;
 
   useAdminPageHeader({
@@ -297,7 +298,7 @@ export default function AdminDashboardPage() {
                 <span className="admin-dash-health-label">bundle</span>
               </div>
               <div className="admin-dash-health-item">
-                <span className="admin-dash-health-label">API version</span>
+                <span className="admin-dash-health-label">Current release</span>
                 <span className="admin-dash-health-value">{apiVersion?.version || '—'}</span>
                 <span className="admin-dash-health-label">server</span>
               </div>

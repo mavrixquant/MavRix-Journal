@@ -1,4 +1,4 @@
-﻿-- ---------------------------------------------------------------------------
+-- ---------------------------------------------------------------------------
 -- Add app_releases — DB becomes the single source of truth for changelog
 -- and version. CHANGELOG.json is seed-only (imported once on first boot).
 -- ---------------------------------------------------------------------------
