@@ -4,7 +4,7 @@ import {
   STRATEGY_STATUSES, STRATEGY_DIRECTIONS, STRATEGY_COLORS,
   GROUP_VISIBILITIES, GROUP_ROLES, GROUP_COLORS,
   GROUP_NAME_MAX, GROUP_DESCRIPTION_MAX, GROUP_ICON_EMOJI_MAX,
-  GROUP_DISCOVER_DEFAULT_LIMIT, GROUP_DISCOVER_MAX_LIMIT,
+  GROUP_DISCOVER_DEFAULT_LIMIT, GROUP_DISCOVER_MAX_LIMIT, STRATEGY_SESSIONS, PLAYBOOK_MAX_ITEMS,
 } from './constants.js';
 import { IMPACT_LEVELS, MAX_CALENDAR_EVENTS_PER_REQUEST } from './calendar.js';
 import { GEX_SYMBOLS } from './gex.js';
@@ -67,6 +67,16 @@ const strategyColorEnum = z.enum(
   STRATEGY_COLORS.map((c) => c.hex)
 );
 
+const playbookItem = z.object({
+  id: z.string().trim().min(1).max(40),
+  text: z.string().trim().min(1).max(240),
+});
+const playbookList = z.array(playbookItem).max(PLAYBOOK_MAX_ITEMS).optional().default([]);
+
+export const strategyPlaybookSchema = z.object({
+  entry: playbookList, exit: playbookList, risk: playbookList, management: playbookList,
+});
+
 export const strategySchema = z.object({
   name: z.string().trim().min(1).max(80),
   description: z.string().max(2000).optional().default(''),
@@ -76,6 +86,20 @@ export const strategySchema = z.object({
   direction: z.enum(STRATEGY_DIRECTIONS).nullable().optional(),
   timeframe: z.string().trim().max(20).nullable().optional(),
   tags: z.array(z.string().trim().min(1).max(40)).max(20).optional().default([]),
+  playbook: strategyPlaybookSchema.optional().default({}),
+  sessions: z.array(z.enum(STRATEGY_SESSIONS)).max(STRATEGY_SESSIONS.length).optional().default([]),
+  symbols: z.array(z.string().trim().min(1).max(20)).max(15).optional().default([]),
+  targetRR: z.number().positive().max(100).nullable().optional(),
+  riskPerTrade: z.number().positive().max(100).nullable().optional(),
+  maxTradesPerDay: z.number().int().min(1).max(500).nullable().optional(),
+  pinned: z.boolean().optional().default(false),
+});
+
+export const strategyFilterSchema = z.object({
+  accountType: z.enum(ACCOUNT_TYPES).optional(),
+  accountId: z.string().min(1).max(64).optional(),
+  from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
 });
 
 export const strategyUpdateSchema = strategySchema.partial();

@@ -62,6 +62,15 @@ export const GROUP_ICON_EMOJI_MAX = 8;
 export const GROUP_DISCOVER_DEFAULT_LIMIT = 50;
 export const GROUP_DISCOVER_MAX_LIMIT = 100;
 
+export const STRATEGY_SESSIONS = SESSION_RANGES.map((s) => s.name);
+export const STRATEGY_TIMEFRAMES = ['1m', '3m', '5m', '15m', '30m', '1h', '4h', 'D', 'W'];
+export const PLAYBOOK_MAX_ITEMS = 15;
+export const PLAYBOOK_SECTIONS = [
+  { key: 'entry',      label: 'Entry',      hint: 'What must be true before you click',      placeholder: 'e.g. 5m candle closes above the range high' },
+  { key: 'exit',       label: 'Exit',       hint: 'Targets and invalidation',                placeholder: 'e.g. Take profit at 2R' },
+  { key: 'risk',       label: 'Risk',       hint: 'Stops, size and limits',                  placeholder: 'e.g. Stop below the retest low' },
+  { key: 'management', label: 'Management', hint: 'What you do while the trade is open',     placeholder: 'e.g. Move to breakeven at 1R' },
+];
 
 export function normalizeColumnConfig(raw) {
   if (typeof raw === 'string') {

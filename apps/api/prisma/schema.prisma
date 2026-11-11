@@ -244,6 +244,14 @@ model GexDay {
   @@map("gex_days")
 }
 
+// ---------------------------------------------------------------------------
+// Strategy — a written playbook that trades are tagged with.
+//
+// playbook is { entry, exit, risk, management }, each an array of
+// { id, text } checklist rules. sessions / symbols / targetRR / riskPerTrade /
+// maxTradesPerDay form the trade plan that the strategy page checks against
+// real trades. See migration 20261110120000_strategy_playbook.
+// ---------------------------------------------------------------------------
 model Strategy {
   id          String   @id @default(cuid())
   userId      String
@@ -255,8 +263,17 @@ model Strategy {
   direction   String?
   timeframe   String?
   tags        String[] @default([])
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+
+  playbook        Json     @default("{}")
+  sessions        String[] @default([])
+  symbols         String[] @default([])
+  targetRR        Float?
+  riskPerTrade    Float?
+  maxTradesPerDay Int?
+  pinned          Boolean  @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   trades Trade[]
@@ -264,6 +281,7 @@ model Strategy {
   @@unique([userId, name])
   @@index([userId])
   @@index([userId, status])
+  @@index([userId, pinned])
   @@map("strategies")
 }
 

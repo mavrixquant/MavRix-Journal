@@ -3,3 +3,4 @@ export * from './validators.js';
 export * from './tradeId.js';
 export * from './gex.js';
 export * from './ai.js';
+export * from './strategyStats.js';
