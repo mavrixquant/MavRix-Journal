@@ -389,7 +389,7 @@ export default function AdminBroadcastPage() {
                   </div>
                   {(r.highlights || []).slice(0, 3).map((h, i) => (
                     <div key={i} style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 11.5, color: 'var(--ink-2)', lineHeight: 1.5 }}>
-                      Â· {h}
+                      &middot; {h}
                     </div>
                   ))}
                 </div>
