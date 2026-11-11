@@ -345,8 +345,8 @@ const CSS = `
   }
   .at-error {
     padding: 10px 12px; border-radius: 10px;
-    background: rgba(239,68,68,.08);
-    border: 1px solid rgba(239,68,68,.28);
+    background: rgba(255,92,92,.08);
+    border: 1px solid rgba(255,92,92,.28);
     color: #fca5a5;
     font-family: 'IBM Plex Mono', ui-monospace, monospace;
     font-size: 11.5px; line-height: 1.55;
@@ -372,12 +372,12 @@ const CSS = `
   }
   .at-btn:disabled { opacity: .4; cursor: not-allowed; transform: none; }
   .at-btn-cancel {
-    border-color: rgba(239,68,68,.28);
-    background: rgba(239,68,68,.05); color: #f87171;
+    border-color: rgba(255,92,92,.28);
+    background: rgba(255,92,92,.05); color: #FF7676;
   }
   .at-btn-cancel:hover:not(:disabled) {
-    background: rgba(239,68,68,.12);
-    border-color: rgba(239,68,68,.55); color: #fca5a5;
+    background: rgba(255,92,92,.12);
+    border-color: rgba(255,92,92,.55); color: #fca5a5;
   }
   .at-btn-primary {
     position: relative; padding: 9px 18px;

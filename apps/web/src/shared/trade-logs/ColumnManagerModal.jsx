@@ -131,7 +131,7 @@ const CSS = `
     --line: rgba(255,255,255,.085);
     --line-soft: rgba(255,255,255,.05);
     --ink-1: #E7E9EE; --ink-2: #8892A3; --ink-3: #545E6E;
-    --win: #22c55e; --loss: #ef4444;
+    --win: #35C4A1; --loss: #FF5C5C;
     width: 100%; max-width: 620px; max-height: 90vh; max-height: 90dvh;
     display: flex; flex-direction: column;
     background: linear-gradient(180deg, #12161F, #0C1017);
@@ -295,18 +295,18 @@ const CSS = `
   }
   .cm-icon-btn:disabled { opacity: .5; cursor: not-allowed; }
   .cm-icon-btn.is-danger:hover:not(:disabled) {
-    color: #f87171; background: rgba(239,68,68,.08);
-    border-color: rgba(239,68,68,.4);
+    color: #FF7676; background: rgba(255,92,92,.08);
+    border-color: rgba(255,92,92,.4);
   }
   .cm-icon-btn.is-ok {
-    color: #4ade80;
-    background: rgba(34,197,94,.08);
-    border-color: rgba(34,197,94,.35);
+    color: #4DD6B3;
+    background: rgba(53,196,161,.08);
+    border-color: rgba(53,196,161,.35);
   }
   .cm-icon-btn.is-ok:hover:not(:disabled) {
     color: #86efac;
-    background: rgba(34,197,94,.14);
-    border-color: rgba(34,197,94,.55);
+    background: rgba(53,196,161,.14);
+    border-color: rgba(53,196,161,.55);
   }
 
   .cm-rename-input {
@@ -328,7 +328,7 @@ const CSS = `
     margin-top: 6px;
     font-family: 'IBM Plex Mono', ui-monospace, monospace;
     font-size: 10.5px;
-    color: #f87171;
+    color: #FF7676;
     letter-spacing: .01em;
   }
 
@@ -538,9 +538,9 @@ const CSS = `
     border-color: var(--accent-soft2);
   }
   .cm-value-btn.is-danger:hover:not(:disabled) {
-    color: #f87171;
-    background: rgba(239,68,68,.10);
-    border-color: rgba(239,68,68,.42);
+    color: #FF7676;
+    background: rgba(255,92,92,.10);
+    border-color: rgba(255,92,92,.42);
   }
   .cm-value-btn:disabled {
     opacity: .4; cursor: not-allowed;
@@ -583,8 +583,8 @@ const CSS = `
     margin: 6px 0 0;
     padding: 10px 12px;
     border-radius: 10px;
-    background: rgba(239,68,68,.06);
-    border: 1px solid rgba(239,68,68,.22);
+    background: rgba(255,92,92,.06);
+    border: 1px solid rgba(255,92,92,.22);
     color: #fca5a5;
     font-family: 'IBM Plex Mono', ui-monospace, monospace;
     font-size: 11.5px;
@@ -624,8 +624,8 @@ const CSS = `
   .cm-empty b { color: var(--accent); }
   .cm-error {
     padding: 10px 12px; border-radius: 10px;
-    background: rgba(239,68,68,.08);
-    border: 1px solid rgba(239,68,68,.28);
+    background: rgba(255,92,92,.08);
+    border: 1px solid rgba(255,92,92,.28);
     color: #fca5a5;
     font-family: 'IBM Plex Mono', ui-monospace, monospace;
     font-size: 11.5px; line-height: 1.55;

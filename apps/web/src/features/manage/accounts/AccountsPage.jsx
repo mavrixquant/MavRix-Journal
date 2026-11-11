@@ -25,7 +25,7 @@ import './AccountsPage.css';
 const FILTERS = ['All', 'Live', 'Demo', 'Backtest'];
 
 const TYPE_META = {
-  Live: { cls: 'is-live', color: '#4ade80' },
+  Live: { cls: 'is-live', color: '#4DD6B3' },
   Demo: { cls: 'is-demo', color: 'var(--accent)' },
   Backtest: { cls: 'is-backtest', color: '#60a5fa' },
 };
@@ -61,7 +61,7 @@ function Spark({ values }) {
   const step = W / (values.length - 1);
   const pts = values.map((v, i) => [i * step, H - pad - ((v - min) / range) * (H - pad * 2)]);
   const line = pts.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ');
-  const color = values[values.length - 1] >= 0 ? '#22c55e' : '#ef4444';
+  const color = values[values.length - 1] >= 0 ? '#35C4A1' : '#FF5C5C';
   return (
     <svg className="acc-spark" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" aria-hidden>
       <defs>

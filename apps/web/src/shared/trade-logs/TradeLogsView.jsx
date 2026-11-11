@@ -39,8 +39,8 @@ const CSS = `
     --ink-1: #E7E9EE;
     --ink-2: #8892A3;
     --ink-3: #545E6E;
-    --win: #22c55e;
-    --loss: #ef4444;
+    --win: #35C4A1;
+    --loss: #FF5C5C;
     --glass: linear-gradient(180deg, rgba(17,21,29,.78), rgba(13,16,23,.62));
 
     width: 100%;
@@ -100,7 +100,7 @@ const CSS = `
     padding: 1px 8px; border-radius: 99px; border: 1px solid;
     font-size: 9.5px; font-weight: 700; letter-spacing: .1em;
   }
-  .jm-badge.is-live { color: #4ade80; background: rgba(74,222,128,.10); border-color: rgba(74,222,128,.35); }
+  .jm-badge.is-live { color: #4DD6B3; background: rgba(77,214,179,.10); border-color: rgba(77,214,179,.35); }
   .jm-badge.is-demo { color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); border-color: var(--accent-soft2); }
   .jm-badge.is-backtest { color: #60a5fa; background: rgba(96,165,250,.10); border-color: rgba(96,165,250,.32); }
 
@@ -175,8 +175,8 @@ const CSS = `
     font-family: 'IBM Plex Mono', ui-monospace, monospace;
     font-size: clamp(28px, 3.2vw, 42px); font-weight: 700; letter-spacing: -.03em; line-height: 1.05;
   }
-  .jm-pnl.pos { color: var(--win); text-shadow: 0 0 40px rgba(34,197,94,.25); }
-  .jm-pnl.neg { color: var(--loss); text-shadow: 0 0 40px rgba(239,68,68,.25); }
+  .jm-pnl.pos { color: var(--win); text-shadow: 0 0 40px rgba(53,196,161,.25); }
+  .jm-pnl.neg { color: var(--loss); text-shadow: 0 0 40px rgba(255,92,92,.25); }
   .jm-pnl.zero { color: var(--ink-1); }
   .jm-pnl-sub {
     display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
@@ -184,8 +184,8 @@ const CSS = `
     font-size: 11.5px; color: var(--ink-2);
   }
   .jm-delta { padding: 2px 8px; border-radius: 6px; font-weight: 700; font-size: 11px; }
-  .jm-delta.pos { color: #4ade80; background: rgba(34,197,94,.10); }
-  .jm-delta.neg { color: #f87171; background: rgba(239,68,68,.10); }
+  .jm-delta.pos { color: #4DD6B3; background: rgba(53,196,161,.10); }
+  .jm-delta.neg { color: #FF7676; background: rgba(255,92,92,.10); }
   .jm-spark { display: block; width: 100%; height: 88px; margin-top: 14px; overflow: visible; }
   .jm-spark-empty {
     height: 88px; margin-top: 14px; border-radius: 10px;
@@ -269,7 +269,7 @@ const CSS = `
   }
   .jm-row-btn:hover { color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); border-color: var(--accent-soft2); transform: translateY(-1px); }
   .jm-row-btn:active { transform: scale(.94); }
-  .jm-row-btn.is-danger:hover { color: #f87171; background: rgba(239,68,68,.10); border-color: rgba(239,68,68,.42); }
+  .jm-row-btn.is-danger:hover { color: #FF7676; background: rgba(255,92,92,.10); border-color: rgba(255,92,92,.42); }
   .jm-row-btn:focus-visible { outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
 
   .jm-dir {
@@ -400,7 +400,7 @@ function EquitySpark({ values }) {
   const line = pts.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ');
   const area = `${line} L${W},${H} L0,${H} Z`;
   const up = values[values.length - 1] >= 0;
-  const color = up ? '#22c55e' : '#ef4444';
+  const color = up ? '#35C4A1' : '#FF5C5C';
   const zeroY = y(0);
   const last = pts[pts.length - 1];
 
@@ -428,12 +428,12 @@ function WinRing({ winRate, hasData }) {
   return (
     <div className="jm-ring">
       <svg viewBox="0 0 132 132" aria-hidden>
-        <circle cx="66" cy="66" r={r} fill="none" stroke={hasData ? 'rgba(239,68,68,.28)' : 'rgba(255,255,255,.07)'} strokeWidth="10" />
+        <circle cx="66" cy="66" r={r} fill="none" stroke={hasData ? 'rgba(255,92,92,.28)' : 'rgba(255,255,255,.07)'} strokeWidth="10" />
         {hasData && (
           <circle
-            cx="66" cy="66" r={r} fill="none" stroke="#22c55e" strokeWidth="10" strokeLinecap="round"
+            cx="66" cy="66" r={r} fill="none" stroke="#35C4A1" strokeWidth="10" strokeLinecap="round"
             strokeDasharray={`${dash} ${c - dash}`}
-            style={{ filter: 'drop-shadow(0 0 8px rgba(34,197,94,.45))', transition: 'stroke-dasharray .6s cubic-bezier(.2,.8,.25,1)' }}
+            style={{ filter: 'drop-shadow(0 0 8px rgba(53,196,161,.45))', transition: 'stroke-dasharray .6s cubic-bezier(.2,.8,.25,1)' }}
           />
         )}
       </svg>

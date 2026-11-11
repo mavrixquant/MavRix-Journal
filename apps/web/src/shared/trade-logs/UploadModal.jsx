@@ -427,8 +427,8 @@ const UPL_CSS = `
     --ink-1: #E7E9EE;
     --ink-2: #8892A3;
     --ink-3: #545E6E;
-    --win: #22c55e;
-    --loss: #ef4444;
+    --win: #35C4A1;
+    --loss: #FF5C5C;
 
     width: 100%;
     max-width: 720px;
@@ -612,28 +612,28 @@ const UPL_CSS = `
     border: 1px solid;
   }
   .upl-chip.ok {
-    color: #4ade80;
-    background: rgba(34,197,94,.08);
-    border-color: rgba(34,197,94,.28);
+    color: #4DD6B3;
+    background: rgba(53,196,161,.08);
+    border-color: rgba(53,196,161,.28);
   }
   .upl-chip.warn {
-    color: #f87171;
-    background: rgba(239,68,68,.08);
-    border-color: rgba(239,68,68,.28);
+    color: #FF7676;
+    background: rgba(255,92,92,.08);
+    border-color: rgba(255,92,92,.28);
   }
   .upl-chip svg { font-size: 10px; }
 
   .upl-error {
     padding: 12px 14px;
     border-radius: 12px;
-    background: rgba(239,68,68,.06);
-    border: 1px solid rgba(239,68,68,.25);
+    background: rgba(255,92,92,.06);
+    border: 1px solid rgba(255,92,92,.25);
   }
   .upl-error-title {
     font-family: 'IBM Plex Mono', ui-monospace, monospace;
     font-size: 10px;
     font-weight: 700;
-    color: #f87171;
+    color: #FF7676;
     letter-spacing: .14em;
     text-transform: uppercase;
     margin-bottom: 8px;
@@ -736,19 +736,19 @@ const UPL_CSS = `
     border-color: var(--accent-soft2);
   }
   .upl-col-action.is-danger:hover {
-    color: #f87171;
-    background: rgba(239,68,68,.10);
-    border-color: rgba(239,68,68,.42);
+    color: #FF7676;
+    background: rgba(255,92,92,.10);
+    border-color: rgba(255,92,92,.42);
   }
   .upl-col-action.is-ok {
-    color: #4ade80;
-    background: rgba(34,197,94,.08);
-    border-color: rgba(34,197,94,.35);
+    color: #4DD6B3;
+    background: rgba(53,196,161,.08);
+    border-color: rgba(53,196,161,.35);
   }
   .upl-col-action.is-ok:hover {
     color: #86efac;
-    background: rgba(34,197,94,.14);
-    border-color: rgba(34,197,94,.55);
+    background: rgba(53,196,161,.14);
+    border-color: rgba(53,196,161,.55);
   }
 
   .upl-rename-input {
@@ -771,7 +771,7 @@ const UPL_CSS = `
     margin-top: 6px;
     font-family: 'IBM Plex Mono', ui-monospace, monospace;
     font-size: 10.5px;
-    color: #f87171;
+    color: #FF7676;
     letter-spacing: .01em;
   }
 
@@ -933,8 +933,8 @@ const UPL_CSS = `
   .upl-ready {
     padding: 14px;
     border-radius: 12px;
-    background: rgba(34,197,94,.06);
-    border: 1px solid rgba(34,197,94,.22);
+    background: rgba(53,196,161,.06);
+    border: 1px solid rgba(53,196,161,.22);
     color: #86efac;
     font-family: 'IBM Plex Mono', ui-monospace, monospace;
     font-size: 12px;
@@ -981,13 +981,13 @@ const UPL_CSS = `
   .upl-btn:disabled { opacity: .4; cursor: not-allowed; transform: none; }
 
   .upl-btn-cancel {
-    border-color: rgba(239,68,68,.28);
-    background: rgba(239,68,68,.05);
-    color: #f87171;
+    border-color: rgba(255,92,92,.28);
+    background: rgba(255,92,92,.05);
+    color: #FF7676;
   }
   .upl-btn-cancel:hover {
-    background: rgba(239,68,68,.12);
-    border-color: rgba(239,68,68,.55);
+    background: rgba(255,92,92,.12);
+    border-color: rgba(255,92,92,.55);
     color: #fca5a5;
   }
 
