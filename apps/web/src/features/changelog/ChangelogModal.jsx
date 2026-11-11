@@ -17,7 +17,6 @@ import Portal from '@/shared/components/Portal';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { useSettings } from '@/app/layout/Settings/SettingsProvider';
 import { useChangelog, APP_VERSION } from '@/shared/api/version';
-import { fmtDate } from '@/shared/format/datetime';
 
 import './ChangelogModal.css';
 

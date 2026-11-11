@@ -13,7 +13,7 @@ function Ticks({ message }) {
 }
 
 // ---------------------------------------------------------------------------
-// Emoji-only detection — Instagram-style rendering.
+// Emoji-only detection â€” Instagram-style rendering.
 //
 // A message body that contains nothing but emoji (plus whitespace) renders
 // without a bubble. Emoji size scales down as the count grows:

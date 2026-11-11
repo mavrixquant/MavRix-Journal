@@ -2,9 +2,9 @@
 // Notifications service.
 //
 // Two responsibilities:
-//   1. push  — create a DB row + broadcast `notification:new` via SSE so
+//   1. push  â€” create a DB row + broadcast `notification:new` via SSE so
 //              the recipient's client invalidates its notifications cache.
-//   2. read  — list / mark-read / delete + unread-count queries.
+//   2. read  â€” list / mark-read / delete + unread-count queries.
 //
 // A notification is `common` (chats, friends, gex) or `broadcasts`
 // (admin announcements, future changelogs).
@@ -26,7 +26,7 @@ const serialize = (n) => ({
 });
 
 /**
- * Create one notification and broadcast it. Never throws — failures are
+ * Create one notification and broadcast it. Never throws â€” failures are
  * logged so caller-side message sends are never blocked by notif problems.
  */
 export async function pushNotification(userId, { type, section = 'common', title, body = '', data = {} }) {
@@ -66,7 +66,7 @@ export async function pushNotificationBulk(userIds, payload) {
       });
       inserted += res.count;
 
-      // createMany doesn't return rows — broadcast a generic invalidation
+      // createMany doesn't return rows â€” broadcast a generic invalidation
       // payload so clients refetch the fresh rows with real IDs.
       const now = new Date().toISOString();
       for (const userId of chunk) {
