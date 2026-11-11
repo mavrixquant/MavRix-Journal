@@ -12,6 +12,29 @@ function Ticks({ message }) {
   return <Check size={13} className="msg-tick is-sent" aria-label="Sent" />;
 }
 
+// ---------------------------------------------------------------------------
+// Emoji-only detection — Instagram-style rendering.
+//
+// A message body that contains nothing but emoji (plus whitespace) renders
+// without a bubble. Emoji size scales down as the count grows:
+//   1 emoji  -> 56px
+//   2 emoji  -> 48px
+//   3 emoji  -> 42px
+//   4+ emoji -> 44px base (no bubble chrome)
+// ---------------------------------------------------------------------------
+const EMOJI_CHARS_RE = /(?:\p{Extended_Pictographic}|\p{Regional_Indicator}|\p{Emoji_Modifier}|\u200D|\uFE0F|\u20E3|\s)/gu;
+const HAS_EMOJI_RE = /\p{Extended_Pictographic}|\p{Regional_Indicator}/u;
+
+function analyzeEmojiOnly(body) {
+  if (!body || typeof body !== 'string') return { isEmoji: false, count: 0 };
+  const text = body.trim();
+  if (!text) return { isEmoji: false, count: 0 };
+  if (!HAS_EMOJI_RE.test(text)) return { isEmoji: false, count: 0 };
+  if (text.replace(EMOJI_CHARS_RE, '').length > 0) return { isEmoji: false, count: 0 };
+  const count = (text.match(/\p{Extended_Pictographic}|\p{Regional_Indicator}/gu) || []).length;
+  return { isEmoji: true, count };
+}
+
 export default function MessageBubble({
   message, isOwn, isGroup, isFirstInGroup, isLastInGroup, timeFormat, timezone,
   isEditing, editText, onEditChange, onEditSubmit, onEditCancel, onEditStart,
@@ -26,6 +49,9 @@ export default function MessageBubble({
   const showSenderName = !isOwn && isGroup && isFirstInGroup;
   const showHover = !message._optimistic && !isDeleted && !isEditing;
 
+  const emoji = analyzeEmojiOnly(message.body);
+  const useEmojiStyle = emoji.isEmoji && !isDeleted && !replyParent && !isEditing;
+
   const rowCls = [
     'msg-row',
     isOwn ? 'is-own' : 'is-peer',
@@ -33,6 +59,8 @@ export default function MessageBubble({
     isLastInGroup ? 'is-last' : '',
     message._optimistic ? 'is-optimistic' : '',
     isDeleted ? 'is-deleted' : '',
+    useEmojiStyle ? 'is-emoji-only' : '',
+    useEmojiStyle && emoji.count >= 1 && emoji.count <= 3 ? `is-emoji-${emoji.count}` : '',
   ].filter(Boolean).join(' ');
 
   const jump = (e) => {
