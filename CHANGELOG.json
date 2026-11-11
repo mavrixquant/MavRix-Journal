@@ -1,0 +1,21 @@
+{
+  "releases": [
+    {
+      "version": "0.1.0",
+      "date": "2026-11-11",
+      "highlights": [
+        "Version management is now live",
+        "Changelog broadcasts on every release"
+      ],
+      "sections": {
+        "added": [
+          "Single source of truth for the app version",
+          "GET /api/version endpoint",
+          "Build-time version injection in the web bundle"
+        ],
+        "changed": [],
+        "fixed": []
+      }
+    }
+  ]
+}

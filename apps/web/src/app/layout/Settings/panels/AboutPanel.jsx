@@ -1,7 +1,6 @@
 
 import { Mail } from 'lucide-react';
-
-const APP_VERSION = '0.1.0';
+import { APP_VERSION } from '@/generated/version';
 
 const API_BASE =
   import.meta.env.VITE_API_URL || 'http://localhost:4000';
@@ -62,7 +61,7 @@ export default function AboutPanel() {
           <div className="settings-options-text">
             <span className="settings-options-label">Terms of Service</span>
             <span className="settings-options-desc">
-              Placeholder — final document coming soon.
+              Placeholder â€” final document coming soon.
             </span>
           </div>
           <span className="settings-btn" aria-disabled="true">
@@ -74,7 +73,7 @@ export default function AboutPanel() {
           <div className="settings-options-text">
             <span className="settings-options-label">Privacy Policy</span>
             <span className="settings-options-desc">
-              Placeholder — final document coming soon.
+              Placeholder â€” final document coming soon.
             </span>
           </div>
           <span className="settings-btn" aria-disabled="true">
