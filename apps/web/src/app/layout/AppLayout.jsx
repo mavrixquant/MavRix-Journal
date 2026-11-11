@@ -16,6 +16,7 @@ import { PageHeaderProvider } from './PageHeaderProvider';
 import MaveAiSidebar from '@/features/mave-ai/MaveAiSidebar';
 import BugReportModal from '@/features/bug-report/BugReportModal';
 import NotificationsSidebar from '@/app/layout/Notifications/NotificationsSidebar';
+import ChangelogModal from '@/features/changelog/ChangelogModal';
 
 const STORAGE_KEY = 'mavrix:sidebar:collapsed';
 const LAST_PATH_KEY = 'mavrix:lastPath';
@@ -144,6 +145,8 @@ export default function AppLayout() {
             isOpen={notificationsOpen}
             onClose={closeNotifications}
           />
+
+          <ChangelogModal />
         </PageHeaderProvider>
       </SettingsModalProvider>
     </TooltipProvider>

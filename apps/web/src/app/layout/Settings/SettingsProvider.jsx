@@ -29,6 +29,7 @@ export const DEFAULT_SETTINGS = Object.freeze({
     timeFormat: '24h',
     dateFormat: 'iso',
     confirmDestructive: true,
+    lastSeenChangelogVersion: null,
   },
   notifications: {
     broadcastBanner: true,
