@@ -137,6 +137,11 @@ export function SettingsProvider({ children, userId = null }) {
   const hydratedRef = useRef(false);
   const dirtyBeforeHydrationRef = useRef(false);
 
+  // True once server preferences have been fetched for the current user
+  // (or the caller is anonymous). ChangelogModal gates on this so a cleared
+  // localStorage can't cause the modal to re-show for an already-seen version.
+  const [hydrated, setHydrated] = useState(() => !userId);
+
   const writeTimerRef = useRef(null);
   const pendingWriteRef = useRef(null);
 
@@ -149,9 +154,11 @@ export function SettingsProvider({ children, userId = null }) {
   useEffect(() => {
     if (!userId) {
       hydratedRef.current = true;
+      setHydrated(true);
       return undefined;
     }
 
+    setHydrated(false);
     let cancelled = false;
 
     (async () => {
@@ -165,7 +172,10 @@ export function SettingsProvider({ children, userId = null }) {
         }
       } catch {
       } finally {
-        if (!cancelled) hydratedRef.current = true;
+        if (!cancelled) {
+          hydratedRef.current = true;
+          setHydrated(true);
+        }
       }
     })();
 
@@ -274,8 +284,8 @@ export function SettingsProvider({ children, userId = null }) {
   }, [settings.appearance.density, settings.appearance.fontSize]);
 
   const value = useMemo(
-    () => ({ settings, update, reset }),
-    [settings, update, reset]
+    () => ({ settings, update, reset, hydrated }),
+    [settings, update, reset, hydrated]
   );
 
   return (

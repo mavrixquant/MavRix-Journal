@@ -16,6 +16,7 @@ import { prisma } from '../lib/prisma.js';
 import { HttpError } from '../middleware/error.js';
 import { writeAudit } from '../lib/audit.js';
 import { pushNotificationBulk } from './notifications.service.js';
+import { broadcastToAll } from '../lib/broadcaster.js';
 
 const VERSION_RE = /^\d+\.\d+\.\d+(-[\w.]+)?$/;
 
@@ -254,5 +255,15 @@ async function broadcastRelease(actor, row) {
   );
 
   console.log(`[releases] broadcast v${row.version} to ${recipients.length} user(s)`);
+
+  // Force every connected client to refetch /api/changelog and /api/version.
+  // Without this, users with the app already open wouldn't see the "What's
+  // new" modal until they reload or hit the 5-minute stale-time refetch.
+  try {
+    broadcastToAll('invalidate', { keys: [['changelog'], ['version']] });
+  } catch (err) {
+    console.error('[releases] invalidate broadcast failed:', err?.message || err);
+  }
+
   return { recipients: recipients.length };
 }

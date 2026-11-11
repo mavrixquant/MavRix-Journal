@@ -1,16 +1,20 @@
 // ============================================================================
-// "What's new" modal - shown once per user per release.
+// "What's new" modal - shown once per published release, per user.
 //
 // Gate logic:
-//   - latest CHANGELOG release must match the running bundle version
-//   - user.preferences.lastSeenChangelogVersion must differ from that version
-//   - sessionStorage key prevents re-showing in the same tab (StrictMode safe)
+//   1. Wait for useSettings() hydration (server preferences fetched).
+//   2. Latest published release must not match preferences.lastSeenChangelogVersion.
+//   3. On match, mark as seen IMMEDIATELY (not on dismiss), so closing the tab
+//      without clicking "Got it" doesn't cause re-show on next login.
 //
-// On dismiss, lastSeenChangelogVersion is saved through SettingsProvider,
-// which is debounced and syncs to the server automatically.
+// Live: the server broadcasts `invalidate` with ['changelog'] on every publish,
+// so the query refetches and this effect fires without a page reload.
+//
+// Missed releases: captured BEFORE the preference write so the footer can still
+// show "You also missed v1.1.0 · See all releases".
 // ============================================================================
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Sparkles, X, ArrowRight } from 'lucide-react';
 
@@ -20,8 +24,6 @@ import { useSettings } from '@/app/layout/Settings/SettingsProvider';
 import { useChangelog } from '@/shared/api/version';
 
 import './ChangelogModal.css';
-
-const SESSION_KEY = 'mavrix:changelog-shown:';
 
 const KIND_META = [
   { key: 'added',   label: 'Added' },
@@ -39,6 +41,7 @@ function formatReleaseDate(iso) {
     });
   } catch { return iso; }
 }
+
 function formatMissed(missed) {
   if (missed.length === 1) return `v${missed[0].version}`;
   if (missed.length === 2) return `v${missed[1].version} and v${missed[0].version}`;
@@ -47,45 +50,43 @@ function formatMissed(missed) {
 
 export default function ChangelogModal() {
   const { user } = useAuth();
-  const { settings, update } = useSettings();
+  const { settings, update, hydrated } = useSettings();
   const navigate = useNavigate();
   const { data: changelog } = useChangelog();
   const [open, setOpen] = useState(false);
+  const [missedList, setMissedList] = useState([]);
+
+  // Guards against double-firing when `seen` updates mid-open (which happens
+  // because we write the preference on open, not on dismiss).
+  const firedForRef = useRef(null);
+
+  const latest = changelog?.releases?.[0] || null;
+  const seen = settings.preferences?.lastSeenChangelogVersion || null;
 
   useEffect(() => {
-    if (!user || !changelog) return;
-    const latest = changelog.releases?.[0];
-    if (!latest) return;
-
-    const seen = settings.preferences?.lastSeenChangelogVersion;
+    if (!user || !latest || !hydrated) return;
+    if (firedForRef.current === latest.version) return;
     if (seen === latest.version) return;
 
-    try {
-      if (sessionStorage.getItem(SESSION_KEY + latest.version)) return;
-    } catch {}
+    // Capture the misses BEFORE writing the preference; otherwise seenIdx
+    // would equal currentIdx and missedList would collapse to [].
+    const releases = changelog?.releases || [];
+    const seenIdx = seen ? releases.findIndex((r) => r.version === seen) : -1;
+    const missed = seenIdx > 0 ? releases.slice(1, seenIdx) : [];
+    setMissedList(missed);
 
+    firedForRef.current = latest.version;
     setOpen(true);
-  }, [user, changelog, settings.preferences?.lastSeenChangelogVersion]);
 
-  if (!open || !changelog?.releases?.[0]) return null;
-  const latest = changelog.releases[0];
-
-  const lastSeen = settings.preferences?.lastSeenChangelogVersion || null;
-  const currentIdx = changelog.releases.findIndex((r) => r.version === latest.version);
-  const seenIdx = lastSeen ? changelog.releases.findIndex((r) => r.version === lastSeen) : -1;
-  const missed = seenIdx > currentIdx
-    ? changelog.releases.slice(currentIdx + 1, seenIdx)
-    : [];
-
-  const dismiss = () => {
-    try { sessionStorage.setItem(SESSION_KEY + latest.version, '1'); } catch {}
-    setOpen(false);
+    // Mark as seen immediately. Do NOT wait for the user to dismiss - that
+    // would let the modal re-show next time they open the app.
     update('preferences', { lastSeenChangelogVersion: latest.version });
-  };
-  const goToAll = () => {
-    dismiss();
-    navigate('/changelog');
-  };
+  }, [user, latest, seen, hydrated, changelog?.releases, update]);
+
+  if (!open || !latest) return null;
+
+  const dismiss = () => setOpen(false);
+  const goToAll = () => { setOpen(false); navigate('/changelog'); };
 
   const sections = KIND_META
     .map((k) => ({ ...k, items: latest.sections?.[k.key] || [] }))
@@ -142,9 +143,9 @@ export default function ChangelogModal() {
           </div>
 
           <div className="cm-foot">
-            {missed.length > 0 ? (
+            {missedList.length > 0 ? (
               <span className="cm-foot-missed">
-                You also missed {formatMissed(missed)} ·{' '}
+                You also missed {formatMissed(missedList)} ·{' '}
                 <button
                   type="button"
                   className="cm-inline-link"
