@@ -32,7 +32,27 @@
 }
 
 /* ---- left rail --------------------------------------------------------- */
-.sx-rail { position: sticky; top: 12px; max-height: calc(100dvh - 24px); overflow-y: auto; scrollbar-width: thin; }
+.sx-rail {
+  position: sticky;
+  top: 12px;
+  max-height: calc(100dvh - 24px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,.08) transparent;
+}
+.sx-rail::-webkit-scrollbar { width: 6px; height: 6px; }
+.sx-rail::-webkit-scrollbar-track { background: transparent; }
+.sx-rail::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,.08);
+  border-radius: 99px;
+  border: 1px solid transparent;
+  background-clip: padding-box;
+}
+.sx-rail::-webkit-scrollbar-thumb:hover {
+  background: rgba(255,255,255,.16);
+  background-clip: padding-box;
+}
+.sx-rail::-webkit-scrollbar-corner { background: transparent; }
 .sx-rail-inner { display: flex; flex-direction: column; gap: 4px; padding: 18px; }
 .sx-rail-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
 .sx-eyebrow { font: 600 10.5px var(--mono, monospace); letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-3, #545e6e); }
@@ -187,7 +207,24 @@
 .sx-target-stats dd { margin: 0; font: 600 11.5px var(--mono, monospace); }
 
 /* table */
-.sx-table-wrap { overflow-x: auto; }
+.sx-table-wrap {
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,.08) transparent;
+}
+.sx-table-wrap::-webkit-scrollbar { width: 6px; height: 6px; }
+.sx-table-wrap::-webkit-scrollbar-track { background: transparent; }
+.sx-table-wrap::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,.08);
+  border-radius: 99px;
+  border: 1px solid transparent;
+  background-clip: padding-box;
+}
+.sx-table-wrap::-webkit-scrollbar-thumb:hover {
+  background: rgba(255,255,255,.16);
+  background-clip: padding-box;
+}
+.sx-table-wrap::-webkit-scrollbar-corner { background: transparent; }
 .sx-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
 .sx-table th, .sx-table td { padding: 10px 12px; text-align: right; font: 500 12px var(--mono, monospace); border-bottom: 1px solid var(--line-soft); white-space: nowrap; }
 .sx-table thead th { font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3); }
