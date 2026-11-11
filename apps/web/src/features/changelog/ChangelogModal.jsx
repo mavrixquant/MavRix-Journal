@@ -11,6 +11,7 @@
 // ============================================================================
 
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Sparkles, X, ArrowRight } from 'lucide-react';
 
 import Portal from '@/shared/components/Portal';
@@ -38,10 +39,16 @@ function formatReleaseDate(iso) {
     });
   } catch { return iso; }
 }
+function formatMissed(missed) {
+  if (missed.length === 1) return `v${missed[0].version}`;
+  if (missed.length === 2) return `v${missed[1].version} and v${missed[0].version}`;
+  return `${missed.length - 1} older releases (up to v${missed[missed.length - 1].version})`;
+}
 
 export default function ChangelogModal() {
   const { user } = useAuth();
   const { settings, update } = useSettings();
+  const navigate = useNavigate();
   const { data: changelog } = useChangelog();
   const [open, setOpen] = useState(false);
 
@@ -64,10 +71,21 @@ export default function ChangelogModal() {
   if (!open || !changelog?.releases?.[0]) return null;
   const latest = changelog.releases[0];
 
+  const lastSeen = settings.preferences?.lastSeenChangelogVersion || null;
+  const currentIdx = changelog.releases.findIndex((r) => r.version === latest.version);
+  const seenIdx = lastSeen ? changelog.releases.findIndex((r) => r.version === lastSeen) : -1;
+  const missed = seenIdx > currentIdx
+    ? changelog.releases.slice(currentIdx + 1, seenIdx)
+    : [];
+
   const dismiss = () => {
     try { sessionStorage.setItem(SESSION_KEY + latest.version, '1'); } catch {}
     setOpen(false);
     update('preferences', { lastSeenChangelogVersion: latest.version });
+  };
+  const goToAll = () => {
+    dismiss();
+    navigate('/changelog');
   };
 
   const sections = KIND_META
@@ -125,9 +143,22 @@ export default function ChangelogModal() {
           </div>
 
           <div className="cm-foot">
-            <span className="cm-foot-hint">
-              You won't see this again until the next release.
-            </span>
+            {missed.length > 0 ? (
+              <span className="cm-foot-missed">
+                You also missed {formatMissed(missed)} ·{' '}
+                <button
+                  type="button"
+                  className="cm-inline-link"
+                  onClick={goToAll}
+                >
+                  See all releases
+                </button>
+              </span>
+            ) : (
+              <span className="cm-foot-hint">
+                You won't see this again until the next release.
+              </span>
+            )}
             <button type="button" className="cm-btn-primary" onClick={dismiss}>
               Got it <ArrowRight size={13} />
             </button>

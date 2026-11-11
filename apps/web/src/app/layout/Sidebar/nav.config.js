@@ -16,6 +16,7 @@ import {
   FaTools,
   FaLayerGroup,
   FaCalculator,
+  FaHistory,
 } from 'react-icons/fa';
 
 export const SIDEBAR_GROUPS = [
@@ -66,6 +67,13 @@ export const SIDEBAR_GROUPS = [
     icon: FaComments,
     items: [
       { to: '/personal/chats', label: 'Chats', icon: FaCommentDots },
+    ],
+  },  {
+    id: 'product',
+    label: 'Product',
+    icon: FaHistory,
+    items: [
+      { to: '/changelog', label: 'Changelog', icon: FaHistory },
     ],
   },
 ];
