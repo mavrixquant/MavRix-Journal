@@ -2,7 +2,7 @@
   LayoutDashboard, Users, Wallet, TrendingUp,
   Calendar, Radio, MessageSquare, Layers, Brain,
   MessagesSquare, ScrollText, Settings, Activity,
-  Stethoscope, Bug, Database,
+  Stethoscope, Bug, Database, Rocket,
 } from 'lucide-react';
 
 export const ADMIN_NAV = [
@@ -30,6 +30,7 @@ export const ADMIN_NAV = [
       { to: '/admin/market-data', label: 'Market Data', icon: Database },
       { to: '/admin/sessions',  label: 'Sessions',   icon: Radio },
       { to: '/admin/broadcast', label: 'Broadcast',  icon: MessageSquare },
+      { to: '/admin/releases',  label: 'Version & Changelog', icon: Rocket },
     ],
   },
   {

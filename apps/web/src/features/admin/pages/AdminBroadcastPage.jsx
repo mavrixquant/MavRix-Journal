@@ -1,8 +1,8 @@
-import { useState } from 'react';
-import { Send, Radio, Mail, AlertTriangle, Info, Siren, Sparkles } from 'lucide-react';
+﻿import { useState } from 'react';
+import { Send, Radio, Mail, AlertTriangle, Info, Siren } from 'lucide-react';
 import { toast } from 'sonner';
 
-import { useAdminBroadcast, useAdminChangelog, useAdminPublishChangelog } from '../api';
+import { useAdminBroadcast } from '../api';
 import { useAdminPageHeader } from '../AdminPageHeader';
 
 const CSS = `
@@ -207,8 +207,6 @@ export default function AdminBroadcastPage() {
   const [sendEmail, setSendEmail] = useState(false);
 
   const broadcast = useAdminBroadcast();
-  const changelogQuery = useAdminChangelog();
-  const publishChangelog = useAdminPublishChangelog();
 
   useAdminPageHeader({
     eyebrow: 'Operations',
@@ -343,75 +341,6 @@ export default function AdminBroadcastPage() {
                 {broadcast.isPending ? 'Sending…' : 'Send broadcast'}
               </button>
             </div>
-          </div>
-        </div>
-        
-        {/* Changelog */}
-        <div className="abp-card" style={{ marginTop: 18 }}>
-          <div className="abp-card-head">
-            <Sparkles size={14} style={{ color: 'var(--accent)' }} />
-            <span className="abp-card-title">Changelog</span>
-            <span className="abp-card-note" style={{ marginLeft: 'auto' }}>
-              {changelogQuery.data?.lastPublishedVersion
-                ? `Last published: v${changelogQuery.data.lastPublishedVersion}`
-                : 'Never published'}
-            </span>
-          </div>
-          <div className="abp-card-body">
-            {changelogQuery.isLoading && (
-              <div style={{ color: 'var(--ink-3)', fontFamily: 'IBM Plex Mono, monospace', fontSize: 12 }}>
-                Loading releasesâ€¦
-              </div>
-            )}
-
-            {!changelogQuery.isLoading && (changelogQuery.data?.releases || []).length === 0 && (
-              <div style={{ color: 'var(--ink-3)', fontFamily: 'IBM Plex Mono, monospace', fontSize: 12 }}>
-                No changelog entries found. Add entries to CHANGELOG.json and redeploy the API.
-              </div>
-            )}
-
-            {(changelogQuery.data?.releases || []).slice(0, 5).map((r) => (
-              <div
-                key={r.version}
-                style={{
-                  display: 'flex', alignItems: 'flex-start', gap: 14,
-                  padding: '12px 0',
-                  borderBottom: '1px solid rgba(255,255,255,.05)',
-                }}
-              >
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
-                    <b style={{ fontSize: 13, color: 'var(--ink-1)' }}>v{r.version}</b>
-                    {r.isPublished
-                      ? <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: '#4ade80', padding: '2px 8px', borderRadius: 99, border: '1px solid rgba(34,197,94,.35)', background: 'rgba(34,197,94,.08)' }}>Published</span>
-                      : <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--accent)', padding: '2px 8px', borderRadius: 99, border: '1px solid var(--accent-soft2)', background: 'color-mix(in srgb, var(--accent) 8%, transparent)' }}>Pending</span>}
-                    <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 10.5, color: 'var(--ink-3)' }}>{r.date || ''}</span>
-                  </div>
-                  {(r.highlights || []).slice(0, 3).map((h, i) => (
-                    <div key={i} style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 11.5, color: 'var(--ink-2)', lineHeight: 1.5 }}>
-                      &middot; {h}
-                    </div>
-                  ))}
-                </div>
-                <button
-                  type="button"
-                  className="abp-btn abp-btn-primary"
-                  style={{ flexShrink: 0 }}
-                  disabled={publishChangelog.isPending}
-                  onClick={async () => {
-                    if (!window.confirm(`Publish v${r.version} as a broadcast? Every active user will receive a notification.`)) return;
-                    try {
-                      const res = await publishChangelog.mutateAsync({ force: true });
-                      toast.success(`Published v${r.version} to ${res.recipients ?? 0} user(s)`);
-                    } catch (err) {
-                      toast.error(err?.message || 'Publish failed');
-                    }
-                  }}
-                >
-                  <Send size={11} /> {r.isPublished ? 'Republish' : 'Publish'}
-                </button>
-              </div>
-            ))}
           </div>
         </div>
       </div>

@@ -1,4 +1,4 @@
-
+﻿
 import {
   useQuery,
   useMutation,
@@ -569,31 +569,115 @@ export function useAdminDeleteCalendarEvents() {
 }
 
 // ---------------------------------------------------------------------------
-// Changelog - list releases and publish pending ones as broadcasts.
+// Releases - DB-backed changelog + version. Publishing fires a broadcast to
+// every active user with no rebuild required.
 // ---------------------------------------------------------------------------
-export function useAdminChangelog() {
+export const releaseKeys = {
+  all: ['admin', 'releases'],
+  list: () => ['admin', 'releases', 'list'],
+};
+
+export async function fetchAdminReleases() {
+  const data = await apiJson('/api/admin/releases');
+  return data.releases;
+}
+
+export async function createRelease(payload) {
+  const data = await apiJson('/api/admin/releases', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+  return data.release;
+}
+
+export async function updateRelease(id, payload) {
+  const data = await apiJson(`/api/admin/releases/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
+  return data.release;
+}
+
+export async function publishRelease(id) {
+  const data = await apiJson(
+    `/api/admin/releases/${encodeURIComponent(id)}/publish`,
+    { method: 'POST' }
+  );
+  return data.release;
+}
+
+export async function rebroadcastRelease(id) {
+  return apiJson(
+    `/api/admin/releases/${encodeURIComponent(id)}/rebroadcast`,
+    { method: 'POST' }
+  );
+}
+
+export async function unpublishRelease(id) {
+  const data = await apiJson(
+    `/api/admin/releases/${encodeURIComponent(id)}/unpublish`,
+    { method: 'POST' }
+  );
+  return data.release;
+}
+
+export async function deleteRelease(id) {
+  return apiJson(`/api/admin/releases/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  });
+}
+
+export function useAdminReleases() {
   return useQuery({
-    queryKey: ['admin', 'changelog'],
-    queryFn: () => apiJson('/api/admin/changelog'),
-    staleTime: 30_000,
+    queryKey: releaseKeys.list(),
+    queryFn: fetchAdminReleases,
+    staleTime: 10_000,
   });
 }
 
-export function useAdminPublishChangelog() {
+function useInvalidateReleases() {
   const qc = useQueryClient();
+  return () => {
+    qc.invalidateQueries({ queryKey: releaseKeys.all });
+    qc.invalidateQueries({ queryKey: ['changelog'] });
+    qc.invalidateQueries({ queryKey: ['version'] });
+    qc.invalidateQueries({ queryKey: ['notifications'] });
+    qc.invalidateQueries({ queryKey: ['admin', 'audit'] });
+  };
+}
+
+export function useCreateRelease() {
+  const invalidate = useInvalidateReleases();
+  return useMutation({ mutationFn: createRelease, onSuccess: invalidate });
+}
+
+export function useUpdateRelease() {
+  const invalidate = useInvalidateReleases();
   return useMutation({
-    mutationFn: ({ force = false } = {}) =>
-      apiJson('/api/admin/changelog/publish', {
-        method: 'POST',
-        body: JSON.stringify({ force }),
-      }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['admin', 'changelog'] });
-      qc.invalidateQueries({ queryKey: ['admin', 'audit'] });
-    },
+    mutationFn: ({ id, payload }) => updateRelease(id, payload),
+    onSuccess: invalidate,
   });
 }
 
+export function usePublishRelease() {
+  const invalidate = useInvalidateReleases();
+  return useMutation({ mutationFn: publishRelease, onSuccess: invalidate });
+}
+
+export function useRebroadcastRelease() {
+  const invalidate = useInvalidateReleases();
+  return useMutation({ mutationFn: rebroadcastRelease, onSuccess: invalidate });
+}
+
+export function useUnpublishRelease() {
+  const invalidate = useInvalidateReleases();
+  return useMutation({ mutationFn: unpublishRelease, onSuccess: invalidate });
+}
+
+export function useDeleteRelease() {
+  const invalidate = useInvalidateReleases();
+  return useMutation({ mutationFn: deleteRelease, onSuccess: invalidate });
+}
 export function useApiVersion() {
   return useQuery({
     queryKey: ['api-version'],

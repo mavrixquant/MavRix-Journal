@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react';
+﻿import { lazy, Suspense } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 
 import AppLayout from '@/app/layout/AppLayout';
@@ -60,6 +60,7 @@ const AdminSystemPage       = lazy(() => import('@/features/admin/pages/AdminSys
 const AdminCalendarPage     = lazy(() => import('@/features/admin/pages/AdminCalendarPage'));
 const AdminSettingsPage     = lazy(() => import('@/features/admin/pages/AdminSettingsPage'));
 const AdminBroadcastPage    = lazy(() => import('@/features/admin/pages/AdminBroadcastPage'));
+const AdminReleasesPage     = lazy(() => import('@/features/admin/pages/AdminReleasesPage'));
 const AdminGexPage          = lazy(() => import('@/features/admin/pages/AdminGexPage'));
 const AdminHealthCheckPage  = lazy(() => import('@/features/admin/pages/AdminHealthCheckPage'));
 const AdminBugReportsPage   = lazy(() => import('@/features/admin/pages/AdminBugReportsPage'));
@@ -148,6 +149,7 @@ export function AppRoutes() {
         <Route path="gex"       element={<AdminGexPage />} />
         <Route path="settings"  element={<AdminSettingsPage />} />
         <Route path="broadcast" element={<AdminBroadcastPage />} />
+        <Route path="releases" element={<AdminReleasesPage />} />
         <Route
           path="health-check"
           element={<RequireSuperadmin><AdminHealthCheckPage /></RequireSuperadmin>}

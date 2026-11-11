@@ -1,4 +1,4 @@
-import express from 'express';
+﻿import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
@@ -13,7 +13,7 @@ import { startCalendarSync, stopCalendarSync } from './lib/calendarSync.js';
 import { ensureSuperadmin } from './lib/adminBootstrap.js';
 import { ensureMaveAi } from './services/maveAiBootstrap.js';
 import { markInterruptedJobs } from './services/adminMarketData.service.js';
-import { publishPendingChangelog } from './services/changelog.service.js';
+import { seedReleasesFromJsonIfEmpty } from './lib/seedReleases.js';
 
 const app = express();
 
@@ -40,7 +40,7 @@ const server = app.listen(env.port, async () => {
   try { await markInterruptedJobs(); } catch (err) { console.error('[market-data] boot sweep failed:', err); }
   if (env.calendar.syncEnabled) startCalendarSync();
 
-  try { await publishPendingChangelog(); } catch (err) { console.error('[changelog] boot publish failed:', err); }
+  try { await seedReleasesFromJsonIfEmpty(); } catch (err) { console.error('[releases] boot seed failed:', err); }
   
   // Background market sync removed. We rely strictly on lazy loading.
 });

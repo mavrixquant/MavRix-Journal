@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // /changelog — full release history.
 //
 // Renders every entry from CHANGELOG.json newest-first with the current
@@ -9,7 +9,7 @@
 import { Sparkles } from 'lucide-react';
 
 import { usePageHeader } from '@/app/layout/PageHeaderProvider';
-import { useChangelog, APP_VERSION } from '@/shared/api/version';
+import { useChangelog, useVersion } from '@/shared/api/version';
 import { PageSkeleton } from '@/shared/ui/page-skeleton';
 import EmptyState from '@/shared/components/EmptyState';
 
@@ -30,6 +30,8 @@ function formatDate(iso) {
 
 export default function ChangelogPage() {
   const { data, isLoading } = useChangelog();
+  const { data: versionData } = useVersion();
+  const currentVersion = versionData?.version || null;
   const releases = data?.releases || [];
 
   usePageHeader({
@@ -63,7 +65,7 @@ export default function ChangelogPage() {
 
       <div className="clp-timeline">
         {releases.map((r) => {
-          const isCurrent = r.version === APP_VERSION;
+          const isCurrent = r.version === currentVersion;
           const sections = SECTION_KINDS
             .map((k) => ({ key: k, items: r.sections?.[k] || [] }))
             .filter((s) => s.items.length > 0);

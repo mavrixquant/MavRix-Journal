@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // "What's new" modal - shown once per user per release.
 //
 // Gate logic:
@@ -17,7 +17,7 @@ import { Sparkles, X, ArrowRight } from 'lucide-react';
 import Portal from '@/shared/components/Portal';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { useSettings } from '@/app/layout/Settings/SettingsProvider';
-import { useChangelog, APP_VERSION } from '@/shared/api/version';
+import { useChangelog } from '@/shared/api/version';
 
 import './ChangelogModal.css';
 
@@ -56,7 +56,6 @@ export default function ChangelogModal() {
     if (!user || !changelog) return;
     const latest = changelog.releases?.[0];
     if (!latest) return;
-    if (latest.version !== APP_VERSION) return;
 
     const seen = settings.preferences?.lastSeenChangelogVersion;
     if (seen === latest.version) return;

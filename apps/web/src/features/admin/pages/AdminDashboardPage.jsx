@@ -1,4 +1,4 @@
-import { useMemo, useEffect } from 'react';
+﻿import { useMemo, useEffect } from 'react';
 import {
   Users,
   UserCheck,
@@ -178,7 +178,6 @@ export default function AdminDashboardPage() {
   const stats  = statsQuery.data;
   const health = healthQuery.data;
   const apiVersion = apiVersionQuery.data;
-  const inSync = apiVersion?.version === APP_VERSION;
   const statsLoading = statsQuery.isLoading;
 
   useAdminPageHeader({

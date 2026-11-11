@@ -1,4 +1,4 @@
-import { Router } from 'express';
+﻿import { Router } from 'express';
 import { z } from 'zod';
 import {
   gexDaySchema,
@@ -23,7 +23,7 @@ import * as groupCtrl from '../controllers/adminGroups.controller.js';
 import * as hcCtrl from '../controllers/healthCheck.controller.js';
 import * as bugCtrl from '../controllers/adminBugReports.controller.js';
 import * as marketDataCtrl from '../controllers/adminMarketData.controller.js';
-import * as changelogCtrl from '../controllers/adminChangelog.controller.js';
+import * as releasesCtrl from '../controllers/adminReleases.controller.js';
 
 export const adminRoutes = Router();
 
@@ -343,7 +343,13 @@ adminRoutes.delete(
 );
 
 // ---------------------------------------------------------------------------
-// Changelog - list releases and publish pending changes as broadcasts.
+// Releases - DB-backed changelog + version. Publishing fires a broadcast to
+// every active user; no rebuild required.
 // ---------------------------------------------------------------------------
-adminRoutes.get('/changelog', changelogCtrl.listChangelog);
-adminRoutes.post('/changelog/publish', sensitive, changelogCtrl.publishChangelog);
+adminRoutes.get('/releases', releasesCtrl.list);
+adminRoutes.post('/releases', writeLimiter, releasesCtrl.create);
+adminRoutes.patch('/releases/:id', writeLimiter, releasesCtrl.update);
+adminRoutes.post('/releases/:id/publish', writeLimiter, releasesCtrl.publish);
+adminRoutes.post('/releases/:id/rebroadcast', writeLimiter, releasesCtrl.rebroadcast);
+adminRoutes.post('/releases/:id/unpublish', writeLimiter, releasesCtrl.unpublish);
+adminRoutes.delete('/releases/:id', sensitive, releasesCtrl.remove);

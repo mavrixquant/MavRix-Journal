@@ -1,4 +1,4 @@
-generator client {
+﻿generator client {
   provider = "prisma-client-js"
 }
 
@@ -603,4 +603,29 @@ model Notification {
   @@index([userId, readAt])
   @@index([userId, section])
   @@map("notifications")
+}
+
+// ---------------------------------------------------------------------------
+// AppRelease — DB is the single source of truth for changelog + version.
+//
+// Replaces CHANGELOG.json as the runtime source. JSON is seed-only, imported
+// once on first boot against an empty app_releases table.
+//
+// Current release = newest row where publishedAt IS NOT NULL.
+// Drafts = publishedAt IS NULL, invisible to /api/changelog.
+// ---------------------------------------------------------------------------
+model AppRelease {
+  id          String    @id @default(cuid())
+  version     String    @unique
+  date        String
+  highlights  Json      @default("[]")
+  sections    Json      @default("{}")
+  publishedAt DateTime?
+  publishedBy String?
+  createdBy   String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([publishedAt])
+  @@map("app_releases")
 }
