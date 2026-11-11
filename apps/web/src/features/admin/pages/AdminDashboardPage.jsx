@@ -8,7 +8,8 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 
-import { useAdminMe, useAdminStats, useAdminHealth } from '../api';
+import { useAdminMe, useAdminStats, useAdminHealth, useApiVersion } from '../api';
+import { APP_VERSION } from '@/generated/version';
 import { useAdminPageHeader } from '../AdminPageHeader';
 import StatCard from '../components/StatCard';
 
@@ -171,10 +172,13 @@ export default function AdminDashboardPage() {
   const meQuery     = useAdminMe();
   const statsQuery  = useAdminStats();
   const healthQuery = useAdminHealth();
+  const apiVersionQuery = useApiVersion();
 
   const me     = meQuery.data;
   const stats  = statsQuery.data;
   const health = healthQuery.data;
+  const apiVersion = apiVersionQuery.data;
+  const inSync = apiVersion?.version === APP_VERSION;
   const statsLoading = statsQuery.isLoading;
 
   useAdminPageHeader({
@@ -278,6 +282,43 @@ export default function AdminDashboardPage() {
             ) : (
               <CustomBarChart data={signupData} />
             )}
+          </div>
+        </div>
+
+        <div className="admin-dash-panel">
+          <div className="admin-dash-panel-head">
+            <span className="admin-dash-panel-title">Version</span>
+            <span className="admin-dash-panel-note">release</span>
+          </div>
+          <div className="admin-dash-panel-body">
+            <div className="admin-dash-health-grid">
+              <div className="admin-dash-health-item">
+                <span className="admin-dash-health-label">Web build</span>
+                <span className="admin-dash-health-value">{APP_VERSION}</span>
+                <span className="admin-dash-health-label">bundle</span>
+              </div>
+              <div className="admin-dash-health-item">
+                <span className="admin-dash-health-label">API version</span>
+                <span className="admin-dash-health-value">{apiVersion?.version || '—'}</span>
+                <span className="admin-dash-health-label">server</span>
+              </div>
+              <div className="admin-dash-health-item">
+                <span className="admin-dash-health-label">Sync status</span>
+                <span className="admin-dash-health-value">
+                  {inSync ? 'In sync' : 'Drift'}
+                </span>
+                <span className="admin-dash-health-label">web vs api</span>
+              </div>
+              <div className="admin-dash-health-item">
+                <span className="admin-dash-health-label">Latest release</span>
+                <span className="admin-dash-health-value">
+                  {apiVersion?.latestRelease?.version || '—'}
+                </span>
+                <span className="admin-dash-health-label">
+                  {apiVersion?.latestRelease?.date || ''}
+                </span>
+              </div>
+            </div>
           </div>
         </div>
 

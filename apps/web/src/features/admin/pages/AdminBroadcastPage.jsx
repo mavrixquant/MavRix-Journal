@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Send, Radio, Mail, AlertTriangle, Info, Siren } from 'lucide-react';
 import { toast } from 'sonner';
 
-import { useAdminBroadcast } from '../api';
+import { useAdminBroadcast, useAdminChangelog, useAdminPublishChangelog } from '../api';
 import { useAdminPageHeader } from '../AdminPageHeader';
 
 const CSS = `
@@ -207,6 +207,8 @@ export default function AdminBroadcastPage() {
   const [sendEmail, setSendEmail] = useState(false);
 
   const broadcast = useAdminBroadcast();
+  const changelogQuery = useAdminChangelog();
+  const publishChangelog = useAdminPublishChangelog();
 
   useAdminPageHeader({
     eyebrow: 'Operations',

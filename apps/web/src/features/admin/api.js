@@ -1,4 +1,4 @@
-﻿
+
 import {
   useQuery,
   useMutation,
@@ -565,5 +565,39 @@ export function useAdminDeleteCalendarEvents() {
       qc.invalidateQueries({ queryKey: ['calendar'] });
       qc.invalidateQueries({ queryKey: ['admin', 'audit'] });
     },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Changelog - list releases and publish pending ones as broadcasts.
+// ---------------------------------------------------------------------------
+export function useAdminChangelog() {
+  return useQuery({
+    queryKey: ['admin', 'changelog'],
+    queryFn: () => apiJson('/api/admin/changelog'),
+    staleTime: 30_000,
+  });
+}
+
+export function useAdminPublishChangelog() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ force = false } = {}) =>
+      apiJson('/api/admin/changelog/publish', {
+        method: 'POST',
+        body: JSON.stringify({ force }),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'changelog'] });
+      qc.invalidateQueries({ queryKey: ['admin', 'audit'] });
+    },
+  });
+}
+
+export function useApiVersion() {
+  return useQuery({
+    queryKey: ['api-version'],
+    queryFn: () => apiJson('/api/version'),
+    staleTime: 5 * 60_000,
   });
 }
