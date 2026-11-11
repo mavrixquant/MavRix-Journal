@@ -23,7 +23,7 @@ const RESERVED_NAMES = new Set([
   'date', 'entryTime', 'exitTime', 'direction', 'symbol',
   'strategyId', 'strategy',
   'mae', 'mfe', 'slPoints',
-  'entryPrice', 'takeProfit', 'stopLoss',
+  'entryPrice', 'exitPrice', 'takeProfit', 'stopLoss',
   'pnl', 'quantity', 'notes',
 ]);
 
@@ -58,7 +58,7 @@ const RESERVED_MAP_JOURNAL = {
   'Entry Price': 'entryPrice',
   'Take Profit': 'takeProfit',
   'Stop Loss': 'stopLoss',
-  'Exit Price': '__legacy_skip',
+  'Exit Price': 'exitPrice',
   'P&L': 'pnl',
   'Quantity': 'quantity',
   'Commission': 'commission',
@@ -228,6 +228,7 @@ function parseFile(workbook, account, existingTrades, strategies) {
       delete trade.sl;
 
       delete trade.entryPrice;
+      delete trade.exitPrice;
       delete trade.takeProfit;
       delete trade.stopLoss;
     } else {
@@ -240,9 +241,11 @@ function parseFile(workbook, account, existingTrades, strategies) {
       trade.commission = Number.isFinite(journalComm) && journalComm >= 0 ? journalComm : null;
 
       const ep = trade.entryPrice === '' || trade.entryPrice == null ? null : Number(trade.entryPrice);
+      const xp = trade.exitPrice === '' || trade.exitPrice == null ? null : Number(trade.exitPrice);
       const tp = trade.takeProfit === '' || trade.takeProfit == null ? null : Number(trade.takeProfit);
       const sl = trade.stopLoss === '' || trade.stopLoss == null ? null : Number(trade.stopLoss);
       trade.entryPrice = Number.isFinite(ep) ? ep : null;
+      trade.exitPrice = Number.isFinite(xp) ? xp : null;
       trade.takeProfit = Number.isFinite(tp) ? tp : null;
       trade.stopLoss = Number.isFinite(sl) ? sl : null;
 

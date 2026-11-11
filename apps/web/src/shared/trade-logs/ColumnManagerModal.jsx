@@ -34,7 +34,7 @@ const RESERVED = new Set([
   'date', 'entryTime', 'exitTime', 'direction', 'symbol',
   'strategyId', 'strategy',
   'mae', 'mfe', 'slPoints',
-  'entryPrice', 'takeProfit', 'stopLoss',
+  'entryPrice', 'exitPrice', 'takeProfit', 'stopLoss',
   'pnl', 'quantity', 'notes',
 ]);
 

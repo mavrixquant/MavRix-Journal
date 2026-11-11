@@ -16,6 +16,7 @@ const RESERVED = new Set([
   'slPoints',
 
   'entryPrice',
+  'exitPrice',
 
   'takeProfit',
   'stopLoss',
@@ -30,7 +31,7 @@ const RESERVED = new Set([
 // Strip silently before Prisma sees them — a legacy row holding
 // the literal string "null" in the removed field would otherwise throw a Float type error
 // on PATCH /api/trades/:id.
-const DEPRECATED_TRADE_FIELDS = new Set(['exit' + 'Price']);
+const DEPRECATED_TRADE_FIELDS = new Set();
 
 function stripDeprecatedTradeFields(input) {
   if (!input || typeof input !== 'object') return input;
@@ -46,9 +47,27 @@ function splitTradePayload(rawPayload) {
   const payload = stripDeprecatedTradeFields(rawPayload);
   const reserved = {};
   const dynamic = {};
+  
+  const NUMERIC_FIELDS = new Set([
+    'pnl', 'quantity', 'commission', 'mae', 'mfe', 'slPoints', 
+    'entryPrice', 'exitPrice', 'takeProfit', 'stopLoss'
+  ]);
+
   Object.entries(payload).forEach(([k, v]) => {
-    if (RESERVED.has(k)) reserved[k] = v;
-    else dynamic[k] = v === undefined || v === null ? '' : String(v);
+    if (RESERVED.has(k)) {
+      if (NUMERIC_FIELDS.has(k)) {
+        if (v === 'null' || v === null || v === undefined || v === '') {
+          reserved[k] = null;
+        } else {
+          const num = Number(v);
+          reserved[k] = Number.isFinite(num) ? num : null;
+        }
+      } else {
+        reserved[k] = v;
+      }
+    } else {
+      dynamic[k] = v === undefined || v === null ? '' : String(v);
+    }
   });
   return { reserved, dynamic };
 }
@@ -89,6 +108,7 @@ function serialize(t) {
     mfe: t.mfe,
     slPoints: t.slPoints,
     entryPrice: t.entryPrice,
+    exitPrice: t.exitPrice,
     takeProfit: t.takeProfit,
     stopLoss: t.stopLoss,
     pnl: t.pnl,

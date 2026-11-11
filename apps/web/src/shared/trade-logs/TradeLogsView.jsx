@@ -460,7 +460,9 @@ function Stat({ label, value, tone }) {
 function buildColumns(dynamicKeys, currency, isBacktest, { onEdit, onDelete, onViewChart }) {
   const price = (ctx) => {
     const v = ctx.getValue();
-    return v == null ? '—' : Number(v).toLocaleString('en-US', { maximumFractionDigits: 6 });
+    if (v == null || v === '') return '—';
+    const n = Number(v);
+    return Number.isFinite(n) ? n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) : '—';
   };
 
   const common = [
@@ -487,6 +489,7 @@ function buildColumns(dynamicKeys, currency, isBacktest, { onEdit, onDelete, onV
       ]
     : [
         { id: 'entryPrice', accessorKey: 'entryPrice', header: 'Entry Price', meta: { label: 'Entry Price' }, size: 110, cell: price },
+        { id: 'exitPrice', accessorKey: 'exitPrice', header: 'Exit Price', meta: { label: 'Exit Price' }, size: 110, cell: price },
         { id: 'takeProfit', accessorKey: 'takeProfit', header: 'Take Profit', meta: { label: 'Take Profit' }, size: 110, cell: price },
         { id: 'stopLoss', accessorKey: 'stopLoss', header: 'Stop Loss', meta: { label: 'Stop Loss' }, size: 110, cell: price },
       ];
@@ -726,7 +729,7 @@ export default function TradeLogsView({
   const loading = accountsLoading || (accountId && tradesLoading);
 
   const searchableIds = useMemo(
-    () => ['date', 'entry', 'exit', 'dir', 'symbol', 'strategy', 'notes', ...dynamicKeys],
+    () => ['date', 'entry', 'exit', 'dir', 'symbol', 'strategy', 'notes', 'entryPrice', 'exitPrice', 'takeProfit', 'stopLoss', ...dynamicKeys],
     [dynamicKeys]
   );
 

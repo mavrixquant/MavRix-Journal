@@ -122,6 +122,7 @@ model Trade {
   slPoints Float?
 
   entryPrice Float?
+  exitPrice  Float?
   takeProfit Float?
   stopLoss   Float?
 

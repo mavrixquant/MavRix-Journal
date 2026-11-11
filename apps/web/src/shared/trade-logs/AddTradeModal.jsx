@@ -99,6 +99,7 @@ const EMPTY = {
   mfe: '',
   sl: '',
   entryPrice: '',
+  exitPrice: '',
   takeProfit: '',
   stopLoss: '',
   pnl: '',
@@ -532,6 +533,7 @@ export default function AddTradeModal({ isOpen, onClose, account, trade = null, 
         mfe: trade.mfe != null ? String(trade.mfe) : '',
         sl: isBacktest ? slPointsToDisplay(trade.slPoints) : '',
         entryPrice: trade.entryPrice != null ? String(trade.entryPrice) : '',
+        exitPrice: trade.exitPrice != null ? String(trade.exitPrice) : '',
         takeProfit: trade.takeProfit != null ? String(trade.takeProfit) : '',
         stopLoss: trade.stopLoss != null ? String(trade.stopLoss) : '',
         pnl: trade.pnl != null ? String(trade.pnl) : '',
@@ -630,12 +632,19 @@ export default function AddTradeModal({ isOpen, onClose, account, trade = null, 
       : {
           ...base,
           entryPrice: form.entryPrice === '' ? null : Number(form.entryPrice),
+          exitPrice: form.exitPrice === '' ? null : Number(form.exitPrice),
           takeProfit: form.takeProfit === '' ? null : Number(form.takeProfit),
           stopLoss: form.stopLoss === '' ? null : Number(form.stopLoss),
           commission: commissionValue,
         };
 
+    const RESERVED_KEYS = new Set([
+      'date', 'entryTime', 'exitTime', 'direction', 'symbol', 'strategyId', 
+      'mae', 'mfe', 'slPoints', 'entryPrice', 'exitPrice', 'takeProfit', 
+      'stopLoss', 'pnl', 'quantity', 'commission', 'notes'
+    ]);
     Object.entries(custom).forEach(([k, v]) => {
+      if (RESERVED_KEYS.has(k)) return;
       payload[k] = v == null ? '' : String(v);
     });
 
@@ -879,6 +888,18 @@ export default function AddTradeModal({ isOpen, onClose, account, trade = null, 
                           placeholder="0.00"
                           value={form.entryPrice}
                           onChange={(e) => set('entryPrice', e.target.value)}
+                          disabled={saving}
+                        />
+                      </div>
+                      <div>
+                        <label className="at-label">Exit Price</label>
+                        <input
+                          type="number"
+                          step="any"
+                          className="at-input"
+                          placeholder="0.00"
+                          value={form.exitPrice}
+                          onChange={(e) => set('exitPrice', e.target.value)}
                           disabled={saving}
                         />
                       </div>

@@ -23,7 +23,7 @@ import { pricePrecision } from './lib/chartTheme';
 import { DRAW_COLORS } from './lib/drawings';
 
 const DEFAULT_SYMBOL = 'NQ';
-const DEFAULT_INTERVAL = '5m';
+const DEFAULT_INTERVAL = '1m';
 const INTERVAL_KEYS = { 1: '1m', 2: '5m', 3: '15m', 4: '1h', 5: '4h', 6: '1d' };
 const TOOL_KEYS = { h: 'hline', l: 'trend', y: 'ray', b: 'rect', g: 'fib', p: 'rr', m: 'measure' };
 const DAY = 86400000;
