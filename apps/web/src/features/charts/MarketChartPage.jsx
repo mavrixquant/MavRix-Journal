@@ -8,6 +8,7 @@ import { useJournalTrades } from '@/shared/api/journalTrades';
 import { getTimezoneOffsetSeconds, toDisplaySeconds, tradeTimeToUtcSeconds } from '@/shared/trading/tradeTime';
 import { resolveTimezone } from '@/shared/format/datetime';
 import { useSettings } from '@/app/layout/Settings/SettingsProvider';
+import { useDashboardAccount } from '@/app/providers/useDashboardAccount';
 import { usePageHeader } from '@/app/layout/PageHeaderProvider';
 
 import CandlestickChart from './components/CandlestickChart';
@@ -117,6 +118,7 @@ function formatChartTime(t, interval, tz) {
 export default function MarketChartPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { settings } = useSettings();
+  const { accountId } = useDashboardAccount();
   const chartRef = useRef(null);
 
   const symbol = (searchParams.get('symbol') || DEFAULT_SYMBOL).toUpperCase();
@@ -279,7 +281,7 @@ export default function MarketChartPage() {
   const precision = pricePrecision(symInfo, symbol);
 
   /* ------------------------ journal trades -> boxes, markers, list ------------------------ */
-  const journalResult = useJournalTrades();
+  const journalResult = useJournalTrades({ accountId });
   const journal = journalResult?.trades || EMPTY;
   const { chartTrades, chartMarkers, tradeRows, journalTotal } = useMemo(() => {
     const symTrades = journal.filter((t) => {

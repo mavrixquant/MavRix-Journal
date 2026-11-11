@@ -11,13 +11,13 @@ import { getTrades, tradesKeys } from './trades';
  * Returns the flattened trade array (each row carries accountId /
  * accountName / accountType so callers can disambiguate).
  */
-export function useJournalTrades() {
+export function useJournalTrades({ accountId = null } = {}) {
   const { data: accounts = [], isLoading: accountsLoading } = useAccounts();
 
-  const journalAccounts = useMemo(
-    () => accounts.filter((a) => a.type === 'Live' || a.type === 'Demo'),
-    [accounts]
-  );
+  const journalAccounts = useMemo(() => {
+    const all = accounts.filter((a) => a.type === 'Live' || a.type === 'Demo');
+    return accountId ? all.filter((a) => a.id === accountId) : all;
+  }, [accounts, accountId]);
 
   const results = useQueries({
     queries: journalAccounts.map((acc) => ({

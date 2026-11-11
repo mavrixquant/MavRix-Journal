@@ -10,7 +10,11 @@ export function useDashboardAccount() {
   const { state, dispatch } = useAppContext();
   const { pathname } = useLocation();
 
-  const isJournal = pathname.startsWith('/journal');
+  // Chart page reuses the journal account selector so Live/Demo trades
+  // from a specific account can be isolated on the chart.
+  const isJournal =
+    pathname.startsWith('/journal') ||
+    pathname.startsWith('/utilities/chart');
   const isBacktester = pathname.startsWith('/backtester');
 
   const dashboardType = isJournal
