@@ -1,4 +1,3 @@
-
 import {
   createContext,
   useCallback,
@@ -29,8 +28,8 @@ export const DEFAULT_SETTINGS = Object.freeze({
     timeFormat: '24h',
     dateFormat: 'iso',
     confirmDestructive: true,
-    lastSeenChangelogVersion: null,
     lastAcknowledgedChangelogVersion: null,
+    lastAcknowledgedChangelogAt: null,
   },
   notifications: {
     broadcastBanner: true,

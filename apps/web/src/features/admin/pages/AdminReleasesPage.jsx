@@ -141,6 +141,15 @@ export default function AdminReleasesPage() {
   const drafts = releases.filter((r) => !r.isPublished);
   const published = releases.filter((r) => r.isPublished);
 
+  // The release we're currently editing (if any), plus whether it's already
+  // live. Drives both the save flow (never re-publish an already-published
+  // release — backend 400s) and the button labels below.
+  const editingRelease = useMemo(
+    () => (editingId ? releases.find((r) => r.id === editingId) || null : null),
+    [releases, editingId]
+  );
+  const isEditingPublished = !!editingRelease?.isPublished;
+
   const startNew = () => { setEditingId(null); setForm({ ...EMPTY }); setError(''); };
   const startEdit = (r) => {
     setEditingId(r.id);
@@ -164,12 +173,32 @@ export default function AdminReleasesPage() {
     const payload = { ...toPayload(form), publish };
     try {
       if (editingId) {
+        const wasPublished = !!editingRelease?.isPublished;
+
+        // Always update content first.
         await updateM.mutateAsync({ id: editingId, payload });
-        if (publish) await publishM.mutateAsync(editingId);
+
+        // Only call publish when transitioning draft → published. Calling it
+        // on an already-published release would 400 ("already published")
+        // even though the content update above succeeded.
+        if (publish && !wasPublished) {
+          await publishM.mutateAsync(editingId);
+        }
+
+        const toastMsg = wasPublished
+          ? `Updated v${payload.version}`
+          : publish
+            ? `Published v${payload.version} to every user`
+            : `Saved v${payload.version} as draft`;
+        toast.success(toastMsg);
       } else {
         await createM.mutateAsync(payload);
+        toast.success(
+          publish
+            ? `Published v${payload.version} to every user`
+            : `Saved v${payload.version} as draft`
+        );
       }
-      toast.success(publish ? `Published v${payload.version} to every user` : `Saved v${payload.version} as draft`);
       startNew();
     } catch (e) {
       setError(e?.message || 'Save failed');
@@ -237,7 +266,11 @@ export default function AdminReleasesPage() {
 
         <div className="rel-card">
           <div className="rel-card-head">
-            <span className="rel-card-title">{editingId ? 'Edit release' : 'Create release'}</span>
+            <span className="rel-card-title">
+              {editingId
+                ? (isEditingPublished ? 'Edit published release' : 'Edit draft')
+                : 'Create release'}
+            </span>
             {editingId && (
               <button type="button" className="rel-btn-icon" onClick={startNew} title="Cancel edit">
                 <X size={13} />
@@ -282,12 +315,38 @@ export default function AdminReleasesPage() {
                 </button>
               )}
               <div style={{ flex: 1 }} />
-              <button type="button" className="rel-btn" onClick={() => save({ publish: false })} disabled={busy}>
-                <Save size={11} /> Save draft
-              </button>
-              <button type="button" className="rel-btn rel-btn-primary" onClick={() => save({ publish: true })} disabled={busy}>
-                <Send size={11} /> {editingId ? 'Save & publish' : 'Create & publish'}
-              </button>
+              {isEditingPublished ? (
+                // Already live — the only meaningful action is "save changes".
+                // Calling publish() again would 400 and noisily fail even
+                // though the update above already succeeded.
+                <button
+                  type="button"
+                  className="rel-btn rel-btn-primary"
+                  onClick={() => save({ publish: false })}
+                  disabled={busy}
+                >
+                  <Save size={11} /> Save changes
+                </button>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    className="rel-btn"
+                    onClick={() => save({ publish: false })}
+                    disabled={busy}
+                  >
+                    <Save size={11} /> Save draft
+                  </button>
+                  <button
+                    type="button"
+                    className="rel-btn rel-btn-primary"
+                    onClick={() => save({ publish: true })}
+                    disabled={busy}
+                  >
+                    <Send size={11} /> {editingId ? 'Save & publish' : 'Create & publish'}
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>

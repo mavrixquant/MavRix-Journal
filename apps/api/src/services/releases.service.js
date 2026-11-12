@@ -250,7 +250,7 @@ async function broadcastRelease(actor, row) {
       section: 'broadcasts',
       title,
       body,
-      data: { version: row.version, date: row.date, link: '/changelog', by: actor.email },
+      data: { version: row.version, date: row.date, by: actor.email },
     }
   );
 

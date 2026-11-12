@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useMemo } from 'react';
+import { createContext, useContext, useState, useMemo, useCallback } from 'react';
 
 const ChangelogModalContext = createContext(null);
 
@@ -7,12 +7,32 @@ export function ChangelogProvider({ children }) {
   const [mode, setMode] = useState('latest'); // 'latest' | 'all' | 'specific'
   const [targetVersion, setTargetVersion] = useState(null);
 
-  const openLatest = () => { setMode('latest'); setTargetVersion(null); setIsOpen(true); };
-  const openAll = () => { setMode('all'); setTargetVersion(null); setIsOpen(true); };
-  const openSpecific = (version) => { setMode('specific'); setTargetVersion(version); setIsOpen(true); };
-  const close = () => setIsOpen(false);
+  const openLatest = useCallback(() => {
+    setMode('latest');
+    setTargetVersion(null);
+    setIsOpen(true);
+  }, []);
 
-  const value = useMemo(() => ({ isOpen, mode, targetVersion, openLatest, openAll, openSpecific, close }), [isOpen, mode, targetVersion]);
+  const openAll = useCallback(() => {
+    setMode('all');
+    setTargetVersion(null);
+    setIsOpen(true);
+  }, []);
+
+  const openSpecific = useCallback((version) => {
+    setMode('specific');
+    setTargetVersion(version);
+    setIsOpen(true);
+  }, []);
+
+  const close = useCallback(() => {
+    setIsOpen(false);
+  }, []);
+
+  const value = useMemo(
+    () => ({ isOpen, mode, targetVersion, openLatest, openAll, openSpecific, close }),
+    [isOpen, mode, targetVersion, openLatest, openAll, openSpecific, close]
+  );
 
   return (
     <ChangelogModalContext.Provider value={value}>

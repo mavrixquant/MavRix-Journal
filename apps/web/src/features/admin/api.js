@@ -1,10 +1,10 @@
-
 import {
   useQuery,
   useMutation,
   useQueryClient,
 } from '@tanstack/react-query';
 import { apiJson } from '@/shared/api/client';
+import { useVersion } from '@/shared/api/version';
 
 export const adminKeys = {
   me:         ['admin', 'me'],
@@ -678,10 +678,13 @@ export function useDeleteRelease() {
   const invalidate = useInvalidateReleases();
   return useMutation({ mutationFn: deleteRelease, onSuccess: invalidate });
 }
+
+// --- Version / changelog -----------------------------------------------
+// Delegates to the shared useVersion so both the admin dashboard tiles and
+// the ChangelogModal read from the same React Query cache entry. This also
+// means the SSE `invalidate` broadcast ([['changelog'], ['version']]) refreshes
+// every consumer — previously the admin tiles were keyed on 'api-version'
+// and stayed stale until a hard reload.
 export function useApiVersion() {
-  return useQuery({
-    queryKey: ['api-version'],
-    queryFn: () => apiJson('/api/version'),
-    staleTime: 5 * 60_000,
-  });
+  return useVersion();
 }

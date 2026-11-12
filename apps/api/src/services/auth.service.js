@@ -23,7 +23,6 @@ import { ensureAiDmForUser } from './maveAiBootstrap.js';
 import { signTwoFactorSession } from '../lib/jwt.js';
 import { enabledMethods } from './twoFactor.service.js';
 import { env } from '../config/env.js';
-import { APP_VERSION } from '../lib/version.js';
 
 const publicUser = (u) => ({
   id: u.id,
@@ -93,7 +92,6 @@ export async function signup({ email, password, firstName, lastName }) {
       lastName,
       verifyToken,
       verifyTokenExpiry,
-      preferences: { lastSeenChangelogVersion: APP_VERSION },
     },
   });
 
@@ -307,7 +305,6 @@ export async function loginWithGoogle(accessToken) {
       emailVerified: true,
       passwordHash: null,
       lastLoginAt: new Date(),
-      preferences: { lastSeenChangelogVersion: APP_VERSION },
     },
   });
 
