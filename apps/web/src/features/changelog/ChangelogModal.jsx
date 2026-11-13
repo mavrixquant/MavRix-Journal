@@ -364,7 +364,7 @@ export default function ChangelogModal() {
                   </span>
                 ) : (
                   <span className="cm-foot-hint">
-                    New release chagelogs.
+                    New release Changelogs
                   </span>
                 )}
                 <button type="button" className="cm-btn-primary" onClick={handleGotIt}>

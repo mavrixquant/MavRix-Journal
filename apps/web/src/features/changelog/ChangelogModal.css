@@ -14,7 +14,7 @@
   --ink-1: #E7E9EE;
   --ink-2: #8892A3;
   --ink-3: #545E6E;
-  width: 100%; max-width: 540px;
+  width: 100%; max-width: 740px;
   max-height: calc(100vh - 32px);
   max-height: calc(100dvh - 32px);
   display: flex; flex-direction: column;
