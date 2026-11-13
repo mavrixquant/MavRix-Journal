@@ -29,6 +29,12 @@ import Alert from '@/shared/components/Alert';
 import EmptyState from '@/shared/components/EmptyState';
 import './tradeLogsModals.css';
 
+const RESERVED_TRADE_FIELDS = new Set([
+  'id','accountId','tradeId','strategyId','date','entryTime','exitTime','direction','symbol',
+  'mae','mfe','slPoints','entryPrice','exitPrice','takeProfit','stopLoss',
+  'pnl','quantity','commission','notes','dynamic','strategy','createdAt','updatedAt',
+]);
+
 /* ────────────────────────────────────────────────────────────────
    Styles
    ──────────────────────────────────────────────────────────────── */
@@ -729,7 +735,7 @@ export default function TradeLogsView({
   const loading = accountsLoading || (accountId && tradesLoading);
 
   const searchableIds = useMemo(
-    () => ['date', 'entry', 'exit', 'dir', 'symbol', 'strategy', 'notes', 'entryPrice', 'exitPrice', 'takeProfit', 'stopLoss', ...dynamicKeys],
+    () => ['date', 'entry', 'exit', 'dir', 'symbol', 'strategy', 'notes', 'entryPrice', 'exitPrice', 'takeProfit', 'stopLoss', ...dynamicKeys.filter(k => !RESERVED_TRADE_FIELDS.has(k))],
     [dynamicKeys]
   );
 

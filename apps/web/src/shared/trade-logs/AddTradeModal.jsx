@@ -578,6 +578,10 @@ export default function AddTradeModal({ isOpen, onClose, account, trade = null, 
       return 'Symbol is required.';
     }
 
+  if (!form.direction) {
+    return 'Direction is required.';
+  }
+
     const q = Number(form.quantity);
     if (form.quantity === '' || !Number.isFinite(q) || q <= 0) {
       return 'Quantity must be a positive number.';
@@ -594,6 +598,15 @@ export default function AddTradeModal({ isOpen, onClose, account, trade = null, 
       if (form.pnl === '' || Number.isNaN(Number(form.pnl))) {
         return 'P&L is required.';
       }
+
+  if (account?.type !== 'Backtest') {
+    if (form.entryPrice === '' || Number.isNaN(Number(form.entryPrice))) {
+      return 'Entry Price is required for Live/Demo trades.';
+    }
+    if (form.exitPrice === '' || Number.isNaN(Number(form.exitPrice))) {
+      return 'Exit Price is required for Live/Demo trades.';
+    }
+  }
     }
     return null;
   };

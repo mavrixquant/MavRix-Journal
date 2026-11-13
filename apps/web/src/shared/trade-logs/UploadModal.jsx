@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect, useCallback } from 'react';
 import * as XLSX from 'xlsx';
 import {
@@ -26,7 +25,6 @@ const RESERVED_NAMES = new Set([
   'entryPrice', 'exitPrice', 'takeProfit', 'stopLoss',
   'pnl', 'quantity', 'notes',
 ]);
-
 
 const RESERVED_MAP_BACKTEST = {
   'Date': 'date',
@@ -70,13 +68,11 @@ function getReservedMap(account) {
   return account?.type === 'Backtest' ? RESERVED_MAP_BACKTEST : RESERVED_MAP_JOURNAL;
 }
 
-
 function resolveSLPoints(rawSl) {
   const raw = (rawSl === '' || rawSl == null) ? null : Number(rawSl);
   if (raw == null || Number.isNaN(raw) || raw <= 0) return null;
   return +raw.toFixed(4);
 }
-
 
 function formatExcelDate(value) {
   if (!value) return '';
@@ -119,7 +115,6 @@ function isNumericValue(v) {
 function hasAnyValue(v) {
   return v !== '' && v !== null && v !== undefined;
 }
-
 
 function parseFile(workbook, account, existingTrades, strategies) {
   const isBacktest = account.type === 'Backtest';
@@ -168,6 +163,17 @@ function parseFile(workbook, account, existingTrades, strategies) {
   const invalidPnlRows = [];
   const tradesData = [];
 
+  // NEW: Track missing mandatory fields
+  const missingFields = {
+    date: [],
+    entryTime: [],
+    exitTime: [],
+    direction: [],
+    symbol: [],
+    entryPrice: [],
+    exitPrice: [],
+  };
+
   rows.forEach((row, idx) => {
     const excelRowNum = idx + 2;
     const trade = {};
@@ -186,9 +192,19 @@ function parseFile(workbook, account, existingTrades, strategies) {
       trade[mappedKey] = value;
     });
 
+    // Skip completely empty rows
     if (!trade.date && !trade.entryTime && !trade.exitTime && !trade.direction) return;
 
+    // Capture missing core fields before skipping
+    if (!trade.date) missingFields.date.push(excelRowNum);
+    if (!trade.entryTime) missingFields.entryTime.push(excelRowNum);
+    if (!trade.exitTime) missingFields.exitTime.push(excelRowNum);
+
+    // Skip further processing if the row is missing core time/date fields
     if (!trade.date || !trade.entryTime || !trade.exitTime) return;
+
+    if (!trade.direction) missingFields.direction.push(excelRowNum);
+    if (!trade.symbol) missingFields.symbol.push(excelRowNum);
 
     let quantityNum = null;
     if (trade.quantity !== undefined && trade.quantity !== '' && trade.quantity !== null) {
@@ -244,10 +260,15 @@ function parseFile(workbook, account, existingTrades, strategies) {
       const xp = trade.exitPrice === '' || trade.exitPrice == null ? null : Number(trade.exitPrice);
       const tp = trade.takeProfit === '' || trade.takeProfit == null ? null : Number(trade.takeProfit);
       const sl = trade.stopLoss === '' || trade.stopLoss == null ? null : Number(trade.stopLoss);
+      
       trade.entryPrice = Number.isFinite(ep) ? ep : null;
       trade.exitPrice = Number.isFinite(xp) ? xp : null;
       trade.takeProfit = Number.isFinite(tp) ? tp : null;
       trade.stopLoss = Number.isFinite(sl) ? sl : null;
+
+      // Capture missing Journal prices
+      if (trade.entryPrice === null) missingFields.entryPrice.push(excelRowNum);
+      if (trade.exitPrice === null) missingFields.exitPrice.push(excelRowNum);
 
       delete trade.mae;
       delete trade.mfe;
@@ -273,11 +294,27 @@ function parseFile(workbook, account, existingTrades, strategies) {
 
   if (tradesData.length === 0) {
     const requiredCommon = 'Date, Entry Time, Exit Time, Direction, Symbol, Quantity';
-    const requiredMode = isBacktest ? ', MAE, MFE' : ', P&L';
+    const requiredMode = isBacktest ? ', MAE, MFE, SL (points)' : ', Entry Price, Exit Price, P&L';
     return { errors: [`No valid trades found. Ensure columns: ${requiredCommon}${requiredMode}`] };
   }
 
   const errors = [];
+
+  // NEW: Extended mandatory-field checks
+  const fieldLabels = {
+    date: 'Date', entryTime: 'Entry Time', exitTime: 'Exit Time',
+    direction: 'Direction', symbol: 'Symbol',
+    entryPrice: 'Entry Price', exitPrice: 'Exit Price'
+  };
+
+  Object.keys(missingFields).forEach((field) => {
+    const rows = missingFields[field];
+    if (rows.length > 0) {
+      const list = rows.slice(0, 10).join(', ');
+      const extra = rows.length > 10 ? ` and ${rows.length - 10} more` : '';
+      errors.push(`Rows ${list}${extra} are missing ${fieldLabels[field]}. ${fieldLabels[field]} is required for every ${isBacktest ? 'Backtest' : 'Live/Demo'} trade.`);
+    }
+  });
 
   if (isBacktest && missingSlRows.length > 0) {
     const list = missingSlRows.slice(0, 10).join(', ');
@@ -322,7 +359,7 @@ function parseFile(workbook, account, existingTrades, strategies) {
     const unionVals = [...fileVals, ...existingVals].filter(hasAnyValue);
 
     if (unionVals.length === 0) {
-      return { name: col, type: 'text', locked: true, reason: 'No data — defaults to Text', uniqueCount: 0, sampleValues: [], options: [] };
+      return { name: col, type: 'text', locked: true, reason: 'No data — defaults to Text', uniqueCount: 0, sampleValues: [], options: [] };
     }
 
     const allNumeric = unionVals.every(isNumericValue);
@@ -334,7 +371,7 @@ function parseFile(workbook, account, existingTrades, strategies) {
     const uniqueCount = uniqueSet.size;
 
     if (uniqueCount > MAX_DROPDOWN_UNIQUES) {
-      return { name: col, type: 'text', locked: true, reason: `${uniqueCount} unique values (over ${MAX_DROPDOWN_UNIQUES}) — Text required`, uniqueCount, sampleValues: [...uniqueSet].slice(0, 5), options: [] };
+      return { name: col, type: 'text', locked: true, reason: `${uniqueCount} unique values (over ${MAX_DROPDOWN_UNIQUES}) — Text required`, uniqueCount, sampleValues: [...uniqueSet].slice(0, 5), options: [] };
     }
 
     const stored = storedConfigs[col];
@@ -358,12 +395,20 @@ function parseFile(workbook, account, existingTrades, strategies) {
   });
 
   // Silently drop any '__legacy_skip' markers left by old Excel columns
-  // (e.g. the removed "Exit Price" column). Prevents spurious custom columns.
   tradesData.forEach((t) => { delete t.__legacy_skip; });
 
-  return { trades: tradesData, customColumns, errors, hasSLColumn, tradesCount: tradesData.length };
-}
+  // NEW: Calculate found required columns for the UI badges
+  const requiredLabels = isBacktest
+    ? [['date', 'Date'], ['entryTime', 'Entry Time'], ['exitTime', 'Exit Time'], ['direction', 'Direction'], ['symbol', 'Symbol'], ['mae', 'MAE'], ['mfe', 'MFE'], ['slPoints', 'SL']]
+    : [['date', 'Date'], ['entryTime', 'Entry Time'], ['exitTime', 'Exit Time'], ['direction', 'Direction'], ['symbol', 'Symbol'], ['entryPrice', 'Entry Price'], ['exitPrice', 'Exit Price'], ['pnl', 'P&L']];
+    
+  const sampleRow = tradesData[0] || {};
+  const foundColumns = requiredLabels
+    .filter(([key]) => sampleRow[key] !== undefined && sampleRow[key] !== null && sampleRow[key] !== '')
+    .map(([, label]) => label);
 
+  return { trades: tradesData, customColumns, errors, foundColumns, tradesCount: tradesData.length };
+}
 
 function buildDrafts(customColumns) {
   return customColumns.map((col) => ({
@@ -1067,7 +1112,6 @@ const UPL_CSS = `
   }
 `;
 
-
 function ColumnCard({
   draft,
   index,
@@ -1308,7 +1352,6 @@ function ColumnCard({
   );
 }
 
-
 export default function UploadModal({
   isOpen,
   onClose,
@@ -1513,7 +1556,11 @@ export default function UploadModal({
                     </>
                   )}
                   {!isBacktest && (
-                    <span className="req-list">P&amp;L</span>
+                    <>
+                      <span className="req-list">Entry Price</span>
+                      <span className="req-list">Exit Price</span>
+                      <span className="req-list">P&L</span>
+                    </>
                   )}
                   <br />
                   Optional:
@@ -1521,13 +1568,12 @@ export default function UploadModal({
                   <span className="req-list">Commission</span>
                   {!isBacktest && (
                     <>
-                      <span className="req-list">Entry Price</span>
                       <span className="req-list">Take Profit</span>
                       <span className="req-list">Stop Loss</span>
                     </>
                   )}
                   {isBacktest && (
-                    <span className="req-list">P&amp;L</span>
+                    <span className="req-list">P&L</span>
                   )}
                   <span className="req-list">Notes</span>
                 </div>
@@ -1558,11 +1604,13 @@ export default function UploadModal({
                       {hasErrors ? <FaExclamationTriangle /> : <FaCheckCircle />}
                       {parseResult.tradesCount ?? 0} {isBacktest ? 'tests' : 'trades'} detected
                     </span>
-                    {isBacktest && parseResult.hasSLColumn && (
-                      <span className="upl-chip ok">
-                        <FaCheckCircle /> SL column found
+                    
+                    {/* Dynamically show all found required columns */}
+                    {parseResult.foundColumns?.map((col) => (
+                      <span key={col} className="upl-chip ok">
+                        <FaCheckCircle /> {col} column found
                       </span>
-                    )}
+                    ))}
                   </div>
                 </div>
 
@@ -1605,7 +1653,7 @@ export default function UploadModal({
                 {!hasErrors && drafts.length === 0 && (
                   <div className="upl-ready">
                     <FaCheckCircle />
-                    No custom columns to configure — ready to upload.
+                    No custom columns to configure — ready to upload.
                   </div>
                 )}
               </>

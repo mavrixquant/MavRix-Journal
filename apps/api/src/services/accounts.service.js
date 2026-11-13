@@ -2,6 +2,24 @@ import { prisma } from '../lib/prisma.js';
 import { HttpError } from '../middleware/error.js';
 import { broadcastToUser } from '../lib/broadcaster.js';
 
+const RESERVED_TRADE_FIELDS = new Set([
+  'id', 'accountId', 'tradeId', 'strategyId',
+  'date', 'entryTime', 'exitTime', 'direction', 'symbol',
+  'mae', 'mfe', 'slPoints',
+  'entryPrice', 'exitPrice', 'takeProfit', 'stopLoss',
+  'pnl', 'quantity', 'commission', 'notes',
+  'dynamic', 'strategy', 'createdAt', 'updatedAt',
+]);
+
+const stripReservedColumnNames = (configs) => {
+  if (!configs || typeof configs !== 'object') return {};
+  const out = {};
+  for (const [k, v] of Object.entries(configs)) {
+    if (!RESERVED_TRADE_FIELDS.has(k)) out[k] = v;
+  }
+  return out;
+};
+
 const serialize = (a) => ({
   id: a.id,
   name: a.name,
@@ -33,7 +51,11 @@ export async function getAccount(userId, accountId) {
 }
 
 export async function createAccount(userId, data) {
-  const account = await prisma.account.create({ data: { userId, ...data } });
+  const payload = { ...data };
+  if (payload.columnConfigs) {
+    payload.columnConfigs = stripReservedColumnNames(payload.columnConfigs);
+  }
+  const account = await prisma.account.create({ data: { userId, ...payload } });
   notify(userId, [['accounts']]);
   return serialize(account);
 }
@@ -43,9 +65,13 @@ export async function updateAccount(userId, accountId, data) {
     where: { id: accountId, userId },
   });
   if (!existing) throw new HttpError(404, 'Account not found');
+  const payload = { ...data };
+  if (payload.columnConfigs) {
+    payload.columnConfigs = stripReservedColumnNames(payload.columnConfigs);
+  }
   const account = await prisma.account.update({
     where: { id: accountId },
-    data,
+    data: payload,
   });
   notify(userId, [['accounts']]);
   return serialize(account);
@@ -58,7 +84,7 @@ export async function updateColumnConfigs(userId, accountId, columnConfigs) {
   if (!existing) throw new HttpError(404, 'Account not found');
   const account = await prisma.account.update({
     where: { id: accountId },
-    data: { columnConfigs: columnConfigs ?? {} },
+    data: { columnConfigs: stripReservedColumnNames(columnConfigs) },
   });
   notify(userId, [['accounts']]);
   return serialize(account);
