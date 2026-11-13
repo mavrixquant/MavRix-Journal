@@ -34,6 +34,7 @@ const serializeGroupListItem = (c) => ({
   color: c.color,
   iconEmoji: c.iconEmoji,
   memberCount: c.memberCount,
+  isDefault: !!c.isDefault,
   createdById: c.createdById,
   createdBy: serializePublicUser(c.createdBy),
   lastMessageAt: c.lastMessageAt,
@@ -153,6 +154,7 @@ export async function createGroup(actor, payload) {
     visibility = 'public',
     color = '#F59E0B',
     iconEmoji = null,
+    isDefault = false,
     initialMemberIds = [],
   } = payload;
 
@@ -197,6 +199,7 @@ export async function createGroup(actor, payload) {
       color,
       iconEmoji,
       createdById: actor.id,
+      isDefault: !!isDefault && actor.role === 'superadmin',
       memberCount,
       participants: {
         create: [
@@ -512,4 +515,57 @@ export async function setGroupMemberRole(actor, groupId, userId, newRole) {
   });
 
   return { ok: true, role: newRole };
+}
+
+// ---------------------------------------------------------------------------
+// Mark / unmark a channel as a platform default.
+// Superadmin only. Default channels are auto-joined by channelBootstrap.js
+// and cannot be left by non-admin users.
+// ---------------------------------------------------------------------------
+export async function setGroupDefault(actor, groupId, isDefault) {
+  if (actor.role !== 'superadmin') {
+    throw new HttpError(403, 'Only superadmins can change the default flag.');
+  }
+
+  const group = await prisma.conversation.findUnique({
+    where: { id: groupId },
+    select: { id: true, type: true, name: true, isDefault: true },
+  });
+  if (!group || group.type !== 'group') {
+    throw new HttpError(404, 'Channel not found');
+  }
+
+  if (group.isDefault !== !!isDefault) {
+    await prisma.conversation.update({
+      where: { id: groupId },
+      data: { isDefault: !!isDefault },
+    });
+
+    await writeAudit({
+      actorId: actor.id,
+      actorEmail: actor.email,
+      action: isDefault ? 'channel.mark-default' : 'channel.unmark-default',
+      targetType: 'group',
+      targetId: groupId,
+      metadata: { name: group.name, previous: group.isDefault, next: !!isDefault },
+      req: actor.req,
+    });
+  }
+
+  const fresh = await prisma.conversation.findUnique({
+    where: { id: groupId },
+    include: {
+      createdBy: {
+        select: { id: true, email: true, firstName: true, lastName: true, photoUrl: true },
+      },
+      participants: {
+        include: {
+          user: {
+            select: { id: true, email: true, firstName: true, lastName: true, photoUrl: true },
+          },
+        },
+      },
+    },
+  });
+  return serializeGroupDetail(fresh);
 }

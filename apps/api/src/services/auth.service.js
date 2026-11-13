@@ -20,6 +20,7 @@ import {
 import { verifyGoogleAccessToken } from '../lib/google.js';
 import { invalidateSvCache } from '../lib/session.js';
 import { ensureAiDmForUser } from './maveAiBootstrap.js';
+import { addUserToDefaultChannels } from './channelBootstrap.js';
 import { signTwoFactorSession } from '../lib/jwt.js';
 import { enabledMethods } from './twoFactor.service.js';
 import { env } from '../config/env.js';
@@ -71,6 +72,12 @@ function scheduleAiDmForUser(userId) {
   ensureAiDmForUser(userId).catch((err) => {
     console.warn(
       `[mave-ai] failed to ensure DM for new user ${userId}:`,
+      err?.message || err
+    );
+  });
+  addUserToDefaultChannels(userId).catch((err) => {
+    console.warn(
+      `[channels] failed to add new user ${userId} to default channels:`,
       err?.message || err
     );
   });

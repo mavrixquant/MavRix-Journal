@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { MessageSquare, MessageSquarePlus, Compass, Lock } from 'lucide-react';
+import { MessageSquare, MessageSquarePlus, Lock } from 'lucide-react';
 
 import { useAuth } from '@/app/providers/AuthProvider';
 import { useChatConversations } from '@/shared/api/chat';
@@ -14,7 +14,6 @@ import ConversationList from './components/ConversationList';
 import MessageThread from './components/MessageThread';
 import FriendsTab from './components/FriendsTab';
 import NewChatModal from './components/NewChatModal';
-import GroupDiscoverModal from './components/GroupDiscoverModal';
 import CreateGroupModal from './components/CreateGroupModal';
 import AddFriendModal from './components/AddFriendModal';
 import { useSwipeBack } from './hooks/useSwipeBack';
@@ -32,7 +31,6 @@ export default function ChatsPage() {
   const [mobileThreadOpen, setMobileThreadOpen] = useState(false);
 
   const [newChatOpen, setNewChatOpen] = useState(false);
-  const [discoverOpen, setDiscoverOpen] = useState(false);
   const [createGroupOpen, setCreateGroupOpen] = useState(false);
   const [addFriendOpen, setAddFriendOpen] = useState(false);
 
@@ -148,7 +146,7 @@ export default function ChatsPage() {
 
   usePageHeader({
     title: 'Chats',
-    subtitle: 'Private DMs, groups, and friends',
+    subtitle: 'Private DMs, channels, and friends',
   });
 
   if (isLoading) return <PageSkeleton />;
@@ -185,7 +183,6 @@ export default function ChatsPage() {
             onArchivedToggle={handleArchivedToggle}
             onCreateDm={() => setNewChatOpen(true)}
             onCreateGroup={() => setCreateGroupOpen(true)}
-            onDiscover={() => setDiscoverOpen(true)}
             onAddFriend={() => setAddFriendOpen(true)}
             isAdmin={isAdmin}
             isLoading={isLoading}
@@ -213,21 +210,23 @@ export default function ChatsPage() {
                   <span className="chat-landing-icon"><MessageSquare size={34} strokeWidth={1.75} /></span>
                 </div>
                 <h2 className="chat-landing-title">
-                  {activeTab === 'groups' ? 'Pick a group to jump in' : 'Your messages live here'}
+                  {activeTab === 'groups' ? 'Pick a channel to jump in' : 'Your messages live here'}
                 </h2>
                 <p className="chat-landing-text">
                   Select a conversation from the list, or start a new one.
                 </p>
                 <div className="chat-landing-actions">
-                  {activeTab === 'groups' ? (
-                    <button type="button" className="chat-landing-btn is-primary" onClick={() => setDiscoverOpen(true)}>
-                      <Compass size={16} /> Discover groups
-                    </button>
-                  ) : (
-                    <button type="button" className="chat-landing-btn is-primary" onClick={() => setNewChatOpen(true)}>
-                      <MessageSquarePlus size={16} /> New message
-                    </button>
-                  )}
+                  {activeTab === 'groups'
+                  ? (isAdmin && (
+                      <button type="button" className="chat-landing-btn is-primary" onClick={() => setCreateGroupOpen(true)}>
+                        <MessageSquarePlus size={16} /> New channel
+                      </button>
+                    ))
+                  : (
+                      <button type="button" className="chat-landing-btn is-primary" onClick={() => setNewChatOpen(true)}>
+                        <MessageSquarePlus size={16} /> New message
+                      </button>
+                    )}
                 </div>
                 <div className="chat-landing-note">
                   <Lock size={12} aria-hidden /> Only you and the people in a conversation can see its messages.
@@ -262,13 +261,7 @@ export default function ChatsPage() {
         onOpenAddFriend={() => setAddFriendOpen(true)}
       />
 
-      <GroupDiscoverModal
-        isOpen={discoverOpen}
-        onClose={() => setDiscoverOpen(false)}
-        onJoined={handleOpenThread}
-      />
-
-      <AddFriendModal
+            <AddFriendModal
         isOpen={addFriendOpen}
         onClose={() => setAddFriendOpen(false)}
       />

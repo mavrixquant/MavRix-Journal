@@ -1,8 +1,15 @@
-import { MessageSquarePlus, Compass, UserRoundPlus, Plus } from 'lucide-react';
+import { MessageSquarePlus, UserRoundPlus, Plus } from 'lucide-react';
 
 /**
- * Bottom action bar of the sidebar: one clear primary action + optional
- * admin "create group" button.
+ * Bottom action bar of the sidebar.
+ *
+ * DMs    -> New message (all users)
+ * Groups -> New channel (superadmin only; other admins cannot create
+ *                       user-facing channels from the UI, and non-admins
+ *                       see nothing)
+ * Friends-> Add friend (all users)
+ *
+ * Discovery was removed — users cannot browse channels they aren't in.
  */
 export default function SidebarFab({
   activeTab,
@@ -10,22 +17,23 @@ export default function SidebarFab({
   isAdmin = false,
   onCreateDm,
   onCreateGroup,
-  onDiscover,
   onAddFriend,
 }) {
   if (archivedMode) return null;
 
   const primary =
     activeTab === 'groups'
-      ? { icon: Compass, label: 'Discover groups', title: 'Discover public groups', onClick: onDiscover }
+      ? (isAdmin
+          ? { icon: Plus, label: 'New channel', title: 'Create a channel', onClick: onCreateGroup }
+          : null)
       : activeTab === 'friends'
         ? { icon: UserRoundPlus, label: 'Add friend', title: 'Send a friend request', onClick: onAddFriend }
-        : { icon: MessageSquarePlus, label: 'New message', title: 'Start a new direct message', onClick: onCreateDm };
+        : activeTab === 'dms'
+          ? { icon: MessageSquarePlus, label: 'New message', title: 'Start a new direct message', onClick: onCreateDm }
+          : null;
 
-  if (activeTab !== 'dms' && activeTab !== 'groups' && activeTab !== 'friends') return null;
-
+  if (!primary) return null;
   const Icon = primary.icon;
-  const showCreateGroup = isAdmin && (activeTab === 'dms' || activeTab === 'groups');
 
   return (
     <div className="chat-sidebar-foot">
@@ -33,17 +41,6 @@ export default function SidebarFab({
         <Icon size={16} />
         <span>{primary.label}</span>
       </button>
-      {showCreateGroup && (
-        <button
-          type="button"
-          className="chat-sidebar-icon-btn"
-          onClick={onCreateGroup}
-          title="Create group"
-          aria-label="Create group"
-        >
-          <Plus size={18} />
-        </button>
-      )}
     </div>
   );
 }

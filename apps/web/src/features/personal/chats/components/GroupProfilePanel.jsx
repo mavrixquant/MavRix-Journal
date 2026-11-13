@@ -1,12 +1,10 @@
-
-import { useState, useMemo, useEffect } from 'react';
+import { useState } from 'react';
 import {
   X,
   Hash,
   Lock,
   Crown,
   ShieldCheck,
-  UserPlus,
   Trash2,
   Settings as SettingsIcon,
   LogOut,
@@ -17,11 +15,9 @@ import { toast } from 'sonner';
 
 import {
   useGroupMembers,
-  useAddGroupMember,
   useRemoveGroupMember,
   useSetGroupMemberRole,
   useLeaveGroup,
-  useChatUserSearch,
   useClearChat,
 } from '@/shared/api/chat';
 import Alert from '@/shared/components/Alert';
@@ -68,35 +64,14 @@ export default function GroupProfilePanel({
   const { data: members = [], isFetching: loadingMembers } =
     useGroupMembers(groupId);
 
-  const addMember = useAddGroupMember();
   const removeMember = useRemoveGroupMember();
   const setRole = useSetGroupMemberRole();
   const leaveGroup = useLeaveGroup();
   const clearChatMutation = useClearChat();
 
-  const [addMode, setAddMode] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [debouncedTerm, setDebouncedTerm] = useState('');
-  const { data: searchResults = [], isFetching: searchingUsers } =
-    useChatUserSearch(debouncedTerm);
-
   const [pendingRemove, setPendingRemove] = useState(null);
   const [pendingLeave, setPendingLeave] = useState(false);
   const [pendingClear, setPendingClear] = useState(false);
-
-  useEffect(() => {
-    const t = setTimeout(() => setDebouncedTerm(searchTerm.trim()), 300);
-    return () => clearTimeout(t);
-  }, [searchTerm]);
-
-  const memberUserIds = useMemo(
-    () => new Set(members.map((m) => m.userId)),
-    [members]
-  );
-  const addableUsers = useMemo(
-    () => searchResults.filter((u) => !memberUserIds.has(u.id)),
-    [searchResults, memberUserIds]
-  );
 
   const ownerCount = members.filter((m) => m.role === 'owner').length;
   const myRole =
@@ -104,18 +79,7 @@ export default function GroupProfilePanel({
     conversation.role ||
     'member';
   const isLastOwner = myRole === 'owner' && ownerCount <= 1;
-
-
-  const handleAdd = async (userId) => {
-    try {
-      await addMember.mutateAsync({ groupId, userId });
-      setSearchTerm('');
-      setDebouncedTerm('');
-      toast.success('Member added');
-    } catch (err) {
-      toast.error(err?.message || 'Could not add member');
-    }
-  };
+  const isDefault = !!conversation.isDefault;
 
   const handleConfirmRemove = async () => {
     if (!pendingRemove) return;
@@ -142,11 +106,11 @@ export default function GroupProfilePanel({
     setPendingLeave(false);
     try {
       await leaveGroup.mutateAsync(groupId);
-      toast.success('You left the group');
+      toast.success('You left the channel');
       onClose?.();
       onConversationClosed?.();
     } catch (err) {
-      toast.error(err?.message || 'Could not leave group');
+      toast.error(err?.message || 'Could not leave channel');
     }
   };
 
@@ -160,7 +124,6 @@ export default function GroupProfilePanel({
     }
   };
 
-
   const memberCount = members.length || conversation.memberCount || 0;
   const clearBusy = clearChatMutation.isPending;
 
@@ -168,7 +131,7 @@ export default function GroupProfilePanel({
     <>
       <div className="chat-panel-inner">
         <div className="chat-panel-head">
-          <span className="chat-panel-title">Group info</span>
+          <span className="chat-panel-title">Channel info</span>
           <button
             type="button"
             className="chat-panel-close"
@@ -180,11 +143,11 @@ export default function GroupProfilePanel({
         </div>
 
         <div className="chat-panel-body">
-          {}
+          {/* ---------- Header ---------- */}
           <div className="panel-profile">
             <GroupAvatar group={conversation} size={72} />
             <div className="panel-name">
-              {conversation.name || 'Untitled group'}
+              {conversation.name || 'Untitled channel'}
             </div>
             {conversation.description && (
               <div className="panel-desc">{conversation.description}</div>
@@ -200,93 +163,30 @@ export default function GroupProfilePanel({
               <span className="panel-meta-badge">
                 {memberCount} member{memberCount === 1 ? '' : 's'}
               </span>
+              {isDefault && (
+                <span
+                  className="panel-meta-badge"
+                  style={{
+                    color: 'var(--accent)',
+                    borderColor: 'var(--accent-soft2)',
+                    background: 'color-mix(in srgb, var(--accent) 8%, transparent)',
+                  }}
+                  title="Every user is auto-joined and cannot leave"
+                >
+                  <Lock size={10} /> Default
+                </span>
+              )}
             </div>
           </div>
 
-          {}
+          {/* ---------- Members ---------- */}
           <div className="panel-section">
             <div className="panel-section-head">
               <span className="panel-section-label">
                 Members
                 <span className="panel-section-count">{memberCount}</span>
               </span>
-              {canManageGroup && !addMode && (
-                <button
-                  type="button"
-                  className="panel-section-action"
-                  onClick={() => setAddMode(true)}
-                >
-                  + Add
-                </button>
-              )}
-              {canManageGroup && addMode && (
-                <button
-                  type="button"
-                  className="panel-section-action"
-                  onClick={() => {
-                    setAddMode(false);
-                    setSearchTerm('');
-                    setDebouncedTerm('');
-                  }}
-                >
-                  Cancel
-                </button>
-              )}
             </div>
-
-            {addMode && (
-              <div className="panel-add-member">
-                <input
-                  type="text"
-                  placeholder="Search by username…"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  autoFocus
-                  spellCheck={false}
-                />
-                {debouncedTerm.length >= 2 && (
-                  <div className="panel-add-results">
-                    {searchingUsers && addableUsers.length === 0 && (
-                      <div className="panel-add-empty">
-                        <Loader2 size={14} className="panel-spinner" />
-                      </div>
-                    )}
-                    {!searchingUsers && addableUsers.length === 0 && (
-                      <div className="panel-add-empty">
-                        No new users match "{debouncedTerm}".
-                      </div>
-                    )}
-                    {addableUsers.slice(0, 6).map((u) => (
-                      <button
-                        key={u.id}
-                        type="button"
-                        className="panel-add-row"
-                        onClick={() => handleAdd(u.id)}
-                        disabled={addMember.isPending}
-                      >
-                        <span className="panel-member-avatar">
-                          {u.photoUrl ? (
-                            <img src={u.photoUrl} alt="" />
-                          ) : (
-                            initialsOf(u)
-                          )}
-                        </span>
-                        <span className="panel-add-row-body">
-                          <span className="panel-member-name">
-                            {displayNameOf(u)}
-                          </span>
-                          <span className="panel-member-email">{u.username ? '@' + u.username : ''}</span>
-                        </span>
-                        <UserPlus
-                          size={13}
-                          style={{ color: 'var(--accent)', flexShrink: 0 }}
-                        />
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
 
             <div className="panel-members">
               {loadingMembers && members.length === 0 && (
@@ -380,8 +280,8 @@ export default function GroupProfilePanel({
                             className="panel-member-btn is-danger"
                             onClick={() => setPendingRemove(m)}
                             disabled={removeMember.isPending}
-                            title="Remove from group"
-                            aria-label="Remove from group"
+                            title="Remove from channel"
+                            aria-label="Remove from channel"
                           >
                             <Trash2 size={11} />
                           </button>
@@ -394,7 +294,7 @@ export default function GroupProfilePanel({
             </div>
           </div>
 
-          {}
+          {/* ---------- Actions ---------- */}
           <div className="panel-section">
             <div className="panel-section-label">Actions</div>
             <div className="panel-actions">
@@ -405,7 +305,7 @@ export default function GroupProfilePanel({
                   onClick={onOpenSettings}
                 >
                   <SettingsIcon size={14} />
-                  <span>Group settings</span>
+                  <span>Channel settings</span>
                 </button>
               )}
 
@@ -419,7 +319,7 @@ export default function GroupProfilePanel({
                 <span>Clear chat</span>
               </button>
 
-              {!isLastOwner && (
+              {!isLastOwner && !isDefault && (
                 <button
                   type="button"
                   className="panel-action is-danger"
@@ -427,8 +327,18 @@ export default function GroupProfilePanel({
                   disabled={leaveGroup.isPending}
                 >
                   <LogOut size={14} />
-                  <span>Leave group</span>
+                  <span>Leave channel</span>
                 </button>
+              )}
+
+              {!isLastOwner && isDefault && (
+                <div
+                  className="panel-action is-pending"
+                  title="Default channels cannot be left"
+                >
+                  <Lock size={14} />
+                  <span>Default channel — auto-joined</span>
+                </div>
               )}
             </div>
           </div>
@@ -438,8 +348,8 @@ export default function GroupProfilePanel({
       <Alert
         isOpen={pendingLeave}
         type="confirm"
-        title="Leave this group?"
-        message={`Leave "${conversation.name}"? You can rejoin later if it's public.`}
+        title="Leave this channel?"
+        message={`Leave "${conversation.name}"? You can rejoin if it's public.`}
         confirmText="Leave"
         cancelText="Cancel"
         onConfirm={handleLeave}

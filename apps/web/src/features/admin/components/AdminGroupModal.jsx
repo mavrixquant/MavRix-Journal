@@ -1,4 +1,3 @@
-
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import {
   X, Hash, Lock, Crown, Trash2, Loader2, UserPlus,
@@ -22,7 +21,6 @@ import {
   GROUP_DESCRIPTION_MAX,
   GROUP_ICON_EMOJI_MAX,
 } from '@mavrix/shared';
-
 
 const CSS = `
   .agm-modal {
@@ -454,7 +452,6 @@ const CSS = `
   }
 `;
 
-
 function initialsOf(user) {
   if (!user) return '?';
   const a = (user.firstName || '').trim();
@@ -482,6 +479,7 @@ const EMPTY_FORM = {
   visibility: 'public',
   color: 'var(--accent)',
   iconEmoji: '',
+  isDefault: false,
 };
 
 export default function AdminGroupModal({ isOpen, onClose, groupId = null }) {
@@ -495,11 +493,7 @@ export default function AdminGroupModal({ isOpen, onClose, groupId = null }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedTerm, setDebouncedTerm] = useState('');
 
-  const {
-    data: group,
-    isLoading: loadingGroup,
-  } = useAdminGroup(groupId);
-
+  const { data: group, isLoading: loadingGroup } = useAdminGroup(groupId);
   const { data: searchResults = [], isFetching: searchingUsers } =
     useChatUserSearch(debouncedTerm);
 
@@ -536,6 +530,7 @@ export default function AdminGroupModal({ isOpen, onClose, groupId = null }) {
         visibility: group.visibility || 'public',
         color: group.color || 'var(--accent)',
         iconEmoji: group.iconEmoji || '',
+        isDefault: !!group.isDefault,
       });
     }
   }, [isOpen, isCreate, group]);
@@ -554,13 +549,15 @@ export default function AdminGroupModal({ isOpen, onClose, groupId = null }) {
     [members]
   );
 
-
   const set = (k, v) => setForm((prev) => ({ ...prev, [k]: v }));
 
   const handleSave = useCallback(async () => {
     setError('');
     const trimmedName = form.name.trim();
-    if (!trimmedName) { setError('Name is required.'); return; }
+    if (!trimmedName) {
+      setError('Name is required.');
+      return;
+    }
 
     try {
       if (isCreate) {
@@ -570,6 +567,7 @@ export default function AdminGroupModal({ isOpen, onClose, groupId = null }) {
           visibility: isSuperadmin ? form.visibility : 'public',
           color: form.color,
           iconEmoji: form.iconEmoji.trim() || null,
+          isDefault: isSuperadmin ? !!form.isDefault : false,
         });
       } else {
         const patch = {};
@@ -583,6 +581,9 @@ export default function AdminGroupModal({ isOpen, onClose, groupId = null }) {
         if (form.color !== group.color) patch.color = form.color;
         if ((form.iconEmoji.trim() || null) !== (group.iconEmoji || null)) {
           patch.iconEmoji = form.iconEmoji.trim() || null;
+        }
+        if (isSuperadmin && !!form.isDefault !== !!group.isDefault) {
+          patch.isDefault = !!form.isDefault;
         }
         if (Object.keys(patch).length === 0) {
           setError('No changes to save.');
@@ -643,12 +644,11 @@ export default function AdminGroupModal({ isOpen, onClose, groupId = null }) {
       await deleteMutation.mutateAsync(groupId);
       onClose();
     } catch (err) {
-      setError(err?.message || 'Could not delete group.');
+      setError(err?.message || 'Could not delete channel.');
     }
   }, [group, deleteMutation, groupId, onClose]);
 
   if (!isOpen) return null;
-
 
   return (
     <Portal>
@@ -660,15 +660,15 @@ export default function AdminGroupModal({ isOpen, onClose, groupId = null }) {
         }}
       >
         <div className="agm-modal" role="dialog" aria-modal="true">
-          {}
+          {/* Header */}
           <div className="agm-head">
             <div style={{ minWidth: 0 }}>
               <h2 className="agm-title">
-                {isCreate ? 'New group' : (group?.name || 'Loading…')}
+                {isCreate ? 'New channel' : (group?.name || 'Loading…')}
               </h2>
               <p className="agm-sub">
                 {isCreate
-                  ? 'Create a new chat group'
+                  ? 'Create a new channel'
                   : `${members.length} member${members.length === 1 ? '' : 's'} · ${group?.visibility || '—'}`}
               </p>
             </div>
@@ -683,7 +683,7 @@ export default function AdminGroupModal({ isOpen, onClose, groupId = null }) {
             </button>
           </div>
 
-          {}
+          {/* Tabs */}
           {!isCreate && (
             <div className="agm-tabs" role="tablist">
               <button
@@ -707,7 +707,7 @@ export default function AdminGroupModal({ isOpen, onClose, groupId = null }) {
             </div>
           )}
 
-          {}
+          {/* Body */}
           <div className="agm-body">
             {error && <div className="agm-error">{error}</div>}
 
@@ -718,7 +718,7 @@ export default function AdminGroupModal({ isOpen, onClose, groupId = null }) {
               </div>
             )}
 
-            {}
+            {/* Settings */}
             {(isCreate || tab === 'settings') && (!loadingGroup || isCreate) && (
               <>
                 <div className="agm-field">
@@ -749,7 +749,7 @@ export default function AdminGroupModal({ isOpen, onClose, groupId = null }) {
                     className="agm-textarea"
                     value={form.description}
                     maxLength={GROUP_DESCRIPTION_MAX}
-                    placeholder="What is this group about?"
+                    placeholder="What is this channel about?"
                     disabled={saving}
                     onChange={(e) => set('description', e.target.value)}
                   />
@@ -787,6 +787,41 @@ export default function AdminGroupModal({ isOpen, onClose, groupId = null }) {
                     </button>
                   </div>
                 </div>
+
+                {isSuperadmin && (
+                  <div className="agm-field">
+                    <span className="agm-label">
+                      <span>Default channel</span>
+                      <span className="agm-label-hint">every user is auto-joined</span>
+                    </span>
+                    <div className="agm-vis-row">
+                      <button
+                        type="button"
+                        className={`agm-vis-tile ${!form.isDefault ? 'is-active' : ''}`}
+                        onClick={() => set('isDefault', false)}
+                        disabled={saving}
+                      >
+                        <span className="agm-vis-icon"><Hash size={13} /></span>
+                        <span>
+                          <div className="agm-vis-name">Standard</div>
+                          <div className="agm-vis-desc">Members join manually.</div>
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        className={`agm-vis-tile ${form.isDefault ? 'is-active' : ''}`}
+                        onClick={() => set('isDefault', true)}
+                        disabled={saving}
+                      >
+                        <span className="agm-vis-icon"><Lock size={13} /></span>
+                        <span>
+                          <div className="agm-vis-name">Default</div>
+                          <div className="agm-vis-desc">Every user is auto-joined.</div>
+                        </span>
+                      </button>
+                    </div>
+                  </div>
+                )}
 
                 <div className="agm-field">
                   <span className="agm-label"><span>Accent color</span></span>
@@ -840,14 +875,14 @@ export default function AdminGroupModal({ isOpen, onClose, groupId = null }) {
                       disabled={saving}
                     >
                       <Trash2 size={11} />
-                      Delete group
+                      Delete channel
                     </button>
                   </div>
                 )}
               </>
             )}
 
-            {}
+            {/* Members */}
             {!isCreate && tab === 'members' && !loadingGroup && (
               <>
                 <div className="agm-search">
@@ -938,8 +973,8 @@ export default function AdminGroupModal({ isOpen, onClose, groupId = null }) {
                               className="agm-icon-btn is-danger"
                               onClick={() => handleRemoveMember(m.userId)}
                               disabled={removeMemberMutation.isPending}
-                              title="Remove from group"
-                              aria-label="Remove from group"
+                              title="Remove from channel"
+                              aria-label="Remove from channel"
                             >
                               <Trash2 size={12} />
                             </button>
@@ -953,7 +988,7 @@ export default function AdminGroupModal({ isOpen, onClose, groupId = null }) {
             )}
           </div>
 
-          {}
+          {/* Footer */}
           <div className="agm-foot">
             <button type="button" className="agm-btn" onClick={onClose} disabled={saving}>
               Close
@@ -965,7 +1000,7 @@ export default function AdminGroupModal({ isOpen, onClose, groupId = null }) {
                 onClick={handleSave}
                 disabled={saving || !form.name.trim()}
               >
-                {saving ? 'Saving…' : (isCreate ? 'Create group' : 'Save changes')}
+                {saving ? 'Saving…' : (isCreate ? 'Create channel' : 'Save changes')}
               </button>
             )}
           </div>

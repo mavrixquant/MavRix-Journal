@@ -33,6 +33,7 @@ export default function GroupSettingsModal({
     visibility: 'public',
     color: 'var(--accent)',
     iconEmoji: '',
+    isDefault: false,
   });
   const [error, setError] = useState('');
 
@@ -55,6 +56,7 @@ export default function GroupSettingsModal({
       visibility: conversation.visibility || 'public',
       color: conversation.color || 'var(--accent)',
       iconEmoji: conversation.iconEmoji || '',
+      isDefault: !!conversation.isDefault,
     });
   }, [isOpen, conversation]);
 
@@ -78,6 +80,9 @@ export default function GroupSettingsModal({
     if ((form.iconEmoji.trim() || null) !== (conversation.iconEmoji || null)) {
       patch.iconEmoji = form.iconEmoji.trim() || null;
     }
+    if (isSuperadmin && !!form.isDefault !== !!conversation.isDefault) {
+      patch.isDefault = !!form.isDefault;
+    }
 
     if (Object.keys(patch).length === 0) {
       setError('No changes to save.');
@@ -94,7 +99,7 @@ export default function GroupSettingsModal({
 
   const handleDelete = useCallback(async () => {
     if (!window.confirm(
-      `Delete "${conversation.name}"?\n\nAll messages and members will be removed. This cannot be undone.`
+      `Delete "${conversation.name}"?\n\nAll messages and members will be removed. This cannot be undone. If this is a default channel it will not be recreated automatically.`
     )) return;
     setError('');
     try {
@@ -229,7 +234,42 @@ export default function GroupSettingsModal({
                   );
                 })}
               </div>
-            </div>
+            </div>            {isSuperadmin && (
+              <div className="gsm-field">
+                <span className="gsm-label">
+                  <span>Default channel</span>
+                  <span className="gsm-label-hint">every user is auto-joined</span>
+                </span>
+                <div className="gsm-vis-row" style={{ gridTemplateColumns: '1fr 1fr' }}>
+                  <button
+                    type="button"
+                    className={`gsm-vis-tile ${!form.isDefault ? 'is-active' : ''}`}
+                    onClick={() => set('isDefault', false)}
+                    disabled={saving}
+                  >
+                    <span className="gsm-vis-icon"><Hash size={13} /></span>
+                    <span>
+                      <div className="gsm-vis-name">Standard</div>
+                      <div className="gsm-vis-desc">Members join manually.</div>
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`gsm-vis-tile ${form.isDefault ? 'is-active' : ''}`}
+                    onClick={() => set('isDefault', true)}
+                    disabled={saving}
+                  >
+                    <span className="gsm-vis-icon"><Lock size={13} /></span>
+                    <span>
+                      <div className="gsm-vis-name">Default</div>
+                      <div className="gsm-vis-desc">Every user is auto-joined.</div>
+                    </span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            
 
             <div className="gsm-field">
               <label className="gsm-label" htmlFor="gsm-emoji">

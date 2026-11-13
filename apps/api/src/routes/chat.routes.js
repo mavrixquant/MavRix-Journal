@@ -6,7 +6,6 @@ import {
   createDmSchema,
   userSearchSchema,
   updateConversationSchema,
-  groupDiscoverQuerySchema,
 } from '@mavrix/shared/validators';
 import { requireAuth } from '../middleware/auth.js';
 import { rateLimit } from '../lib/rateLimit.js';
@@ -41,19 +40,6 @@ chatRoutes.get(
   ctrl.searchUsers
 );
 
-chatRoutes.get(
-  '/groups/discover',
-  groupActionLimiter,
-  (req, _res, next) => {
-    try {
-      groupDiscoverQuerySchema.parse({ q: req.query.q, limit: req.query.limit });
-      next();
-    } catch (e) { next(e); }
-  },
-  ctrl.discoverGroups
-);
-
-chatRoutes.post('/groups/:id/join',    groupActionLimiter, ctrl.joinGroup);
 chatRoutes.post('/groups/:id/leave',   groupActionLimiter, ctrl.leaveGroup);
 chatRoutes.get( '/groups/:id/members', groupActionLimiter, ctrl.listGroupMembers);
 

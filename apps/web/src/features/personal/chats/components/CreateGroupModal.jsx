@@ -240,9 +240,9 @@ export default function CreateGroupModal({ isOpen, onClose, onCreated }) {
   const [form, setForm] = useState({
     name: '',
     description: '',
-    visibility: 'public',
     color: GROUP_DEFAULT_COLOR,
     iconEmoji: '',
+    isDefault: false,
   });
   const [error, setError] = useState('');
 
@@ -254,9 +254,9 @@ export default function CreateGroupModal({ isOpen, onClose, onCreated }) {
     setForm({
       name: '',
       description: '',
-      visibility: 'public',
       color: GROUP_DEFAULT_COLOR,
       iconEmoji: '',
+      isDefault: false,
     });
     setError('');
   }, [isOpen]);
@@ -277,15 +277,15 @@ export default function CreateGroupModal({ isOpen, onClose, onCreated }) {
       const payload = {
         name: trimmedName,
         description: form.description.trim(),
-        visibility: isSuperadmin ? form.visibility : 'public',
         color: form.color,
+        isDefault: isSuperadmin ? !!form.isDefault : false,
         iconEmoji: form.iconEmoji.trim() || null,
       };
       const group = await createMutation.mutateAsync(payload);
       onClose();
       if (onCreated) onCreated(group.id);
     } catch (err) {
-      setError(err?.message || 'Could not create group.');
+      setError(err?.message || 'Could not Create channel.');
     }
   };
 
@@ -299,8 +299,8 @@ export default function CreateGroupModal({ isOpen, onClose, onCreated }) {
         <form className="cgm2-modal" onSubmit={handleSubmit} role="dialog" aria-modal="true" ref={trapRef}>
           <div className="cgm2-head">
             <div style={{ minWidth: 0 }}>
-              <h2 className="cgm2-title">New group</h2>
-              <p className="cgm2-sub">Create a chat room your team can join</p>
+              <h2 className="cgm2-title">New channel</h2>
+              <p className="cgm2-sub">Create a channel your team can join</p>
             </div>
             <button
               type="button"
@@ -353,42 +353,6 @@ export default function CreateGroupModal({ isOpen, onClose, onCreated }) {
             </div>
 
             <div className="cgm2-field">
-              <span className="cgm2-label">
-                <span>Visibility</span>
-                {!isSuperadmin && <span className="cgm2-label-hint">admin: public only</span>}
-              </span>
-              <div className="cgm2-vis-row">
-                <button
-                  type="button"
-                  className={`cgm2-vis-tile ${form.visibility === 'public' ? 'is-active' : ''}`}
-                  onClick={() => set('visibility', 'public')}
-                  disabled={saving}
-                >
-                  <span className="cgm2-vis-icon"><Hash size={13} /></span>
-                  <span>
-                    <div className="cgm2-vis-name">Public</div>
-                    <div className="cgm2-vis-desc">Anyone can discover and join.</div>
-                  </span>
-                </button>
-
-                <button
-                  type="button"
-                  className={`cgm2-vis-tile ${form.visibility === 'private' ? 'is-active' : ''} ${!isSuperadmin ? 'is-disabled' : ''}`}
-                  onClick={() => { if (isSuperadmin) set('visibility', 'private'); }}
-                  disabled={saving || !isSuperadmin}
-                  title={!isSuperadmin ? 'Only superadmins can create private groups' : ''}
-                >
-                  <span className="cgm2-vis-icon"><Lock size={13} /></span>
-                  <span>
-                    <div className="cgm2-vis-name">Private</div>
-                    <div className="cgm2-vis-desc">Invite-only. Hidden from discovery.</div>
-                    {!isSuperadmin && <div className="cgm2-vis-warn">Superadmin only</div>}
-                  </span>
-                </button>
-              </div>
-            </div>
-
-            <div className="cgm2-field">
               <span className="cgm2-label"><span>Accent color</span></span>
               <div className="cgm2-colors">
                 {GROUP_COLORS.map((c) => {
@@ -408,7 +372,42 @@ export default function CreateGroupModal({ isOpen, onClose, onCreated }) {
                   );
                 })}
               </div>
-            </div>
+            </div>            {isSuperadmin && (
+              <div className="cgm2-field">
+                <span className="cgm2-label">
+                  <span>Default channel</span>
+                  <span className="cgm2-label-hint">every user is auto-joined</span>
+                </span>
+                <div className="cgm2-vis-row" style={{ gridTemplateColumns: '1fr 1fr' }}>
+                  <button
+                    type="button"
+                    className={`cgm2-vis-tile ${!form.isDefault ? 'is-active' : ''}`}
+                    onClick={() => set('isDefault', false)}
+                    disabled={saving}
+                  >
+                    <span className="cgm2-vis-icon"><Hash size={13} /></span>
+                    <span>
+                      <div className="cgm2-vis-name">Standard</div>
+                      <div className="cgm2-vis-desc">Members join manually.</div>
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`cgm2-vis-tile ${form.isDefault ? 'is-active' : ''}`}
+                    onClick={() => set('isDefault', true)}
+                    disabled={saving}
+                  >
+                    <span className="cgm2-vis-icon"><Lock size={13} /></span>
+                    <span>
+                      <div className="cgm2-vis-name">Default</div>
+                      <div className="cgm2-vis-desc">Every user is auto-joined.</div>
+                    </span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            
 
             <div className="cgm2-field">
               <label className="cgm2-label" htmlFor="cgm2-emoji">
@@ -447,7 +446,7 @@ export default function CreateGroupModal({ isOpen, onClose, onCreated }) {
               className="cgm2-btn cgm2-btn-primary"
               disabled={!canSubmit}
             >
-              {saving ? 'Creating…' : 'Create group'}
+              {saving ? 'Creating…' : 'Create channel'}
             </button>
           </div>
         </form>

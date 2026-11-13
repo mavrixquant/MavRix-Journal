@@ -3,7 +3,8 @@ import { stopAiForConversation } from '../services/ai.service.js';
 
 export async function searchUsers(req, res, next) {
   try {
-    const users = await svc.searchUsers(req.userId, req.query.q);
+    const scope = ['admin', 'superadmin'].includes(req.userRole) ? 'all' : 'friends';
+    const users = await svc.searchUsers(req.userId, req.query.q, { scope });
     res.json({ users });
   } catch (e) { next(e); }
 }
@@ -116,23 +117,6 @@ export async function deleteMessage(req, res, next) {
     const scope = req.query.scope === 'all' ? 'all' : 'me';
     const result = await svc.deleteMessage(req.userId, req.params.messageId, scope);
     res.json(result);
-  } catch (e) { next(e); }
-}
-
-export async function discoverGroups(req, res, next) {
-  try {
-    const groups = await svc.listDiscoverablePublicGroups(req.userId, {
-      q: req.query.q,
-      limit: req.query.limit,
-    });
-    res.json({ groups });
-  } catch (e) { next(e); }
-}
-
-export async function joinGroup(req, res, next) {
-  try {
-    const conversation = await svc.joinPublicGroup(req.userId, req.params.id);
-    res.json({ conversation });
   } catch (e) { next(e); }
 }
 

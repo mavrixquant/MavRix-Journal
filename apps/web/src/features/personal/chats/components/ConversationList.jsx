@@ -122,7 +122,7 @@ export default function ConversationList({
     }
   };
 
-  const headerTitle = archivedMode ? 'Archived' : activeTab === 'groups' ? 'Groups' : 'Messages';
+  const headerTitle = archivedMode ? 'Archived' : activeTab === 'groups' ? 'Channels' : 'Messages';
   const headerCount = archivedMode ? archived.length : filtered.length;
 
   const emptyTitle = archivedMode
@@ -130,7 +130,7 @@ export default function ConversationList({
     : search
       ? 'No conversations match'
       : activeTab === 'groups'
-        ? 'No groups yet'
+        ? 'No channels yet'
         : 'No direct messages yet';
 
   const emptyDescription = archivedMode
@@ -138,7 +138,7 @@ export default function ConversationList({
     : search
       ? 'Try a different search term.'
       : activeTab === 'groups'
-        ? 'Use Discover groups below to find a public group.'
+        ? 'You will appear here once an admin adds you to a channel.'
         : 'Tap “New message” below to start chatting.';
 
   const pinned = visible.filter((c) => c.isPinned);
@@ -222,7 +222,7 @@ export default function ConversationList({
             {pinned.map(renderRow)}
             {rest.length > 0 && (
               <div className="chat-sidebar-section">
-                {activeTab === 'groups' ? 'All groups' : 'All messages'}
+                {activeTab === 'groups' ? 'All channels' : 'All messages'}
               </div>
             )}
             {rest.map(renderRow)}

@@ -9,7 +9,7 @@ const SEGMENT_LABELS = {
   accounts: 'Accounts',
   trades: 'Trades',
   strategies: 'Strategies',
-  groups: 'Groups',
+  groups: 'Channels',
   calendar: 'Calendar',
   gex: 'GEX Levels',
   sessions: 'Sessions',

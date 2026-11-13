@@ -12,6 +12,7 @@ import { errorHandler, notFound } from './middleware/error.js';
 import { startCalendarSync, stopCalendarSync } from './lib/calendarSync.js';
 import { ensureSuperadmin } from './lib/adminBootstrap.js';
 import { ensureMaveAi } from './services/maveAiBootstrap.js';
+import { ensureDefaultChannels } from './services/channelBootstrap.js';
 import { markInterruptedJobs } from './services/adminMarketData.service.js';
 import { seedReleasesFromJsonIfEmpty } from './lib/seedReleases.js';
 
@@ -37,6 +38,7 @@ const server = app.listen(env.port, async () => {
   console.log(`[api] listening on http://localhost:${env.port} (${env.nodeEnv})`);
   try { await ensureSuperadmin(); } catch (err) { console.error('[admin] bootstrap failed:', err); }
   try { await ensureMaveAi(); } catch (err) { console.error('[mave-ai] bootstrap failed:', err); }
+try { await ensureDefaultChannels(); } catch (err) { console.error('[channels] bootstrap failed:', err); }
   try { await markInterruptedJobs(); } catch (err) { console.error('[market-data] boot sweep failed:', err); }
   if (env.calendar.syncEnabled) startCalendarSync();
 

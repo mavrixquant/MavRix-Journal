@@ -62,8 +62,8 @@ export default function ChatHeader({
           type="button"
           className={`chat-header-action${panelOpen ? ' is-active' : ''}`}
           onClick={onTogglePanel}
-          title={isGroup ? 'Group info' : 'Profile'}
-          aria-label={isGroup ? 'Toggle group info' : 'Toggle profile'}
+          title={isGroup ? 'Channel info' : 'Profile'}
+          aria-label={isGroup ? 'Toggle channel info' : 'Toggle profile'}
           aria-pressed={panelOpen}
         >
           <Info size={19} />

@@ -51,6 +51,7 @@ function serializePublicUser(u) {
     lastName: u.lastName,
     photoUrl: u.photoUrl,
     isAi: !!u.isAi,
+    email: u.email || null,
   };
 }
 
@@ -97,6 +98,7 @@ function serializeConversation(c, userId, participantRow, extras = {}) {
     iconEmoji: isGroup ? c.iconEmoji : null,
     createdById: isGroup ? c.createdById : null,
     memberCount: isGroup ? c.memberCount : null,
+    isDefault: !!c.isDefault,
 
     role: participantRow.role || 'member',
 
@@ -191,13 +193,33 @@ async function getParticipantIds(conversationId) {
 // Users / DMs
 // ---------------------------------------------------------------------------
 
-export async function searchUsers(userId, q) {
+export async function searchUsers(userId, q, { scope = 'friends' } = {}) {
   const query = String(q || '').trim();
   if (query.length < 2) return [];
 
-  const friends = await listFriendsService(userId);
   const q2 = query.toLowerCase();
 
+  if (scope === 'all') {
+    const users = await prisma.user.findMany({
+      where: {
+        isBanned: false,
+        emailVerified: true,
+        isAi: false,
+        id: { not: userId },
+        OR: [
+          { username: { contains: q2, mode: 'insensitive' } },
+          { firstName: { contains: q2, mode: 'insensitive' } },
+          { lastName: { contains: q2, mode: 'insensitive' } },
+          { email: { contains: q2, mode: 'insensitive' } },
+        ],
+      },
+      select: { ...PUBLIC_USER_SELECT, email: true },
+      take: 20,
+    });
+    return users.map(serializePublicUser);
+  }
+
+  const friends = await listFriendsService(userId);
   return friends
     .filter((f) => {
       const name = `${f.firstName || ''} ${f.lastName || ''}`.trim().toLowerCase();
@@ -1006,106 +1028,15 @@ export async function broadcastTyping(userId, conversationId, isTyping) {
 // Groups (unchanged behaviour)
 // ---------------------------------------------------------------------------
 
-export async function listDiscoverablePublicGroups(
-  userId,
-  { q = '', limit = GROUP_DISCOVER_DEFAULT_LIMIT } = {}
-) {
-  const memberships = await prisma.conversationParticipant.findMany({
-    where: { userId },
-    select: { conversationId: true },
-  });
-  const excludedIds = memberships.map((m) => m.conversationId);
-
-  const where = {
-    type: 'group',
-    visibility: 'public',
-    memberCount: { gt: 0 },
-    id: { notIn: excludedIds },
-  };
-
-  const trimmed = String(q || '').trim();
-  if (trimmed) {
-    where.name = { contains: trimmed, mode: 'insensitive' };
-  }
-
-  const capped = Math.min(
-    Math.max(1, Number(limit) || GROUP_DISCOVER_DEFAULT_LIMIT),
-    GROUP_DISCOVER_MAX_LIMIT
-  );
-
-  const rows = await prisma.conversation.findMany({
-    where,
-    orderBy: [{ memberCount: 'desc' }, { createdAt: 'desc' }],
-    take: capped,
-    include: {
-      createdBy: { select: PUBLIC_USER_SELECT },
-    },
-  });
-
-  return rows.map((c) => ({
-    id: c.id,
-    type: c.type,
-    name: c.name,
-    description: c.description,
-    visibility: c.visibility,
-    color: c.color,
-    iconEmoji: c.iconEmoji,
-    memberCount: c.memberCount,
-    createdAt: c.createdAt,
-    createdBy: serializePublicUser(c.createdBy),
-  }));
-}
-
-export async function joinPublicGroup(userId, groupId) {
-  const group = await prisma.conversation.findUnique({
-    where: { id: groupId },
-    select: { id: true, type: true, visibility: true },
-  });
-  if (!group || group.type !== 'group') {
-    throw new HttpError(404, 'Group not found');
-  }
-  if (group.visibility !== 'public') {
-    throw new HttpError(403, 'This group is private. Ask an admin to add you.');
-  }
-
-  const existing = await prisma.conversationParticipant.findUnique({
-    where: { conversationId_userId: { conversationId: groupId, userId } },
-    select: { id: true },
-  });
-
-  if (!existing) {
-    await prisma.$transaction(async (tx) => {
-      await tx.conversationParticipant.create({
-        data: { conversationId: groupId, userId, role: 'member' },
-      });
-      await tx.conversation.update({
-        where: { id: groupId },
-        data: { memberCount: { increment: 1 } },
-      });
-    });
-  }
-
-  const full = await prisma.conversation.findUnique({
-    where: { id: groupId },
-    include: {
-      participants: {
-        include: { user: { select: PUBLIC_USER_SELECT } },
-      },
-    },
-  });
-
-  const myRow = await assertParticipant(userId, groupId);
-  return serializeConversation(full, userId, myRow);
-}
-
 export async function leaveGroup(userId, groupId) {
   const conv = await prisma.conversation.findUnique({
     where: { id: groupId },
-    select: { id: true, type: true },
+  select: { id: true, type: true, isDefault: true },
   });
   if (!conv) throw new HttpError(404, 'Conversation not found');
   if (conv.type === 'dm') throw new HttpError(400, 'You cannot leave a direct message.');
   if (conv.type !== 'group') throw new HttpError(400, 'Not a group');
+  if (conv.isDefault) throw new HttpError(403, 'Default channels cannot be left');
 
   const participant = await prisma.conversationParticipant.findUnique({
     where: { conversationId_userId: { conversationId: groupId, userId } },

@@ -1,6 +1,6 @@
 const TABS = [
   { id: 'dms',    label: 'Direct' },
-  { id: 'groups', label: 'Groups' },
+  { id: 'groups', label: 'Channels' },
 ];
 
 export default function SidebarTabs({ active, onChange, counts = {} }) {

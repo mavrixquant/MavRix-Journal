@@ -299,10 +299,12 @@ model Conversation {
   name        String?
   description String?
   visibility  String?
-  color       String? @default("#F59E0B")
+  color       String? @default("#F59E0B")  // 'private' | 'public' | NULL (DM)
+  // isDefault -> auto-joined to every user, cannot be left
   iconEmoji   String?
   createdById String?
   memberCount Int     @default(2)
+  isDefault   Boolean @default(false)
 
   createdBy User? @relation("GroupOwner", fields: [createdById], references: [id], onDelete: SetNull)
 
@@ -311,6 +313,7 @@ model Conversation {
 
   @@index([lastMessageAt])
   @@index([type, visibility])
+  @@index([type, isDefault])
   @@map("conversations")
 }
 

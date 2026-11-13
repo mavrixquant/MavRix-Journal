@@ -13,6 +13,20 @@ import EmptyState from '@/shared/components/EmptyState';
 const PAGE_SIZE = 25;
 
 const CSS = `
+  .agp-default-pill {
+    display: inline-flex;
+    margin-left: 8px;
+    padding: 1px 7px;
+    border-radius: 99px;
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
+    border: 1px solid var(--accent-soft2);
+    color: var(--accent);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: .1em;
+    vertical-align: middle;
+  }
   .agp-root { display: flex; flex-direction: column; gap: 18px; }
 
   .agp-bar {
@@ -190,7 +204,7 @@ export default function AdminGroupsPage() {
 
   useAdminPageHeader({
     eyebrow: 'Manage',
-    title: 'Chat Groups',
+    title: 'Channels',
     subtitle: `${total} group${total === 1 ? '' : 's'} visible to you`,
   });
 
@@ -260,7 +274,7 @@ export default function AdminGroupsPage() {
                 description={
                   hasFilter
                     ? 'Try a different search term or adjust the visibility filter.'
-                    : 'Chat groups will appear here once they\'re created.'
+                    : 'Channels will appear here once they are created.'
                 }
               />
             </div>
@@ -298,7 +312,7 @@ export default function AdminGroupsPage() {
                             {g.iconEmoji || (g.visibility === 'private' ? '🔒' : '#')}
                           </span>
                           <div style={{ minWidth: 0 }}>
-                            <div className="agp-name">{g.name || 'Untitled'}</div>
+                            <div className="agp-name">{g.name || 'Untitled'}{g.isDefault && (<span className="agp-default-pill">DEFAULT</span>)}</div>
                             {g.description && (
                               <div className="agp-sub" title={g.description}>
                                 {g.description}

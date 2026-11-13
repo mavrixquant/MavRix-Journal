@@ -98,3 +98,15 @@ export async function setMemberRole(req, res, next) {
     res.json(result);
   } catch (e) { next(e); }
 }
+
+export async function setDefault(req, res, next) {
+  try {
+    const actor = await buildActor(req);
+    const group = await svc.setGroupDefault(
+      actor,
+      req.params.id,
+      req.body.isDefault === true
+    );
+    res.json({ group });
+  } catch (e) { next(e); }
+}

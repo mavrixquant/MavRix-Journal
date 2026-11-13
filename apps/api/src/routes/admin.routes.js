@@ -169,6 +169,12 @@ adminRoutes.post('/groups', groupLimiter, validate(createGroupSchema), groupCtrl
 
 adminRoutes.get('/groups/:id', groupLimiter, groupCtrl.get);
 adminRoutes.patch('/groups/:id', groupLimiter, validate(updateGroupSchema), groupCtrl.update);
+adminRoutes.patch('/groups/:id/default', requireSuperadmin, groupLimiter, (req, _res, next) => {
+  try {
+    z.object({ isDefault: z.boolean() }).parse(req.body);
+    next();
+  } catch (e) { next(e); }
+}, groupCtrl.setDefault);
 adminRoutes.delete('/groups/:id', groupLimiter, groupCtrl.remove);
 
 adminRoutes.post(

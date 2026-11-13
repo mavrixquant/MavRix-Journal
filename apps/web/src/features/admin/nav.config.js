@@ -19,7 +19,7 @@ export const ADMIN_NAV = [
       { to: '/admin/accounts',   label: 'Accounts',   icon: Wallet },
       { to: '/admin/trades',     label: 'Trades',     icon: TrendingUp },
       { to: '/admin/strategies', label: 'Strategies', icon: Brain },
-      { to: '/admin/groups',     label: 'Groups',     icon: MessagesSquare },
+      { to: '/admin/groups',     label: 'Channels',     icon: MessagesSquare },
     ],
   },
   {
