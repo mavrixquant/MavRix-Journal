@@ -3,13 +3,13 @@ import { MessageSquarePlus, UserRoundPlus, Plus } from 'lucide-react';
 /**
  * Bottom action bar of the sidebar.
  *
- * DMs    -> New message (all users)
- * Groups -> New channel (superadmin only; other admins cannot create
+ * DMs     -> New message (all users)
+ * Groups  -> New channel (superadmin only; other admins cannot create
  *                       user-facing channels from the UI, and non-admins
  *                       see nothing)
- * Friends-> Add friend (all users)
+ * Friends -> Add friend (all users)
  *
- * Discovery was removed — users cannot browse channels they aren't in.
+ * Discovery was removed -- users cannot browse channels they aren't in.
  */
 export default function SidebarFab({
   activeTab,

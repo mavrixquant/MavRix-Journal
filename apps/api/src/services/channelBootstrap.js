@@ -4,9 +4,9 @@
 // Three channels exist for every user out of the box: Announcements, General,
 // Trades. They are ordinary `type='group'` rows flagged isDefault = true.
 //
-//   ensureDefaultChannels()       — on boot. Creates missing defaults, then
+//   ensureDefaultChannels()       â€” on boot. Creates missing defaults, then
 //                                   catches every non-AI user up.
-//   addUserToDefaultChannels(id)  — on signup / login. Ensures this one user
+//   addUserToDefaultChannels(id)  â€” on signup / login. Ensures this one user
 //                                   is a member of every default channel.
 //
 // Both functions are fully idempotent and tolerate races (P2002 is swallowed).
@@ -106,7 +106,7 @@ async function joinAllNonAiUsers(channelId) {
 }
 
 export async function ensureDefaultChannels() {
-  console.log('[channels] checking default channels…');
+  console.log('[channels] checking default channelsï¿½');
 
   const admin = await prisma.user.findFirst({
     where: { role: 'superadmin' },

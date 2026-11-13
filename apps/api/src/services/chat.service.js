@@ -759,7 +759,7 @@ export async function sendMessage(userId, conversationId, { body, replyToId }) {
     [message.sender?.firstName, message.sender?.lastName].filter(Boolean).join(' ').trim() ||
     message.sender?.username ||
     'Someone';
-  const preview = trimmed.length > 80 ? trimmed.slice(0, 80) + '�' : trimmed;
+  const preview = trimmed.length > 80 ? trimmed.slice(0, 80) + '…' : trimmed;
   const notifTitle = conv?.type === 'dm' ? senderName : `${senderName} in group`;
   await Promise.all(
     participantIds

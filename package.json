@@ -19,7 +19,8 @@
     "lint": "npm run lint --workspaces --if-present",
     "prisma:generate": "npm run prisma:generate -w apps/api",
     "prisma:migrate": "npm run prisma:migrate -w apps/api",
-    "prisma:studio": "npm run prisma:studio -w apps/api"
+    "prisma:studio": "npm run prisma:studio -w apps/api",
+    "check:utf8": "node scripts/check-utf8.mjs"
   },
   "engines": {
     "node": ">=20"
