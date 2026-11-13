@@ -1,12 +1,13 @@
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Pencil, Plus } from 'lucide-react';
+import { Pencil, Plus, Wallet, TrendingUp } from 'lucide-react';
 
 import { useAuth } from '@/app/providers/AuthProvider';
 import { useAppContext } from '@/app/providers/AppProvider';
 import { useDashboardAccount } from '@/app/providers/useDashboardAccount';
 import { usePageHeader } from '@/app/layout/PageHeaderProvider';
 import { useAccounts } from '@/shared/api/accounts';
+import EmptyState from '@/shared/components/EmptyState';
 
 import { useEnrichedTrades } from '@/features/dashboard/hooks/useEnrichedTrades';
 import { useUserLayouts } from '@/features/dashboard/hooks/useUserLayouts';
@@ -85,9 +86,18 @@ export default function DashboardView({ kind, header = null }) {
   if (compatibleAccounts.length === 0) {
     return (
       <div className="dash-root">
-        <div className="dash-allhidden">
-          No {isBacktest ? 'backtest' : 'live or demo'} account yet. Create one from the account menu to start.
-        </div>
+        <EmptyState
+          size="lg"
+          icon={isBacktest ? TrendingUp : Wallet}
+          eyebrow="No accounts"
+          title={isBacktest ? 'No Backtest accounts' : 'No Live or Demo accounts'}
+          description={
+            isBacktest
+              ? 'The Backtester only tracks Backtest accounts. Create one in Manage → Accounts to get started.'
+              : 'The Journal only tracks Live and Demo accounts. Create one in Manage → Accounts to get started.'
+          }
+          actions={[{ label: 'Manage accounts', variant: 'primary', to: '/manage/accounts' }]}
+        />
       </div>
     );
   }

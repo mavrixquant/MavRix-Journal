@@ -488,7 +488,7 @@ export default function MarketChartPage() {
                 selectedId={selectedId} onSelect={setSelectedId} drawColor={drawColor}
                 markers={chartMarkers} trades={chartTrades} showTrades={showTrades} showTradeLabels={showLabels}
                 focus={focus} fitKey={fitKey} fitMode={fromParam ? 'all' : 'recent'}
-                hasMoreOlder={hasMoreOlder} onRequestOlder={handleLoadOlder} displayOffset={displayOffset}
+                hasMoreOlder={hasMoreOlder} onRequestOlder={handleLoadOlder} displayOffset={displayOffset} loading={barsQuery.isLoading}
               />
               {barsQuery.isLoading && bars.length === 0 && <div className="mk-skel" aria-hidden />}
               {barsQuery.isError && bars.length === 0 && (

@@ -75,6 +75,7 @@ const CandlestickChart = forwardRef(function CandlestickChart({
   markers = [], trades = [], showTrades = true, showTradeLabels = false,
   focus = null, fitKey = null, fitMode = 'recent',
   hasMoreOlder = false, onRequestOlder, displayOffset = 0, onAtEdgeChange,
+  loading = false,
 }, ref) {
   const containerRef = useRef(null);
   const chartRef = useRef(null);
@@ -570,6 +571,7 @@ const CandlestickChart = forwardRef(function CandlestickChart({
   }), [screenshot, zoomBy]);
 
   const empty = !bars || bars.length === 0;
+  const showEmptyState = empty && !loading;
   const selected = drawings.find((d) => d.id === selectedId) || null;
   const activeInds = INDICATORS.filter((i) => enabledIndicators.includes(i.id) && !(i.intradayOnly && interval === '1d'));
   const hint = TOOL_HINTS[tool];
@@ -623,7 +625,7 @@ const CandlestickChart = forwardRef(function CandlestickChart({
         </div>
       )}
 
-      {empty && (
+      {showEmptyState && (
         <div className="mk-cv-empty">
           <EmptyState
             size="lg" icon={BarChart3} eyebrow="Coming Soon"
