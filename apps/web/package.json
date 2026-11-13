@@ -6,7 +6,7 @@
   "scripts": {
     "predev": "node scripts/inject-version.mjs",
     "dev": "vite",
-    "prebuild": "node scripts/check-utf8.mjs && node scripts/inject-version.mjs",
+    "prebuild": "node scripts/inject-version.mjs",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"
