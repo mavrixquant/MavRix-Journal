@@ -34,14 +34,4 @@ export async function run(ctx) {
     ctx.assertStatus(res, 200);
     ctx.expect(typeof res.body.totalEvents === 'number', 'totalEvents not number');
   });
-
-  await test('calendar.sync · hits Biquote (~5-15s)', async () => {
-    const started = Date.now();
-    const res = await ctx.fetch('/api/calendar/sync', {
-      method: 'POST',
-      token: tokens.admin,
-    });
-    ctx.assertStatus(res, 200);
-    return { notes: `sync completed in ${Date.now() - started}ms` };
-  });
 }

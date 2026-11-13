@@ -19,21 +19,19 @@ export async function run(ctx) {
     return { notes: `fetched ${res.body.bars.length} bars` };
   });
 
-  await test('marketData.quote · EURUSD single', async () => {
-    const res = await ctx.fetch('/api/market-data/quote?symbol=EURUSD', {
+  await test('marketData.bars · invalid symbol → 404', async () => {
+    const res = await ctx.fetch('/api/market-data/bars?symbol=NOTREAL&interval=1h', {
       token: tokens.a,
+      allowError: true,
     });
-    ctx.assertStatus(res, 200);
-    ctx.expect(res.body.price != null, 'price missing');
+    ctx.assertStatus(res, 404);
   });
 
-  await test('marketData.quotes · EURUSD + NQ batch', async () => {
-    const res = await ctx.fetch(
-      '/api/market-data/quotes?symbols=EURUSD,NQ',
-      { token: tokens.a }
-    );
-    ctx.assertStatus(res, 200);
-    ctx.expect(Array.isArray(res.body.quotes), 'quotes not array');
-    ctx.expect(res.body.quotes.length === 2, `expected 2 quotes, got ${res.body.quotes.length}`);
+  await test('marketData.bars · invalid interval → 400', async () => {
+    const res = await ctx.fetch('/api/market-data/bars?symbol=NQ&interval=7h', {
+      token: tokens.a,
+      allowError: true,
+    });
+    ctx.assertStatus(res, 400);
   });
 }

@@ -23,6 +23,15 @@ export async function run(ctx) {
   });
 
 
+  await test('friends.status.get · returns status object', async () => {
+    const res = await ctx.fetch(`/api/friends/status/${ids.userB}`, {
+      token: tokens.a,
+    });
+    ctx.assertStatus(res, 200);
+    ctx.expect(typeof res.body?.status === 'object', 'status missing');
+    ctx.expect(res.body.status.isFriend === false, 'should not be friends yet');
+  });
+
   await test('friends.requests.send · A → B', async () => {
     const res = await ctx.fetch('/api/friends/requests', {
       method: 'POST',

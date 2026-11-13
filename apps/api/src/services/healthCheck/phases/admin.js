@@ -80,16 +80,6 @@ export async function run(ctx) {
     return { notes: 'restored verified state for downstream phases' };
   });
 
-  await test('admin.users.password-reset · send email trigger', async () => {
-    if (!ids.userA) { ctx.skip('admin.users.password-reset', 'no user A'); return; }
-    const res = await ctx.fetch(`/api/admin/users/${ids.userA}/password-reset`, {
-      method: 'POST',
-      token: admin,
-    });
-    ctx.assertStatus(res, 200);
-    ctx.expect(res.body.ok === true, 'ok not true');
-  });
-
   await test('admin.users.ban · bans user A', async () => {
     if (!ids.userA) { ctx.skip('admin.users.ban', 'no user A'); return; }
     const res = await ctx.fetch(`/api/admin/users/${ids.userA}/ban`, {
@@ -303,31 +293,6 @@ export async function run(ctx) {
     ctx.assertStatus(res, 200);
     ctx.expect(Array.isArray(res.body.entries), 'entries not array');
     ctx.expect(res.body.entries.length > 0, 'audit log empty after mutations');
-  });
-
-
-  await test('admin.broadcast · SSE-only, no email', async () => {
-    const res = await ctx.fetch('/api/admin/broadcast', {
-      method: 'POST',
-      token: admin,
-      body: {
-        message: '[Health Check] Automated test — safe to ignore',
-        level: 'info',
-        sendEmail: false,
-      },
-    });
-    ctx.assertStatus(res, 200);
-    ctx.expect(typeof res.body.sseSent === 'number', 'sseSent not number');
-  });
-
-
-  await test('admin.calendar.sync · force sync (slow)', async () => {
-    const res = await ctx.fetch('/api/admin/calendar/sync', {
-      method: 'POST',
-      token: admin,
-    });
-    ctx.assertStatus(res, 200);
-    ctx.expect(typeof res.body.elapsedMs === 'number', 'elapsedMs missing');
   });
 
   await test('admin.calendar.logs · recent sync log', async () => {

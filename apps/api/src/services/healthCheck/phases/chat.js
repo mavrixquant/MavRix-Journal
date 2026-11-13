@@ -108,6 +108,25 @@ export async function run(ctx) {
     ctx.assertStatus(res, 200);
   });
 
+  await test('chat.conversations.viewing · sets presence', async () => {
+    const res = await ctx.fetch(
+      `/api/chat/conversations/${ids.conversationDm}/viewing`,
+      { method: 'POST', token: tokens.a, body: { active: true } }
+    );
+    ctx.assertStatus(res, 200);
+    ctx.expect(res.body?.ok === true, 'ok not true');
+  });
+
+  await test('chat.conversations.clear · user-scope clear is safe', async () => {
+    const res = await ctx.fetch(
+      `/api/chat/conversations/${ids.conversationDm}/clear`,
+      { method: 'POST', token: tokens.a }
+    );
+    ctx.assertStatus(res, 200);
+    ctx.expect(res.body?.ok === true, 'ok not true');
+    ctx.expect(res.body?.scope === 'me', `expected scope 'me', got ${res.body?.scope}`);
+  });
+
   await test('chat.messages.edit · A edits', async () => {
     const res = await ctx.fetch(`/api/chat/messages/${ids.messageId}`, {
       method: 'PATCH',
@@ -134,44 +153,5 @@ export async function run(ctx) {
     );
     ctx.assertStatus(res, 200);
     ctx.expect(res.body.scope === 'all', 'wrong scope');
-  });
-
-
-  await test('chat.groups.discover · list public groups', async () => {
-    const res = await ctx.fetch('/api/chat/groups/discover', {
-      token: tokens.a,
-    });
-    ctx.assertStatus(res, 200);
-    ctx.expect(Array.isArray(res.body.groups), 'not array');
-  });
-
-  await test('chat.groups.join · join first discoverable, else skip', async () => {
-    const discover = await ctx.fetch('/api/chat/groups/discover', {
-      token: tokens.a,
-    });
-    const groups = discover.body.groups || [];
-    if (groups.length === 0) {
-      ctx.expect(true, 'no groups to join — soft pass');
-      return { notes: 'no public groups available' };
-    }
-    const gid = groups[0].id;
-    const join = await ctx.fetch(`/api/chat/groups/${gid}/join`, {
-      method: 'POST',
-      token: tokens.a,
-    });
-    ctx.assertStatus(join, 200);
-    ids.joinedGroupId = gid;
-
-    const members = await ctx.fetch(`/api/chat/groups/${gid}/members`, {
-      token: tokens.a,
-    });
-    ctx.assertStatus(members, 200);
-    ctx.expect(Array.isArray(members.body.members), 'members not array');
-
-    const leave = await ctx.fetch(`/api/chat/groups/${gid}/leave`, {
-      method: 'POST',
-      token: tokens.a,
-    });
-    ctx.assertStatus(leave, 200);
   });
 }

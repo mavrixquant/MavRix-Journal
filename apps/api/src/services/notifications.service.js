@@ -13,6 +13,7 @@
 import { prisma } from '../lib/prisma.js';
 import { broadcastToUser } from '../lib/broadcaster.js';
 import { HttpError } from '../middleware/error.js';
+import { isHealthCheckActive } from '../lib/healthCheckMode.js';
 
 const serialize = (n) => ({
   id: n.id,
@@ -30,6 +31,7 @@ const serialize = (n) => ({
  * logged so caller-side message sends are never blocked by notif problems.
  */
 export async function pushNotification(userId, { type, section = 'common', title, body = '', data = {} }) {
+  if (isHealthCheckActive()) return null;
   if (!userId || !type || !title) return null;
   try {
     const row = await prisma.notification.create({
@@ -49,6 +51,7 @@ export async function pushNotification(userId, { type, section = 'common', title
  * Chunked at 500 rows per `createMany` call. Returns number inserted.
  */
 export async function pushNotificationBulk(userIds, payload) {
+  if (isHealthCheckActive()) return 0;
   const ids = [...new Set((userIds || []).filter(Boolean))];
   if (ids.length === 0) return 0;
 

@@ -1,4 +1,5 @@
 import { BrevoClient } from '@getbrevo/brevo';
+import { isHealthCheckActive } from './healthCheckMode.js';
 
 const MAIL_FROM      = process.env.MAIL_FROM      || 'onboarding@brevo.dev';
 const MAIL_FROM_NAME = process.env.MAIL_FROM_NAME || 'Mavrix Journal';
@@ -87,6 +88,10 @@ function renderEmail({ preheader, title, body, ctaText, ctaUrl, footerNote }) {
 }
 
 async function send({ to, subject, html, text, attachment }) {
+  if (isHealthCheckActive()) {
+    console.log(`[health-check:mail-skip] would send to ${to} — ${subject}`);
+    return { ok: true, skipped: true };
+  }
   if (!process.env.BREVO_API_KEY) {
     console.log('\n======================== [mailer:console-fallback] ========================');
     console.log(`To:      ${to}`);

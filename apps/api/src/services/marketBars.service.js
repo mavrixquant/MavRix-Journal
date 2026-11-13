@@ -1,4 +1,5 @@
 import { prisma } from '../lib/prisma.js';
+import { isHealthCheckActive } from '../lib/healthCheckMode.js';
 import { HttpError } from '../middleware/error.js';
 import { resolveSymbol } from '../lib/marketData/symbolMap.js';
 import { getBars as getYahooBars } from '../lib/marketData/yahooProvider.js';
@@ -297,7 +298,8 @@ async function ensureFreshTail(sym, interval) {
   ]);
 }
 export async function refreshTail(symbol, interval) {
-  const sym = String(symbol || '').toUpperCase();
+  // Health-check runs must not touch external providers.
+  if (isHealthCheckActive()) return;  const sym = String(symbol || '').toUpperCase();
   if (!sym || !interval) return;
 
   const key = `${sym}:${interval}`;

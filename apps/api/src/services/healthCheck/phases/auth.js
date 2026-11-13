@@ -186,6 +186,61 @@ export async function run(ctx) {
   });
 
 
+  await test('auth.set-username · sets a username once', async () => {
+    const res = await ctx.fetch('/api/auth/set-username', {
+      method: 'POST',
+      token: tokens.a,
+      body: { username: `hc${Date.now() % 100000000}` },
+    });
+    ctx.assertStatus(res, 200);
+    ctx.expect(res.body?.user?.username, 'username missing');
+  });
+
+  await test('auth.set-username · 409 when already set', async () => {
+    const res = await ctx.fetch('/api/auth/set-username', {
+      method: 'POST',
+      token: tokens.a,
+      body: { username: 'anothername' },
+      allowError: true,
+    });
+    ctx.assertStatus(res, 409);
+  });
+
+  await test('auth.set-password · 409 when password already set', async () => {
+    const res = await ctx.fetch('/api/auth/set-password', {
+      method: 'POST',
+      token: tokens.a,
+      body: { password: 'NewPassword!2026' },
+      allowError: true,
+    });
+    ctx.assertStatus(res, 409);
+  });
+
+  await test('auth.profile.update · changes first name', async () => {
+    const res = await ctx.fetch('/api/auth/profile', {
+      method: 'PATCH',
+      token: tokens.a,
+      body: { firstName: 'HealthProfile' },
+    });
+    ctx.assertStatus(res, 200);
+    ctx.expect(res.body?.user?.firstName === 'HealthProfile', 'firstName not updated');
+  });
+
+  await test('auth.verify-reset-otp · rejects bad code', async () => {
+    const res = await ctx.fetch('/api/auth/verify-reset-otp', {
+      method: 'POST',
+      body: { email: emailA, otp: '000000' },
+      allowError: true,
+    });
+    ctx.assertStatus(res, 400);
+  });
+
+  await test('auth.2fa.status · disabled for fresh user', async () => {
+    const res = await ctx.fetch('/api/auth/2fa/status', { token: tokens.a });
+    ctx.assertStatus(res, 200);
+    ctx.expect(res.body?.enabled === false, '2FA should be disabled');
+  });
+
   await test('auth.logout · 204 and re-login works', async () => {
     const res = await ctx.fetch('/api/auth/logout', {
       method: 'POST',

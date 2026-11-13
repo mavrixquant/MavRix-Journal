@@ -1,4 +1,4 @@
-﻿// ============================================================================
+// ============================================================================
 // Admin calendar service — view / sync / import / delete economic events.
 //
 // Backs every /api/admin/calendar/* route. Delegates actual fetching to
@@ -11,6 +11,7 @@ import { HttpError } from '../middleware/error.js';
 import { writeAudit } from '../lib/audit.js';
 import { broadcastToAll } from '../lib/broadcaster.js';
 import { runCalendarSyncOnce } from '../lib/calendarSync.js';
+import { isHealthCheckActive } from '../lib/healthCheckMode.js';
 
 const VALID_IMPACTS = ['high', 'medium', 'low'];
 
@@ -307,7 +308,7 @@ export async function importEvents(actor, { rows, mode = 'merge' } = {}) {
     req: actor.req,
   });
 
-  if (created > 0 || updated > 0 || cleared > 0) {
+  if (!isHealthCheckActive() && (created > 0 || updated > 0 || cleared > 0)) {
     broadcastToAll('invalidate', { keys: [['calendar']] });
   }
 
