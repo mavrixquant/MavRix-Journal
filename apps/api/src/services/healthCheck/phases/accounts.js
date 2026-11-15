@@ -1,13 +1,21 @@
-
 export async function run(ctx) {
   const { test, tokens, ids } = ctx;
 
-
-  await test('accounts.list · fresh user has 0 accounts', async () => {
+  // FIXED 2026-11-15 — signup now atomically creates a default "Main"
+  // Demo account, so a "fresh user" has 1 account, not 0.
+  await test('accounts.list · fresh user has 1 default account', async () => {
     const res = await ctx.fetch('/api/accounts', { token: tokens.a });
     ctx.assertStatus(res, 200);
     ctx.expect(Array.isArray(res.body.accounts), 'accounts not array');
-    ctx.expect(res.body.accounts.length === 0, 'fresh user should have 0 accounts');
+    ctx.expect(
+      res.body.accounts.length === 1,
+      `fresh user should have exactly 1 account (default Main), got ${res.body.accounts.length}`
+    );
+    const [main] = res.body.accounts;
+    ctx.expect(main.name === 'Main', `default account name should be "Main", got "${main.name}"`);
+    ctx.expect(main.type === 'Demo', `default account type should be "Demo", got "${main.type}"`);
+    ctx.expect(main.currency === 'USD', `default account currency should be "USD", got "${main.currency}"`);
+    ctx.expect(main.balance === 10000, `default account balance should be 10000, got ${main.balance}`);
   });
 
 
@@ -61,10 +69,14 @@ export async function run(ctx) {
   });
 
 
-  await test('accounts.list · returns both accounts', async () => {
+  // FIXED 2026-11-15 — 1 default (Main) + Backtest + Live = 3.
+  await test('accounts.list · returns all 3 accounts', async () => {
     const res = await ctx.fetch('/api/accounts', { token: tokens.a });
     ctx.assertStatus(res, 200);
-    ctx.expect(res.body.accounts.length === 2, `expected 2, got ${res.body.accounts.length}`);
+    ctx.expect(
+      res.body.accounts.length === 3,
+      `expected 3 (Main + Backtest + Live), got ${res.body.accounts.length}`
+    );
   });
 
 
@@ -115,6 +127,7 @@ export async function run(ctx) {
   });
 
 
+  // FIXED 2026-11-15 — after deleting Live, user A still has Main + Backtest.
   await test('accounts.delete · remove live account', async () => {
     const res = await ctx.fetch(`/api/accounts/${ids.accountLive}`, {
       method: 'DELETE',
@@ -122,6 +135,9 @@ export async function run(ctx) {
     });
     ctx.assertStatus(res, 200);
     const verify = await ctx.fetch('/api/accounts', { token: tokens.a });
-    ctx.expect(verify.body.accounts.length === 1, 'account not deleted');
+    ctx.expect(
+      verify.body.accounts.length === 2,
+      `expected 2 (Main + Backtest), got ${verify.body.accounts.length}`
+    );
   });
 }

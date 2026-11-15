@@ -25,6 +25,16 @@ import { signTwoFactorSession } from '../lib/jwt.js';
 import { enabledMethods } from './twoFactor.service.js';
 import { env } from '../config/env.js';
 
+// FIXED 2026-11-15 — new users now get a default "Main" Demo account at
+// signup time. Values are constants so tests and support can rely on them;
+// change here if you ever need a different default (e.g. 25000 or INR).
+const DEFAULT_ACCOUNT = Object.freeze({
+  name: 'Main',
+  balance: 10_000,
+  currency: 'USD',
+  type: 'Live',
+});
+
 const publicUser = (u) => ({
   id: u.id,
   email: u.email,
@@ -91,15 +101,27 @@ export async function signup({ email, password, firstName, lastName }) {
   const verifyToken = generateSecureToken();
   const verifyTokenExpiry = new Date(Date.now() + VERIFY_TTL_MS);
 
-  const user = await prisma.user.create({
-    data: {
-      email,
-      passwordHash,
-      firstName,
-      lastName,
-      verifyToken,
-      verifyTokenExpiry,
-    },
+  // FIXED 2026-11-15 — user + default account created atomically in one
+  // transaction. If account creation ever fails, the user is rolled back
+  // too — so we never ship a user with an empty dashboard.
+  const user = await prisma.$transaction(async (tx) => {
+    const u = await tx.user.create({
+      data: {
+        email,
+        passwordHash,
+        firstName,
+        lastName,
+        verifyToken,
+        verifyTokenExpiry,
+      },
+    });
+    await tx.account.create({
+      data: {
+        userId: u.id,
+        ...DEFAULT_ACCOUNT,
+      },
+    });
+    return u;
   });
 
   await sendVerificationEmail({ to: user.email, token: verifyToken });
@@ -302,17 +324,28 @@ export async function loginWithGoogle(accessToken) {
     return { user: publicUser(linked), ...issueTokens(linked) };
   }
 
-  const created = await prisma.user.create({
-    data: {
-      email: g.email,
-      googleId: g.googleId,
-      firstName: g.firstName,
-      lastName: g.lastName,
-      photoUrl: g.photoUrl,
-      emailVerified: true,
-      passwordHash: null,
-      lastLoginAt: new Date(),
-    },
+  // FIXED 2026-11-15 — first-time Google signup also gets the default
+  // "Main" account, atomically, matching email signup behaviour.
+  const created = await prisma.$transaction(async (tx) => {
+    const u = await tx.user.create({
+      data: {
+        email: g.email,
+        googleId: g.googleId,
+        firstName: g.firstName,
+        lastName: g.lastName,
+        photoUrl: g.photoUrl,
+        emailVerified: true,
+        passwordHash: null,
+        lastLoginAt: new Date(),
+      },
+    });
+    await tx.account.create({
+      data: {
+        userId: u.id,
+        ...DEFAULT_ACCOUNT,
+      },
+    });
+    return u;
   });
 
   scheduleAiDmForUser(created.id);
