@@ -7,6 +7,7 @@ import { runCalendarSyncOnce } from '../lib/calendarSync.js';
 import { pushSyncLog, getSyncLogs, clearSyncLogs } from '../lib/syncLog.js';
 import { sendBroadcastEmail } from '../lib/mailer.js';
 import { pushNotificationBulk } from './notifications.service.js';
+import { invalidateSettingsCache } from '../lib/settings.js';
 
 export async function listAuditLog({
   actorId,
@@ -78,12 +79,39 @@ export async function disconnectUserSessions(actor, userId) {
   return { ok: true, closedSockets: closed };
 }
 
-export async function broadcast(actor, { message, level = 'info', sendEmail = false }) {
+export async function broadcast(actor, { message, level = 'info', sendEmail = false, showBanner = false, bannerExpiresIn = 'never' }) {
   if (!message || !message.trim()) {
     throw new HttpError(400, 'message is required');
   }
   const clean = String(message).trim().slice(0, 2000);
   const cleanLevel = ['info', 'warning', 'critical'].includes(level) ? level : 'info';
+
+  // Handle announcement banner
+  if (showBanner) {
+    // Calculate expiry timestamp (in milliseconds from now)
+    let expiresAt = null;
+    if (bannerExpiresIn && bannerExpiresIn !== 'never') {
+      const durationMs = parseInt(bannerExpiresIn, 10);
+      if (!Number.isNaN(durationMs) && durationMs > 0) {
+        expiresAt = new Date(Date.now() + durationMs);
+      }
+    }
+
+    // Store in site_settings as JSON
+    const bannerData = {
+      message: clean,
+      level: cleanLevel,
+      createdAt: new Date().toISOString(),
+      expiresAt: expiresAt ? expiresAt.toISOString() : null,
+      sentBy: actor.email,
+    };
+
+    await prisma.siteSetting.upsert({
+      where: { key: 'announcementBanner' },
+      create: { key: 'announcementBanner', value: bannerData },
+      update: { value: bannerData },
+    });
+  }
 
   const sseSent = broadcastToAll('broadcast', {
     message: clean,
@@ -117,6 +145,11 @@ export async function broadcast(actor, { message, level = 'info', sendEmail = fa
     console.error('[notify] broadcast bulk push failed:', err?.message || err);
   }
 
+  // Update settings cache to refresh announcement banner for new broadcasts
+  if (showBanner) {
+    invalidateSettingsCache();
+  }
+
   let emailsSent = 0;
   let emailsFailed = 0;
   if (sendEmail) {
@@ -140,11 +173,27 @@ export async function broadcast(actor, { message, level = 'info', sendEmail = fa
     actorEmail: actor.email,
     action: 'broadcast.send',
     targetType: 'system',
-    metadata: { message: clean, level: cleanLevel, sseSent, emailsSent, emailsFailed, sendEmail },
+    metadata: {
+      message: clean,
+      level: cleanLevel,
+      sseSent,
+      emailsSent,
+      emailsFailed,
+      sendEmail,
+      showBanner,
+      bannerExpiresIn,
+    },
     req: actor.req,
   });
 
-  return { ok: true, sseSent, emailsSent, emailsFailed };
+  return {
+    ok: true,
+    sseSent,
+    emailsSent,
+    emailsFailed,
+    showBanner,
+    bannerExpiresIn,
+  };
 }
 
 export async function forceCalendarSync(actor) {

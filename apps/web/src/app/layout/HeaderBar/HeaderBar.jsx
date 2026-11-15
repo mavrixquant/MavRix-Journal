@@ -54,6 +54,7 @@ function PageTitleBlock() {
 }
 
 export default function HeaderBar({
+  hasActiveBanner = false,
   onMobileMenuClick,
   onAccountClick,
   onSettingsClick,
@@ -130,7 +131,10 @@ export default function HeaderBar({
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
 
   return (
-    <header className="hb-root">
+    <header
+      className={`hb-root${hasActiveBanner ? ' is-below-banner' : ''}`}
+      style={hasActiveBanner ? { top: '39px' } : undefined}
+    >
       <button
         type="button"
         className="hb-mobile-menu"

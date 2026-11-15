@@ -1,4 +1,4 @@
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, useMemo, Suspense } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 
 import { useAuth } from '@/app/providers/AuthProvider';
@@ -17,6 +17,7 @@ import MaveAiSidebar from '@/features/mave-ai/MaveAiSidebar';
 import BugReportModal from '@/features/bug-report/BugReportModal';
 import NotificationsSidebar from '@/app/layout/Notifications/NotificationsSidebar';
 import ChangelogModal from '@/features/changelog/ChangelogModal';
+import { useSystemStatus } from '@/shared/api/systemStatus';
 
 const STORAGE_KEY = 'mavrix:sidebar:collapsed';
 const LAST_PATH_KEY = 'mavrix:lastPath';
@@ -32,6 +33,8 @@ const STORABLE_PREFIXES = [
 export default function AppLayout() {
   const { user, logout } = useAuth();
   const location = useLocation();
+  const { data: status } = useSystemStatus();
+  const banner = status?.announcementBanner;
 
   const [collapsed, setCollapsed] = useState(() => {
     if (typeof window === 'undefined') return false;
@@ -43,6 +46,36 @@ export default function AppLayout() {
   const [maveAiOpen, setMaveAiOpen] = useState(false);
   const [bugReportOpen, setBugReportOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [bannerDismissed, setBannerDismissed] = useState(true);
+
+  const bannerId = useMemo(() => {
+    if (!banner || !banner.message) return null;
+    return `${banner.createdAt || ''}_${banner.message}`;
+  }, [banner]);
+
+  useEffect(() => {
+    if (!bannerId) {
+      setBannerDismissed(true);
+      return;
+    }
+
+    try {
+      const stored = localStorage.getItem('mavrix:announcement:dismissed');
+      setBannerDismissed(stored === bannerId);
+    } catch {
+      setBannerDismissed(false);
+    }
+  }, [bannerId]);
+
+  const handleBannerDismiss = () => {
+    if (!bannerId) return;
+    try {
+      localStorage.setItem('mavrix:announcement:dismissed', bannerId);
+    } catch {}
+    setBannerDismissed(true);
+  };
+
+  const hasActiveBanner = !!(banner && banner.message && !bannerDismissed);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, collapsed ? '1' : '0');
@@ -89,10 +122,15 @@ export default function AppLayout() {
         closeSettings={closeSettings}
       >
         <PageHeaderProvider>
-          <TopStrip />
+          <TopStrip
+            banner={banner}
+            dismissed={bannerDismissed}
+            onDismiss={handleBannerDismiss}
+          />
 
           <Sidebar
             collapsed={collapsed}
+            hasActiveBanner={hasActiveBanner}
             onCollapseToggle={() => setCollapsed((v) => !v)}
             onClose={() => setCollapsed(true)}
           />
@@ -114,6 +152,7 @@ export default function AppLayout() {
           <div className="app-shell-main min-h-screen">
             <HeaderBar
               collapsed={collapsed}
+              hasActiveBanner={hasActiveBanner}
               onMobileMenuClick={() => setMobileOpen(true)}
               onAccountClick={() => openSettings('account')}
               onSettingsClick={() => openSettings('preferences')}

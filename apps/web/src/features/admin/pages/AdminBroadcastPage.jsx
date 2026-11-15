@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Send, Radio, Mail, AlertTriangle, Info, Siren } from 'lucide-react';
+import { Send, Radio, Mail, AlertTriangle, Info, Siren, Bell, Clock } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { useAdminBroadcast } from '../api';
@@ -205,6 +205,8 @@ export default function AdminBroadcastPage() {
   const [message, setMessage] = useState('');
   const [level, setLevel] = useState('info');
   const [sendEmail, setSendEmail] = useState(false);
+  const [showBanner, setShowBanner] = useState(true);
+  const [bannerExpiresIn, setBannerExpiresIn] = useState('86400000'); // 24 hours default
 
   const broadcast = useAdminBroadcast();
 
@@ -220,7 +222,7 @@ export default function AdminBroadcastPage() {
   const handleSend = async () => {
     if (!canSend) return;
     const confirmMsg = sendEmail
-      ? `Send "${level}" broadcast via SSE AND email every verified user?`
+      ? `Send "${level}" broadcast via SSE, email, and announcement banner?`
       : `Send "${level}" broadcast to all connected clients?`;
     if (!window.confirm(confirmMsg)) return;
 
@@ -229,8 +231,11 @@ export default function AdminBroadcastPage() {
         message: trimmed,
         level,
         sendEmail,
+        showBanner,
+        bannerExpiresIn,
       });
       const parts = [`SSE: ${r.sseSent}`];
+      if (showBanner) parts.push('Banner: Active');
       if (sendEmail) parts.push(`Emails: ${r.emailsSent} sent, ${r.emailsFailed} failed`);
       toast.success(parts.join(' · '));
       setMessage('');
@@ -280,6 +285,55 @@ export default function AdminBroadcastPage() {
               />
               <div className="abp-charcount">
                 {message.length} / {MAX_CHARS}
+              </div>
+            </div>
+
+            <div className="abp-email-toggle">
+              <input
+                type="checkbox"
+                id="abp-banner"
+                checked={showBanner}
+                onChange={(e) => setShowBanner(e.target.checked)}
+                disabled={broadcast.isPending}
+              />
+              <div className="abp-email-text" style={{ flex: 1 }}>
+                <label htmlFor="abp-banner" className="abp-email-label" style={{ cursor: 'pointer' }}>
+                  <Bell size={11} style={{ verticalAlign: 'middle', marginRight: 6, color: 'var(--accent)' }} />
+                  Pin as Announcement Banner across app
+                </label>
+                <span className="abp-email-desc">
+                  Displays this message at the top of every page for all active users until expired or dismissed.
+                </span>
+                {showBanner && (
+                  <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Clock size={12} style={{ color: '#8892A3' }} />
+                    <span style={{ fontSize: 11, color: '#8892A3' }}>Expires in:</span>
+                    <select
+                      value={bannerExpiresIn}
+                      onChange={(e) => setBannerExpiresIn(e.target.value)}
+                      disabled={broadcast.isPending}
+                      style={{
+                        padding: '4px 8px',
+                        borderRadius: 6,
+                        border: '1px solid rgba(255,255,255,0.12)',
+                        background: '#0F121A',
+                        color: '#E7E9EE',
+                        fontFamily: "'IBM Plex Mono', monospace",
+                        fontSize: 11,
+                        outline: 'none',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <option value="3600000">1 hour</option>
+                      <option value="14400000">4 hours</option>
+                      <option value="43200000">12 hours</option>
+                      <option value="86400000">24 hours (1 day)</option>
+                      <option value="259200000">3 days</option>
+                      <option value="604800000">7 days</option>
+                      <option value="never">Never (until manually cleared)</option>
+                    </select>
+                  </div>
+                )}
               </div>
             </div>
 

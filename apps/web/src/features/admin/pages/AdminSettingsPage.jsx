@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Save, Lock, Settings2, Bell } from 'lucide-react';
+import { Save, Lock, Settings2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { useAuth } from '@/app/providers/AuthProvider';
@@ -353,32 +353,6 @@ export default function AdminSettingsPage() {
                 disabled={disabled}
                 min={10}
                 max={1_000_000}
-              />
-            </div>
-          </div>
-        </div>
-
-        <div className="asg-card">
-          <div className="asg-card-head">
-            <Bell size={14} style={{ color: 'var(--accent)' }} />
-            <span className="asg-card-title">Announcement banner</span>
-          </div>
-          <div className="asg-card-body">
-            <div className="asg-row" style={{ gridTemplateColumns: '1fr' }}>
-              <div className="asg-row-text">
-                <span className="asg-row-label">announcementBanner</span>
-                <span className="asg-row-desc">
-                  Optional banner text shown to all users. Leave empty to hide.
-                  Supports plain text only.
-                </span>
-              </div>
-              <textarea
-                className="asg-textarea"
-                value={form.announcementBanner || ''}
-                onChange={(e) => setField('announcementBanner', e.target.value)}
-                placeholder="e.g. Scheduled maintenance on Saturday 02:00–04:00 UTC"
-                disabled={disabled}
-                maxLength={500}
               />
             </div>
           </div>

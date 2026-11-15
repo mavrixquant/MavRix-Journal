@@ -47,6 +47,8 @@ export async function broadcast(req, res, next) {
       message: req.body?.message,
       level: req.body?.level,
       sendEmail: !!req.body?.sendEmail,
+      showBanner: !!req.body?.showBanner,
+      bannerExpiresIn: req.body?.bannerExpiresIn || 'never',
     });
     res.json(data);
   } catch (e) { next(e); }

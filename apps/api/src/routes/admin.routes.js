@@ -84,6 +84,8 @@ const broadcastSchema = z.object({
   message: z.string().trim().min(1).max(2000),
   level: z.enum(['info', 'warning', 'critical']).optional().default('info'),
   sendEmail: z.boolean().optional().default(false),
+  showBanner: z.boolean().optional().default(false),
+  bannerExpiresIn: z.string().optional().default('never'),
 });
 
 const healthCheckStartSchema = z.object({

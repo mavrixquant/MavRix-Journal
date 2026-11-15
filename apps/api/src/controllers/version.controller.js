@@ -36,9 +36,22 @@ export async function getSystemStatus(_req, res, next) {
       getSettings(),
       getCurrentRelease().catch(() => null),
     ]);
+
+    let banner = settings.announcementBanner;
+    if (typeof banner === 'string' && banner.trim()) {
+      banner = { message: banner.trim(), level: 'info', expiresAt: null };
+    } else if (banner && typeof banner === 'object' && banner.message) {
+      if (banner.expiresAt && new Date(banner.expiresAt).getTime() < Date.now()) {
+        banner = null;
+      }
+    } else {
+      banner = null;
+    }
+
     res.json({
       maintenanceMode: !!settings.maintenanceMode,
       maintenanceMessage: settings.maintenanceMessage || '',
+      announcementBanner: banner,
       version: current?.version || null,
       ts: Date.now(),
     });

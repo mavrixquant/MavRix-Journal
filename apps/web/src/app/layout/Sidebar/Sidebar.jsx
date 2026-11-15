@@ -76,7 +76,7 @@ export function SidebarContent({
   );
 }
 
-export default function Sidebar({ collapsed, onCollapseToggle, onClose }) {
+export default function Sidebar({ collapsed, hasActiveBanner, onCollapseToggle, onClose }) {
   const asideRef = useRef(null);
 
   useEffect(() => {
@@ -105,10 +105,11 @@ export default function Sidebar({ collapsed, onCollapseToggle, onClose }) {
   return (
     <aside
       ref={asideRef}
-      className="fixed inset-y-0 left-0 z-40 hidden lg:flex flex-col"
+      className="fixed left-0 bottom-0 z-40 hidden lg:flex flex-col"
       style={{
+        top: hasActiveBanner ? '39px' : '0',
         width: collapsed ? SIDEBAR_COLLAPSED_WIDTH : SIDEBAR_WIDTH,
-        transition: 'width .4s cubic-bezier(.16, 1, .3, 1)',
+        transition: 'width .4s cubic-bezier(.16, 1, .3, 1), top .2s ease',
         boxShadow: collapsed ? 'none' : '12px 0 40px -20px rgba(0,0,0,.75)',
       }}
     >
