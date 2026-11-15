@@ -13,7 +13,7 @@ export default function TestLogsPage() {
 
   usePageHeader({
     title: 'Test Logs',
-    subtitle: 'Browse, search, and manage every trade in your Backtest accounts',
+    subtitle: 'Manage every trade in your Backtest accounts',
   });
 
   return (

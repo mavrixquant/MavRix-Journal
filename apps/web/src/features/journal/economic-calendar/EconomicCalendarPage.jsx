@@ -332,7 +332,7 @@ export default function EconomicCalendarPage() {
 
   const subText = meta.data?.totalEvents
     ? `${meta.data.totalEvents.toLocaleString()} events cached · live from Biquote`
-    : 'Live macro releases · CPI · NFP · FOMC · central banks';
+    : 'Live releases · CPI · NFP · FOMC · central banks';
 
   usePageHeader({ title: 'Economic Calendar', subtitle: subText });
 

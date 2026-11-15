@@ -18,6 +18,7 @@ import { AccountSelect } from './AccountSelect';
 import { IconButton, HBTooltip } from './IconButton';
 import { usePageHeaderContext } from '../PageHeaderProvider';
 import { useUnreadNotificationCount } from '@/shared/api/notifications';
+import GlobalSearch from './GlobalSearch';
 
 import './HeaderBar.css';
 
@@ -140,6 +141,8 @@ export default function HeaderBar({
       </button>
 
       <PageTitleBlock />
+
+      <GlobalSearch />
 
       {showAccountSelect && (
         <div className="hb-account-root">

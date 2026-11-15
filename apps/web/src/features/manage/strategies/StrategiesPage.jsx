@@ -70,7 +70,7 @@ export default function StrategiesPage() {
 
   usePageHeader({
     title: 'Strategies',
-    subtitle: 'Define playbooks, tag trades, and see which setups actually pay',
+    subtitle: 'Define playbooks, track performance',
   });
 
   const statsById = overview?.stats || {};

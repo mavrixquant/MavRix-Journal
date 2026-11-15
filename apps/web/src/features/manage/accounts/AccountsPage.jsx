@@ -93,7 +93,7 @@ export default function AccountsPage() {
 
   usePageHeader({
     title: 'Portfolio Accounts',
-    subtitle: 'Monitor account capital and aggregate net return',
+    subtitle: 'Monitor account capital',
   });
 
   const metrics = useQueries({

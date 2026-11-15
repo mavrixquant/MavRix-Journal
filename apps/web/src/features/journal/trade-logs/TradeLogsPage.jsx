@@ -13,7 +13,7 @@ export default function TradeLogsPage() {
 
   usePageHeader({
     title: 'Trade Logs',
-    subtitle: 'Browse, search, and manage every trade in your Live and Demo accounts',
+    subtitle: 'Manage every trade in your accounts',
   });
 
   return (
