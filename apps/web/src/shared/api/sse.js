@@ -368,6 +368,13 @@ export function useSSEBridge({ enabled = true, currentUserId = null } = {}) {
         }
         scheduleReconnect();
       });
+      
+      es.addEventListener('maintenance:update', () => {
+        // Superadmin just flipped the maintenance flag. Re-query
+        // /api/system/status now so the MaintenanceGate reacts within
+        // ~1 frame instead of waiting for the 30s poll.
+        queryClient.invalidateQueries({ queryKey: ['system-status'] });
+      });
     };
 
     const scheduleReconnect = () => {

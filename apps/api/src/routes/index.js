@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { APP_VERSION } from '../lib/version.js';
-import { getVersion, getChangelog } from '../controllers/version.controller.js';
+import { getVersion, getChangelog, getSystemStatus } from '../controllers/version.controller.js';
 import { authRoutes } from './auth.routes.js';
 import { accountsRoutes } from './accounts.routes.js';
 import { tradesRoutes } from './trades.routes.js';
@@ -24,6 +24,9 @@ apiRouter.get('/health', (_req, res) =>
 
 apiRouter.get('/version', getVersion);
 apiRouter.get('/changelog', getChangelog);
+
+// FIXED 2026-11-15 — public maintenance probe.
+apiRouter.get('/system/status', getSystemStatus);
 
 apiRouter.use('/auth', authRoutes);
 apiRouter.use('/accounts', accountsRoutes);

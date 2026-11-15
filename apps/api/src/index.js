@@ -8,6 +8,7 @@ import compression from 'compression';
 import { env } from './config/env.js';
 import { apiRouter } from './routes/index.js';
 import { eventsRoutes } from './routes/events.routes.js';
+import { maintenanceGate } from './middleware/maintenance.js';
 import { errorHandler, notFound } from './middleware/error.js';
 import { startCalendarSync, stopCalendarSync } from './lib/calendarSync.js';
 import { ensureSuperadmin } from './lib/adminBootstrap.js';
@@ -25,6 +26,13 @@ app.use(express.json({ limit: '12mb' }));
 app.use(cookieParser());
 app.use(morgan(env.isProd ? 'combined' : 'dev'));
 
+// FIXED 2026-11-15 — maintenance gate runs BEFORE every /api route,
+// including SSE. If maintenance is ON, non-superadmin requests get a 503
+// before any controller/DB work is done. The gate itself respects the
+// allowlist (/api/health, /api/system/status, /api/auth/*) and the
+// superadmin token, so the superadmin can always log in and toggle it off.
+app.use('/api', maintenanceGate);
+
 app.use('/api/events', eventsRoutes);
 app.use('/api', (_req, res, next) => {
   res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
@@ -38,13 +46,11 @@ const server = app.listen(env.port, async () => {
   console.log(`[api] listening on http://localhost:${env.port} (${env.nodeEnv})`);
   try { await ensureSuperadmin(); } catch (err) { console.error('[admin] bootstrap failed:', err); }
   try { await ensureMaveAi(); } catch (err) { console.error('[mave-ai] bootstrap failed:', err); }
-try { await ensureDefaultChannels(); } catch (err) { console.error('[channels] bootstrap failed:', err); }
+  try { await ensureDefaultChannels(); } catch (err) { console.error('[channels] bootstrap failed:', err); }
   try { await markInterruptedJobs(); } catch (err) { console.error('[market-data] boot sweep failed:', err); }
   if (env.calendar.syncEnabled) startCalendarSync();
 
   try { await seedReleasesFromJsonIfEmpty(); } catch (err) { console.error('[releases] boot seed failed:', err); }
-  
-  // Background market sync removed. We rely strictly on lazy loading.
 });
 
 const shutdown = (signal) => {

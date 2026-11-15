@@ -10,6 +10,8 @@ import PlanGate from '@/features/plan/PlanGate';
 import { BootLoader } from '@/shared/ui/boot-loader';
 
 const LandingPage = lazy(() => import('@/features/landing/LandingPage'));
+// FIXED 2026-11-15 — full-page maintenance screen.
+const MaintenancePage = lazy(() => import('@/features/maintenance/MaintenancePage'));
 
 const Login = lazy(() => import('@/features/auth/pages/LoginPage'));
 const Signup = lazy(() => import('@/features/auth/pages/SignupPage'));
@@ -17,7 +19,6 @@ const VerifyEmail = lazy(() => import('@/features/auth/pages/VerifyEmailPage'));
 const SetUsername = lazy(() => import('@/features/auth/pages/SetUsernamePage'));
 const ForgotPassword = lazy(() => import('@/features/auth/pages/ForgotPasswordPage'));
 const TwoFactorVerifyPage = lazy(() => import('@/features/auth/pages/TwoFactorVerifyPage'));
-
 
 const DashboardPage = lazy(() => import('@/features/journal/dashboard/DashboardPage'));
 const AnalysePage = lazy(() => import('@/features/journal/analyse/AnalysePage'));
@@ -44,7 +45,6 @@ const CalculatorCategoryPage = lazy(() => import('@/features/utilities/calculato
 const CalculatorPage = lazy(() => import('@/features/utilities/calculators/CalculatorPage'));
 
 const ChatsPage = lazy(() => import('@/features/personal/chats/ChatsPage'));
-
 
 const AdminLayout = lazy(() => import('@/features/admin/layout/AdminLayout'));
 const AdminDashboardPage    = lazy(() => import('@/features/admin/pages/AdminDashboardPage'));
@@ -97,8 +97,7 @@ function HomeRoute() {
     let last = null;
     try {
       last = localStorage.getItem(LAST_PATH_KEY);
-    } catch {
-    }
+    } catch {}
     if (last && last.startsWith('/') && last !== '/') {
       return <Navigate to={last} replace />;
     }
@@ -111,6 +110,18 @@ export function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<HomeRoute />} />
+
+      {/* FIXED 2026-11-15 — maintenance page is a top-level route so it can
+          render even when no AppLayout wraps it (i.e. when the user has no
+          valid session). */}
+      <Route
+        path="/maintenance"
+        element={
+          <Suspense fallback={<BootLoader label="Loading" />}>
+            <MaintenancePage />
+          </Suspense>
+        }
+      />
 
       <Route path="/login" element={<RequireGuest><Login /></RequireGuest>} />
       <Route path="/signup" element={<RequireGuest><Signup /></RequireGuest>} />
@@ -163,38 +174,11 @@ export function AppRoutes() {
         <Route path="/utilities/calendar" element={<EconomicCalendarPage />} />
         <Route path="/utilities/sessions" element={<SessionsPage />} />
 
-        <Route
-          path="/backtester"
-          element={
-            <PlanGate feature="Backtester">
-              <BacktesterDashboardPage />
-            </PlanGate>
-          }
-        />
-        <Route
-          path="/backtester/logs"
-          element={
-            <PlanGate feature="Test Logs">
-              <TestLogsPage />
-            </PlanGate>
-          }
-        />
-        <Route
-          path="/backtester/simulator"
-          element={
-            <PlanGate feature="Monte Carlo Simulator">
-              <SimulatorPage />
-            </PlanGate>
-          }
-        />
-        <Route
-          path="/utilities/chart"
-          element={
-            <PlanGate feature="Chart">
-              <MarketChartPage />
-            </PlanGate>
-          }
-        />
+        <Route path="/backtester" element={<PlanGate feature="Backtester"><BacktesterDashboardPage /></PlanGate>} />
+        <Route path="/backtester/logs" element={<PlanGate feature="Test Logs"><TestLogsPage /></PlanGate>} />
+        <Route path="/backtester/simulator" element={<PlanGate feature="Monte Carlo Simulator"><SimulatorPage /></PlanGate>} />
+        <Route path="/utilities/chart" element={<PlanGate feature="Chart"><MarketChartPage /></PlanGate>} />
+
         <Route path="/utilities/calculators" element={<CalculatorsHubPage />} />
         <Route path="/utilities/calculators/:calcId" element={<CalculatorPage />} />
         <Route path="/utilities/calculators/:category/:calcId" element={<CalculatorPage />} />
@@ -203,17 +187,9 @@ export function AppRoutes() {
         <Route path="/manage/strategies" element={<StrategiesPage />} />
         <Route path="/manage/strategies/:id" element={<StrategyDetailPage />} />
 
-        <Route
-          path="/utilities/gex"
-          element={
-            <PlanGate feature="GEX Levels">
-              <GexPage />
-            </PlanGate>
-          }
-        />
+        <Route path="/utilities/gex" element={<PlanGate feature="GEX Levels"><GexPage /></PlanGate>} />
 
         <Route path="/personal/chats" element={<ChatsPage />} />
-
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />
