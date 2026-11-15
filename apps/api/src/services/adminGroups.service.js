@@ -25,6 +25,12 @@ function serializePublicUser(u) {
   };
 }
 
+// Real member count: live participant count when we have it, stored column
+// only as a last-resort fallback.
+const liveMemberCount = (c) =>
+  c._count?.participants ??
+  (Array.isArray(c.participants) ? c.participants.length : c.memberCount);
+
 const serializeGroupListItem = (c) => ({
   id: c.id,
   type: c.type,
@@ -33,7 +39,7 @@ const serializeGroupListItem = (c) => ({
   visibility: c.visibility,
   color: c.color,
   iconEmoji: c.iconEmoji,
-  memberCount: c.memberCount,
+  memberCount: liveMemberCount(c),
   isDefault: !!c.isDefault,
   createdById: c.createdById,
   createdBy: serializePublicUser(c.createdBy),
@@ -119,7 +125,11 @@ export async function listGroups(actor, {
   const [rows, total] = await Promise.all([
     prisma.conversation.findMany({
       where,
-      orderBy: [{ memberCount: 'desc' }, { createdAt: 'desc' }],
+      // Sort by the REAL participant count, not the drift-prone column.
+      orderBy: [
+        { participants: { _count: 'desc' } },
+        { createdAt: 'desc' },
+      ],
       skip,
       take,
       include: {
@@ -128,10 +138,28 @@ export async function listGroups(actor, {
             id: true, email: true, firstName: true, lastName: true, photoUrl: true,
           },
         },
+        _count: { select: { participants: true } },
       },
     }),
     prisma.conversation.count({ where }),
   ]);
+
+  // Self-heal: if the stored column disagrees with reality, fix it in the
+  // background so the chat UI (which reads the column) is corrected too.
+  // Best-effort — never blocks or fails the request.
+  const drifted = rows.filter((r) => r.memberCount !== r._count.participants);
+  if (drifted.length > 0) {
+    Promise.all(
+      drifted.map((r) =>
+        prisma.conversation.update({
+          where: { id: r.id },
+          data: { memberCount: r._count.participants },
+        })
+      )
+    ).catch((err) => {
+      console.warn('[adminGroups] memberCount resync failed:', err?.message || err);
+    });
+  }
 
   return {
     groups: rows.map(serializeGroupListItem),

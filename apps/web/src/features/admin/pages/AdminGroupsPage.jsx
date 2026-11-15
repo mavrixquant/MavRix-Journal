@@ -205,7 +205,7 @@ export default function AdminGroupsPage() {
   useAdminPageHeader({
     eyebrow: 'Manage',
     title: 'Channels',
-    subtitle: `${total} group${total === 1 ? '' : 's'} visible to you`,
+    subtitle: `${total} Channels${total === 1 ? '' : 's'} visible to you`,
   });
 
   const hasFilter = q.trim().length > 0 || visibility !== '';
@@ -229,7 +229,7 @@ export default function AdminGroupsPage() {
           <div className="agp-search">
             <Search size={14} className="agp-search-icon" />
             <input
-              placeholder="Search by group name…"
+              placeholder="Search by channel name…"
               value={q}
               onChange={(e) => { setQ(e.target.value); setPage(1); }}
             />
@@ -258,19 +258,19 @@ export default function AdminGroupsPage() {
             className="agp-new-btn"
             onClick={() => setCreating(true)}
           >
-            <Plus size={12} /> New Group
+            <Plus size={12} /> New Channel
           </button>
         </div>
 
         <div className="agp-card">
           {isLoading ? (
-            <div className="agp-loading">Loading groups…</div>
+            <div className="agp-loading">Loading channels…</div>
           ) : groups.length === 0 ? (
             <div style={{ padding: '32px 0' }}>
               <EmptyState
                 icon={Users}
-                eyebrow={hasFilter ? 'No matches' : 'No groups'}
-                title={hasFilter ? 'No groups match' : 'No groups yet'}
+                eyebrow={hasFilter ? 'No matches' : 'No channels'}
+                title={hasFilter ? 'No channels match' : 'No channels yet'}
                 description={
                   hasFilter
                     ? 'Try a different search term or adjust the visibility filter.'
@@ -282,7 +282,7 @@ export default function AdminGroupsPage() {
             <table className="agp-table">
               <thead>
                 <tr>
-                  <th className="agp-th">Group</th>
+                  <th className="agp-th">Channel</th>
                   <th className="agp-th">Visibility</th>
                   <th className="agp-th">Members</th>
                   <th className="agp-th">Created by</th>
@@ -351,8 +351,8 @@ export default function AdminGroupsPage() {
                             className="agp-btn-icon danger"
                             disabled={!isSuper && g.createdById !== me?.id}
                             title={
-                              isSuper ? 'Delete group'
-                              : g.createdById === me?.id ? 'Delete your group'
+                              isSuper ? 'Delete channel'
+                              : g.createdById === me?.id ? 'Delete your channel'
                               : 'Superadmin only'
                             }
                             onClick={(e) => {
@@ -391,11 +391,11 @@ export default function AdminGroupsPage() {
         title={deleteTarget ? `Delete "${deleteTarget.name}"?` : ''}
         description={
           deleteTarget
-            ? `This will permanently remove the group and all ${deleteTarget.memberCount ?? 0} members will lose access. Every message in it will be deleted. This cannot be undone.`
+            ? `This will permanently remove the channel and all ${deleteTarget.memberCount ?? 0} members will lose access. Every message in it will be deleted. This cannot be undone.`
             : ''
         }
         confirmPhrase={deleteTarget?.name || 'DELETE'}
-        confirmLabel="Delete group"
+        confirmLabel="Delete channel"
         busy={deleteGroup.isPending}
         onCancel={() => setDeleteTarget(null)}
         onConfirm={confirmDelete}

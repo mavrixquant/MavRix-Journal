@@ -97,7 +97,9 @@ function serializeConversation(c, userId, participantRow, extras = {}) {
     color: isGroup ? c.color : null,
     iconEmoji: isGroup ? c.iconEmoji : null,
     createdById: isGroup ? c.createdById : null,
-    memberCount: isGroup ? c.memberCount : null,
+    memberCount: isGroup
+      ? (Array.isArray(c.participants) ? c.participants.length : c.memberCount)
+      : null,
     isDefault: !!c.isDefault,
 
     role: participantRow.role || 'member',

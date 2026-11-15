@@ -23,6 +23,28 @@ import {
 } from '@mavrix/shared';
 
 const CSS = `
+  .agm-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    box-sizing: border-box;
+    background: rgba(4, 6, 10, 0.72);
+    -webkit-backdrop-filter: blur(6px);
+            backdrop-filter: blur(6px);
+    animation: agmFade .2s ease-out;
+  }
+  @keyframes agmFade {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  @media (max-width: 560px) {
+    .agm-overlay { padding: 12px; align-items: flex-end; }
+  }
+
   .agm-modal {
     --line: rgba(255,255,255,.085);
     --line-soft: rgba(255,255,255,.05);
@@ -341,7 +363,14 @@ const CSS = `
   .agm-role-chip.is-moderator { color: #60a5fa; background: rgba(96,165,250,.10); border-color: rgba(96,165,250,.32); }
   .agm-role-chip.is-member { color: var(--ink-2); background: rgba(255,255,255,.03); border-color: rgba(255,255,255,.10); }
 
-  .agm-member-actions { display: inline-flex; gap: 4px; flex-shrink: 0; opacity: .5; transition: opacity .15s; }
+  .agm-you {
+    margin-left: 6px;
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 10.5px; font-weight: 500;
+    color: var(--ink-3);
+  }
+  /* min-width keeps role chips aligned on rows with no action buttons. */
+  .agm-member-actions { display: inline-flex; justify-content: flex-end; gap: 4px; flex-shrink: 0; min-width: 56px; opacity: .5; transition: opacity .15s; }
   .agm-member:hover .agm-member-actions { opacity: 1; }
 
   .agm-icon-btn {
@@ -447,7 +476,7 @@ const CSS = `
     100% { background-position: 200% 50%; }
   }
   @media (prefers-reduced-motion: reduce) {
-    .agm-modal, .agm-modal::before { animation: none !important; }
+    .agm-modal, .agm-modal::before, .agm-overlay { animation: none !important; }
     .agm-btn, .agm-color, .agm-vis-tile, .agm-icon-btn, .agm-close, .agm-tab, .agm-member { transition: none !important; }
   }
 `;
@@ -654,7 +683,7 @@ export default function AdminGroupModal({ isOpen, onClose, groupId = null }) {
     <Portal>
       <style>{CSS}</style>
       <div
-        className="chat-modal-overlay"
+        className="agm-overlay"
         onClick={(e) => {
           if (e.target === e.currentTarget && !saving) onClose();
         }}
@@ -939,8 +968,9 @@ export default function AdminGroupModal({ isOpen, onClose, groupId = null }) {
                       m.role === 'owner' ? 'is-owner'
                       : m.role === 'moderator' ? 'is-moderator'
                       : 'is-member';
-                    const canRemove = !(m.role === 'owner' && ownerCount <= 1);
-                    const canMakeOwner = m.role !== 'owner';
+                    const isSelf = m.userId === user?.id;
+                    const canRemove = !isSelf && !(m.role === 'owner' && ownerCount <= 1);
+                    const canMakeOwner = !isSelf && m.role !== 'owner';
 
                     return (
                       <div key={m.id} className="agm-member">
@@ -948,7 +978,10 @@ export default function AdminGroupModal({ isOpen, onClose, groupId = null }) {
                           {m.user?.photoUrl ? <img src={m.user.photoUrl} alt="" /> : initialsOf(m.user)}
                         </span>
                         <div className="agm-member-body">
-                          <div className="agm-member-name">{displayNameOf(m.user)}</div>
+                          <div className="agm-member-name">
+                            {displayNameOf(m.user)}
+                            {isSelf && <span className="agm-you">(you)</span>}
+                          </div>
                           <div className="agm-member-email">{m.user?.email}</div>
                         </div>
                         <span className={`agm-role-chip ${chipCls}`}>
