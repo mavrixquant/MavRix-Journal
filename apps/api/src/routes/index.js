@@ -1,5 +1,4 @@
 import { Router } from 'express';
-import { APP_VERSION } from '../lib/version.js';
 import { getVersion, getChangelog, getSystemStatus } from '../controllers/version.controller.js';
 import { authRoutes } from './auth.routes.js';
 import { accountsRoutes } from './accounts.routes.js';
@@ -19,7 +18,7 @@ import { notificationsRoutes } from './notifications.routes.js';
 export const apiRouter = Router();
 
 apiRouter.get('/health', (_req, res) =>
-  res.json({ ok: true, ts: Date.now(), version: APP_VERSION })
+  res.json({ ok: true, ts: Date.now() })
 );
 
 apiRouter.get('/version', getVersion);
@@ -41,4 +40,4 @@ apiRouter.use('/friends', friendsRoutes);
 apiRouter.use('/ai', aiRoutes);
 apiRouter.use('/bug-reports', bugReportRoutes);
 apiRouter.use('/notifications', notificationsRoutes);
-apiRouter.use('/admin', adminRoutes);
+apiRouter.use('/admin', adminRoutes); 

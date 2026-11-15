@@ -1,16 +1,3 @@
-// ============================================================================
-// /api/version and /api/changelog — DB-backed.
-//
-// `version` reflects the latest PUBLISHED release (admin-controlled, no
-// rebuild needed). `buildVersion` is package.json — kept for debugging
-// "which code is running".
-//
-// /api/system/status is the maintenance-mode probe used by the web app.
-// It is NOT gated by the maintenance middleware (see ALWAYS_ALLOWED in
-// middleware/maintenance.js) so the maintenance page can always read it.
-// ============================================================================
-
-import { APP_VERSION } from '../lib/version.js';
 import { listPublished, getCurrentRelease } from '../services/releases.service.js';
 import { getSettings } from '../lib/settings.js';
 
@@ -19,7 +6,6 @@ export async function getVersion(_req, res, next) {
     const current = await getCurrentRelease();
     res.json({
       version: current?.version || null,
-      buildVersion: APP_VERSION,
       latestRelease: current
         ? { version: current.version, date: current.date, highlights: current.highlights }
         : null,
@@ -54,7 +40,6 @@ export async function getSystemStatus(_req, res, next) {
       maintenanceMode: !!settings.maintenanceMode,
       maintenanceMessage: settings.maintenanceMessage || '',
       version: current?.version || null,
-      buildVersion: APP_VERSION,
       ts: Date.now(),
     });
   } catch (err) {

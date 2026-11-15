@@ -9,7 +9,6 @@ import {
 } from 'lucide-react';
 
 import { useAdminMe, useAdminStats, useAdminHealth, useApiVersion } from '../api';
-import { APP_VERSION } from '@/generated/version';
 import { useAdminPageHeader } from '../AdminPageHeader';
 import StatCard from '../components/StatCard';
 
@@ -178,7 +177,6 @@ export default function AdminDashboardPage() {
   const stats  = statsQuery.data;
   const health = healthQuery.data;
   const apiVersion = apiVersionQuery.data;
-  const inSync = apiVersion?.buildVersion === APP_VERSION;
   const statsLoading = statsQuery.isLoading;
 
   useAdminPageHeader({
@@ -293,21 +291,9 @@ export default function AdminDashboardPage() {
           <div className="admin-dash-panel-body">
             <div className="admin-dash-health-grid">
               <div className="admin-dash-health-item">
-                <span className="admin-dash-health-label">Web build</span>
-                <span className="admin-dash-health-value">{APP_VERSION}</span>
-                <span className="admin-dash-health-label">bundle</span>
-              </div>
-              <div className="admin-dash-health-item">
                 <span className="admin-dash-health-label">Current release</span>
                 <span className="admin-dash-health-value">{apiVersion?.version || '—'}</span>
                 <span className="admin-dash-health-label">server</span>
-              </div>
-              <div className="admin-dash-health-item">
-                <span className="admin-dash-health-label">Sync status</span>
-                <span className="admin-dash-health-value">
-                  {inSync ? 'In sync' : 'Drift'}
-                </span>
-                <span className="admin-dash-health-label">web vs api</span>
               </div>
               <div className="admin-dash-health-item">
                 <span className="admin-dash-health-label">Latest release</span>

@@ -1,8 +1,6 @@
-
 import { useState } from 'react';
 import { Download, Trash2, RotateCcw, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { APP_VERSION } from '@/generated/version';
 
 import { apiJson } from '@/shared/api/client';
 import { queryClient } from '@/shared/api/queryClient';
@@ -33,7 +31,6 @@ async function collectAndDownload() {
   const payload = {
     exportedAt: new Date().toISOString(),
     app: 'Mavrix Journal',
-    version: APP_VERSION,
     accounts,
     strategies,
     tradesByAccount,

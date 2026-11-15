@@ -1,8 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
 import { apiJson } from './client';
-import { APP_VERSION } from '@/generated/version';
-
-export { APP_VERSION };
 
 export const versionKeys = {
   version: () => ['version'],

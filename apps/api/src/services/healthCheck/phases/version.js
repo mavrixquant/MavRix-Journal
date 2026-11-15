@@ -8,13 +8,11 @@ export async function run(ctx) {
     const res = await ctx.fetch('/api/health');
     ctx.assertStatus(res, 200);
     ctx.expect(res.body?.ok === true, 'expected { ok: true }');
-    ctx.expect(typeof res.body?.version === 'string', 'version missing');
   });
 
-  await test('version.current · /api/version returns build + release', async () => {
+  await test('version.current · /api/version returns current release', async () => {
     const res = await ctx.fetch('/api/version');
     ctx.assertStatus(res, 200);
-    ctx.expect(typeof res.body?.buildVersion === 'string', 'buildVersion missing');
     // Current release may be null on a fresh DB — that is a valid state.
     ctx.expect('version' in res.body, 'version key missing');
     ctx.expect('latestRelease' in res.body, 'latestRelease key missing');

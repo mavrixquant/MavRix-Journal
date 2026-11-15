@@ -3,7 +3,6 @@ import { Mail, ExternalLink } from 'lucide-react';
 import { useVersion } from '@/shared/api/version';
 import { useSettingsModal } from '@/app/layout/Settings/SettingsModalContext';
 import { useChangelogModal } from '@/features/changelog/ChangelogContext';
-import { APP_VERSION } from '@/generated/version';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 const MODE = import.meta.env.MODE || 'development';
@@ -16,7 +15,6 @@ export default function AboutPanel() {
 
   const currentRelease = versionData?.version || '—';
   const latestRelease = versionData?.latestRelease;
-  const buildVersion = versionData?.buildVersion || APP_VERSION;
 
   const openChangelog = () => {
     closeSettings();
@@ -41,12 +39,6 @@ export default function AboutPanel() {
               <dd>{latestRelease.date}</dd>
             </>
           )}
-
-          <dt>Web build</dt>
-          <dd>{APP_VERSION}</dd>
-
-          <dt>API build</dt>
-          <dd>{buildVersion}</dd>
 
           <dt>Environment</dt>
           <dd>{MODE}</dd>
