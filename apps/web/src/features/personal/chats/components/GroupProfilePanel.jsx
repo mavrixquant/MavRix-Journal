@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   X,
   Hash,
@@ -10,6 +10,7 @@ import {
   LogOut,
   Loader2,
   Eraser,
+  Search,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -72,6 +73,7 @@ export default function GroupProfilePanel({
   const [pendingRemove, setPendingRemove] = useState(null);
   const [pendingLeave, setPendingLeave] = useState(false);
   const [pendingClear, setPendingClear] = useState(false);
+  const [memberSearch, setMemberSearch] = useState('');
 
   const ownerCount = members.filter((m) => m.role === 'owner').length;
   const myRole =
@@ -80,6 +82,17 @@ export default function GroupProfilePanel({
     'member';
   const isLastOwner = myRole === 'owner' && ownerCount <= 1;
   const isDefault = !!conversation.isDefault;
+
+  const filteredMembers = useMemo(() => {
+    const q = memberSearch.trim().toLowerCase();
+    if (!q) return members;
+    return members.filter((m) => {
+      const name = displayNameOf(m.user).toLowerCase();
+      const username = (m.user?.username || '').toLowerCase();
+      const email = (m.user?.email || '').toLowerCase();
+      return name.includes(q) || username.includes(q) || email.includes(q);
+    });
+  }, [members, memberSearch]);
 
   const handleConfirmRemove = async () => {
     if (!pendingRemove) return;
@@ -188,6 +201,42 @@ export default function GroupProfilePanel({
               </span>
             </div>
 
+            {members.length > 3 && (
+              <div className="panel-add-member" style={{ marginBottom: 12 }}>
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                  <Search size={14} style={{ position: 'absolute', left: 10,top:10, color: '#545E6E', pointerEvents: 'none' }} />
+                  <input
+                    type="text"
+                    placeholder="Search members..."
+                    value={memberSearch}
+                    onChange={(e) => setMemberSearch(e.target.value)}
+                    style={{ paddingLeft: 32 }}
+                    className="panel-add-member input"
+                  />
+                  {memberSearch && (
+                    <button
+                      type="button"
+                      onClick={() => setMemberSearch('')}
+                      style={{
+                        position: 'absolute',
+                        right: 8,
+                        background: 'transparent',
+                        border: 'none',
+                        color: '#8892A3',
+                        cursor: 'pointer',
+                        padding: 4,
+                        display: 'flex',
+                        alignItems: 'center',
+                      }}
+                      aria-label="Clear search"
+                    >
+                      <X size={12} />
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
             <div className="panel-members">
               {loadingMembers && members.length === 0 && (
                 <div className="panel-members-loading">
@@ -199,7 +248,11 @@ export default function GroupProfilePanel({
                 <div className="panel-members-empty">No members yet.</div>
               )}
 
-              {members.map((m) => {
+              {!loadingMembers && members.length > 0 && filteredMembers.length === 0 && (
+                <div className="panel-members-empty">No members matching &ldquo;{memberSearch}&rdquo;.</div>
+              )}
+
+              {filteredMembers.map((m) => {
                 const roleMeta = ROLE_LABELS[m.role];
                 const isSelf = m.userId === currentUserId;
                 const canRemove =
