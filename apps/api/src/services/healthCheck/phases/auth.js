@@ -1,4 +1,3 @@
-
 export async function run(ctx) {
   const { test, ids, tokens } = ctx;
   const ts = Date.now();
@@ -65,10 +64,11 @@ export async function run(ctx) {
   });
 
 
+  // FIXED 2026-11-15 — API expects `identifier` (email OR username), not `email`.
   await test('auth.login · valid credentials', async () => {
     const res = await ctx.fetch('/api/auth/login', {
       method: 'POST',
-      body: { email: emailA, password },
+      body: { identifier: emailA, password },
     });
     ctx.assertStatus(res, 200);
     ctx.expect(res.body.accessToken, 'missing accessToken');
@@ -78,7 +78,7 @@ export async function run(ctx) {
   await test('auth.login · wrong password → 401', async () => {
     const res = await ctx.fetch('/api/auth/login', {
       method: 'POST',
-      body: { email: emailA, password: 'wrong-password-xyz' },
+      body: { identifier: emailA, password: 'wrong-password-xyz' },
       allowError: true,
     });
     ctx.assertStatus(res, 401);
@@ -87,7 +87,7 @@ export async function run(ctx) {
   await test('auth.login · unknown email → 401', async () => {
     const res = await ctx.fetch('/api/auth/login', {
       method: 'POST',
-      body: { email: `nope-${ts}@test.local`, password },
+      body: { identifier: `nope-${ts}@test.local`, password },
       allowError: true,
     });
     ctx.assertStatus(res, 401);
@@ -241,6 +241,7 @@ export async function run(ctx) {
     ctx.expect(res.body?.enabled === false, '2FA should be disabled');
   });
 
+  // FIXED 2026-11-15 — re-login inside logout test also needs `identifier`.
   await test('auth.logout · 204 and re-login works', async () => {
     const res = await ctx.fetch('/api/auth/logout', {
       method: 'POST',
@@ -249,7 +250,7 @@ export async function run(ctx) {
     ctx.assertStatus(res, 204);
     const relogin = await ctx.fetch('/api/auth/login', {
       method: 'POST',
-      body: { email: emailA, password },
+      body: { identifier: emailA, password },
     });
     ctx.assertStatus(relogin, 200);
     tokens.a = relogin.body.accessToken;

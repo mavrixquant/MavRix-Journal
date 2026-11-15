@@ -18,7 +18,12 @@ export async function run(ctx) {
     ctx.expect(Array.isArray(res.body?.releases), 'releases not array');
   });
 
-  const version = `0.0.0-hc-${Date.now()}`;
+  // FIXED 2026-11-15 — use a dot, not a second hyphen. The regex on the
+  // server rejects pre-release identifiers containing a hyphen, but accepts
+  // `0.0.0-hc.1234567890123`. Both spellings are valid semver; the server
+  // regex is also being fixed (see releases.service.js) so real users can
+  // publish versions like `1.2.3-beta-2`.
+  const version = `0.0.0-hc.${Date.now()}`;
   let releaseId = null;
 
   await test('admin.releases.create · creates a draft', async () => {

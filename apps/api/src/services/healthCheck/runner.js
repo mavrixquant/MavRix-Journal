@@ -1,5 +1,17 @@
-
 import { emit } from './runStore.js';
+
+// FIXED 2026-11-15 — SkipError is thrown by skip() so the outer test()
+// catch-block can record exactly ONE result. Before this fix, a skip()
+// call inside a test() would push its own 'skip' row AND test() would
+// also push a 'pass' row for the same test — producing two entries per
+// skip, inflating the pass count and confusing the report.
+class SkipError extends Error {
+  constructor(reason) {
+    super(reason || 'skipped');
+    this.name = 'SkipError';
+    this.isSkip = true;
+  }
+}
 
 export function createRunner({ run, baseUrl, adminId, prisma }) {
   const results = [];
@@ -53,6 +65,21 @@ export function createRunner({ run, baseUrl, adminId, prisma }) {
       emit(run, { type: 'test:end', ...result });
       return out;
     } catch (err) {
+      // skip() throws SkipError — record as a single skip row, no fake pass.
+      if (err?.isSkip) {
+        const result = {
+          id,
+          phase: phaseName,
+          name,
+          status: 'skip',
+          reason: err.message || 'skipped',
+          durationMs: 0,
+        };
+        results.push(result);
+        emit(run, { type: 'test:end', ...result });
+        return null;
+      }
+
       const durationMs = Date.now() - startedAt;
       const result = {
         id,
@@ -70,18 +97,11 @@ export function createRunner({ run, baseUrl, adminId, prisma }) {
     }
   }
 
-  function skip(name, reason) {
-    const id = `${phaseName}:${++testCount}`;
-    const result = {
-      id,
-      phase: phaseName,
-      name,
-      status: 'skip',
-      reason: reason || 'skipped',
-      durationMs: 0,
-    };
-    results.push(result);
-    emit(run, { type: 'test:end', ...result });
+  // FIXED 2026-11-15 — throws SkipError instead of pushing its own result.
+  // The old callers (`ctx.skip('name', 'reason'); return;`) keep working —
+  // the trailing `return` is unreachable after the throw, which is fine.
+  function skip(_name, reason) {
+    throw new SkipError(reason);
   }
 
 

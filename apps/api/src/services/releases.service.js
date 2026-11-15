@@ -18,7 +18,13 @@ import { writeAudit } from '../lib/audit.js';
 import { pushNotificationBulk } from './notifications.service.js';
 import { broadcastToAll } from '../lib/broadcaster.js';
 
-const VERSION_RE = /^\d+\.\d+\.\d+(-[\w.]+)?$/;
+// FIXED 2026-11-15 — the old regex /^\d+\.\d+\.\d+(-[\w.]+)?$/ rejected
+// valid semver pre-release identifiers containing a hyphen, e.g.
+// `1.2.3-beta-2` or `0.0.0-hc-1794717560535`. \w does not include '-' so
+// it matched only the first word-fragment of the pre-release and then
+// failed the `$` anchor. The new pattern follows semver §9 grammar:
+// dot-separated identifiers where each identifier is [0-9A-Za-z-]+.
+const VERSION_RE = /^\d+\.\d+\.\d+(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$/;
 
 const serialize = (r) => ({
   id: r.id,

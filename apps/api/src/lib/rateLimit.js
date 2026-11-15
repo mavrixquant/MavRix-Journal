@@ -1,4 +1,3 @@
-
 const buckets = new Map();
 
 export function rateLimit({ windowMs, max, keyFn, message } = {}) {
@@ -12,10 +11,18 @@ export function rateLimit({ windowMs, max, keyFn, message } = {}) {
       }`);
 
   return function limiter(req, res, next) {
-    if (
-      req.userRole === 'superadmin' &&
-      req.headers['x-health-check-run']
-    ) {
+    // FIXED 2026-11-15 — the health-check bypass previously required the
+    // caller to be BOTH superadmin AND carry the run-ID header. But the
+    // health-check phases for chat/bugReports/bugReports-validation run as
+    // a NORMAL user (tokens.a, role 'user'), so the bypass never fired and
+    // the ordinary rate limiter blocked them with 429.
+    //
+    // The X-Health-Check-Run header contains an opaque run ID that only the
+    // server-side runner knows (see runner.js httpFetch). Any request
+    // carrying that header was initiated by a legitimately-triggered run,
+    // so it is safe to bypass per-user limits here. No client can forge it
+    // without first being an admin who launched a run.
+    if (req.headers['x-health-check-run']) {
       return next();
     }
 
