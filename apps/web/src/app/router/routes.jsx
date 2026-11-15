@@ -8,6 +8,7 @@ import { useSettings } from '@/app/layout/Settings/SettingsProvider';
 import { RequireAdmin, RequireSuperadmin } from '@/features/admin/guards';
 import PlanGate from '@/features/plan/PlanGate';
 import { BootLoader } from '@/shared/ui/boot-loader';
+import { useSystemStatus } from '@/shared/api/systemStatus';
 
 const LandingPage = lazy(() => import('@/features/landing/LandingPage'));
 // FIXED 2026-11-15 — full-page maintenance screen.
@@ -71,10 +72,19 @@ const LAST_PATH_KEY = 'mavrix:lastPath';
 function HomeRoute() {
   const { user, loading } = useAuth();
   const { settings } = useSettings();
+  const { data: status, isError } = useSystemStatus();
 
   if (loading) return <BootLoader label="Loading" />;
 
-  if (!user) {
+  // FIXED 2026-11-15 (round 3) — during maintenance, everyone except a
+  // superadmin sees the landing page at "/" (even when logged in), so the
+  // "Back to landing page" button on /maintenance doesn't loop through
+  // /journal -> /maintenance. Fail-closed: unknown status counts as ON.
+  const statusKnown = !isError && status && typeof status === 'object';
+  const maintenanceOn = statusKnown ? !!status.maintenanceMode : true;
+  const isSuperadmin = user?.role === 'superadmin';
+
+  if (!user || (maintenanceOn && !isSuperadmin)) {
     return (
       <Suspense fallback={<BootLoader label="Loading" />}>
         <LandingPage />

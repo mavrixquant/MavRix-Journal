@@ -1,28 +1,19 @@
-// ============================================================================
-// Full-page maintenance screen.
-//
-// FIXED 2026-11-15 (round 2):
-//   • Logo is no longer a link. During maintenance "/" is blocked, so a
-//     <Link to="/"> would bounce the user right back to /maintenance — the
-//     worst kind of infinite loop for a page called "maintenance".
-//   • "Back to landing page" replaced with "Admin login". The only way a
-//     logged-out superadmin can reach the login form now that "/" is
-//     blocked. Regular users can click it too; they will just log in and
-//     land back on /maintenance because they are not superadmin.
-// ============================================================================
-
 import { useMemo, useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { Wrench, RefreshCw, LogIn } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Wrench, ArrowLeft, LogOut } from 'lucide-react';
 
 import navLogo from '@/assets/navLOGO.png';
+import { useAuth } from '@/app/providers/AuthProvider';
 import { useSystemStatus } from '@/shared/api/systemStatus';
 
 import './MaintenancePage.css';
 
 export default function MaintenancePage() {
-  const { data, refetch, isFetching } = useSystemStatus();
+  const { data } = useSystemStatus();
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const [now, setNow] = useState(() => Date.now());
+  const [loggingOut, setLoggingOut] = useState(false);
 
   useEffect(() => {
     const iv = setInterval(() => setNow(Date.now()), 1000);
@@ -40,13 +31,23 @@ export default function MaintenancePage() {
     ? Math.max(0, Math.floor((now - data.ts) / 1000))
     : null;
 
+  async function handleLogout() {
+    setLoggingOut(true);
+    try {
+      await logout();
+    } catch {
+      /* ignore, we still leave the page */
+    } finally {
+      navigate('/', { replace: true });
+    }
+  }
+
   return (
     <div className="mx-root" role="status" aria-live="polite">
       <span className="mx-orb a" aria-hidden />
       <span className="mx-orb b" aria-hidden />
 
       <div className="mx-card">
-        {/* No Link — landing is blocked during maintenance. */}
         <div className="mx-logo">
           <img src={navLogo} alt="MavRix Journal" />
         </div>
@@ -75,9 +76,7 @@ export default function MaintenancePage() {
             <span>Auto-check</span>
             <b>
               {lastChecked != null
-                ? lastChecked < 2
-                  ? 'just now'
-                  : `${lastChecked}s ago`
+                ? lastChecked < 2 ? 'just now' : `${lastChecked}s ago`
                 : 'polling…'}
             </b>
           </div>
@@ -88,19 +87,21 @@ export default function MaintenancePage() {
         </div>
 
         <div className="mx-actions">
-          <button
-            type="button"
-            className="mx-btn is-primary"
-            onClick={() => refetch()}
-            disabled={isFetching}
-          >
-            <RefreshCw size={13} className={isFetching ? 'mx-spin' : ''} />
-            {isFetching ? 'Checking…' : 'Check again'}
-          </button>
-          <Link to="/login" className="mx-btn">
-            <LogIn size={13} />
-            Admin login
+          <Link to="/" className="mx-btn is-primary">
+            <ArrowLeft size={13} />
+            Back to landing page
           </Link>
+          {user && (
+            <button
+              type="button"
+              className="mx-btn"
+              onClick={handleLogout}
+              disabled={loggingOut}
+            >
+              <LogOut size={13} />
+              {loggingOut ? 'Logging out…' : 'Logout'}
+            </button>
+          )}
         </div>
 
         <div className="mx-foot">

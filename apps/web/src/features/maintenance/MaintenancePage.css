@@ -365,3 +365,38 @@
     transition: none !important;
   }
 }
+
+.mx-root {
+  /* ...everything already there... */
+  overflow-x: hidden;   /* add this */
+  overflow-y: auto;     /* already there */
+}
+
+.mx-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 46px;
+  margin: 0 auto 24px;
+}
+
+.mx-icon {
+  /* change display only */
+  display: flex;
+  margin: 0 auto 22px;
+}
+
+.mx-badge {
+  /* change display only, plus centering */
+  display: flex;
+  width: fit-content;
+  margin: 0 auto 16px;
+}
+
+.mx-grid {
+  grid-template-columns: 1fr 1fr 1.6fr;
+}
+.mx-cell b {
+  word-break: normal;
+  overflow-wrap: anywhere;
+}

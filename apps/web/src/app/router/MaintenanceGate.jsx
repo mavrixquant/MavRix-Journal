@@ -19,6 +19,7 @@ import { useSystemStatus } from '@/shared/api/systemStatus';
 import { BootLoader } from '@/shared/ui/boot-loader';
 
 const PUBLIC_ROUTES = new Set([
+  '/',
   '/maintenance',
   '/login',
   '/forgot-password',
