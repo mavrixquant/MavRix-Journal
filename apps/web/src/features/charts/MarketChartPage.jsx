@@ -254,11 +254,22 @@ export default function MarketChartPage() {
   const filling = barsQuery.data?.pages?.[0]?.filling;
   const hasMoreOlder = barsQuery.data?.pages?.[barsQuery.data.pages.length - 1]?.hasMoreOlder;
 
+  const [currentTime, setCurrentTime] = useState(() => Math.floor(Date.now() / 1000));
+
+  useEffect(() => {
+    if (interval === '1d') return;
+    const intervalMs = 30000; // update every 30 seconds
+    const timer = setInterval(() => {
+      setCurrentTime(Math.floor(Date.now() / 1000));
+    }, intervalMs);
+    return () => clearInterval(timer);
+  }, [interval]);
+
   const displayOffset = useMemo(() => {
     if (interval === '1d') return 0;
-    const ref = bars.length > 0 ? bars[Math.floor(bars.length / 2)].time : Math.floor(Date.now() / 1000);
+    const ref = bars.length > 0 ? bars[Math.floor(bars.length / 2)].time : currentTime;
     return getTimezoneOffsetSeconds(displayTz, ref);
-  }, [bars, interval, displayTz]);
+  }, [bars, interval, displayTz, currentTime]);
 
   // Shift to the display timezone. Drop any bar whose shifted time would not be strictly
   // increasing (can happen around DST changes) because the chart library throws on duplicates.

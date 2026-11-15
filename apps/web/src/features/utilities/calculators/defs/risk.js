@@ -1,4 +1,4 @@
-import { tile, sideField, riskModeField, riskValueField } from './shared.js';
+import { tile, riskModeField, riskValueField } from './shared.js';
 import { FUT_FIELDS, getFut, tickStep } from '../lib/instruments.js';
 import { ok, decimalsOf, clamp, probStreak, ruinProbability } from '../lib/math.js';
 

@@ -42,7 +42,6 @@ const StrategyDetailPage = lazy(() => import('@/features/manage/strategies/Strat
 const GexPage = lazy(() => import('@/features/utilities/gex/GexPage'));
 const SessionsPage = lazy(() => import('@/features/utilities/sessions/SessionsPage'));
 const CalculatorsHubPage = lazy(() => import('@/features/utilities/calculators/CalculatorsHubPage'));
-const CalculatorCategoryPage = lazy(() => import('@/features/utilities/calculators/CalculatorCategoryPage'));
 const CalculatorPage = lazy(() => import('@/features/utilities/calculators/CalculatorPage'));
 
 const ChatsPage = lazy(() => import('@/features/personal/chats/ChatsPage'));

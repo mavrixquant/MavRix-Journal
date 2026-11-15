@@ -15,7 +15,6 @@ import { useResponsiveGridMetrics } from '@/features/dashboard/hooks/useResponsi
 import { useDashboardEditor } from '@/features/dashboard/hooks/useDashboardEditor';
 import { reconcileLayouts } from '@/features/dashboard/layout/dashboardLayout';
 import DashboardGrid from '@/features/dashboard/components/DashboardGrid';
-import DashboardContextBar from '@/features/dashboard/components/DashboardContextBar';
 
 import '@/features/dashboard/dashboardShell.css';
 

@@ -185,7 +185,6 @@ export default function CalculatorsHubPage() {
             {active !== 'pinned' &&
               visibleCats.map((cat) => {
                 const list = calculatorsIn(cat.id);
-                const Icon = cat.icon;
                 return (
                   <section key={cat.id} className="cx-sec" style={{ '--cat': cat.color }} aria-labelledby={`cx-sec-${cat.id}`}>
                     <header className="cx-sec-head">

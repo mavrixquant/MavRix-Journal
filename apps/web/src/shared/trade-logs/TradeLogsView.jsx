@@ -18,7 +18,6 @@ import { useStrategies } from '@/shared/api/strategies';
 import { enrichTradesFromDB } from '@/shared/trading/enrich';
 import { tradeTimeToUtcSeconds } from '@/shared/trading/tradeTime';
 import { resolveTimezone } from '@/shared/format/datetime';
-import { useSettings } from '@/app/layout/Settings/SettingsProvider';
 import UploadModal from './UploadModal';
 import AddTradeModal from './AddTradeModal';
 import ColumnManagerModal from './ColumnManagerModal';
@@ -589,10 +588,9 @@ export default function TradeLogsView({
   noAccountsMessage,
 }) {
   const navigate = useNavigate();
-  const { settings } = useSettings();
   const userTz = useMemo(
-    () => resolveTimezone(settings?.preferences?.timezone || 'auto'),
-    [settings?.preferences?.timezone]
+    () => resolveTimezone('auto'),
+    []
   );
   const { data: accounts = [], isLoading: accountsLoading } = useAccounts();
   const [searchParams, setSearchParams] = useSearchParams();

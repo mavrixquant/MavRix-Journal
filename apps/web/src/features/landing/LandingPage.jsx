@@ -1,5 +1,5 @@
 import {
-  useState, useEffect, useRef, useMemo, useCallback,
+  useState, useEffect, useRef, useMemo, useCallback, useId,
 } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import navLogo from '@/assets/navLOGO.png';
@@ -688,7 +688,7 @@ function EquityChart({ curve, dd, height = 200, accent, draw = false, strokeW = 
     const ddPath = dd ? dd.map((v, i) => `${i ? 'L' : 'M'}${X(i).toFixed(1)} ${(v / ddMin * 38).toFixed(1)}`).join(' ') : '';
     return { line, area: `${line} L${W} ${height} L0 ${height} Z`, zero: Y(0), last: { x: X(curve.length - 1), y: Y(curve[curve.length - 1]) }, ddPath };
   }, [curve, dd, height]);
-  const gid = useMemo(() => `eg${Math.random().toString(36).slice(2, 8)}`, []);
+  const gid = useId();
   if (!geo) return <div style={{ height }} />;
   return (
     <div>
@@ -1216,9 +1216,18 @@ function PositionCalc() {
 }
 
 function EconCalendar() {
-  const base = useRef(Date.now());
-  const [now, setNow] = useState(Date.now());
-  useEffect(() => { const id = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(id); }, []);
+  const base = useRef(null);
+  const [now, setNow] = useState(0);
+
+  useEffect(() => {
+    base.current = Math.floor(Date.now() / 1000);
+    setNow(base.current);
+  }, []);
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(Math.floor(Date.now() / 1000)), 1000);
+    return () => clearInterval(id);
+  }, []);
   const evs = [
     { t: 'US', n: 'CPI y/y', off: 47 * 60, imp: 3 },
     { t: 'US', n: 'Non-Farm Payrolls', off: 3 * 3600 + 12 * 60, imp: 3 },

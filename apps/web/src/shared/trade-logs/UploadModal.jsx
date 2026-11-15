@@ -128,7 +128,6 @@ function parseFile(workbook, account, existingTrades, strategies) {
   const originalHeaders = Object.keys(rows[0]);
   const headerMap = {};
   const customHeaderNames = [];
-  let hasSLColumn = false;
 
   originalHeaders.forEach((h) => {
     const trimmed = h.trim();
@@ -145,7 +144,6 @@ function parseFile(workbook, account, existingTrades, strategies) {
 
     if (mapped) {
       headerMap[trimmed] = mapped;
-      if (mapped === 'sl') hasSLColumn = true;
     } else {
       headerMap[trimmed] = trimmed;
       customHeaderNames.push(trimmed);

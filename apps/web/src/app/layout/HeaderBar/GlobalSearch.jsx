@@ -4,7 +4,6 @@ import { Search, X } from 'lucide-react';
 import { Command } from 'cmdk';
 import { Dialog, DialogContent } from '@/shared/ui/dialog';
 import { useHotkey } from '@/shared/hooks/useHotkey';
-import { SIDEBAR_GROUPS } from '@/app/layout/Sidebar/nav.config';
 
 const PAGE_INDEX = [
   { id: '/journal', title: 'Dashboard', category: 'Journal', path: '/journal', description: 'Track open positions, daily P&L and recent performance' },

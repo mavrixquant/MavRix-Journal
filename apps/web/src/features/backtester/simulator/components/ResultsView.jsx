@@ -60,7 +60,6 @@ export default function ResultsView({
   const lossColor = useCallback(() => chartColors.loss, []);
 
   const isPerm = result.method === 'permutation';
-  const s = result._sorted;
   const rec = insights.recovery;
   const breachTrades = useMemo(
     () => (result.ddBreachTrades || []).filter((v) => v > 0),
