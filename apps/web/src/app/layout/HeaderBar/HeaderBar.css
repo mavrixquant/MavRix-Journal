@@ -14,6 +14,7 @@
   z-index: 30;
   height: 68px;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 16px;
   padding: 0 20px;
@@ -250,14 +251,36 @@
 }
 
 
-.hb-spacer { flex: 1; min-width: 8px; }
-
-
-.hb-right {
+/* Left column — menu + title + accounts.
+   flex:1 basis 0 so left and right get equal space and the search bar
+   in the middle column is centred in the viewport. */
+.hb-left {
+  flex: 1 1 0;
   display: flex;
   align-items: center;
+  gap: 16px;
+  min-width: 0;
+}
+
+/* Center column — search bar, fixed to its natural size */
+.hb-center {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: center;
+}
+
+.hb-center .gs-trigger {
+  min-width: 320px;
+  max-width: 420px;
+}
+
+.hb-right {
+  flex: 1 1 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
   gap: 4px;
-  flex-shrink: 0;
+  min-width: 0;
 }
 
 
@@ -876,6 +899,23 @@
   .gs-trigger-kbd {
     display: none;
   }
+
+  /* On mobile: center search drops below, use full width */
+  .hb-center {
+    flex: 0 0 100%;
+    order: 3;
+    width: 100%;
+    margin-top: 8px;
+    margin-bottom: 8px;
+  }
+  .hb-center .gs-trigger {
+    min-width: 0;
+    max-width: none;
+    width: 100%;
+  }
+  /* Let left/right share the top row evenly */
+  .hb-left { flex: 1 1 auto; }
+  .hb-right { flex: 1 1 auto; }
 }
 
 /* Collapse the "Mave AI" text on narrow screens — icon-only + tooltip. */

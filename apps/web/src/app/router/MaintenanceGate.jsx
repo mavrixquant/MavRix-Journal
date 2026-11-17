@@ -41,15 +41,17 @@ export function MaintenanceGate({ children }) {
   const statusKnown = !isError && status && typeof status === 'object';
   const maintenanceOn = statusKnown ? !!status.maintenanceMode : true;
 
-  const isSuperadmin = user?.role === 'superadmin';
+  // Server mirrors this: both admin and superadmin bypass maintenance,
+  // because they run the site (including the admin panel) during an outage.
+  const isAdmin = user?.role === 'superadmin' || user?.role === 'admin';
 
   // Left maintenance while user is on /maintenance → send home.
   if (statusKnown && !maintenanceOn && location.pathname === '/maintenance') {
     return <Navigate to="/" replace />;
   }
 
-  // Superadmin bypasses everything.
-  if (isSuperadmin) return children;
+  // Admins bypass everything.
+  if (isAdmin) return children;
 
   // Maintenance OFF, status known → full app.
   if (statusKnown && !maintenanceOn) return children;

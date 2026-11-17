@@ -5,7 +5,11 @@
 // If site_settings.maintenanceMode is ON, requests are rejected with 503
 // unless:
 //   • the path is one of the always-public endpoints below, OR
-//   • the caller presents a superadmin access token, OR
+//   • the caller is an admin/superadmin with a valid access token, OR
+//   • the caller sent an expired/invalid token — in which case the request
+//     passes through so requireAuth can answer 401 and trigger a client
+//     refresh. Answering 503 here used to make token expiry look like
+//     "maintenance" and silently logged admins out. OR
 //   • the request carries the health-check-run header (test harness bypass).
 //
 // The check runs against the CACHED settings (lib/settings.js), so the
@@ -29,6 +33,10 @@ const ALWAYS_ALLOWED = new Set([
 // their token so they can reach /admin/settings and disable maintenance.
 const ALLOWED_PREFIXES = ['/api/auth/'];
 
+// Roles allowed to bypass maintenance entirely. Admins operate the site and
+// need the admin panel during an outage; for that reason they bypass too.
+const BYPASS_ROLES = new Set(['superadmin', 'admin']);
+
 function readToken(req) {
   const h = req.headers.authorization || '';
   if (h.startsWith('Bearer ')) return h.slice(7);
@@ -37,17 +45,18 @@ function readToken(req) {
   return null;
 }
 
-function isSuperadminToken(req) {
+// Classify the bearer token.
+//   { hasToken:false }                       → anonymous
+//   { hasToken:true, valid:true, role }      → verified
+//   { hasToken:true, valid:false }           → expired / invalid (client must refresh)
+function tokenState(req) {
   const token = readToken(req);
-  if (!token) return false;
+  if (!token) return { hasToken: false, valid: false, role: null };
   try {
     const payload = verifyAccessToken(token);
-    // Only role == 'superadmin' bypasses. Admin (non-super) is treated
-    // like a regular user for maintenance purposes — matches the settings
-    // PUT which is already requireSuperadmin.
-    return payload.role === 'superadmin';
+    return { hasToken: true, valid: true, role: payload.role || 'user' };
   } catch {
-    return false;
+    return { hasToken: true, valid: false, role: null };
   }
 }
 
@@ -74,7 +83,16 @@ export async function maintenanceGate(req, res, next) {
 
   if (!settings.maintenanceMode) return next();
 
-  if (isSuperadminToken(req)) return next();
+  const { hasToken, valid, role } = tokenState(req);
+
+  // Admin/superadmin with a valid token → always through.
+  if (valid && BYPASS_ROLES.has(role)) return next();
+
+  // Token present but expired/invalid: do NOT answer 503 here. Passing
+  // through lets requireAuth return 401, which is what triggers the client's
+  // silent refresh. Without this, an admin's token expiry after 15 min looked
+  // like "maintenance" (503) and the session could never recover.
+  if (hasToken && !valid) return next();
 
   res.set('Retry-After', '60');
   return res.status(503).json({

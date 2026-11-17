@@ -81,6 +81,14 @@ export async function apiFetch(path, options = {}, allowRetry = true) {
     if (unauthorizedHandler) unauthorizedHandler();
   }
 
+  // Maintenance 503 with no token sent (token expired just before the
+  // maintenance toggle flipped, or vice versa). Refresh and retry once so
+  // the client-side role cache never disagrees with the server.
+  if (res.status === 503 && allowRetry && !isRefreshPath && headers.Authorization) {
+    const refreshed = await doRefresh();
+    if (refreshed?.accessToken) return apiFetch(path, options, false);
+  }
+
   return res;
 }
 

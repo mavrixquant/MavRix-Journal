@@ -135,30 +135,32 @@ export default function HeaderBar({
       className={`hb-root${hasActiveBanner ? ' is-below-banner' : ''}`}
       style={hasActiveBanner ? { top: '39px' } : undefined}
     >
-      <button
-        type="button"
-        className="hb-mobile-menu"
-        onClick={onMobileMenuClick}
-        aria-label="Open navigation"
-      >
-        <MenuIcon size={16} />
-      </button>
+      <div className="hb-left">
+        <button
+          type="button"
+          className="hb-mobile-menu"
+          onClick={onMobileMenuClick}
+          aria-label="Open navigation"
+        >
+          <MenuIcon size={16} />
+        </button>
 
-      <PageTitleBlock />
+        <PageTitleBlock />
 
-      <GlobalSearch />
+        {showAccountSelect && (
+          <div className="hb-account-root">
+            <AccountSelect
+              accounts={filteredAccounts}
+              value={accountId}
+              onChange={handleAccountChange}
+            />
+          </div>
+        )}
+      </div>
 
-      {showAccountSelect && (
-        <div className="hb-account-root">
-          <AccountSelect
-            accounts={filteredAccounts}
-            value={accountId}
-            onChange={handleAccountChange}
-          />
-        </div>
-      )}
-
-      <div className="hb-spacer" />
+      <div className="hb-center">
+        <GlobalSearch />
+      </div>
 
       <div className="hb-right">
         {isAdmin && (
