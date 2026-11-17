@@ -106,7 +106,7 @@ async function joinAllNonAiUsers(channelId) {
 }
 
 export async function ensureDefaultChannels() {
-  console.log('[channels] checking default channels�');
+  console.log('[channels] checking default channels');
 
   const admin = await prisma.user.findFirst({
     where: { role: 'superadmin' },

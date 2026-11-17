@@ -23,6 +23,8 @@ import {
 import Portal from '@/shared/components/Portal';
 import { useAdminMarketDataJobChunks } from '../api';
 
+const SUPPORTED_INTERVALS = ['1m', '5m', '15m', '1h', '4h', '1d'];
+
 const STATUS_META = {
   pending:   { label: 'Pending',   icon: Clock,        cls: 'is-pending' },
   running:   { label: 'Running',   icon: Loader2,      cls: 'is-running', spin: true },
@@ -326,6 +328,8 @@ export default function ImportChunksModal({ job, onClose }) {
 
   if (!isOpen) return null;
 
+  // Prefer the parent job from the chunks endpoint response (fresher than prop)
+  const parentJob = data?.job || job;
   const doneCount =
     summary.counts.succeeded + summary.counts.failed + summary.counts.stopped;
   const progressPct = summary.total > 0 ? (doneCount / summary.total) * 100 : 0;
@@ -342,12 +346,12 @@ export default function ImportChunksModal({ job, onClose }) {
           <div className="icm-head">
             <div style={{ minWidth: 0 }}>
               <h2 className="icm-title">
-                Import chunks · {job.symbol} · {job.interval}
+                Import progress · {parentJob.symbol} · {parentJob.interval === 'all' ? 'all intervals' : parentJob.interval}
               </h2>
               <p className="icm-sub">
-                Job {String(job.id).slice(0, 14)}… ·{' '}
-c                {formatDate(job.fromTime)} → {formatDate(job.toTime)} ·{' '}
-                {job.status}
+                Job {String(parentJob.id).slice(0, 14)}… ·{' '}
+                {formatDate(parentJob.fromTime)} → {formatDate(parentJob.toTime)} ·{' '}
+                {parentJob.status}
               </p>
             </div>
             <button
@@ -404,7 +408,7 @@ c                {formatDate(job.fromTime)} → {formatDate(job.toTime)} ·{' '}
                 <thead>
                   <tr>
                     <th>#</th>
-                    <th>Range</th>
+                    <th>Interval / Range</th>
                     <th>Status</th>
                     <th className="right">Fetched</th>
                     <th className="right">Inserted</th>
@@ -428,6 +432,7 @@ c                {formatDate(job.fromTime)} → {formatDate(job.toTime)} ·{' '}
                       >
                         <td className="icm-idx">{c.index + 1}</td>
                         <td className="icm-range">
+                          <b style={{ marginRight: 8, color: 'var(--accent)' }}>{c.interval || SUPPORTED_INTERVALS[c.index]}</b>
                           {formatDate(c.fromTime)} → {formatDate(c.toTime)}
                         </td>
                         <td>

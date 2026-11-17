@@ -4,8 +4,13 @@ import { HttpError } from '../middleware/error.js';
 import { resolveSymbol } from '../lib/marketData/symbolMap.js';
 import { getBars as getYahooBars } from '../lib/marketData/yahooProvider.js';
 import { getBars as getBiquoteBars } from '../lib/marketData/biquoteProvider.js';
+import { getBars as getAlphaVantageBars } from '../lib/marketData/alphavantageProvider.js';
 
-const PROVIDER_FETCHERS = { yahoo: getYahooBars, biquote: getBiquoteBars };
+const PROVIDER_FETCHERS = {
+  yahoo: getYahooBars,
+  biquote: getBiquoteBars,
+  alphavantage: getAlphaVantageBars,
+};
 
 const FRESHNESS_MS = { '1m': 60_000, '5m': 5 * 60_000, '15m': 15 * 60_000, '1h': 30 * 60_000, '4h': 60 * 60_000, '1d': 60 * 60_000 };
 

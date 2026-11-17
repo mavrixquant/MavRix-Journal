@@ -4,9 +4,16 @@ import { getBars as getBarsDB, refreshTail } from './marketBars.service.js';
 import { resolveSymbol, SYMBOL_CATALOG, SUPPORTED_INTERVALS } from '../lib/marketData/index.js';
 import { getQuote as getYahooQuote } from '../lib/marketData/yahooProvider.js';
 import { getQuote as getBiquoteQuote } from '../lib/marketData/biquoteProvider.js';
+import { getQuote as getAlphaVantageQuote } from '../lib/marketData/alphavantageProvider.js';
+
+const PROVIDER_QUOTE_FNS = {
+  yahoo: getYahooQuote,
+  biquote: getBiquoteQuote,
+  alphavantage: getAlphaVantageQuote,
+};
 
 function pickQuoteFn(provider) {
-  return provider === 'biquote' ? getBiquoteQuote : getYahooQuote;
+  return PROVIDER_QUOTE_FNS[provider] || null;
 }
 
 export async function listCatalog() {
@@ -54,9 +61,38 @@ export async function fetchQuote({ symbol }) {
   if (!symbol) throw new HttpError(400, 'symbol is required');
   const resolved = resolveSymbol(symbol);
   if (!resolved) throw new HttpError(404, `Symbol "${symbol}" not in catalog.`);
+
+  // Try primary provider
   const quoteFn = pickQuoteFn(resolved.provider);
-  const quote = await quoteFn(resolved.providerSymbol);
-  return { ...quote, symbol: symbol.toUpperCase(), provider: resolved.provider };
+  if (!quoteFn) throw new HttpError(500, `Provider "${resolved.provider}" not available.`);
+
+  let quote = await quoteFn(resolved.providerSymbol);
+  let finalProvider = resolved.provider;
+
+  // Fallback chain if primary provider returns null (e.g. Alpha Vantage free tier)
+  if (quote == null && resolved.fallbackProviders) {
+    for (const fallbackName of resolved.fallbackProviders) {
+      const fallbackResolved = resolveSymbol(symbol, fallbackName);
+      if (!fallbackResolved) continue;
+      const fallbackFn = pickQuoteFn(fallbackName);
+      if (!fallbackFn) continue;
+      try {
+        quote = await fallbackFn(fallbackResolved.providerSymbol);
+        if (quote != null) {
+          finalProvider = fallbackName;
+          break;
+        }
+      } catch {
+        continue; // Try next fallback
+      }
+    }
+  }
+
+  if (quote == null) {
+    throw new HttpError(503, `No quote available for ${symbol} from any provider.`);
+  }
+
+  return { ...quote, symbol: symbol.toUpperCase(), provider: finalProvider };
 }
 
 const MAX_BATCH = 30;
@@ -74,8 +110,35 @@ export async function fetchQuotes({ symbols }) {
       try {
         const resolved = resolveSymbol(s);
         if (!resolved) throw new Error(`Symbol "${s}" not in catalog.`);
-        const q = await pickQuoteFn(resolved.provider)(resolved.providerSymbol);
-        return { ...q, symbol: s.toUpperCase(), provider: resolved.provider, error: null };
+
+        const quoteFn = pickQuoteFn(resolved.provider);
+        if (!quoteFn) throw new Error(`Provider "${resolved.provider}" not available.`);
+
+        let q = await quoteFn(resolved.providerSymbol);
+        let finalProvider = resolved.provider;
+
+        // Fallback chain
+        if (q == null && resolved.fallbackProviders) {
+          for (const fallbackName of resolved.fallbackProviders) {
+            const fallbackResolved = resolveSymbol(s, fallbackName);
+            if (!fallbackResolved) continue;
+            const fallbackFn = pickQuoteFn(fallbackName);
+            if (!fallbackFn) continue;
+            try {
+              q = await fallbackFn(fallbackResolved.providerSymbol);
+              if (q != null) {
+                finalProvider = fallbackName;
+                break;
+              }
+            } catch {
+              continue;
+            }
+          }
+        }
+
+        if (q == null) throw new Error('No quote available from any provider.');
+
+        return { ...q, symbol: s.toUpperCase(), provider: finalProvider, error: null };
       } catch (err) {
         return { symbol: s.toUpperCase(), error: err.message };
       }

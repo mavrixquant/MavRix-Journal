@@ -245,14 +245,13 @@ const marketDataIntervalEnum = z.enum(['1m', '5m', '15m', '1h', '4h', '1d']);
 
 const marketDataImportSchema = z.object({
     symbol:   z.string().trim().min(1).max(32),
-    interval: marketDataIntervalEnum,
-    mode:     z.enum(['range', 'full']).optional().default('range'),
-    from:     z.string().trim().optional(),
-    to:       z.string().trim().optional(),
+    from:     z.string().trim().min(1, 'from date is required'),
+    to:       z.string().trim().min(1, 'to date is required'),
+    dryRun:   z.boolean().optional().default(false),
   })
   .refine(
-    (d) => d.mode === 'full' || (!!d.from && !!d.to),
-    { message: 'from and to are required unless mode is "full"' }
+    (d) => new Date(d.from) < new Date(d.to),
+    { message: 'from must be before to' }
   );
 
 const marketDataWipeSchema = z.object({

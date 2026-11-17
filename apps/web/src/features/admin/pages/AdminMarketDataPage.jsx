@@ -20,22 +20,11 @@ import ConfirmDangerModal from '../components/ConfirmDangerModal';
 import ImportChunksModal from '../components/ImportChunksModal';
 import EmptyState from '@/shared/components/EmptyState';
 
-const INTERVALS = ['1m', '5m', '15m', '1h', '4h', '1d'];
 const MAX_CONCURRENT_JOBS = 2;
 
 function pad(n) { return String(n).padStart(2, '0'); }
 function isoDate(d) { return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; }
 function todayIso() { return isoDate(new Date()); }
-
-function defaultFromFor(interval) {
-  const d = new Date();
-  const days = interval === '1m' ? 5
-    : interval === '5m' || interval === '15m' ? 30
-    : interval === '1h' || interval === '4h' ? 180
-    : 1095;
-  d.setDate(d.getDate() - days);
-  return isoDate(d);
-}
 
 function fmtNum(n) {
   if (n == null) return '—';
@@ -229,13 +218,13 @@ const CSS = `
   /* ---------- Import form ---------- */
   .mdp-form {
     display: grid;
-    grid-template-columns: minmax(160px, 1fr) 100px 1fr 1fr auto;
+    grid-template-columns: 200px 150px 150px auto;
     gap: 10px;
     align-items: end;
+    flex-wrap: wrap;
   }
-  @media (max-width: 1000px) {
-    .mdp-form { grid-template-columns: 1fr 1fr; }
-    .mdp-form > :nth-child(5) { grid-column: 1 / -1; }
+  @media (max-width: 700px) {
+    .mdp-form { grid-template-columns: 1fr; }
   }
   .mdp-field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
   .mdp-label {
@@ -244,7 +233,7 @@ const CSS = `
     text-transform: uppercase; color: #545E6E;
   }
   .mdp-input, .mdp-select {
-    width: 100%; padding: 9px 12px;
+    width: 100%; max-width: 150px; padding: 9px 12px;
     background: rgba(10,13,19,.6);
     border: 1px solid rgba(255,255,255,.1);
     border-radius: 10px; color: #E7E9EE;
@@ -255,7 +244,7 @@ const CSS = `
   }
   .mdp-select {
     appearance: none;
-    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 20 20' fill='%23545E6E'><path d='M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z'/></svg>");
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 20 20' fill='%23545E6E'><path d='M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 011.414 0l4-4a1 1 0 01-1.414-1.414z'/></svg>");
     background-repeat: no-repeat; background-position: right 10px center;
     padding-right: 32px; cursor: pointer;
   }
@@ -492,8 +481,8 @@ export default function AdminMarketDataPage() {
   const wipeMutation = useAdminMarketDataWipe();
 
   const allJobs = jobsData?.jobs ?? [];
-  
-  // Classify jobs
+
+  // Classify jobs - only show parent jobs (interval: 'all')
   const runningJobs = useMemo(
     () => allJobs.filter((j) => j.status === 'running' || j.status === 'stopping'),
     [allJobs]
@@ -517,10 +506,13 @@ export default function AdminMarketDataPage() {
     prevRunningCount.current = runningJobs.length;
   }, [runningJobs.length, refetchStats]);
 
-  const [mode, setMode] = useState('full');
+  // Simple import state - only symbol and date range (no interval, no mode)
   const [symbol, setSymbol] = useState('NQ');
-  const [interval, setInterval] = useState('5m');
-  const [from, setFrom] = useState(() => defaultFromFor('5m'));
+  const [from, setFrom] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 30);
+    return isoDate(d);
+  });
   const [to, setTo] = useState(() => todayIso());
 
   const [wipeTarget, setWipeTarget] = useState(null);
@@ -533,43 +525,17 @@ export default function AdminMarketDataPage() {
     subtitle: 'Chart bar cache · coverage · async import jobs',
   });
 
-  useEffect(() => { setFrom(defaultFromFor(interval)); }, [interval]);
-
   const rows = statsData?.rows ?? [];
   const totals = statsData?.totals ?? { totalBars: 0, symbolCount: 0, intervalCount: 0, coverageRows: 0 };
 
-  // Interrupted jobs that have NOT been superseded by a newer job for the same
-  // (symbol, interval) pair — the ones worth offering a "Start again".
-  const interruptedJobs = useMemo(() => {
-    return allJobs
-      .filter((j) => j.status === 'interrupted')
-      .filter(
-        (j) =>
-          !allJobs.some(
-            (other) =>
-              other.symbol === j.symbol &&
-              other.interval === j.interval &&
-              new Date(other.startedAt) > new Date(j.startedAt)
-          )
-      )
-      .slice(0, 3);
-  }, [allJobs]);
-
-  // Fast lookup: "SYM:interval" -> active job
-  const activeJobByPair = useMemo(() => {
+  // Fast lookup: "SYM" -> active parent job (interval: 'all')
+  const activeParentJobBySymbol = useMemo(() => {
     const map = new Map();
-    for (const j of runningJobs) map.set(`${j.symbol}:${j.interval}`, j);
+    for (const j of runningJobs) map.set(j.symbol, j);
     return map;
   }, [runningJobs]);
 
-  // The modal receives a live job object so isJobRunning tracks the real state.
-  const chunksModalJob = useMemo(
-    () => allJobs.find((j) => j.id === chunksModalJobId) || null,
-    [allJobs, chunksModalJobId]
-  );
-
-  const formKey = `${symbol}:${interval}`;
-  const formActiveJob = activeJobByPair.get(formKey);
+  const formActiveJob = activeParentJobBySymbol.get(symbol);
   const globalCapReached = runningJobs.length >= MAX_CONCURRENT_JOBS;
   const anyBusy = startMutation.isPending || stopMutation.isPending || wipeMutation.isPending;
 
@@ -598,36 +564,33 @@ export default function AdminMarketDataPage() {
     });
   };
 
-  const startImport = async ({ symbol: sym, interval: iv, from: f, to: t, mode: m = 'range' }) => {
-    if (!sym || !iv) {
-      toast.error('Symbol and interval are required.');
+  // NEW: Import ALL intervals for the date range (no interval selector, no full/range mode)
+  const startImport = async ({ symbol: sym, from: f, to: t }) => {
+    if (!sym) {
+      toast.error('Symbol is required.');
       return;
     }
-    if (m === 'range') {
-      if (!f || !t) {
-        toast.error('Symbol, interval, and both dates are required.');
-        return;
-      }
-      if (new Date(f) >= new Date(t)) {
-        toast.error('From date must be before To date.');
-        return;
-      }
+    if (!f || !t) {
+      toast.error('Symbol and both dates are required.');
+      return;
+    }
+    if (new Date(f) >= new Date(t)) {
+      toast.error('From date must be before To date.');
+      return;
     }
     try {
-      const payload = { symbol: sym, interval: iv, mode: m };
-      if (m === 'range') { payload.from = f; payload.to = t; }
-      const res = await startMutation.mutateAsync(payload);
-      if (res.alreadyComplete) {
-        toast.info('Range already covered — nothing to import.');
-      } else {
-        // AUTOMATICALLY OPEN THE CHUNKS MODAL
-        setChunksModalJobId(res.jobId);
-        
-        const skippedNote = res.skippedChunks > 0
-          ? ` (${res.skippedChunks} chunk${res.skippedChunks === 1 ? '' : 's'} skipped)`
-          : '';
-        toast.success(`Import started · ${res.totalChunks} chunks queued${skippedNote}`);
-      }
+      const res = await startMutation.mutateAsync({ symbol: sym, from: f, to: t });
+
+      // Show summary
+      const summary = res.intervals
+        .filter(i => i.needsImport)
+        .map(i => `${i.interval}: ${i.chunksToImport} chunks`)
+        .join(', ');
+
+      toast.success(`Import started · All intervals (${res.category})\n${summary || 'All data already exists'}`);
+
+      // Open chunks modal to show progress
+      setChunksModalJobId(res.jobId);
     } catch (err) {
       toast.error(err?.message || 'Could not start import');
     }
@@ -635,8 +598,8 @@ export default function AdminMarketDataPage() {
 
   const handleImport = (e) => {
     e?.preventDefault?.();
-    if (formActiveJob) return; // shouldn't fire, button is Stop
-    startImport({ symbol, interval, from, to, mode });
+    if (formActiveJob) return;
+    startImport({ symbol, from, to });
   };
 
   const handleStop = async (jobId) => {
@@ -651,25 +614,8 @@ export default function AdminMarketDataPage() {
   const handleResume = (job) => {
     startImport({
       symbol: job.symbol,
-      interval: job.interval,
       from: job.fromTime?.slice(0, 10) || isoDate(new Date(job.fromTime)),
       to: job.toTime?.slice(0, 10) || isoDate(new Date(job.toTime)),
-      mode: 'range',
-    });
-  };
-
-  const handleRefillRow = (row) => {
-    const d = new Date();
-    const days = row.interval === '1m' ? 5
-      : row.interval === '5m' || row.interval === '15m' ? 30
-      : row.interval === '1h' || row.interval === '4h' ? 180
-      : 1095;
-    d.setDate(d.getDate() - days);
-    startImport({
-      symbol: row.symbol,
-      interval: row.interval,
-      from: isoDate(d),
-      to: todayIso(),
     });
   };
 
@@ -765,8 +711,8 @@ export default function AdminMarketDataPage() {
           </div>
         </div>
 
-        {/* Job banners */}
-        {(runningJobs.length > 0 || interruptedJobs.length > 0) && (
+        {/* Job banners - show only parent jobs */}
+        {(runningJobs.length > 0 || allJobs.filter(j => j.status === 'interrupted').length > 0) && (
           <div className="mdp-jobs">
             {runningJobs.map((job) => {
               const stopping = job.stopRequested || job.status === 'stopping';
@@ -780,7 +726,7 @@ export default function AdminMarketDataPage() {
                   </div>
                   <div className="mdp-job-body">
                     <div className="mdp-job-title">
-                      Importing <b>{job.symbol}</b> · <b>{job.interval}</b>
+                      Importing <b>{job.symbol}</b> · <b>All intervals</b>
                       {stopping && (
                         <span style={{ marginLeft: 10, color: '#f87171' }}>
                           · stopping…
@@ -802,9 +748,9 @@ export default function AdminMarketDataPage() {
                     type="button"
                     className="mdp-job-chunks"
                     onClick={() => setChunksModalJobId(job.id)}
-                    title="View individual chunks"
+                    title="View import status"
                   >
-                    <List size={12} /> Chunks
+                    <List size={12} /> Status
                   </button>
                   <button
                     type="button"
@@ -821,14 +767,14 @@ export default function AdminMarketDataPage() {
               );
             })}
 
-            {interruptedJobs.map((job) => (
+            {allJobs.filter(j => j.status === 'interrupted').map((job) => (
               <div key={job.id} className="mdp-job mdp-job-interrupted">
                 <div className="mdp-job-icon is-err">
                   <AlertTriangle size={18} />
                 </div>
                 <div className="mdp-job-body">
                   <div className="mdp-job-title is-err">
-                    Interrupted <b>{job.symbol}</b> · <b>{job.interval}</b>
+                    Interrupted <b>{job.symbol}</b> · <b>All intervals</b>
                   </div>
                   <div className="mdp-job-sub">
                     Stopped at {job.chunksDone} / {job.totalChunks} chunks
@@ -839,15 +785,15 @@ export default function AdminMarketDataPage() {
                   type="button"
                   className="mdp-job-chunks"
                   onClick={() => setChunksModalJobId(job.id)}
-                  title="View individual chunks"
+                  title="View import status"
                 >
-                  <List size={12} /> Chunks
+                  <List size={12} /> Status
                 </button>
                 <button
                   type="button"
                   className="mdp-job-resume"
                   onClick={() => handleResume(job)}
-                  disabled={startMutation.isPending || globalCapReached || !!activeJobByPair.get(`${job.symbol}:${job.interval}`)}
+                  disabled={startMutation.isPending || globalCapReached || !!activeParentJobBySymbol.get(job.symbol)}
                   title="Start again — skips already-covered chunks"
                 >
                   <Play size={12} /> Start again
@@ -857,7 +803,7 @@ export default function AdminMarketDataPage() {
           </div>
         )}
 
-        {/* Import form */}
+        {/* Import form - SIMPLIFIED: Symbol + Date Range only */}
         <div className="mdp-card">
           <div className="mdp-card-head">
             <Download size={14} style={{ color: 'var(--accent)' }} />
@@ -867,75 +813,10 @@ export default function AdminMarketDataPage() {
             <span className="mdp-card-note">
               {formActiveJob
                 ? `${formActiveJob.chunksDone} / ${formActiveJob.totalChunks} chunks`
-                : 'runs async · survives page reload'}
+                : 'imports all intervals · runs async'}
             </span>
           </div>
           <div className="mdp-card-body">
-            <div
-              style={{
-                display: 'flex',
-                gap: 4,
-                padding: 3,
-                borderRadius: 10,
-                background: 'rgba(0,0,0,.32)',
-                border: '1px solid rgba(255,255,255,.06)',
-                marginBottom: 14,
-                width: 'fit-content',
-              }}
-              role="tablist"
-            >
-              <button
-                type="button"
-                role="tab"
-                aria-selected={mode === 'full'}
-                onClick={() => setMode('full')}
-                disabled={anyBusy}
-                style={{
-                  padding: '7px 14px',
-                  border: 'none',
-                  borderRadius: 7,
-                  fontSize: 11,
-                  fontWeight: 700,
-                  fontFamily: "'IBM Plex Mono', monospace",
-                  letterSpacing: '.02em',
-                  cursor: anyBusy ? 'not-allowed' : 'pointer',
-                  background: mode === 'full'
-                    ? 'linear-gradient(135deg, var(--accent), var(--accent-2))'
-                    : 'transparent',
-                  color: mode === 'full' ? '#0D1117' : '#8892A3',
-                  opacity: anyBusy ? 0.5 : 1,
-                  transition: 'all .18s',
-                }}
-              >
-                Full Import
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={mode === 'range'}
-                onClick={() => setMode('range')}
-                disabled={anyBusy}
-                style={{
-                  padding: '7px 14px',
-                  border: 'none',
-                  borderRadius: 7,
-                  fontSize: 11,
-                  fontWeight: 700,
-                  fontFamily: "'IBM Plex Mono', monospace",
-                  letterSpacing: '.02em',
-                  cursor: anyBusy ? 'not-allowed' : 'pointer',
-                  background: mode === 'range'
-                    ? 'linear-gradient(135deg, var(--accent), var(--accent-2))'
-                    : 'transparent',
-                  color: mode === 'range' ? '#0D1117' : '#8892A3',
-                  opacity: anyBusy ? 0.5 : 1,
-                  transition: 'all .18s',
-                }}
-              >
-                Range Import
-              </button>
-            </div>
-
             <form className="mdp-form" onSubmit={handleImport}>
               <div className="mdp-field">
                 <label className="mdp-label">Symbol</label>
@@ -947,27 +828,7 @@ export default function AdminMarketDataPage() {
                 />
               </div>
 
-              <div
-                className="mdp-field"
-                style={mode === 'full' ? { gridColumn: '2 / 5' } : undefined}
-              >
-                <label className="mdp-label">Interval</label>
-                <select
-                  className="mdp-select"
-                  value={interval}
-                  onChange={(e) => setInterval(e.target.value)}
-                  disabled={anyBusy}
-                >
-                  {INTERVALS.map((iv) => (
-                    <option key={iv} value={iv}>{iv.toUpperCase()}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div
-                className="mdp-field"
-                style={mode === 'full' ? { display: 'none' } : undefined}
-              >
+              <div className="mdp-field">
                 <label className="mdp-label">From</label>
                 <input
                   className="mdp-input"
@@ -978,10 +839,7 @@ export default function AdminMarketDataPage() {
                 />
               </div>
 
-              <div
-                className="mdp-field"
-                style={mode === 'full' ? { display: 'none' } : undefined}
-              >
+              <div className="mdp-field">
                 <label className="mdp-label">To</label>
                 <input
                   className="mdp-input"
@@ -1012,29 +870,34 @@ export default function AdminMarketDataPage() {
                 >
                   {startMutation.isPending
                     ? <><Loader2 size={12} className="mdp-spin" /> Starting…</>
-                    : <><Play size={12} /> Import</>}
+                    : <><Play size={12} /> Import All</>}
                 </button>
               )}
             </form>
 
-            {mode === 'full' && !formActiveJob && (
+            {/* Help text - no more tabs, no more interval selection */}
+            {!formActiveJob && (
               <div
                 style={{
-                  marginTop: 12,
-                  padding: '10px 12px',
+                  marginTop: 14,
+                  padding: '12px 14px',
                   borderRadius: 10,
-                  background: 'color-mix(in srgb, var(--accent) 6%, transparent)',
-                  border: '1px solid color-mix(in srgb, var(--accent) 28%, transparent)',
-                  color: 'var(--accent-2)',
+                  background: 'color-mix(in srgb, var(--accent) 8%, transparent)',
+                  border: '1px solid color-mix(in srgb, var(--accent) 30%, transparent)',
+                  color: '#E7E9EE',
                   fontFamily: "'IBM Plex Mono', monospace",
                   fontSize: 11.5,
-                  lineHeight: 1.55,
+                  lineHeight: 1.6,
                 }}
               >
-                Full import pulls <b>all available history</b> for this interval
-                (up to the provider's maximum lookback). Large imports may take
-                several hours and can be stopped at any time — re-run
-                <b> Start again </b> from the interrupted banner to resume.
+                <div style={{ fontWeight: 700, marginBottom: 6 }}>How it works:</div>
+                <ul style={{ margin: 0, paddingLeft: 18, color: '#8892A3', fontSize: 11 }}>
+                  <li>Imports <b>all 6 intervals</b> (1m, 5m, 15m, 1h, 4h, 1d) automatically</li>
+                  <li>Only fetches <b>missing data</b> (skips what's already in DB)</li>
+                  <li>Uses <b>smart provider selection</b> (Yahoo, AV, Biquote)</li>
+                  <li>Respects <b>rate limits</b> (AV: 12s gap, 25/day max)</li>
+                  <li>Runs asynchronously - survives page reload</li>
+                </ul>
               </div>
             )}
 
@@ -1086,7 +949,7 @@ export default function AdminMarketDataPage() {
                   icon={Database}
                   eyebrow="Empty"
                   title="No bars cached yet"
-                  description="Use the import form above to seed the cache. Once a row exists, the chart page will read from it directly."
+                  description="Use the import form above to seed the cache. Once data exists, charts will read from it."
                 />
               </div>
             ) : (
@@ -1106,6 +969,7 @@ export default function AdminMarketDataPage() {
                 <tbody>
                   {groups.map((group) => {
                     const isCollapsed = collapsedGroups.has(group.symbol);
+                    const groupJob = activeParentJobBySymbol.get(group.symbol);
                     return (
                       <Fragment key={group.symbol}>
                         <tr className="mdp-group-tr">
@@ -1125,6 +989,7 @@ export default function AdminMarketDataPage() {
                                   {group.items.length} interval{group.items.length === 1 ? '' : 's'}
                                   {' · '}
                                   {fmtNum(group.totalBars)} bars
+                                  {groupJob && ` · Importing: ${groupJob.chunksDone}/${groupJob.totalChunks} chunks`}
                                 </span>
                               </button>
                               {isSuper && (
@@ -1143,8 +1008,7 @@ export default function AdminMarketDataPage() {
                         </tr>
 
                         {!isCollapsed && group.items.map((row) => {
-                          const pairKey = `${row.symbol}:${row.interval}`;
-                          const rowJob = activeJobByPair.get(pairKey);
+                          const rowJob = activeParentJobBySymbol.get(row.symbol);
 
                           const hasBackoff = row.backoffUntil && new Date(row.backoffUntil) > new Date();
                           const hasError = !!row.lastError;
@@ -1157,7 +1021,7 @@ export default function AdminMarketDataPage() {
                           const PillIcon = pill.icon;
 
                           return (
-                            <tr key={pairKey} className="mdp-tr is-group-child">
+                            <tr key={`${row.symbol}:${row.interval}`} className="mdp-tr is-group-child">
                               <td className="mdp-td">
                                 <span className="mdp-symbol">
                                   <span className="mdp-symbol-dot" />
@@ -1193,7 +1057,7 @@ export default function AdminMarketDataPage() {
                                       className="mdp-icon-btn is-stop"
                                       onClick={() => handleStop(rowJob.id)}
                                       disabled={stopMutation.isPending || rowJob.stopRequested}
-                                      title="Stop this import"
+                                      title="Stop import"
                                     >
                                       <Square size={11} fill="currentColor" />
                                     </button>
@@ -1201,7 +1065,7 @@ export default function AdminMarketDataPage() {
                                     <button
                                       type="button"
                                       className="mdp-icon-btn"
-                                      onClick={() => handleRefillRow(row)}
+                                      onClick={() => handleRefillRow(row, startImport)}
                                       disabled={anyBusy || hasBackoff || globalCapReached}
                                       title={
                                         globalCapReached
@@ -1239,7 +1103,7 @@ export default function AdminMarketDataPage() {
       </div>
 
       <ImportChunksModal
-        job={chunksModalJob}
+        job={allJobs.find(j => j.id === chunksModalJobId) || null}
         onClose={() => setChunksModalJobId(null)}
       />
 
@@ -1256,3 +1120,18 @@ export default function AdminMarketDataPage() {
     </>
   );
 }
+
+// Refill helper - imports last N days for given interval via parent import
+const handleRefillRow = (row, startImport) => {
+  const d = new Date();
+  const days = row.interval === '1m' ? 5
+    : row.interval === '5m' || row.interval === '15m' ? 30
+    : row.interval === '1h' || row.interval === '4h' ? 180
+    : 1095;
+  d.setDate(d.getDate() - days);
+  startImport({
+    symbol: row.symbol,
+    from: isoDate(d),
+    to: todayIso(),
+  });
+};

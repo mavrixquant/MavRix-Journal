@@ -1,23 +1,73 @@
 
 
+// ============================================================================
+// FREE DATA PROVIDER STRATEGY
+// ============================================================================
+// Yahoo Finance (no API key, unlimited calls):
+//   - Futures: NQ, ES, YM, GC, CL + micros (60 days 1min, 5+ years daily)
+//   - Crypto: BTC, ETH, SOL (60 days 1min)
+//   - Forex: EURUSD=X, GBPUSD=X (limited, fallback to AV)
+//
+// Alpha Vantage (free tier, 25 calls/day):
+//   - Forex intraday: EURUSD, GBPUSD, USDJPY, AUDUSD, USDCAD, USDCHF, NZDUSD, EURGBP, EURJPY, GBPJPY (60 days 1min)
+//   - Crypto daily: BTC, ETH, SOL (20+ years daily)
+//   - Metals daily: XAU, XAG (20+ years daily)
+//
+// Biquote (free, no key):
+//   - Forex: Full support as fallback
+//   - Metals: XAUUSD, XAGUSD intraday
+// ============================================================================
+
+// Yahoo: Futures + Crypto (primary source for 1min intraday)
 export const YAHOO_SYMBOL_MAP = {
-  NQ:  'NQ=F',
+  // Micro Futures (CME)
   MNQ: 'MNQ=F',
-  ES:  'ES=F',
   MES: 'MES=F',
-  YM:  'YM=F',
   MYM: 'MYM=F',
-  GC:  'GC=F',
   MGC: 'MGC=F',
-  CL:  'CL=F',
   MCL: 'MCL=F',
+
+  // Regular Futures
+  NQ: 'NQ=F',
+  ES: 'ES=F',
+  YM: 'YM=F',
+  GC: 'GC=F',
+  CL: 'CL=F',
+
+  // Crypto (60 days 1min via Yahoo)
   BTCUSD: 'BTC-USD',
   ETHUSD: 'ETH-USD',
   SOLUSD: 'SOL-USD',
 };
 
+// Alpha Vantage: Forex intraday + Crypto/Metals daily
+export const ALPHA_VANTAGE_SYMBOL_MAP = {
+  // Forex (intraday supported on free tier)
+  EURUSD: 'EUR',
+  GBPUSD: 'GBP',
+  USDJPY: 'JPY',
+  AUDUSD: 'AUD',
+  USDCAD: 'CAD',
+  USDCHF: 'CHF',
+  NZDUSD: 'NZD',
+  EURGBP: 'EUR/GBP',
+  EURJPY: 'EUR/JPY',
+  GBPJPY: 'GBP/JPY',
 
+  // Crypto daily (free tier only supports daily)
+  // Note: Use Yahoo for 1min, AV for daily fills
+  // BTCUSD: 'BTC',  // Daily only - use Yahoo for intraday
+  // ETHUSD: 'ETH',
+  // SOLUSD: 'SOL',
+
+  // Metals daily (free tier supports these)
+  XAUUSD: 'XAU',
+  XAGUSD: 'XAG',
+};
+
+// Biquote: Forex + Metals (excellent free coverage)
 export const BIQUOTE_SYMBOL_MAP = {
+  // Forex (full support)
   EURUSD: 'EURUSD',
   GBPUSD: 'GBPUSD',
   USDJPY: 'USDJPY',
@@ -28,24 +78,142 @@ export const BIQUOTE_SYMBOL_MAP = {
   EURGBP: 'EURGBP',
   EURJPY: 'EURJPY',
   GBPJPY: 'GBPJPY',
+
+  // Metals (intraday support)
   XAUUSD: 'XAUUSD',
   XAGUSD: 'XAGUSD',
 };
 
+// Symbol categories for smart provider selection
+export const SYMBOL_CATEGORIES = {
+  futures: ['NQ', 'MNQ', 'ES', 'MES', 'YM', 'MYM', 'GC', 'MGC', 'CL', 'MCL'],
+  forex: ['EURUSD', 'GBPUSD', 'USDJPY', 'AUDUSD', 'USDCAD', 'USDCHF', 'NZDUSD', 'EURGBP', 'EURJPY', 'GBPJPY'],
+  crypto: ['BTCUSD', 'ETHUSD', 'SOLUSD'],
+  metals: ['XAUUSD', 'XAGUSD'],
+};
 
-export function resolveSymbol(internalSymbol) {
+// Resolve symbol with smart provider selection based on data needs
+export function resolveSymbol(internalSymbol, provider = 'auto') {
   const raw = String(internalSymbol || '').trim().toUpperCase();
   if (!raw) return null;
 
-  if (raw.endsWith('=F') || raw.includes('-USD')) {
-    return { provider: 'yahoo', providerSymbol: raw };
+  const isFutures = SYMBOL_CATEGORIES.futures.includes(raw);
+  const isCrypto = SYMBOL_CATEGORIES.crypto.includes(raw);
+  const isForex = SYMBOL_CATEGORIES.forex.includes(raw);
+  const isMetals = SYMBOL_CATEGORIES.metals.includes(raw);
+
+  // ================================================================
+  // FUTURES: Yahoo primary, no AV (intraday premium only)
+  // ================================================================
+  if (isFutures) {
+    if (YAHOO_SYMBOL_MAP[raw]) {
+      return {
+        provider: 'yahoo',
+        providerSymbol: YAHOO_SYMBOL_MAP[raw],
+        fallbackProviders: [], // No free fallback for futures intraday
+        category: 'futures',
+        note: 'Yahoo: 60 days 1min max',
+      };
+    }
   }
 
-  if (YAHOO_SYMBOL_MAP[raw]) {
-    return { provider: 'yahoo', providerSymbol: YAHOO_SYMBOL_MAP[raw] };
+  // ================================================================
+  // CRYPTO: Yahoo primary for 1min, Alpha Vantage for daily fills
+  // ================================================================
+  if (isCrypto) {
+    if (YAHOO_SYMBOL_MAP[raw]) {
+      return {
+        provider: 'yahoo',
+        providerSymbol: YAHOO_SYMBOL_MAP[raw],
+        fallbackProviders: [], // Yahoo is best for crypto intraday
+        category: 'crypto',
+        note: 'Yahoo: 60 days 1min, use AV for daily historical',
+      };
+    }
   }
-  if (BIQUOTE_SYMBOL_MAP[raw]) {
-    return { provider: 'biquote', providerSymbol: BIQUOTE_SYMBOL_MAP[raw] };
+
+  // ================================================================
+  // FOREX: Alpha Vantage primary, Biquote fallback, Yahoo last resort
+  // ================================================================
+  if (isForex) {
+    // AV: Best free forex coverage
+    if ((provider === 'auto' || provider === 'alphavantage') && ALPHA_VANTAGE_SYMBOL_MAP[raw]) {
+      return {
+        provider: 'alphavantage',
+        providerSymbol: ALPHA_VANTAGE_SYMBOL_MAP[raw],
+        fallbackProviders: ['biquote', 'yahoo'],
+        category: 'forex',
+        note: 'AV: 60 days 1min, fallback to Biquote/Yahoo',
+      };
+    }
+
+    // Biquote: Strong forex backup
+    if ((provider === 'auto' || provider === 'biquote') && BIQUOTE_SYMBOL_MAP[raw]) {
+      return {
+        provider: 'biquote',
+        providerSymbol: BIQUOTE_SYMBOL_MAP[raw],
+        fallbackProviders: ['yahoo'],
+        category: 'forex',
+        note: 'Biquote: Good forex coverage',
+      };
+    }
+
+    // Yahoo: Last resort for forex
+    if (provider === 'auto' || provider === 'yahoo') {
+      const yahooSymbol = `${raw}=X`;
+      if (YAHOO_SYMBOL_MAP[raw] || YAHOO_SYMBOL_MAP[yahooSymbol] || YAHOO_SYMBOL_MAP[raw.replace('USD', '') + 'USD=X']) {
+        return {
+          provider: 'yahoo',
+          providerSymbol: YAHOO_SYMBOL_MAP[raw] || yahooSymbol,
+          fallbackProviders: [],
+          category: 'forex',
+          note: 'Yahoo: Limited forex, prefer AV',
+        };
+      }
+    }
+  }
+
+  // ================================================================
+  // METALS: Biquote primary, Alpha Vantage for daily
+  // ================================================================
+  if (isMetals) {
+    // Biquote: Best for intraday metals
+    if ((provider === 'auto' || provider === 'biquote') && BIQUOTE_SYMBOL_MAP[raw]) {
+      return {
+        provider: 'biquote',
+        providerSymbol: BIQUOTE_SYMBOL_MAP[raw],
+        fallbackProviders: ['alphavantage'],
+        category: 'metals',
+        note: 'Biquote: Intraday metals, fallback to AV daily',
+      };
+    }
+
+    // Alpha Vantage: Daily historical
+    if ((provider === 'auto' || provider === 'alphavantage') && ALPHA_VANTAGE_SYMBOL_MAP[raw]) {
+      return {
+        provider: 'alphavantage',
+        providerSymbol: ALPHA_VANTAGE_SYMBOL_MAP[raw],
+        fallbackProviders: [],
+        category: 'metals',
+        note: 'AV: Daily only, 20+ years history',
+      };
+    }
+  }
+
+  // ================================================================
+  // Generic fallback: Try Yahoo first, then others
+  // ================================================================
+  if (provider === 'auto' || provider === 'yahoo') {
+    // Check futures
+    if (YAHOO_SYMBOL_MAP[raw]) {
+      return {
+        provider: 'yahoo',
+        providerSymbol: YAHOO_SYMBOL_MAP[raw],
+        fallbackProviders: [],
+        category: isFutures ? 'futures' : (isCrypto ? 'crypto' : 'other'),
+        note: 'Yahoo: Primary source',
+      };
+    }
   }
 
   return null;

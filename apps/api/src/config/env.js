@@ -43,6 +43,12 @@ export const env = {
     yahooMaxConcurrent: Number(process.env.YAHOO_MAX_CONCURRENT || 2),
     yahooMinGapMs: Number(process.env.YAHOO_MIN_GAP_MS || 1000),
 
+    alphaVantageApiKey: process.env.ALPHA_VANTAGE_API_KEY || '',
+    alphaVantageBaseUrl: process.env.ALPHA_VANTAGE_BASE_URL || 'https://www.alphavantage.co/query',
+    alphaVantageTimeoutMs: Number(process.env.ALPHA_VANTAGE_TIMEOUT_MS || 10_000),
+    alphaVantageMaxConcurrent: Number(process.env.ALPHA_VANTAGE_MAX_CONCURRENT || 2),
+    alphaVantageMinGapMs: Number(process.env.ALPHA_VANTAGE_MIN_GAP_MS || 1000),
+
     cacheTtl: {
       '1m':  Number(process.env.YAHOO_TTL_1M  || 60_000),
       '5m':  Number(process.env.YAHOO_TTL_5M  || 5  * 60_000),
@@ -55,7 +61,6 @@ export const env = {
 
   ai: {
     masterKey: optional('MAVE_AI_MASTER_KEY'),
-
     providerPriority: optional('MAVE_AI_PROVIDER_PRIORITY', 'openrouter,groq,gemini,deepseek')
       .split(',')
       .map((s) => s.trim())
@@ -84,4 +89,5 @@ export const env = {
     otpTtlMs: Number(optional('TWO_FACTOR_OTP_TTL_MS', 600_000)),
     otpMaxAttempts: Number(optional('TWO_FACTOR_OTP_MAX_ATTEMPTS', 5)),
     backupCodeCount: Number(optional('TWO_FACTOR_BACKUP_CODE_COUNT', 10)),
-  },};
+  },
+};
