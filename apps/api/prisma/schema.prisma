@@ -64,6 +64,7 @@ model User {
   accounts      Account[]
   layouts       UserLayout[]
   strategies    Strategy[]
+  backtestSessions BacktestSession[]
   conversations ConversationParticipant[]
   messages      Message[]
   ownedGroups   Conversation[]            @relation("GroupOwner")
@@ -278,6 +279,7 @@ model Strategy {
 
   user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   trades Trade[]
+  backtestTrades BacktestTrade[]
 
   @@unique([userId, name])
   @@index([userId])
@@ -635,4 +637,63 @@ model AppRelease {
 
   @@index([publishedAt])
   @@map("app_releases")
+}
+
+model BacktestSession {
+  id              String    @id @default(cuid())
+  userId          String
+  name            String
+  type            String    @default("standard") // 'standard' | 'prop'
+  currency        String    @default("USD")
+  startingBalance Float
+  fromDate        String
+  toDate          String
+  instruments     String[]  @default(["NQ"])
+  interval        String    @default("5m")
+  status          String    @default("active") // active | completed | archived
+  propFirmConfig  Json?
+  replayTime      DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  user   User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trades BacktestTrade[]
+
+  @@unique([userId, name])
+  @@index([userId, status])
+  @@index([userId, updatedAt])
+  @@map("backtest_sessions")
+}
+
+model BacktestTrade {
+  id         String    @id @default(cuid())
+  sessionId  String
+  tradeId    String
+  symbol     String
+  side       String // 'long' | 'short'
+  entryTime  DateTime
+  entryPrice Float
+  exitTime   DateTime?
+  exitPrice  Float?
+  quantity   Float
+  pnl        Float     @default(0)
+  slPoints   Float?
+  takeProfit Float?
+  stopLoss   Float?
+  commission Float?
+  exitReason String? // manual | sl | tp | prop_breach | conclude
+  strategyId String?
+  notes      String    @default("")
+  dynamic    Json      @default("{}")
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  session  BacktestSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  strategy Strategy?       @relation(fields: [strategyId], references: [id], onDelete: SetNull)
+
+  @@unique([sessionId, tradeId])
+  @@index([sessionId])
+  @@index([sessionId, entryTime])
+  @@index([strategyId])
+  @@map("backtest_trades")
 }

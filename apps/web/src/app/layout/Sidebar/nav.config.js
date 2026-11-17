@@ -55,9 +55,7 @@ export const SIDEBAR_GROUPS = [
     label: 'Backtest',
     icon: FaProjectDiagram,
     items: [
-      { to: '/backtester',           label: 'Dashboard', icon: FaChartLine, end: true, pro: true },
-      { to: '/backtester/logs',      label: 'Test logs', icon: FaClipboardList, pro: true },
-      { to: '/backtester/simulator', label: 'Simulator', icon: FaProjectDiagram, pro: true },
+      { to: '/backtester', label: 'Sessions', icon: FaChartLine, pro: true },
     ],
   },
   {

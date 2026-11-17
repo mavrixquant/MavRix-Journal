@@ -28,11 +28,11 @@ const EconomicCalendarPage = lazy(() =>
   import('@/features/journal/economic-calendar/EconomicCalendarPage')
 );
 
+const SessionListPage = lazy(() => import('@/features/backtester/list/SessionListPage'));
 const BacktesterDashboardPage = lazy(() =>
   import('@/features/backtester/dashboard/BacktesterDashboardPage')
 );
-const TestLogsPage = lazy(() => import('@/features/backtester/test-logs/TestLogsPage'));
-const SimulatorPage = lazy(() => import('@/features/backtester/simulator/SimulatorPage'));
+const ReplayChartPage = lazy(() => import('@/features/backtester/replay/ReplayChartPage'));
 const MarketChartPage = lazy(() => import('@/features/charts/MarketChartPage'));
 
 const AccountsPage = lazy(() => import('@/features/manage/accounts/AccountsPage'));
@@ -183,9 +183,9 @@ export function AppRoutes() {
         <Route path="/utilities/calendar" element={<EconomicCalendarPage />} />
         <Route path="/utilities/sessions" element={<SessionsPage />} />
 
-        <Route path="/backtester" element={<PlanGate feature="Backtester"><BacktesterDashboardPage /></PlanGate>} />
-        <Route path="/backtester/logs" element={<PlanGate feature="Test Logs"><TestLogsPage /></PlanGate>} />
-        <Route path="/backtester/simulator" element={<PlanGate feature="Monte Carlo Simulator"><SimulatorPage /></PlanGate>} />
+        <Route path="/backtester" element={<PlanGate feature="Backtester"><SessionListPage /></PlanGate>} />
+        <Route path="/backtester/:sessionId" element={<PlanGate feature="Backtester"><BacktesterDashboardPage /></PlanGate>} />
+        <Route path="/backtester/:sessionId/replay" element={<PlanGate feature="Backtester"><ReplayChartPage /></PlanGate>} />
         <Route path="/utilities/chart" element={<PlanGate feature="Chart"><MarketChartPage /></PlanGate>} />
 
         <Route path="/utilities/calculators" element={<CalculatorsHubPage />} />
