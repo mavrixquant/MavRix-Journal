@@ -115,8 +115,10 @@ export default class ErrorBoundary extends Component {
               maxHeight: 240,
             }}
           >
-{String(error?.stack || error?.message || error)}
-{info?.componentStack ? `\n\nComponent stack:${info.componentStack}` : ''}
+{import.meta.env.PROD
+  ? 'A production error occurred. Please reload the page or contact support if the issue persists.'
+  : String(error?.stack || error?.message || error)}
+{info?.componentStack && !import.meta.env.PROD ? `\n\nComponent stack:${info.componentStack}` : ''}
           </pre>
 
           <button

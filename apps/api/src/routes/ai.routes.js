@@ -16,7 +16,7 @@ const testLimiter = rateLimit({
 
 aiRoutes.get('/providers', ctrl.listProviders);
 aiRoutes.get('/settings', ctrl.getSettings);
-aiRoutes.post('/settings', ctrl.saveSettings);
+aiRoutes.post('/settings', testLimiter, ctrl.saveSettings);
 aiRoutes.patch('/settings/:provider/models', ctrl.updateModels);
 aiRoutes.delete('/settings/:provider', ctrl.deleteSettings);
 

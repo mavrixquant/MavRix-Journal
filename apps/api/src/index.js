@@ -9,6 +9,7 @@ import { env } from './config/env.js';
 import { apiRouter } from './routes/index.js';
 import { eventsRoutes } from './routes/events.routes.js';
 import { maintenanceGate } from './middleware/maintenance.js';
+import { csrfGuard } from './middleware/csrf.js';
 import { errorHandler, notFound } from './middleware/error.js';
 import { startCalendarSync, stopCalendarSync } from './lib/calendarSync.js';
 import { ensureSuperadmin } from './lib/adminBootstrap.js';
@@ -31,6 +32,8 @@ app.use(morgan(env.isProd ? 'combined' : 'dev'));
 // allowlist (/api/health, /api/system/status, /api/auth/*) and the
 // superadmin token, so the superadmin can always log in and toggle it off.
 app.use('/api', maintenanceGate);
+// FIXED 2026-11-18 — origin validation for cookie-authenticated mutations.
+app.use('/api', csrfGuard);
 
 app.use('/api/events', eventsRoutes);
 app.use('/api', (_req, res, next) => {

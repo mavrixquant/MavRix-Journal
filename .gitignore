@@ -6,13 +6,16 @@ build/
 coverage/
 
 
+
 .env
 .env.*
 !.env.example
 *.log
 .DS_Store
 
+
 apps/api/prisma/migrations/dev.db*
+apps/api/backups/
 notes.*
 
 

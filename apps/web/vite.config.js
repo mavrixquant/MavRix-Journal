@@ -12,5 +12,14 @@ export default defineConfig({
   },
   build: {
     cssMinify: 'esbuild',
+    sourcemap: false,
+    minify: 'esbuild',
+    reportCompressedSize: true,
+    chunkSizeWarningLimit: 1000,
+  },
+  server: {
+    hmr: {
+      overlay: false,
+    },
   },
 })

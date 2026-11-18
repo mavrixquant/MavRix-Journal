@@ -67,7 +67,19 @@ const banSchema = z.object({
   reason: z.string().trim().max(500).optional(),
 });
 
-const settingsSchema = z.record(z.any());
+// FIXED 2026-11-18 — the previous `z.record(z.any())` accepted arbitrary
+// types, sizes and shapes for every setting key. The settings service
+// already filters to known keys, but a strict schema at the route layer
+// rejects oversized or malformed values before they reach the database.
+const settingsSchema = z.object({
+  signupsEnabled: z.boolean().optional(),
+  requireEmailVerification: z.boolean().optional(),
+  maintenanceMode: z.boolean().optional(),
+  maintenanceMessage: z.string().trim().max(500).optional(),
+  maxAccountsPerUser: z.number().int().min(1).max(100).optional(),
+  maxTradesPerAccount: z.number().int().min(1).max(1_000_000).optional(),
+  announcementBanner: z.string().max(500).optional(),
+});
 
 const accountUpdateSchema = z.object({
   name: z.string().trim().min(1).max(120).optional(),
@@ -127,6 +139,21 @@ const healthCheckLimiter = rateLimit({
   message: 'Health check launched too recently. Wait a few seconds.',
 });
 
+// FIXED 2026-11-18 — broad admin read endpoints (users, accounts, trades,
+// audit, stats) had no rate limit, so a compromised admin token could be
+// used to enumerate the entire dataset at high speed. A shared read limiter
+// now guards all GET routes on the admin router.
+const adminReadLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 120,
+  message: 'Too many read requests. Slow down.',
+});
+
+adminRoutes.use(async (req, _res, next) => {
+  if (req.method === 'GET') return adminReadLimiter(req, _res, next);
+  next();
+});
+
 adminRoutes.get('/me', ctrl.me);
 adminRoutes.get('/stats', ctrl.stats);
 adminRoutes.get('/health', ctrl.health);
@@ -159,8 +186,8 @@ adminRoutes.post('/accounts/:id/reassign', requireSuperadmin, sensitive, validat
 adminRoutes.delete('/accounts/:id', requireSuperadmin, sensitive, accCtrl.remove);
 
 adminRoutes.get('/trades', tradeCtrl.list);
-adminRoutes.delete('/trades/by-account/:accountId', writeLimiter, tradeCtrl.removeByAccount);
-adminRoutes.delete('/trades/:id', writeLimiter, tradeCtrl.remove);
+adminRoutes.delete('/trades/by-account/:accountId', requireSuperadmin, sensitive, tradeCtrl.removeByAccount);
+adminRoutes.delete('/trades/:id', requireSuperadmin, sensitive, tradeCtrl.remove);
 
 adminRoutes.get('/strategies', strategyCtrl.list);
 adminRoutes.get('/strategies/:id', strategyCtrl.get);

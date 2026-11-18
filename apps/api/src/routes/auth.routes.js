@@ -14,10 +14,51 @@ import * as twoFactorController from '../controllers/twoFactor.controller.js';
 
 export const authRoutes = Router();
 
+// FIXED 2026-11-18 — core auth endpoints were previously unauthenticated
+// against brute force / credential stuffing / account-creation abuse. Each
+// sensitive route now carries an IP-based limiter keyed on the request
+// source. Identity-aware limits (per-email / per-user) are layered on top
+// inside the controllers where the account can be resolved.
 const resetRequestLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
   max: 5,
   message: 'Too many password reset requests. Try again in an hour.',
+});
+
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: 'Too many login attempts. Try again later.',
+});
+
+const signupLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  message: 'Too many accounts created from this IP.',
+});
+
+const refreshLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  message: 'Too many refresh requests. Slow down.',
+});
+
+const emailLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 10,
+  message: 'Too many email requests. Try again in an hour.',
+});
+
+const googleLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: 'Too many Google login attempts. Try again later.',
+});
+
+const resetOtpLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: 'Too many OTP verification attempts. Try again later.',
 });
 
 const validate = (schema) => (req, _res, next) => {
@@ -29,23 +70,23 @@ const validate = (schema) => (req, _res, next) => {
   }
 };
 
-authRoutes.post('/signup', validate(signupSchema), authController.signup);
-authRoutes.post('/login', validate(loginSchema), authController.login);
+authRoutes.post('/signup', signupLimiter, validate(signupSchema), authController.signup);
+authRoutes.post('/login', loginLimiter, validate(loginSchema), authController.login);
 authRoutes.post('/set-username', requireAuth, validate(setUsernameSchema), authController.setUsername);
 authRoutes.post('/set-password', requireAuth, validate(setPasswordSchema), authController.setPassword);
 authRoutes.post('/change-password', requireAuth, validate(changePasswordSchema), authController.changePassword);
 authRoutes.patch('/profile', requireAuth, validate(updateProfileSchema), authController.updateProfile);
-authRoutes.post('/refresh', authController.refresh);
+authRoutes.post('/refresh', refreshLimiter, authController.refresh);
 authRoutes.post('/logout', authController.logout);
 authRoutes.get('/me', requireAuth, authController.me);
-authRoutes.post('/verify-email', authController.verifyEmail);
-authRoutes.post('/resend-verification', requireAuth, authController.resendVerification);
-authRoutes.post('/google', authController.googleLogin);
+authRoutes.post('/verify-email', emailLimiter, authController.verifyEmail);
+authRoutes.post('/resend-verification', requireAuth, emailLimiter, authController.resendVerification);
+authRoutes.post('/google', googleLimiter, authController.googleLogin);
 authRoutes.post('/google/link', requireAuth, authController.googleLink);
 authRoutes.post('/google/unlink', requireAuth, authController.googleUnlink);
 authRoutes.post('/request-password-reset', resetRequestLimiter, authController.requestPasswordReset);
-authRoutes.post('/verify-reset-otp', validate(verifyResetOtpSchema), authController.verifyResetOtp);
-authRoutes.post('/reset-password', validate(confirmPasswordResetSchema), authController.resetPassword);
+authRoutes.post('/verify-reset-otp', resetOtpLimiter, validate(verifyResetOtpSchema), authController.verifyResetOtp);
+authRoutes.post('/reset-password', resetOtpLimiter, validate(confirmPasswordResetSchema), authController.resetPassword);
 // ============================================================================
 // Two-Factor Authentication
 // ============================================================================

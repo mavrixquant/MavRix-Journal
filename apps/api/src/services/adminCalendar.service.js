@@ -253,43 +253,52 @@ export async function importEvents(actor, { rows, mode = 'merge' } = {}) {
     throw new HttpError(400, 'No valid rows. First errors: ' + errors.join(' | '));
   }
 
-  const cleared = mode === 'replace' ? (await prisma.economicEvent.deleteMany({})).count : 0;
-
   const byId = new Map();
   for (const p of prepared) byId.set(p.externalId, p);
   const unique = [...byId.values()];
 
   let created = 0;
   let updated = 0;
+  let cleared = 0;
   const CHUNK = 500;
 
-  for (let i = 0; i < unique.length; i += CHUNK) {
-    const chunk = unique.slice(i, i + CHUNK);
-    const existing = await prisma.economicEvent.findMany({
-      where: { externalId: { in: chunk.map((r) => r.externalId) } },
-      select: { externalId: true },
-    });
-    const existingSet = new Set(existing.map((e) => e.externalId));
-
-    const toCreate = chunk.filter((r) => !existingSet.has(r.externalId));
-    const toUpdate = chunk.filter((r) => existingSet.has(r.externalId));
-
-    if (toCreate.length > 0) {
-      const res = await prisma.economicEvent.createMany({
-        data: toCreate,
-        skipDuplicates: true,
-      });
-      created += res.count;
+  // FIXED 2026-11-18 — the delete (replace mode) and the insert/update cycle
+  // now run inside ONE transaction, so a failure part-way rolls back the
+  // deletion and the partial inserts together. Previously `replace` wiped
+  // every event before inserting, losing data if the insert failed.
+  await prisma.$transaction(async (tx) => {
+    if (mode === 'replace') {
+      cleared = (await tx.economicEvent.deleteMany({})).count;
     }
 
-    for (const row of toUpdate) {
-      await prisma.economicEvent.update({
-        where: { externalId: row.externalId },
-        data: { ...row, fetchedAt: new Date() },
+    for (let i = 0; i < unique.length; i += CHUNK) {
+      const chunk = unique.slice(i, i + CHUNK);
+      const existing = await tx.economicEvent.findMany({
+        where: { externalId: { in: chunk.map((r) => r.externalId) } },
+        select: { externalId: true },
       });
-      updated += 1;
+      const existingSet = new Set(existing.map((e) => e.externalId));
+
+      const toCreate = chunk.filter((r) => !existingSet.has(r.externalId));
+      const toUpdate = chunk.filter((r) => existingSet.has(r.externalId));
+
+      if (toCreate.length > 0) {
+        const res = await tx.economicEvent.createMany({
+          data: toCreate,
+          skipDuplicates: true,
+        });
+        created += res.count;
+      }
+
+      for (const row of toUpdate) {
+        await tx.economicEvent.update({
+          where: { externalId: row.externalId },
+          data: { ...row, fetchedAt: new Date() },
+        });
+        updated += 1;
+      }
     }
-  }
+  });
 
   await writeAudit({
     actorId: actor.id,

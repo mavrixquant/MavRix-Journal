@@ -13,6 +13,18 @@ import { broadcastToUser } from '../lib/broadcaster.js';
 const PAGE_DEFAULT = 25;
 const PAGE_MAX = 100;
 
+// FIXED 2026-11-18 — defense-in-depth: the route validates the role with a
+// Zod schema, but the service previously accepted any string and wrote it
+// straight into the database. A service-layer allowlist prevents invalid
+// roles from ever being persisted if the route guard is bypassed or refactored.
+const VALID_MEMBER_ROLES = ['owner', 'admin', 'member'];
+
+function assertValidMemberRole(role) {
+  if (!VALID_MEMBER_ROLES.includes(role)) {
+    throw new HttpError(400, `Invalid member role. Allowed: ${VALID_MEMBER_ROLES.join(', ')}`);
+  }
+}
+
 function serializePublicUser(u) {
   if (!u) return null;
   return {
@@ -475,6 +487,8 @@ export async function removeGroupMember(actor, groupId, userId) {
 }
 
 export async function setGroupMemberRole(actor, groupId, userId, newRole) {
+  assertValidMemberRole(newRole);
+
   const group = await assertGroupAdminPermission(actor, groupId);
 
   const target = await prisma.conversationParticipant.findUnique({

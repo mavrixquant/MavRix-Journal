@@ -6,6 +6,21 @@ const required = (key) => {
 
 const optional = (key, fallback = '') => process.env[key] || fallback;
 
+const validateUrl = (url, allowedHosts = []) => {
+  try {
+    const u = new URL(url);
+    if (u.protocol !== 'https:') {
+      throw new Error(`URL must use HTTPS: ${url}`);
+    }
+    if (allowedHosts.length > 0 && !allowedHosts.some(h => u.hostname === h || u.hostname.endsWith('.' + h))) {
+      console.warn(`[config] WARNING: base URL hostname "${u.hostname}" not in allowlist ${allowedHosts.join(', ')}`);
+    }
+    return url;
+  } catch (e) {
+    throw new Error(`Invalid base URL "${url}": ${e.message}`, { cause: e });
+  }
+};
+
 export const env = {
   nodeEnv: process.env.NODE_ENV || 'development',
   port: Number(process.env.PORT || 4000),
@@ -34,17 +49,17 @@ export const env = {
     backwardDays: Number(process.env.CALENDAR_BACKWARD_DAYS || 30),
     chunkDays: Number(process.env.CALENDAR_CHUNK_DAYS || 7),
     fetchTimeoutMs: Number(process.env.CALENDAR_FETCH_TIMEOUT_MS || 15_000),
-    baseUrl: process.env.BIQUOTE_BASE_URL || 'https://biquote.io',
+    baseUrl: validateUrl(process.env.BIQUOTE_BASE_URL || 'https://biquote.io', ['biquote.io']),
   },
 
   marketData: {
-    yahooBaseUrl: process.env.YAHOO_BASE_URL || 'https://query1.finance.yahoo.com',
+    yahooBaseUrl: validateUrl(process.env.YAHOO_BASE_URL || 'https://query1.finance.yahoo.com', ['finance.yahoo.com']),
     yahooTimeoutMs: Number(process.env.YAHOO_TIMEOUT_MS || 10_000),
     yahooMaxConcurrent: Number(process.env.YAHOO_MAX_CONCURRENT || 2),
     yahooMinGapMs: Number(process.env.YAHOO_MIN_GAP_MS || 1000),
 
     alphaVantageApiKey: process.env.ALPHA_VANTAGE_API_KEY || '',
-    alphaVantageBaseUrl: process.env.ALPHA_VANTAGE_BASE_URL || 'https://www.alphavantage.co/query',
+    alphaVantageBaseUrl: validateUrl(process.env.ALPHA_VANTAGE_BASE_URL || 'https://www.alphavantage.co/query', ['alphavantage.co']),
     alphaVantageTimeoutMs: Number(process.env.ALPHA_VANTAGE_TIMEOUT_MS || 10_000),
     alphaVantageMaxConcurrent: Number(process.env.ALPHA_VANTAGE_MAX_CONCURRENT || 2),
     alphaVantageMinGapMs: Number(process.env.ALPHA_VANTAGE_MIN_GAP_MS || 1000),
@@ -91,3 +106,14 @@ export const env = {
     backupCodeCount: Number(optional('TWO_FACTOR_BACKUP_CODE_COUNT', 10)),
   },
 };
+
+// FIXED 2026-11-18 — startup validation for required secrets and config.
+if (!env.ai.masterKey) {
+  console.warn('[config] WARNING: MAVE_AI_MASTER_KEY is not set. BYOK encryption will fail at runtime.');
+}
+if (!env.twoFactor.encryptionKey) {
+  console.warn('[config] WARNING: TWO_FACTOR_ENCRYPTION_KEY is not set. TOTP secret encryption will fail at runtime.');
+}
+if (env.isProd && env.admin.bootstrapPassword) {
+  console.warn('[config] WARNING: ADMIN_BOOTSTRAP_PASSWORD is set in production. Remove after initial bootstrap.');
+}

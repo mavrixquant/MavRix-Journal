@@ -2,3 +2,18 @@
   from = "/*"
   to = "/index.html"
   status = 200
+
+# FIXED 2026-11-18 — security headers were previously absent. CSP below is
+# intentionally conservative on script-src (the main XSS control) while
+# allowing the Google Identity Services script and fonts the app requires.
+# NOTE: tighten `connect-src` to your exact API origin (e.g.
+# https://api.mavrix.trade) once the production API hostname is fixed.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' https://accounts.google.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https:; frame-src https://accounts.google.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self';"
+    Strict-Transport-Security = "max-age=31536000; includeSubDomains"

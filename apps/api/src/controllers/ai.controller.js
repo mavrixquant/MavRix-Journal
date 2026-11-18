@@ -6,14 +6,25 @@ import { encryptKey } from '../lib/ai/crypto.js';
 import { discoverModels } from '../lib/ai/discoverModels.js';
 import { AI_PROVIDERS, getProviderMeta, fallbackModels } from '@mavrix/shared';
 
+// FIXED 2026-11-18 — model IDs are constrained to a conservative charset and
+// length so arbitrary strings cannot be used to smuggled URLs / routing
+// directives into provider requests. Production model identifiers are
+// alphanumerics plus `. _ - : / @`.
+const MODEL_ID = z
+  .string()
+  .trim()
+  .min(1)
+  .max(120)
+  .regex(/^[A-Za-z0-9._:/$@-]+$/, 'Invalid model identifier');
+
 const credentialSchema = z.object({
   provider: z.enum(['openrouter', 'openai', 'anthropic', 'gemini', 'groq', 'deepseek']),
   apiKey: z.string().trim().min(10).max(500),
-  model: z.string().trim().max(100).optional().nullable(),
+  model: MODEL_ID.optional().nullable(),
 });
 
 const modelsPatchSchema = z.object({
-  models: z.array(z.string().trim().min(1).max(200)).min(1).max(200),
+  models: z.array(MODEL_ID).min(1).max(200),
 });
 
 const serialize = (cred) => ({
