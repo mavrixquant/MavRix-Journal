@@ -29,5 +29,6 @@ export function toJournalTrade(t, tz) {
     strategyId: t.strategyId,
     strategy: t.strategy,
     exitReason: t.exitReason,
+    orderType: t.orderType || 'market',
   };
 }

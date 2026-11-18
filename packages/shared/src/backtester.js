@@ -9,6 +9,8 @@ export const BACKTEST_SESSION_TYPES = ['standard', 'prop'];
 export const BACKTEST_STATUSES = ['active', 'completed', 'archived'];
 export const BACKTEST_SIDES = ['long', 'short'];
 export const BACKTEST_EXIT_REASONS = ['manual', 'sl', 'tp', 'prop_breach', 'conclude'];
+export const BACKTEST_ORDER_TYPES = ['market', 'limit', 'stop'];
+export const PROP_LIMIT_MODES = ['pct', 'usd'];
 
 export const BACKTEST_INTERVALS = ['1m', '5m', '15m', '1h', '4h', '1d'];
 export const BACKTEST_INTERVAL_SECONDS = {
@@ -31,6 +33,28 @@ export const PROP_DEFAULTS = {
   maxTotalLossPct: 10,
   minTradingDays: 5,
 };
+
+/**
+ * Turns a propFirmConfig into absolute amounts, whichever way each limit was entered
+ * (percent of account size, or a fixed currency amount).
+ */
+export function resolvePropLimits(cfg) {
+  const size = Number(cfg?.accountSize) || 0;
+  const one = (mode, pct, usd, fallbackPct) => {
+    if (mode === 'usd') {
+      const amount = Number(usd) || 0;
+      return { mode: 'usd', amount, pct: size > 0 ? (amount / size) * 100 : 0 };
+    }
+    const p = Number(pct ?? fallbackPct) || 0;
+    return { mode: 'pct', amount: (size * p) / 100, pct: p };
+  };
+  return {
+    size,
+    target: one(cfg?.profitTargetMode, cfg?.profitTargetPct, cfg?.profitTargetUsd, PROP_DEFAULTS.profitTargetPct),
+    daily: one(cfg?.maxDailyLossMode, cfg?.maxDailyLossPct, cfg?.maxDailyLossUsd, PROP_DEFAULTS.maxDailyLossPct),
+    total: one(cfg?.maxTotalLossMode, cfg?.maxTotalLossPct, cfg?.maxTotalLossUsd, PROP_DEFAULTS.maxTotalLossPct),
+  };
+}
 
 /**
  * Contract specs used to turn price points into account currency.
@@ -80,21 +104,50 @@ export function computeBacktestPnl({ side, entryPrice, exitPrice, quantity, symb
 const num = z.number().finite();
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use YYYY-MM-DD');
 
+const limitMode = z.enum(PROP_LIMIT_MODES).default('pct');
+
+// Each of the three limits can be entered as a % of the account size OR as a currency amount.
 export const propFirmConfigSchema = z
   .object({
     firmName: z.enum(PROP_FIRMS),
     firmNameCustom: z.string().trim().max(60).optional(),
     accountSize: num.positive(),
-    profitTargetPct: num.positive().max(100).default(PROP_DEFAULTS.profitTargetPct),
-    maxDailyLossPct: num.positive().max(100).default(PROP_DEFAULTS.maxDailyLossPct),
-    maxTotalLossPct: num.positive().max(100).default(PROP_DEFAULTS.maxTotalLossPct),
+    profitTargetMode: limitMode,
+    profitTargetPct: num.positive().max(100).optional(),
+    profitTargetUsd: num.positive().optional(),
+    maxDailyLossMode: limitMode,
+    maxDailyLossPct: num.positive().max(100).optional(),
+    maxDailyLossUsd: num.positive().optional(),
+    maxTotalLossMode: limitMode,
+    maxTotalLossPct: num.positive().max(100).optional(),
+    maxTotalLossUsd: num.positive().optional(),
     minTradingDays: z.number().int().min(0).max(365).default(PROP_DEFAULTS.minTradingDays),
     maxPositionSize: num.positive().optional().nullable(),
     notes: z.string().trim().max(1000).optional(),
   })
-  .refine((c) => c.firmName !== 'Other' || !!c.firmNameCustom, {
-    message: 'Enter the firm name',
-    path: ['firmNameCustom'],
+  .superRefine((c, ctx) => {
+    if (c.firmName === 'Other' && !c.firmNameCustom) {
+      ctx.addIssue({ code: 'custom', path: ['firmNameCustom'], message: 'Enter the firm name' });
+    }
+    const need = [
+      ['profitTarget', 'Profit target', c.profitTargetMode],
+      ['maxDailyLoss', 'Max daily loss', c.maxDailyLossMode],
+      ['maxTotalLoss', 'Max total loss', c.maxTotalLossMode],
+    ];
+    for (const [k, label, mode] of need) {
+      const field = mode === 'usd' ? `${k}Usd` : `${k}Pct`;
+      if (c[field] == null) {
+        // pct limits fall back to PROP_DEFAULTS; fixed amounts have no sensible default
+        if (mode === 'usd') ctx.addIssue({ code: 'custom', path: [field], message: `${label}: enter an amount` });
+      }
+    }
+    const lim = resolvePropLimits(c);
+    if (lim.daily.amount > lim.total.amount && lim.total.amount > 0) {
+      ctx.addIssue({ code: 'custom', path: ['maxDailyLossPct'], message: 'Daily loss limit can’t exceed the total loss limit' });
+    }
+    if (lim.total.amount >= lim.size) {
+      ctx.addIssue({ code: 'custom', path: ['maxTotalLossPct'], message: 'Total loss limit must be below the account size' });
+    }
   });
 
 const sessionBase = z.object({
@@ -162,9 +215,15 @@ export const backtestTradeCreateSchema = z.object({
   commission: num.min(0).nullable().optional(),
   strategyId: z.string().trim().min(1).nullable().optional(),
   notes: z.string().max(4000).optional(),
+  // 'market' fills immediately at entryPrice. 'limit' / 'stop' rest as a pending order at
+  // entryPrice (= the order price) until the replay reaches it.
+  orderType: z.enum(BACKTEST_ORDER_TYPES).default('market'),
 });
 
 export const backtestTradePatchSchema = z.object({
+  // Fill a pending order (both required together):
+  fillTime: z.string().datetime().optional(),
+  fillPrice: num.positive().optional(),
   exitTime: z.string().datetime().optional(),
   exitPrice: num.positive().optional(),
   exitReason: z.enum(BACKTEST_EXIT_REASONS).optional(),

@@ -1,4 +1,6 @@
+import { resolvePropLimits } from '@mavrix/shared';
 import { dayKey, toMs } from './time';
+import { isPending } from './orders';
 import { netOf, isClosed } from './sessionStats';
 
 /* ============================================================================
@@ -19,13 +21,16 @@ export function evaluatePropRules(session, trades, { tz, nowMs, openPnl = 0 } = 
   if (!cfg) return null;
 
   const initial = Number(session.startingBalance) || 0;
-  const size = Number(cfg.accountSize) || initial;
-  const targetAmt = (size * cfg.profitTargetPct) / 100;
-  const dailyLimit = (size * cfg.maxDailyLossPct) / 100;
-  const totalLimit = (size * cfg.maxTotalLossPct) / 100;
+  const lim = resolvePropLimits({ ...cfg, accountSize: Number(cfg.accountSize) || initial });
+  const targetAmt = lim.target.amount;
+  const dailyLimit = lim.daily.amount;
+  const totalLimit = lim.total.amount;
   const floor = initial - totalLimit;
+  const fmtLimit = (l, suffix) =>
+    l.mode === 'usd' ? `${Math.round(l.amount).toLocaleString('en-US')} (${l.pct.toFixed(1)}% of account${suffix})` : `${l.pct}% of account${suffix}`;
 
-  const all = Array.isArray(trades) ? trades : [];
+  // Resting orders are not trades yet.
+  const all = (Array.isArray(trades) ? trades : []).filter((t) => !isPending(t));
   const closed = all.filter(isClosed).sort((a, b) => toMs(a.exitTime) - toMs(b.exitTime));
 
   // Realised balance path + historical breaches.
@@ -83,7 +88,7 @@ export function evaluatePropRules(session, trades, { tz, nowMs, openPnl = 0 } = 
       remaining: Math.max(0, targetAmt - profit),
       unit: 'money',
       state: targetHit ? 'pass' : 'ok',
-      detail: targetHit ? 'Target reached' : `${(cfg.profitTargetPct).toFixed(1)}% of account`,
+      detail: targetHit ? 'Target reached' : fmtLimit(lim.target, ''),
     },
     {
       id: 'daily',
@@ -94,7 +99,7 @@ export function evaluatePropRules(session, trades, { tz, nowMs, openPnl = 0 } = 
       remaining: Math.max(0, dailyLimit - dailyUsed),
       unit: 'money',
       state: dailyFail ? 'fail' : dailyUsed / dailyLimit >= 0.7 ? 'warn' : 'ok',
-      detail: breachedDailyAt ? `Breached on ${breachedDailyAt}` : `${cfg.maxDailyLossPct}% of account / day`,
+      detail: breachedDailyAt ? `Breached on ${breachedDailyAt}` : fmtLimit(lim.daily, ' / day'),
     },
     {
       id: 'total',
@@ -105,7 +110,7 @@ export function evaluatePropRules(session, trades, { tz, nowMs, openPnl = 0 } = 
       remaining: Math.max(0, totalLimit - totalUsed),
       unit: 'money',
       state: totalFail ? 'fail' : totalUsed / totalLimit >= 0.7 ? 'warn' : 'ok',
-      detail: breachedTotalAt ? `Breached on ${breachedTotalAt}` : `${cfg.maxTotalLossPct}% of account (static)`,
+      detail: breachedTotalAt ? `Breached on ${breachedTotalAt}` : fmtLimit(lim.total, ', static'),
     },
     {
       id: 'days',

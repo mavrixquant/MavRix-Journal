@@ -17,7 +17,18 @@ export const TOOLS = [
   { id: 'measure', label: 'Measure', key: 'M', pts: 2 },
 ];
 
-export const TOOL_BY_ID = Object.fromEntries(TOOLS.map((t) => [t.id, t]));
+// Click-to-place position tools (not shown in the rail; hosts such as the
+// backtester arm them from their own Long / Short buttons). One click sets the
+// entry; stop and target get sensible default distances and are then dragged.
+export const POSITION_TOOLS = {
+  rrLong: { id: 'rrLong', label: 'Long position', key: '', pts: 1, side: 'long' },
+  rrShort: { id: 'rrShort', label: 'Short position', key: '', pts: 1, side: 'short' },
+};
+
+export const TOOL_BY_ID = {
+  ...Object.fromEntries(TOOLS.map((t) => [t.id, t])),
+  ...POSITION_TOOLS,
+};
 
 export const TOOL_HINTS = {
   hline: 'Click a price level.',
@@ -25,7 +36,9 @@ export const TOOL_HINTS = {
   ray: 'Click the start, then a second point.',
   rect: 'Click one corner, then the opposite corner.',
   fib: 'Click the swing start, then the swing end.',
-  rr: 'Click the entry, then the stop. Target is drawn at 2R.',
+  rr: 'Click the entry, then the stop. Drag the target to adjust.',
+  rrLong: 'Click the entry price. Drag the stop and target to adjust.',
+  rrShort: 'Click the entry price. Drag the stop and target to adjust.',
   measure: 'Click a start point, move, then click to finish.',
 };
 
@@ -131,15 +144,36 @@ function resolve(d, env) {
   return { px, W };
 }
 
-function rrParts(a, b) {
-  // a = entry, b = stop. Target mirrors the stop at 2R.
+function rrParts(a, b, c) {
+  // a = entry, b = stop, c = target (optional). Legacy 2-point drawings mirror the stop at 2R.
   const risk = a.p - b.p;
-  const target = a.p + risk * 2;
-  return { long: risk > 0, risk: Math.abs(risk), target };
+  const long = c ? (risk !== 0 ? risk > 0 : c.p > a.p) : risk > 0;
+  const target = c ? c.p : a.p + risk * 2;
+  const reward = Math.abs(target - a.p);
+  const rAbs = Math.abs(risk);
+  return { long, risk: rAbs, reward, target, rr: rAbs > 0 ? reward / rAbs : 0 };
 }
 
+// Keeps a 3-point position coherent after an anchor drag:
+// the target always sits on the profit side of the entry; flipping the stop flips the side.
+export function rrNormalize(pts, moved) {
+  if (!pts || pts.length < 3) return pts;
+  const [e, s, t] = pts;
+  const long = e.p !== s.p ? e.p > s.p : t.p > e.p;
+  const dir = long ? 1 : -1;
+  const min = Math.max(Math.abs(e.p - s.p) * 0.05, 1e-9);
+  let tp = t.p;
+  if (moved === 2) {
+    if ((tp - e.p) * dir < min) tp = e.p + dir * min;
+  } else {
+    tp = e.p + dir * Math.max(Math.abs(tp - e.p), min);
+  }
+  return [e, s, { t: t.t, p: tp }];
+}
+
+
 /* --------------------------------- drawing --------------------------------- */
-function drawOne(ctx, d, env, { selected = false, ghost = false } = {}) {
+function drawOne(ctx, d, env, { selected = false, ghost = false, hovered = false } = {}) {
   const g = resolve(d, env);
   if (!g) return;
   const { px, W } = g;
@@ -214,25 +248,32 @@ function drawOne(ctx, d, env, { selected = false, ghost = false } = {}) {
     ctx.setLineDash([]);
     if (selected) { handle(a); handle(b); }
   } else if (d.type === 'rr' && b) {
-    const { long, risk, target } = rrParts(a, b);
-    const yT = Y(target);
+    const c3 = px[2] || null;
+    const { long, risk, reward, target, rr } = rrParts(a, b, c3 ? { p: c3.p } : null);
+    const yT = c3 ? c3.y : Y(target);
     if (yT == null) { ctx.restore(); return; }
-    const left = Math.min(a.x, b.x);
-    const right = Math.max(Math.max(a.x, b.x), left + 70);
+    const left = c3 ? a.x : Math.min(a.x, b.x);
+    const right = c3 ? Math.max(b.x, left + 70) : Math.max(Math.max(a.x, b.x), left + 70);
     const w = right - left;
-    ctx.fillStyle = 'rgba(53,196,161,.16)';
+    const active = selected || hovered || ghost;
+    ctx.fillStyle = `rgba(53,196,161,${active ? 0.2 : 0.14})`;
     ctx.fillRect(left, Math.min(a.y, yT), w, Math.abs(yT - a.y));
-    ctx.fillStyle = 'rgba(255,92,92,.16)';
+    ctx.fillStyle = `rgba(255,92,92,${active ? 0.2 : 0.14})`;
     ctx.fillRect(left, Math.min(a.y, b.y), w, Math.abs(b.y - a.y));
-    ctx.lineWidth = 1.5;
+    ctx.lineWidth = active ? 2 : 1.5;
     ctx.strokeStyle = '#35C4A1'; ctx.beginPath(); ctx.moveTo(left, yT); ctx.lineTo(right, yT); ctx.stroke();
     ctx.strokeStyle = '#FF5C5C'; ctx.beginPath(); ctx.moveTo(left, b.y); ctx.lineTo(right, b.y); ctx.stroke();
-    ctx.strokeStyle = '#E7E9EE'; ctx.setLineDash([4, 4]);
+    ctx.strokeStyle = '#E7E9EE'; ctx.lineWidth = 1.5; ctx.setLineDash([4, 4]);
     ctx.beginPath(); ctx.moveTo(left, a.y); ctx.lineTo(right, a.y); ctx.stroke(); ctx.setLineDash([]);
-    pill(ctx, `${long ? 'Long' : 'Short'} · R:R 1:2 · risk ${fmtP(risk, prec)}`, left + 6, a.y - 12, { bg: 'rgba(12,16,23,.92)', fg: '#E7E9EE' });
-    pill(ctx, `TP ${fmtP(target, prec)}`, right - 4, yT + (long ? 12 : -12), { bg: '#35C4A1', align: 'right' });
-    pill(ctx, `SL ${fmtP(b.p, prec)}`, right - 4, b.y + (long ? -12 : 12), { bg: '#FF5C5C', align: 'right' });
-    if (selected) { handle({ x: left, y: a.y }); handle({ x: left, y: b.y }); }
+
+    // Details (side, R:R, SL / TP distances) only while hovering or selected.
+    if (active) {
+      const pct = (v) => (a.p ? `${((v / a.p) * 100).toFixed(2)}%` : '');
+      pill(ctx, `${long ? 'Long' : 'Short'} · R:R 1:${rr.toFixed(2)}`, left + 6, a.y - 12, { bg: 'rgba(12,16,23,.94)', fg: '#E7E9EE' });
+      pill(ctx, `TP ${fmtP(target, prec)} · +${fmtP(reward, prec)} (${pct(reward)})`, right - 4, yT + (long ? 12 : -12), { bg: '#35C4A1', align: 'right' });
+      pill(ctx, `SL ${fmtP(b.p, prec)} · −${fmtP(risk, prec)} (${pct(risk)})`, right - 4, b.y + (long ? -12 : 12), { bg: '#FF5C5C', align: 'right' });
+    }
+    if (selected) { handle({ x: left, y: a.y }); handle({ x: left, y: b.y }); if (c3) handle({ x: left, y: c3.y }); }
   } else if (d.type === 'measure' && b) {
     const up = b.p >= a.p;
     const c = up ? '#35C4A1' : '#FF5C5C';
@@ -291,10 +332,10 @@ function hit(d, px, py, env) {
     }
     case 'rr': {
       if (!b) return false;
-      const { target } = rrParts(a, b);
-      const yT = env.Y(target);
-      const left = Math.min(a.x, b.x);
-      const right = Math.max(Math.max(a.x, b.x), left + 70);
+      const c3 = q[2] || null;
+      const yT = c3 ? c3.y : env.Y(rrParts(a, b).target);
+      const left = c3 ? a.x : Math.min(a.x, b.x);
+      const right = c3 ? Math.max(b.x, left + 70) : Math.max(Math.max(a.x, b.x), left + 70);
       const top = Math.min(a.y, b.y, yT ?? a.y), bot = Math.max(a.y, b.y, yT ?? a.y);
       return px >= left - T && px <= right + T && py >= top - T && py <= bot + T;
     }
@@ -311,8 +352,11 @@ function handlePoints(d, env) {
   if (d.type === 'hline') return [{ x: W * 0.5, y: a.y, i: 0 }];
   if (!b) return [];
   if (d.type === 'rr') {
-    const left = Math.min(a.x, b.x);
-    return [{ x: left, y: a.y, i: 0 }, { x: left, y: b.y, i: 1 }];
+    const c3 = q[2] || null;
+    const left = c3 ? a.x : Math.min(a.x, b.x);
+    const hs = [{ x: left, y: a.y, i: 0 }, { x: left, y: b.y, i: 1 }];
+    if (c3) hs.push({ x: left, y: c3.y, i: 2 });
+    return hs;
   }
   return [{ x: a.x, y: a.y, i: 0 }, { x: b.x, y: b.y, i: 1 }];
 }
@@ -325,10 +369,26 @@ export class DrawingsPrimitive {
     this._chart = null;
     this._series = null;
     this._req = null;
+    this._hoverId = null;
+    this._size = null;
+    this._onMove = (p) => {
+      let id = null;
+      if (p?.point && this._size && this._chart) {
+        const st = this._get();
+        if (st?.index?.length && !st.draft) id = this.hit(p.point.x, p.point.y, this._size);
+      }
+      if (id !== this._hoverId) { this._hoverId = id; this._req?.(); }
+    };
     this._view = { zOrder: () => 'top', renderer: () => ({ draw: (t) => this._draw(t) }) };
   }
-  attached({ chart, series, requestUpdate }) { this._chart = chart; this._series = series; this._req = requestUpdate; }
-  detached() { this._chart = null; this._series = null; this._req = null; }
+  attached({ chart, series, requestUpdate }) {
+    this._chart = chart; this._series = series; this._req = requestUpdate;
+    chart.subscribeCrosshairMove(this._onMove);
+  }
+  detached() {
+    try { this._chart?.unsubscribeCrosshairMove(this._onMove); } catch { /* chart already gone */ }
+    this._chart = null; this._series = null; this._req = null; this._hoverId = null;
+  }
   updateAllViews() {}
   paneViews() { return [this._view]; }
   redraw() { this._req?.(); }
@@ -350,8 +410,9 @@ export class DrawingsPrimitive {
     const st = this._get();
     if (!st?.index?.length) return;
     target.useMediaCoordinateSpace(({ context: ctx, mediaSize }) => {
+      this._size = { width: mediaSize.width, height: mediaSize.height };
       const env = this._env(mediaSize.width, mediaSize.height);
-      for (const d of st.drawings || []) drawOne(ctx, d, env, { selected: d.id === st.selectedId });
+      for (const d of st.drawings || []) drawOne(ctx, d, env, { selected: d.id === st.selectedId, hovered: d.id === this._hoverId });
       if (st.draft) drawOne(ctx, st.draft, env, { ghost: true });
     });
   }
@@ -383,57 +444,111 @@ export class DrawingsPrimitive {
   }
 }
 
-// Journal trade boxes (entry / stop / target) + optional labels.
+// Trade boxes (entry / stop / target) for journal trades, open positions and
+// pending orders. The details (labels with entry, SL and TP) are only drawn while
+// the position is hovered or selected — unless `labels` is switched on by the host.
+//
 // getState() => { index, trades, show, labels }
+// trade: { id?, entryTimeSec, exitTimeSec, entryPrice, stopLoss, takeProfit,
+//          label?, slLabel?, tpLabel?, win?, pending? }
 export class TradesPrimitive {
   constructor(getState) {
     this._get = getState;
     this._chart = null;
     this._series = null;
     this._req = null;
+    this._rects = [];
+    this._hover = null;
+    this._selected = null;
+    this._onMove = (p) => {
+      const key = p?.point ? this.hit(p.point.x, p.point.y) : null;
+      if (key !== this._hover) { this._hover = key; this._req?.(); }
+    };
     this._view = { zOrder: () => 'bottom', renderer: () => ({ draw: (t) => this._draw(t) }) };
   }
-  attached({ chart, series, requestUpdate }) { this._chart = chart; this._series = series; this._req = requestUpdate; }
-  detached() { this._chart = null; this._series = null; this._req = null; }
+  attached({ chart, series, requestUpdate }) {
+    this._chart = chart; this._series = series; this._req = requestUpdate;
+    chart.subscribeCrosshairMove(this._onMove);
+  }
+  detached() {
+    try { this._chart?.unsubscribeCrosshairMove(this._onMove); } catch { /* chart already gone */ }
+    this._chart = null; this._series = null; this._req = null; this._rects = [];
+  }
   updateAllViews() {}
   paneViews() { return [this._view]; }
   redraw() { this._req?.(); }
 
+  select(key) {
+    const next = key ?? null;
+    if (next === this._selected) return;
+    this._selected = next;
+    this._req?.();
+  }
+
+  // Key of the trade box under (x, y), or null.
+  hit(x, y) {
+    for (let i = this._rects.length - 1; i >= 0; i -= 1) {
+      const r = this._rects[i];
+      if (x >= r.x1 - 4 && x <= r.x2 + 4 && y >= r.y1 - 4 && y <= r.y2 + 4) return r.key;
+    }
+    return null;
+  }
+
   _draw(target) {
     if (!this._chart || !this._series) return;
     const st = this._get();
-    if (!st?.show || !st.trades?.length) return;
+    if (!st?.show || !st.trades?.length) { this._rects = []; return; }
     const ts = this._chart.timeScale();
     const s = this._series;
     target.useMediaCoordinateSpace(({ context: ctx }) => {
-      for (const t of st.trades) {
-        if (t.entryTimeSec == null || t.exitTimeSec == null) continue;
+      const rects = [];
+      st.trades.forEach((t, n) => {
+        if (t.entryTimeSec == null || t.exitTimeSec == null) return;
+        const key = t.id ?? `i${n}`;
         const x1 = ts.timeToCoordinate(t.entryTimeSec);
         const x2 = ts.timeToCoordinate(t.exitTimeSec);
-        if (x1 === null || x2 === null) continue;
+        if (x1 === null || x2 === null) return;
         const yE = t.entryPrice ? s.priceToCoordinate(t.entryPrice) : null;
         const yS = t.stopLoss ? s.priceToCoordinate(t.stopLoss) : null;
         const yT = t.takeProfit ? s.priceToCoordinate(t.takeProfit) : null;
+        if (yE === null) return;
         const left = Math.min(x1, x2);
         const w = Math.max(Math.abs(x2 - x1), 2);
+        const active = key === this._hover || key === this._selected;
+        const ys = [yE, yS, yT].filter((v) => v !== null);
+        rects.push({ key, x1: left, x2: left + w, y1: Math.min(...ys), y2: Math.max(...ys) });
+
+        const a = active ? 1.35 : 1;
+        const pend = !!t.pending;
         const box = (y, fill, stroke) => {
           const top = Math.min(yE, y), h = Math.abs(yE - y);
           ctx.fillStyle = fill; ctx.fillRect(left, top, w, h);
-          ctx.strokeStyle = stroke; ctx.lineWidth = 1; ctx.strokeRect(left, top, w, h);
+          ctx.strokeStyle = stroke; ctx.lineWidth = active ? 1.5 : 1;
+          ctx.setLineDash(pend ? [4, 3] : []);
+          ctx.strokeRect(left, top, w, h); ctx.setLineDash([]);
         };
         const line = (y, color, width, dash) => {
           ctx.strokeStyle = color; ctx.lineWidth = width; ctx.setLineDash(dash || []);
           ctx.beginPath(); ctx.moveTo(left, y); ctx.lineTo(left + w, y); ctx.stroke(); ctx.setLineDash([]);
         };
-        if (yE !== null && yT !== null) box(yT, 'rgba(53,196,161,.14)', 'rgba(53,196,161,.4)');
-        if (yE !== null && yS !== null) box(yS, 'rgba(255,92,92,.14)', 'rgba(255,92,92,.4)');
-        if (yT !== null) line(yT, '#35C4A1', 2);
-        if (yS !== null) line(yS, '#FF5C5C', 2);
-        if (yE !== null) line(yE, '#F5B544', 1, [4, 4]);
-        if (st.labels && yE !== null && t.label) {
-          pill(ctx, t.label, left + 4, yE - 12, { bg: t.win === false ? '#FF5C5C' : t.win ? '#35C4A1' : '#F5B544' });
+        const fillA = pend ? 0.08 : 0.14;
+        if (yT !== null) box(yT, `rgba(53,196,161,${Math.min(fillA * a, 0.3)})`, 'rgba(53,196,161,.4)');
+        if (yS !== null) box(yS, `rgba(255,92,92,${Math.min(fillA * a, 0.3)})`, 'rgba(255,92,92,.4)');
+        if (yT !== null) line(yT, '#35C4A1', active ? 2.5 : 2);
+        if (yS !== null) line(yS, '#FF5C5C', active ? 2.5 : 2);
+        line(yE, '#F5B544', active ? 1.5 : 1, [4, 4]);
+
+        if (active || st.labels) {
+          const right = left + w;
+          const dir = yT !== null && yS !== null ? (yT < yE ? 1 : -1) : 1; // 1 = long (target above entry)
+          if (t.label) {
+            pill(ctx, t.label, left + 4, yE - 12, { bg: t.win === false ? '#FF5C5C' : t.win ? '#35C4A1' : '#F5B544' });
+          }
+          if (yT !== null) pill(ctx, t.tpLabel || `TP ${fmtP(t.takeProfit, st.precision ?? 2)}`, right - 4, yT + (dir === 1 ? 12 : -12), { bg: '#35C4A1', align: 'right' });
+          if (yS !== null) pill(ctx, t.slLabel || `SL ${fmtP(t.stopLoss, st.precision ?? 2)}`, right - 4, yS + (dir === 1 ? -12 : 12), { bg: '#FF5C5C', align: 'right' });
         }
-      }
+      });
+      this._rects = rects;
     });
   }
 }

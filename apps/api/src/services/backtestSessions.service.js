@@ -29,6 +29,9 @@ const serializeTrade = (t) => ({
   takeProfit: t.takeProfit,
   commission: t.commission,
   exitReason: t.exitReason,
+  orderType: t.orderType,
+  orderPrice: t.orderPrice,
+  filledAt: t.filledAt,
   strategyId: t.strategyId,
   strategy: t.strategy
     ? { id: t.strategy.id, name: t.strategy.name, color: t.strategy.color }
@@ -38,7 +41,7 @@ const serializeTrade = (t) => ({
   updatedAt: t.updatedAt,
 });
 
-const EMPTY_AGG = { tradesCount: 0, openCount: 0, netPnl: 0 };
+const EMPTY_AGG = { tradesCount: 0, openCount: 0, pendingCount: 0, netPnl: 0 };
 
 const serializeSession = (s, agg = EMPTY_AGG) => ({
   id: s.id,
@@ -58,16 +61,20 @@ const serializeSession = (s, agg = EMPTY_AGG) => ({
   // Always derived from the trade rows — never stored, so they cannot drift.
   tradesCount: agg.tradesCount,
   openCount: agg.openCount,
+  pendingCount: agg.pendingCount,
   netPnl: agg.netPnl,
   currentBalance: +(s.startingBalance + agg.netPnl).toFixed(2),
 });
 
-/** Aggregates for many sessions in two grouped queries. */
+// A row is a PENDING ORDER when it is a limit/stop order that has not been filled yet.
+const PENDING = { orderType: { not: 'market' }, filledAt: null };
+
+/** Aggregates for many sessions in a few grouped queries. */
 async function aggregateFor(sessionIds) {
   const map = new Map();
   if (sessionIds.length === 0) return map;
 
-  const [all, open] = await Promise.all([
+  const [all, open, pending] = await Promise.all([
     prisma.backtestTrade.groupBy({
       by: ['sessionId'],
       where: { sessionId: { in: sessionIds } },
@@ -76,7 +83,12 @@ async function aggregateFor(sessionIds) {
     }),
     prisma.backtestTrade.groupBy({
       by: ['sessionId'],
-      where: { sessionId: { in: sessionIds }, exitTime: null },
+      where: { sessionId: { in: sessionIds }, exitTime: null, NOT: PENDING },
+      _count: { _all: true },
+    }),
+    prisma.backtestTrade.groupBy({
+      by: ['sessionId'],
+      where: { sessionId: { in: sessionIds }, exitTime: null, ...PENDING },
       _count: { _all: true },
     }),
   ]);
@@ -85,12 +97,17 @@ async function aggregateFor(sessionIds) {
     map.set(g.sessionId, {
       tradesCount: g._count._all,
       openCount: 0,
+      pendingCount: 0,
       netPnl: +((g._sum.pnl || 0) - (g._sum.commission || 0)).toFixed(2),
     });
   }
   for (const g of open) {
     const cur = map.get(g.sessionId);
     if (cur) cur.openCount = g._count._all;
+  }
+  for (const g of pending) {
+    const cur = map.get(g.sessionId);
+    if (cur) cur.pendingCount = g._count._all;
   }
   return map;
 }
@@ -114,6 +131,44 @@ async function requireStrategy(userId, strategyId) {
 
 const dupName = (name) => `A session named "${name}" already exists.`;
 
+/* ──────────────────────────── data availability ──────────────────────────── */
+
+const dayOf = (d) => new Date(d).toISOString().slice(0, 10);
+
+/**
+ * What the replay can actually run on: the contiguous window stored per (symbol, interval)
+ * in market_bar_coverage. Dates are returned as UTC YYYY-MM-DD.
+ */
+export async function getAvailability() {
+  const rows = await prisma.marketBarCoverage.findMany({
+    select: { symbol: true, interval: true, fromTime: true, toTime: true },
+    orderBy: [{ symbol: 'asc' }, { interval: 'asc' }],
+  });
+  return rows
+    .filter((r) => r.fromTime && r.toTime && r.toTime > r.fromTime)
+    .map((r) => ({ symbol: r.symbol, interval: r.interval, from: dayOf(r.fromTime), to: dayOf(r.toTime) }));
+}
+
+async function assertDataAvailable({ instruments, interval, fromDate, toDate }) {
+  const rows = await prisma.marketBarCoverage.findMany({
+    where: { symbol: { in: instruments }, interval },
+    select: { symbol: true, fromTime: true, toTime: true },
+  });
+  const bySym = new Map(rows.map((r) => [r.symbol, r]));
+  for (const sym of instruments) {
+    const c = bySym.get(sym);
+    if (!c || !c.fromTime || !c.toTime) {
+      throw new HttpError(400, `No ${interval} data is available for ${sym}.`);
+    }
+    if (fromDate < dayOf(c.fromTime) || toDate > dayOf(c.toTime)) {
+      throw new HttpError(
+        400,
+        `${sym} ${interval} data is only available from ${dayOf(c.fromTime)} to ${dayOf(c.toTime)}.`,
+      );
+    }
+  }
+}
+
 /* ───────────────────────────── sessions ───────────────────────────── */
 
 export async function listSessions(userId, { status } = {}) {
@@ -134,6 +189,7 @@ export async function getSession(userId, id) {
 }
 
 export async function createSession(userId, data) {
+  await assertDataAvailable(data);
   try {
     const s = await prisma.backtestSession.create({
       data: {
@@ -258,11 +314,22 @@ export async function createTrade(userId, sessionId, data) {
   const takeProfit = data.takeProfit ?? null;
   assertBrackets({ side: data.side, entryPrice: data.entryPrice, stopLoss, takeProfit });
 
-  const openSame = await prisma.backtestTrade.findFirst({
+  // One live position OR resting order per symbol (pending orders have no exitTime either).
+  const active = await prisma.backtestTrade.findFirst({
     where: { sessionId, symbol: data.symbol, exitTime: null },
-    select: { id: true },
+    select: { orderType: true, filledAt: true },
   });
-  if (openSame) throw new HttpError(409, `You already have an open ${data.symbol} position. Close it first.`);
+  if (active) {
+    const pending = active.orderType !== 'market' && !active.filledAt;
+    throw new HttpError(
+      409,
+      pending
+        ? `You already have a pending ${data.symbol} order. Cancel it first.`
+        : `You already have an open ${data.symbol} position. Close it first.`,
+    );
+  }
+  const orderType = data.orderType || 'market';
+  const pendingOrder = orderType !== 'market';
 
   try {
     const t = await prisma.backtestTrade.create({
@@ -273,6 +340,9 @@ export async function createTrade(userId, sessionId, data) {
         side: data.side,
         entryTime: new Date(data.entryTime),
         entryPrice: data.entryPrice,
+        orderType,
+        orderPrice: pendingOrder ? data.entryPrice : null,
+        filledAt: pendingOrder ? null : new Date(data.entryTime),
         quantity: data.quantity,
         stopLoss,
         takeProfit,
@@ -301,7 +371,22 @@ export async function updateTrade(userId, sessionId, tradeId, patch) {
   if (!trade) throw new HttpError(404, 'Trade not found');
 
   const isClosed = trade.exitTime != null;
+  const isPending = !isClosed && trade.orderType !== 'market' && !trade.filledAt;
   const data = {};
+
+  // Pending -> open: the replay reached the order price.
+  if (patch.fillTime !== undefined || patch.fillPrice !== undefined) {
+    if (!isPending) throw new HttpError(409, 'This order is not pending.');
+    if (patch.fillTime === undefined || patch.fillPrice === undefined) {
+      throw new HttpError(400, 'fillTime and fillPrice are required together');
+    }
+    const fillTime = new Date(patch.fillTime);
+    if (fillTime < trade.entryTime) throw new HttpError(400, 'Fill can’t be before the order was placed');
+    data.entryTime = fillTime;
+    data.entryPrice = patch.fillPrice;
+    data.filledAt = fillTime;
+    data.slPoints = slPointsFrom(patch.fillPrice, trade.stopLoss);
+  }
 
   if (patch.notes !== undefined) data.notes = patch.notes;
   if (patch.commission !== undefined) data.commission = patch.commission;
@@ -316,6 +401,7 @@ export async function updateTrade(userId, sessionId, tradeId, patch) {
   if ((wantsExit || wantsBrackets) && isClosed) {
     throw new HttpError(409, 'This trade is already closed.');
   }
+  if (wantsExit && isPending) throw new HttpError(409, 'Cancel the pending order instead of closing it.');
 
   if (wantsBrackets) {
     const stopLoss = patch.stopLoss !== undefined ? patch.stopLoss : trade.stopLoss;

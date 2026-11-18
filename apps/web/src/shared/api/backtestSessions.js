@@ -7,6 +7,7 @@ export const backtestKeys = {
   list: (filters) => ['backtest-sessions', 'list', filters || {}],
   detail: (id) => ['backtest-sessions', 'detail', id],
   trades: (id) => ['backtest-sessions', 'trades', id],
+  availability: () => ['backtest-sessions', 'availability'],
 };
 
 const enc = encodeURIComponent;
@@ -16,6 +17,9 @@ const enc = encodeURIComponent;
 export async function getBacktestSessions({ status } = {}) {
   const qs = status ? `?status=${enc(status)}` : '';
   return (await apiJson(`/api/backtest-sessions${qs}`)).sessions;
+}
+export async function getBacktestAvailability() {
+  return (await apiJson('/api/backtest-sessions/availability')).availability;
 }
 export async function getBacktestSession(id) {
   return (await apiJson(`/api/backtest-sessions/${enc(id)}`)).session;
@@ -59,6 +63,16 @@ export function useBacktestSessions({ status, enabled = true } = {}) {
     staleTime: 15_000,
     placeholderData: keepPreviousData,
     refetchInterval: sseFallback ? 30_000 : false,
+  });
+}
+
+/** Which (symbol, interval) pairs have bars ready to replay, and for which dates. */
+export function useBacktestAvailability({ enabled = true } = {}) {
+  return useQuery({
+    queryKey: backtestKeys.availability(),
+    queryFn: getBacktestAvailability,
+    enabled,
+    staleTime: 60_000,
   });
 }
 

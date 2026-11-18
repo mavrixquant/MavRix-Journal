@@ -37,7 +37,7 @@ function ProgressSlider({ idx, last, min, onCommit, disabled }) {
 }
 
 export default function ReplayToolbar({
-  engine, baseInterval, viewInterval, onViewInterval, tz, currentBar, onSide, ticketSide, disabled,
+  engine, baseInterval, viewInterval, onViewInterval, tz, currentBar, onArm, tool, disabled, range,
 }) {
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
@@ -56,7 +56,10 @@ export default function ReplayToolbar({
   const go = (e) => {
     e.preventDefault();
     if (!date) return;
-    const utc = tradeTimeToUtcSeconds(date, time || '00:00', tz);
+    // Only dates that have data can be jumped to.
+    const day = range ? (date < range.min ? range.min : date > range.max ? range.max : date) : date;
+    if (day !== date) setDate(day);
+    const utc = tradeTimeToUtcSeconds(day, time || '00:00', tz);
     if (utc != null) engine.jumpToTime(utc);
   };
 
@@ -96,7 +99,7 @@ export default function ReplayToolbar({
       />
 
       <form className="rp-jump" onSubmit={go}>
-        <input type="date" value={date} onChange={(e) => setDate(e.target.value)} aria-label="Jump to date" />
+        <input type="date" value={date} min={range?.min} max={range?.max} onChange={(e) => setDate(e.target.value)} aria-label="Jump to date" title={range ? `Available ${range.min} → ${range.max}` : undefined} />
         <input type="time" value={time} onChange={(e) => setTime(e.target.value)} aria-label="Jump to time" />
         <button type="submit" className="rp-btn" disabled={off || !engine.writable}>Go</button>
       </form>
@@ -108,8 +111,8 @@ export default function ReplayToolbar({
       </div>
 
       <div className="rp-group rp-order-btns">
-        <button type="button" className={`rp-buy${ticketSide === 'long' ? ' is-on' : ''}`} onClick={() => onSide('long')} disabled={off || !engine.writable}>Buy</button>
-        <button type="button" className={`rp-sell${ticketSide === 'short' ? ' is-on' : ''}`} onClick={() => onSide('short')} disabled={off || !engine.writable}>Sell</button>
+        <button type="button" className={`rp-buy${tool === 'rrLong' ? ' is-on' : ''}`} onClick={() => onArm(tool === 'rrLong' ? 'cursor' : 'rrLong')} disabled={off || !engine.writable} title="Click the chart to place a long position">Long</button>
+        <button type="button" className={`rp-sell${tool === 'rrShort' ? ' is-on' : ''}`} onClick={() => onArm(tool === 'rrShort' ? 'cursor' : 'rrShort')} disabled={off || !engine.writable} title="Click the chart to place a short position">Short</button>
       </div>
     </div>
   );

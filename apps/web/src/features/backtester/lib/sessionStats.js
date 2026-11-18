@@ -1,5 +1,6 @@
 import { getPointValue } from '@mavrix/shared';
 import { dayKey, toMs } from './time';
+import { isPending } from './orders';
 
 /* ============================================================================
    Session statistics — recomputed from raw trade rows every time.
@@ -40,7 +41,7 @@ function bySlice(rows, keyFn) {
 
 export function emptyStats(startingBalance = 0) {
   return {
-    n: 0, openCount: 0, wins: 0, losses: 0, breakeven: 0,
+    n: 0, openCount: 0, pendingCount: 0, wins: 0, losses: 0, breakeven: 0,
     winRate: 0, netPnl: 0, grossProfit: 0, grossLoss: 0, profitFactor: 0,
     avgWin: 0, avgLoss: 0, expectancy: 0, payoff: 0,
     largestWin: null, largestLoss: null,
@@ -60,8 +61,9 @@ export function computeSessionStats(trades, session, { tz } = {}) {
   const start = Number(session?.startingBalance) || 0;
   const all = Array.isArray(trades) ? trades : [];
   const closed = all.filter(isClosed).sort((a, b) => toMs(a.exitTime) - toMs(b.exitTime));
-  const openCount = all.length - closed.length;
-  if (closed.length === 0) return { ...emptyStats(start), openCount };
+  const pendingCount = all.filter(isPending).length;
+  const openCount = all.length - closed.length - pendingCount;
+  if (closed.length === 0) return { ...emptyStats(start), openCount, pendingCount };
 
   const rows = closed.map((t) => ({
     t,
@@ -156,7 +158,7 @@ export function computeSessionStats(trades, session, { tz } = {}) {
   const holds = rows.map((r) => r.holdMin).filter(Number.isFinite);
 
   return {
-    n, openCount,
+    n, openCount, pendingCount,
     wins: winsR.length, losses: lossR.length, breakeven: n - winsR.length - lossR.length,
     winRate, netPnl, grossProfit, grossLoss, profitFactor, avgWin, avgLoss, expectancy, payoff,
     largestWin: winsR.length ? Math.max(...winsR.map((r) => r.net)) : null,

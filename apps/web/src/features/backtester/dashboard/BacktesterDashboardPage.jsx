@@ -120,8 +120,8 @@ export default function BacktesterDashboardPage() {
               </Link>
               {session.status === 'active' ? (
                 <button type="button" className="hdr-btn" onClick={() => setStatus('completed', 'Session concluded')}
-                  disabled={updateM.isPending || stats.openCount > 0}
-                  title={stats.openCount > 0 ? 'Close open positions in the replay first (or use Conclude there)' : 'Lock trades and mark as completed'}>
+                  disabled={updateM.isPending || stats.openCount > 0 || stats.pendingCount > 0}
+                  title={stats.openCount + stats.pendingCount > 0 ? 'Close open positions and cancel pending orders in the replay first (or use Conclude there)' : 'Lock trades and mark as completed'}>
                   <Flag size={14} /> Conclude
                 </button>
               ) : (

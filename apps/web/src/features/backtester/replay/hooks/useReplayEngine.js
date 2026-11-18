@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { evaluatePropRules } from '../../lib/propRules';
 import { checkFill, newTradeId, unrealisedPnl } from '../../lib/replayMath';
+import { checkOrderFill, deriveOrderType, isOpenPosition, isPending, orderLabel } from '../../lib/orders';
 import { snapToBar, toMs } from '../../lib/time';
 
 export const SPEEDS = [1, 2, 5, 10, 25, 50];
@@ -17,7 +18,7 @@ const WARMUP_BARS = 80;
 export default function useReplayEngine({
   session, symbol, bars, trades, tz,
   createTrade, updateTrade, deleteTrade, updateSession,
-  onConcluded,
+  onConcluded, precision = 2,
 }) {
   const last = bars.length - 1;
   const [idx, setIdxState] = useState(-1);
@@ -31,6 +32,8 @@ export default function useReplayEngine({
   const sessionRef = useRef(session);
   const symbolRef = useRef(symbol);
   const tzRef = useRef(tz);
+  const precisionRef = useRef(precision);
+  precisionRef.current = precision;
   const closingRef = useRef(new Set());
   const cursorTimeRef = useRef(null);
   const savedCursorRef = useRef(null);
@@ -108,10 +111,15 @@ export default function useReplayEngine({
   const currentBar = safeIdx >= 0 ? bars[safeIdx] : null;
   const endReached = bars.length > 0 && safeIdx >= last;
 
-  const openPositions = useMemo(() => trades.filter((t) => !t.exitTime), [trades]);
+  const openPositions = useMemo(() => trades.filter(isOpenPosition), [trades]);
+  const pendingOrders = useMemo(() => trades.filter(isPending), [trades]);
   const openPosition = useMemo(
     () => openPositions.find((t) => t.symbol === symbol) || null,
     [openPositions, symbol],
+  );
+  const pendingOrder = useMemo(
+    () => pendingOrders.find((t) => t.symbol === symbol) || null,
+    [pendingOrders, symbol],
   );
 
   const openPnl = useMemo(() => {
@@ -162,8 +170,39 @@ export default function useReplayEngine({
 
     for (let i = cur + 1; i <= t; i += 1) {
       const bar = b[i];
+
+      // 1) Resting limit / stop orders (never on the bar they were placed on).
+      const resting = tradesRef.current.filter(
+        (x) => isPending(x) && x.symbol === sym && !closingRef.current.has(x.tradeId),
+      );
+      for (const ord of resting) {
+        if (toMs(ord.entryTime) / 1000 >= bar.utc) continue;
+        const hit = checkOrderFill(ord, bar);
+        if (hit) {
+          setIdx(i);
+          setPlaying(false);
+          closingRef.current.add(ord.tradeId);
+          try {
+            await updateTrade({
+              tradeId: ord.tradeId,
+              patch: { fillTime: new Date(bar.utc * 1000).toISOString(), fillPrice: hit.price },
+            });
+            toast(`${orderLabel(ord.side, ord.orderType)} filled`, {
+              description: `${ord.symbol} × ${ord.quantity} @ ${hit.price}`,
+            });
+            saveCursor();
+          } catch (e) {
+            toast.error(e?.message || 'Could not fill the order.');
+          } finally {
+            closingRef.current.delete(ord.tradeId);
+          }
+          return; // a fill never exits on the same bar
+        }
+      }
+
+      // 2) Live positions: stop / target.
       const opens = tradesRef.current.filter(
-        (x) => !x.exitTime && x.symbol === sym && !closingRef.current.has(x.tradeId),
+        (x) => isOpenPosition(x) && x.symbol === sym && !closingRef.current.has(x.tradeId),
       );
 
       for (const pos of opens) {
@@ -196,7 +235,7 @@ export default function useReplayEngine({
       }
     }
     setIdx(t);
-  }, [closePosition, saveCursor, setIdx]);
+  }, [closePosition, saveCursor, setIdx, updateTrade]);
 
   const step = useCallback((dir) => advanceTo(idxRef.current + dir), [advanceTo]);
 
@@ -249,6 +288,11 @@ export default function useReplayEngine({
   const toggle = useCallback(() => (playing ? pause() : play()), [playing, pause, play]);
 
   /* -------------------------------- orders -------------------------------- */
+  /**
+   * Place a position drawn on the chart. The entry price decides the order type:
+   * at the last price -> market, otherwise a limit or stop order that rests until
+   * the replay reaches it.
+   */
   const placeOrder = useCallback(async (o) => {
     const s = sessionRef.current;
     const bar = barsRef.current[idxRef.current];
@@ -257,18 +301,19 @@ export default function useReplayEngine({
     setPlaying(false);
     setBusy(true);
     try {
+      const orderType = deriveOrderType({
+        side: o.side, entry: o.entry, last: bar.close, precision: precisionRef.current,
+      });
       const trade = await createTrade({
         tradeId: newTradeId(),
         symbol: symbolRef.current,
         side: o.side,
         entryTime: new Date(bar.utc * 1000).toISOString(),
-        entryPrice: bar.close,
+        entryPrice: orderType === 'market' ? bar.close : o.entry,
+        orderType,
         quantity: o.quantity,
         stopLoss: o.stopLoss ?? null,
         takeProfit: o.takeProfit ?? null,
-        commission: o.commission || null,
-        strategyId: o.strategyId || null,
-        notes: o.notes || '',
       });
       saveCursor();
       return trade;
@@ -276,6 +321,15 @@ export default function useReplayEngine({
       setBusy(false);
     }
   }, [createTrade, saveCursor]);
+
+  const cancelOrder = useCallback(async (trade) => {
+    setBusy(true);
+    try {
+      await deleteTrade(trade.tradeId);
+    } finally {
+      setBusy(false);
+    }
+  }, [deleteTrade]);
 
   const closeManual = useCallback(async (trade) => {
     const bar = barsRef.current[idxRef.current];
@@ -291,15 +345,6 @@ export default function useReplayEngine({
     }
   }, [closePosition, saveCursor]);
 
-  const updateBrackets = useCallback(async (trade, { stopLoss, takeProfit }) => {
-    setBusy(true);
-    try {
-      return await updateTrade({ tradeId: trade.tradeId, patch: { stopLoss, takeProfit } });
-    } finally {
-      setBusy(false);
-    }
-  }, [updateTrade]);
-
   /* ----------------------------- end of session ----------------------------- */
   const finishSession = useCallback(async (reason, status = 'completed') => {
     if (concludingRef.current) return;
@@ -309,7 +354,8 @@ export default function useReplayEngine({
     try {
       const s = sessionRef.current;
       const bar = barsRef.current[idxRef.current];
-      const opens = tradesRef.current.filter((t) => !t.exitTime);
+      for (const o of tradesRef.current.filter(isPending)) await deleteTrade(o.tradeId);
+      const opens = tradesRef.current.filter(isOpenPosition);
       for (const t of opens) {
         const onThis = t.symbol === symbolRef.current && bar;
         await closePosition(
@@ -335,7 +381,7 @@ export default function useReplayEngine({
     } finally {
       setBusy(false);
     }
-  }, [closePosition, updateSession, onConcluded]);
+  }, [closePosition, deleteTrade, updateSession, onConcluded]);
 
   const conclude = useCallback(() => finishSession('conclude'), [finishSession]);
 
@@ -383,8 +429,8 @@ export default function useReplayEngine({
     idx: safeIdx, last, currentBar, endReached, minIdx,
     playing, play, pause, toggle, speed, setSpeed,
     step, jumpToTime, advanceTo, reset,
-    openPosition, openPositions, openPnl, prop,
-    placeOrder, closeManual, updateBrackets, conclude,
+    openPosition, openPositions, pendingOrder, pendingOrders, openPnl, prop,
+    placeOrder, cancelOrder, closeManual, conclude,
     busy, writable,
   };
 }

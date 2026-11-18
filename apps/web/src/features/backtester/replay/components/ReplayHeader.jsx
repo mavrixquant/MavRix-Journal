@@ -1,11 +1,12 @@
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Flag, PanelRight } from 'lucide-react';
+import { ArrowLeft, Flag, Maximize2, Minimize2, PanelRight } from 'lucide-react';
 import { fmtMoney, fmtSigned, toneOf } from '../../lib/format';
 import { fmtDateTime } from '../../lib/time';
 
 export default function ReplayHeader({
   session, symbol, onSymbol, canSwitch, currentBar, precision, tz,
   balance, equity, onConclude, concludeDisabled, panelOpen, onTogglePanel, propLabel,
+  fullscreen, onToggleFullscreen,
 }) {
   const cur = session.currency;
   const floating = equity - balance;
@@ -61,6 +62,16 @@ export default function ReplayHeader({
       <div className="rp-head-actions">
         <button type="button" className="rp-btn" onClick={onConclude} disabled={concludeDisabled} title="Close open positions and end the session">
           <Flag size={14} /><span>Conclude</span>
+        </button>
+        <button
+          type="button"
+          className={`rp-icon${fullscreen ? ' is-on' : ''}`}
+          onClick={onToggleFullscreen}
+          aria-pressed={fullscreen}
+          aria-label={fullscreen ? 'Exit full screen' : 'Full screen'}
+          title={fullscreen ? 'Exit full screen (F)' : 'Full screen (F)'}
+        >
+          {fullscreen ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
         </button>
         <button
           type="button"

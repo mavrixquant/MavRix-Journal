@@ -135,6 +135,24 @@ export const REPLAY_CSS = `
   .rp-spinner { width: 26px; height: 26px; border-radius: 50%; border: 2px solid rgba(255,255,255,.12); border-top-color: var(--accent); animation: rpSpin .8s linear infinite; }
   @keyframes rpSpin { to { transform: rotate(360deg); } }
 
+  /* ---------- full screen ---------- */
+  .rp-root.is-fs { position: fixed; inset: 0; z-index: 2500; width: 100vw; height: 100dvh !important; max-height: none !important; margin: 0; border-radius: 0; background: #0A0D13; }
+  .rp-root.is-fs .mk-shell { height: 100%; }
+
+  /* ---------- order panel (position-based) ---------- */
+  .rp-guide { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; color: var(--rp-ink-2); font-size: 12px; line-height: 1.55; }
+  .rp-guide svg { color: var(--accent); } .rp-guide p { margin: 0; } .rp-guide b { color: var(--rp-ink); }
+  .rp-guide .rp-two { width: 100%; }
+  .rp-guide .rp-buy, .rp-guide .rp-sell { height: 36px; }
+  .rp-planhead { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .rp-planhead b { font: 700 13px 'Space Grotesk', Inter, sans-serif; } .rp-planhead em { font: 500 10.5px 'IBM Plex Mono', monospace; font-style: normal; color: var(--rp-ink-3); }
+  .rp-kv b i { font-style: normal; font-weight: 500; color: var(--rp-ink-3); margin-left: 4px; font-size: 10.5px; }
+  .rp-wide { width: 100%; justify-content: center; }
+  .rp-pend { border-color: color-mix(in srgb, var(--accent) 35%, transparent); background: color-mix(in srgb, var(--accent) 6%, transparent); }
+  .rp-pend header { display: flex; align-items: center; gap: 8px; } .rp-pend header em { font: 500 11px 'IBM Plex Mono', monospace; font-style: normal; color: var(--rp-ink-2); }
+  .rp-card.is-selected { box-shadow: 0 0 0 1px var(--accent); }
+  .rp-sub { margin: 0; font-size: 11.5px; color: var(--rp-ink-3); }
+
   @media (max-width: 1100px) { .rp-acct { display: none; } .rp-order-btns { margin-left: 0; } }
   @media (max-width: 768px) {
     .rp-hud { right: 10px; top: 8px; width: 190px; }

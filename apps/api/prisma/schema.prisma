@@ -682,6 +682,9 @@ model BacktestTrade {
   stopLoss   Float?
   commission Float?
   exitReason String? // manual | sl | tp | prop_breach | conclude
+  orderType  String    @default("market") // market | limit | stop
+  orderPrice Float?                        // resting price of a pending order
+  filledAt   DateTime?                     // set when a pending order triggers
   strategyId String?
   notes      String    @default("")
   dynamic    Json      @default("{}")

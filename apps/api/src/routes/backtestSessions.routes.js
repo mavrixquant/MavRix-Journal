@@ -32,6 +32,8 @@ const sessionWriteLimit = rateLimit({
   message: 'Too many session updates. Slow down.',
 });
 
+// Must stay above '/:id'
+backtestSessionsRoutes.get('/availability', ctrl.availability);
 backtestSessionsRoutes.get('/', ctrl.list);
 backtestSessionsRoutes.post('/', sessionWriteLimit, validate(backtestSessionSchema), ctrl.create);
 

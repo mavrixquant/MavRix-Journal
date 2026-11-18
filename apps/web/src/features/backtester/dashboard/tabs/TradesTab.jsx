@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { useDeleteBacktestTrade } from '@/shared/api/backtestSessions';
 import { fmtNum, fmtR, fmtSigned, toneOf } from '../../lib/format';
 import { isClosed, netOf, rOf } from '../../lib/sessionStats';
+import { isPending, orderLabel } from '../../lib/orders';
 import { toJournalTrade } from '../../lib/toJournalTrade';
 
 const COLS = [
@@ -51,7 +52,8 @@ export default function TradesTab({ session, trades, tz }) {
       .filter((r) => (symbol === 'all' || r.t.symbol === symbol)
         && (side === 'all' || r.t.side === side)
         && (result === 'all'
-          || (result === 'open' && r.net == null)
+          || (result === 'open' && r.net == null && !isPending(r.t))
+          || (result === 'pending' && isPending(r.t))
           || (result === 'win' && r.net != null && r.net > 0)
           || (result === 'loss' && r.net != null && r.net < 0)))
       .sort((a, b) => {
@@ -98,7 +100,7 @@ export default function TradesTab({ session, trades, tz }) {
           <option value="all">Long &amp; short</option><option value="long">Long</option><option value="short">Short</option>
         </select>
         <select className="bt-input is-sm" value={result} onChange={(e) => setResult(e.target.value)} aria-label="Result">
-          <option value="all">All results</option><option value="win">Winners</option><option value="loss">Losers</option><option value="open">Open</option>
+          <option value="all">All results</option><option value="win">Winners</option><option value="loss">Losers</option><option value="open">Open</option><option value="pending">Pending</option>
         </select>
         <span className="bt-grow" />
         <span className="bt-count">{filtered.length} of {rows.length}</span>
@@ -131,7 +133,7 @@ export default function TradesTab({ session, trades, tz }) {
                   <td><b>{r.t.symbol}</b></td>
                   <td><span className={`rp-side-tag ${r.t.side === 'short' ? 'is-short' : 'is-long'}`}>{r.t.side === 'short' ? 'SHORT' : 'LONG'}</span></td>
                   <td>{r.j.date} <em>{r.j.entryTime}</em></td>
-                  <td>{r.t.exitTime ? <>{r.j.exitDate} <em>{r.j.exitTime}</em></> : <span className="bt-open">open</span>}</td>
+                  <td>{r.t.exitTime ? <>{r.j.exitDate} <em>{r.j.exitTime}</em></> : isPending(r.t) ? <span className="bt-open">{orderLabel(r.t.side, r.t.orderType)}</span> : <span className="bt-open">open</span>}</td>
                   <td className="num">{r.t.quantity}</td>
                   <td className="num">{fmtNum(r.t.entryPrice)}</td>
                   <td className="num">{r.t.exitPrice != null ? fmtNum(r.t.exitPrice) : '—'}</td>

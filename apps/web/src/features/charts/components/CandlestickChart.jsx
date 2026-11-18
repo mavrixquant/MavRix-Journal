@@ -10,7 +10,7 @@ import EmptyState from '@/shared/components/EmptyState';
 import { chartTheme, alpha } from '../lib/chartTheme';
 import { INDICATORS, heikinAshi } from '../lib/indicators';
 import {
-  DrawingsPrimitive, TradesPrimitive, TOOL_BY_ID, TOOL_HINTS, DRAW_COLORS, buildIndex, newId,
+  DrawingsPrimitive, TradesPrimitive, TOOL_BY_ID, TOOL_HINTS, DRAW_COLORS, buildIndex, newId, rrNormalize,
 } from '../lib/drawings';
 
 const num = (v) => Number(v);
@@ -72,7 +72,7 @@ const CandlestickChart = forwardRef(function CandlestickChart({
   showVolume = true, logScale = false, magnet = false,
   tool = 'cursor', onToolChange,
   drawings = [], onDrawingsChange, selectedId = null, onSelect, drawColor = '#F5B544',
-  markers = [], trades = [], showTrades = true, showTradeLabels = false,
+  markers = [], trades = [], showTrades = true, showTradeLabels = false, onSelectTrade,
   focus = null, fitKey = null, fitMode = 'recent',
   hasMoreOlder = false, onRequestOlder, displayOffset = 0, onAtEdgeChange,
   loading = false,
@@ -96,7 +96,7 @@ const CandlestickChart = forwardRef(function CandlestickChart({
   const propsRef = useRef({});
   propsRef.current = {
     tool, magnet, drawings, selectedId, drawColor, displayOffset, precision, trades, showTrades, showTradeLabels,
-    onToolChange, onDrawingsChange, onSelect, onAtEdgeChange, interval,
+    onToolChange, onDrawingsChange, onSelect, onSelectTrade, onAtEdgeChange, interval,
   };
 
   const drawPrimRef = useRef(null);
@@ -119,6 +119,7 @@ const CandlestickChart = forwardRef(function CandlestickChart({
       trades: propsRef.current.trades,
       show: propsRef.current.showTrades,
       labels: propsRef.current.showTradeLabels,
+      precision: propsRef.current.precision,
     }));
   }
 
@@ -215,11 +216,43 @@ const CandlestickChart = forwardRef(function CandlestickChart({
       const { tool: tl, drawings: list, drawColor: color } = propsRef.current;
       if (tl === 'cursor') {
         const id = drawPrimRef.current.hit(p.point.x, p.point.y, paneSize());
-        propsRef.current.onSelect?.(id);
+        if (id) {
+          tradePrimRef.current.select(null);
+          propsRef.current.onSelectTrade?.(null);
+          propsRef.current.onSelect?.(id);
+          return;
+        }
+        // No drawing under the cursor: maybe a position / order box.
+        const tid = tradePrimRef.current.hit(p.point.x, p.point.y);
+        tradePrimRef.current.select(tid);
+        propsRef.current.onSelectTrade?.(tid);
+        propsRef.current.onSelect?.(null);
         return;
       }
       const pt = resolvePoint(p.point);
       if (!pt) return;
+
+      // One-click long / short position: entry at the click, stop and target at default distances.
+      if (tl === 'rrLong' || tl === 'rrShort') {
+        const s = mainRef.current;
+        const long = tl === 'rrLong';
+        const logical = chart.timeScale().coordinateToLogical(p.point.x);
+        const yE = p.point.y;
+        const dy = 56;
+        const slP = s.coordinateToPrice(yE + (long ? dy : -dy));
+        const tpP = s.coordinateToPrice(yE + (long ? -dy * 2 : dy * 2));
+        if (logical == null || slP == null || tpP == null) return;
+        const tEnd = Math.round(indexRef.current.toSec(logical + 28) - propsRef.current.displayOffset);
+        const d = {
+          id: newId(), type: 'rr', color,
+          pts: [pt, { t: tEnd, p: slP }, { t: tEnd, p: tpP }],
+        };
+        propsRef.current.onDrawingsChange?.([...list, d]);
+        propsRef.current.onSelect?.(d.id);
+        propsRef.current.onToolChange?.('cursor');
+        drawPrimRef.current.redraw();
+        return;
+      }
       if (tl === 'measure') {
         const dr = draftRef.current;
         if (!dr || dr.frozen) draftRef.current = { id: 'draft', type: 'measure', pts: [pt], cursor: pt, frozen: false };
@@ -266,7 +299,14 @@ const CandlestickChart = forwardRef(function CandlestickChart({
       if (dr.mode === 'anchor') {
         const pt = resolvePoint(p);
         if (!pt) return;
-        dr.pts = dr.orig.map((q, i) => (i === dr.index ? pt : { t: q.t, p: q.p }));
+        const target = propsRef.current.drawings.find((v) => v.id === dr.id);
+        if (target?.type === 'rr' && dr.orig.length === 3) {
+          // Positions keep their time span; handles only change price levels.
+          const next = dr.orig.map((q, i) => ({ t: q.t, p: i === dr.index ? pt.p : q.p }));
+          dr.pts = rrNormalize(next, dr.index);
+        } else {
+          dr.pts = dr.orig.map((q, i) => (i === dr.index ? pt : { t: q.t, p: q.p }));
+        }
       } else {
         const logical = chart.timeScale().coordinateToLogical(p.x);
         const price = s.coordinateToPrice(p.y);
@@ -508,6 +548,8 @@ const CandlestickChart = forwardRef(function CandlestickChart({
   useEffect(() => { drawPrimRef.current.redraw(); }, [drawings, selectedId, displayOffset, chartType, precision]);
   useEffect(() => { tradePrimRef.current.redraw(); }, [trades, showTrades, showTradeLabels, chartType, precision]);
   useEffect(() => { draftRef.current = null; drawPrimRef.current.redraw(); }, [tool]);
+  // Selecting a drawing clears the selected position box (and vice versa is handled on click).
+  useEffect(() => { if (selectedId) tradePrimRef.current.select(null); }, [selectedId]);
   useEffect(() => { draftRef.current = null; }, [symbol]);
 
   useEffect(() => {
@@ -639,3 +681,5 @@ const CandlestickChart = forwardRef(function CandlestickChart({
 });
 
 export default CandlestickChart;
+
+

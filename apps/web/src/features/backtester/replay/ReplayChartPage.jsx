@@ -25,6 +25,7 @@ import PropHud from './components/PropHud';
 import useReplayBars from './hooks/useReplayBars';
 import useReplayEngine from './hooks/useReplayEngine';
 import { netOf, isClosed } from '../lib/sessionStats';
+import { dayKey } from '../lib/time';
 import { REPLAY_CSS } from './replayStyles';
 
 const EMPTY = [];
@@ -86,6 +87,7 @@ export default function ReplayChartPage() {
     updateTrade: updateM.mutateAsync,
     deleteTrade: deleteM.mutateAsync,
     updateSession: sessionM.mutateAsync,
+    precision,
     onConcluded: (reason) => {
       toast(reason === 'prop_breach' ? 'Session ended: prop rule breached.' : 'Session concluded.');
       navigate(`/backtester/${sessionId}`);
@@ -95,23 +97,53 @@ export default function ReplayChartPage() {
   /* ------------------------------ ui state ------------------------------ */
   const [panelOpen, setPanelOpen] = useState(true);
   const [drawer, setDrawer] = useState(false);
-  const [side, setSide] = useState('long');
+  const [selectedTradeId, setSelectedTradeId] = useState(null);
+  const activeOrders = engine.openPositions.length + engine.pendingOrders.length;
+
+  /* ------------------------------ full screen ------------------------------ */
+  const [fs, setFs] = useState(false);
+  const nativeFs = useRef(false);
+  const toggleFs = useCallback(async () => {
+    if (!fs) {
+      setFs(true);
+      try {
+        if (document.fullscreenEnabled && !document.fullscreenElement) {
+          await document.documentElement.requestFullscreen();
+          nativeFs.current = true;
+        }
+      } catch { nativeFs.current = false; } // CSS-only full screen (e.g. iOS)
+    } else {
+      setFs(false);
+      nativeFs.current = false;
+      if (document.fullscreenElement) { try { await document.exitFullscreen(); } catch { /* already out */ } }
+    }
+  }, [fs]);
+  useEffect(() => {
+    const onChange = () => {
+      if (!document.fullscreenElement && nativeFs.current) { nativeFs.current = false; setFs(false); }
+    };
+    document.addEventListener('fullscreenchange', onChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', onChange);
+      if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
+    };
+  }, []);
 
   const setSymbol = useCallback((s) => {
     if (s === symbol) return;
-    if (engine.openPositions.length > 0) {
-      toast('Close your open position before switching instrument.');
+    if (activeOrders > 0) {
+      toast('Close your open position or cancel your pending order before switching instrument.');
       return;
     }
     const sp = new URLSearchParams(searchParams);
     sp.set('symbol', s);
     setSearchParams(sp, { replace: true });
-  }, [symbol, engine.openPositions.length, searchParams, setSearchParams]);
+  }, [symbol, activeOrders, searchParams, setSearchParams]);
 
-  const pickSide = useCallback((s) => {
-    setSide(s);
-    setPanelOpen(true);
-    setDrawer(true);
+  // Arm the one-click position tool (or disarm it).
+  const armTool = useCallback((t) => {
+    setTool(t);
+    if (t !== 'cursor') { setSelectedId(null); setSelectedTradeId(null); }
   }, []);
 
   /* ------------------------------ drawings ------------------------------ */
@@ -146,14 +178,18 @@ export default function ReplayChartPage() {
       else if (e.key === 'ArrowRight') { e.preventDefault(); engine.step(1); }
       else if (e.key === 'ArrowLeft') { e.preventDefault(); engine.step(-1); }
       else if (e.key === '[') setPanelOpen((v) => !v);
+      else if (e.key === 'f' || e.key === 'F') toggleFs();
       else if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId) {
         setDrawings(drawings.filter((d) => d.id !== selectedId));
         setSelectedId(null);
-      } else if (e.key === 'Escape') { setTool('cursor'); setSelectedId(null); setDrawer(false); }
+      } else if (e.key === 'Escape') {
+        if (fs && !nativeFs.current) setFs(false);
+        setTool('cursor'); setSelectedId(null); setDrawer(false);
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [engine, selectedId, drawings, setDrawings]);
+  }, [engine, selectedId, drawings, setDrawings, toggleFs, fs]);
 
   /* ------------------------------ derived ------------------------------ */
   const balance = useMemo(
@@ -161,6 +197,23 @@ export default function ReplayChartPage() {
     [session, trades],
   );
   const equity = balance + engine.openPnl;
+
+  // A selected 3-point position drawing is what the order panel works with.
+  const selectedDrawing = useMemo(
+    () => drawings.find((d) => d.id === selectedId && d.type === 'rr' && d.pts?.length >= 3) || null,
+    [drawings, selectedId],
+  );
+  const removeDrawing = useCallback((id) => {
+    setDrawings(drawings.filter((d) => d.id !== id));
+    setSelectedId(null);
+  }, [drawings, setDrawings]);
+
+  // Dates the replay can jump to = the days actually covered by the loaded bars.
+  const dateRange = useMemo(() => {
+    const b = barsQ.bars;
+    if (!b.length) return null;
+    return { min: dayKey(b[0].utc * 1000, tz), max: dayKey(b[b.length - 1].utc * 1000, tz) };
+  }, [barsQ.bars, tz]);
 
   const onConclude = () => {
     const n = engine.openPositions.length;
@@ -193,20 +246,21 @@ export default function ReplayChartPage() {
   return (
     <>
       <style>{MK_CSS}{REPLAY_CSS}</style>
-      <div className={`mk-root rp-root page-fade-in${panelOpen ? '' : ' is-panel-closed'}${drawer ? ' is-drawer' : ''}`}>
+      <div className={`mk-root rp-root page-fade-in${panelOpen ? '' : ' is-panel-closed'}${drawer ? ' is-drawer' : ''}${fs ? ' is-fs' : ''}`}>
         <div className="mk-shell">
           <ReplayHeader
-            session={session} symbol={symbol} onSymbol={setSymbol} canSwitch={engine.openPositions.length === 0}
+            session={session} symbol={symbol} onSymbol={setSymbol} canSwitch={activeOrders === 0}
             currentBar={engine.currentBar} precision={precision} tz={tz}
             balance={balance} equity={equity}
             onConclude={onConclude} concludeDisabled={!engine.writable || engine.busy}
             panelOpen={panelOpen} onTogglePanel={() => { setPanelOpen((v) => !v); setDrawer((v) => !v); }}
             propLabel={propLabel}
+            fullscreen={fs} onToggleFullscreen={toggleFs}
           />
 
           <ReplayToolbar
             engine={engine} baseInterval={session.interval} viewInterval={view} onViewInterval={setViewInterval}
-            tz={tz} currentBar={engine.currentBar} onSide={pickSide} ticketSide={side} disabled={loading}
+            tz={tz} currentBar={engine.currentBar} onArm={armTool} tool={tool} disabled={loading} range={dateRange}
           />
 
           <div className="mk-body">
@@ -224,6 +278,7 @@ export default function ReplayChartPage() {
                 sessionId={session.id} symbol={symbol}
                 baseInterval={session.interval} viewInterval={view}
                 bars={barsQ.bars} idx={engine.idx} trades={trades} tz={tz} precision={precision}
+                onSelectTrade={setSelectedTradeId}
                 chartProps={{
                   tool, onToolChange: setTool, magnet,
                   drawings: hideDrawings ? EMPTY : drawings, onDrawingsChange: setDrawings,
@@ -264,8 +319,9 @@ export default function ReplayChartPage() {
             <aside className="mk-panel rp-panel" aria-label="Order panel">
               <TradeTicket
                 session={session} symbol={symbol} currentBar={engine.currentBar} precision={precision}
-                openPosition={engine.openPosition} trades={trades} engine={engine}
-                side={side} onSide={setSide}
+                trades={trades} engine={engine}
+                drawing={selectedDrawing} onPlaced={removeDrawing} onArm={armTool}
+                selectedTradeId={selectedTradeId}
               />
             </aside>
           </div>
@@ -273,7 +329,7 @@ export default function ReplayChartPage() {
           <ReplayStatus
             symbol={symbol} baseInterval={session.interval} barCount={barsQ.bars.length} idx={engine.idx}
             tz={tz} loading={loading} loaded={barsQ.bars.length} filling={false}
-            currentBar={engine.currentBar} open={engine.openPositions.length}
+            currentBar={engine.currentBar} open={engine.openPositions.length} pending={engine.pendingOrders.length}
           />
         </div>
       </div>

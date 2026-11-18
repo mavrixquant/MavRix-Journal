@@ -7,6 +7,12 @@ export async function list(req, res, next) {
   } catch (e) { next(e); }
 }
 
+export async function availability(req, res, next) {
+  try {
+    res.json({ availability: await svc.getAvailability() });
+  } catch (e) { next(e); }
+}
+
 export async function get(req, res, next) {
   try {
     res.json({ session: await svc.getSession(req.userId, req.params.id) });
