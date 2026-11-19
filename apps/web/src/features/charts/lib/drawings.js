@@ -1,3 +1,5 @@
+import { dashPattern } from './colorUtil';
+
 // Drawing tools + canvas primitives for lightweight-charts v5.
 //
 // Drawings are stored as { id, type, color, pts: [{ t, p }] } where `t` is a
@@ -45,6 +47,16 @@ export const TOOL_HINTS = {
 export const DRAW_COLORS = ['#F5B544', '#5EA8FF', '#B58CFF', '#35C4A1', '#FF5C5C', '#E7E9EE'];
 
 export const FIB_LEVELS = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1];
+
+// Levels offered in the settings dialog (the first seven are on by default).
+export const FIB_PRESET = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1, 1.272, 1.618, 2, 2.618, 3.618, 4.236];
+
+// Enabled fib levels of a drawing: [{ v, color? }] — falls back to the classic seven.
+export function fibLevelsOf(d) {
+  const custom = d?.style?.fibLevels;
+  if (Array.isArray(custom) && custom.length) return custom.filter((l) => l.on !== false);
+  return FIB_LEVELS.map((v) => ({ v }));
+}
 
 export const INTERVAL_SECONDS = { '1m': 60, '5m': 300, '15m': 900, '1h': 3600, '4h': 14400, '1d': 86400 };
 
@@ -173,34 +185,63 @@ export function rrNormalize(pts, moved) {
 
 
 /* --------------------------------- drawing --------------------------------- */
+// Every drawing can carry `style` (see the settings dialog):
+//   width, dash ('solid'|'dashed'|'dotted'), fillOpacity, label (bool), extendLeft / extendRight,
+//   fibLevels [{ v, on, color }], fibPrices, fibPercent, fibTrend,
+//   rr: profitColor / lossColor / entryColor / alwaysLabels, measure: upColor / downColor.
 function drawOne(ctx, d, env, { selected = false, ghost = false, hovered = false } = {}) {
   const g = resolve(d, env);
   if (!g) return;
   const { px, W } = g;
   const { H, prec, Y } = env;
   const color = d.color || '#F5B544';
+  const st = d.style || {};
   const a = px[0];
   const b = px[1] || null;
+  const lw = (def) => (st.width != null ? st.width : def) + (selected ? 0.5 : 0);
+  const dash = (def = 'solid') => dashPattern(st.dash || def, lw(1.5));
+  const fillA = (def) => (st.fillOpacity != null ? st.fillOpacity : def);
   ctx.save();
-  ctx.lineWidth = selected ? 2 : 1.5;
+  ctx.lineWidth = lw(1.5);
   ctx.strokeStyle = ghost ? withAlpha(color, 0.7) : color;
   ctx.fillStyle = color;
-  ctx.setLineDash([]);
+  ctx.setLineDash(dash());
 
   const handle = (q) => {
+    ctx.save();
+    ctx.setLineDash([]);
     ctx.fillStyle = '#0A0D13';
     ctx.strokeStyle = color;
     ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.arc(q.x, q.y, 4, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.restore();
+  };
+
+  // Label summarising a two-point move (used by trend line + measure).
+  const moveText = (p1, p2) => {
+    const dp = p2.p - p1.p;
+    const pct = p1.p ? (dp / p1.p) * 100 : 0;
+    const bars = Math.abs(Math.round(env.toIdx(p2.t) - env.toIdx(p1.t)));
+    return `${dp >= 0 ? '+' : ''}${fmtP(dp, prec)} (${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%) · ${bars} bars · ${fmtDur(Math.abs(p2.t - p1.t))}`;
   };
 
   if (d.type === 'hline') {
     ctx.beginPath(); ctx.moveTo(0, a.y); ctx.lineTo(W, a.y); ctx.stroke();
-    pill(ctx, fmtP(a.p, prec), W - 6, a.y, { bg: color, align: 'right' });
+    if (st.label !== false) pill(ctx, fmtP(a.p, prec), W - 6, a.y, { bg: color, align: 'right' });
     if (selected) handle({ x: W * 0.5, y: a.y });
   } else if (d.type === 'trend' && b) {
-    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+    let x1 = a.x, y1 = a.y, x2 = b.x, y2 = b.y;
+    const dx = b.x - a.x, dy = b.y - a.y;
+    if ((st.extendLeft || st.extendRight) && Math.abs(dx) > 0.5) {
+      const slope = dy / dx;
+      const [lx, rx] = a.x <= b.x ? [a, b] : [b, a];
+      const yAt = (x) => lx.y + slope * (x - lx.x);
+      x1 = st.extendLeft ? -W : lx.x; y1 = yAt(x1);
+      x2 = st.extendRight ? W * 3 : rx.x; y2 = yAt(x2);
+    }
+    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
     if (selected || ghost) { handle(a); handle(b); }
+    if (st.label) pill(ctx, moveText(d.pts[0], d.pts[1] || d.cursor || d.pts[0]), (a.x + b.x) / 2, Math.min(a.y, b.y) - 14, { bg: b.p >= a.p ? '#35C4A1' : '#FF5C5C', align: 'center' });
   } else if (d.type === 'ray' && b) {
     let dx = b.x - a.x;
     const dy = b.y - a.y;
@@ -213,87 +254,97 @@ function drawOne(ctx, d, env, { selected = false, ghost = false, hovered = false
     if (selected || ghost) { handle(a); handle(b); }
   } else if (d.type === 'rect' && b) {
     const x = Math.min(a.x, b.x), y = Math.min(a.y, b.y), w = Math.abs(b.x - a.x), h = Math.abs(b.y - a.y);
-    ctx.fillStyle = withAlpha(color, 0.1);
+    ctx.fillStyle = withAlpha(color, fillA(0.1));
     ctx.fillRect(x, y, w, h);
     ctx.strokeRect(x, y, w, h);
     if (selected) { handle(a); handle(b); }
   } else if (d.type === 'fib' && b) {
     const left = Math.min(a.x, b.x);
-    const hi = a.p, lo = b.p;
+    const levels = fibLevelsOf(d);
+    const ordered = [...levels].sort((p, q) => p.v - q.v);
     let prevY = null;
-    FIB_LEVELS.forEach((lvl, i) => {
-      const price = b.p - (b.p - a.p) * lvl;
+    ordered.forEach((lvl, i) => {
+      const price = b.p - (b.p - a.p) * lvl.v;
       const y = Y(price);
       if (y == null) return;
+      const lc = lvl.color || color;
       if (prevY != null) {
-        ctx.fillStyle = withAlpha(color, i % 2 ? 0.05 : 0.09);
+        ctx.fillStyle = withAlpha(lc, fillA(i % 2 ? 0.05 : 0.09));
         ctx.fillRect(left, Math.min(prevY, y), Math.max(W - left, 0), Math.abs(y - prevY));
       }
       prevY = y;
-      ctx.strokeStyle = withAlpha(color, lvl === 0 || lvl === 1 ? 0.95 : 0.6);
-      ctx.lineWidth = 1;
-      ctx.setLineDash(lvl === 0 || lvl === 1 ? [] : [5, 4]);
+      const edge = lvl.v === 0 || lvl.v === 1;
+      ctx.strokeStyle = withAlpha(lc, edge ? 0.95 : 0.6);
+      ctx.lineWidth = st.width != null ? st.width : 1;
+      ctx.setLineDash(st.dash ? dashPattern(st.dash, ctx.lineWidth) : edge ? [] : [5, 4]);
       ctx.beginPath(); ctx.moveTo(left, y); ctx.lineTo(W, y); ctx.stroke();
       ctx.setLineDash([]);
-      ctx.font = "600 10px 'IBM Plex Mono', monospace";
-      ctx.fillStyle = withAlpha(color, 0.95);
-      ctx.textBaseline = 'bottom';
-      ctx.textAlign = 'left';
-      ctx.fillText(`${lvl} (${fmtP(price, prec)})`, left + 6, y - 3);
+      if (st.label !== false) {
+        const parts = [`${lvl.v}`];
+        if (st.fibPercent) parts[0] = `${(lvl.v * 100).toFixed(1)}%`;
+        if (st.fibPrices !== false) parts.push(`(${fmtP(price, prec)})`);
+        ctx.font = "600 10px 'IBM Plex Mono', monospace";
+        ctx.fillStyle = withAlpha(lc, 0.95);
+        ctx.textBaseline = 'bottom';
+        ctx.textAlign = 'left';
+        ctx.fillText(parts.join(' '), left + 6, y - 3);
+      }
     });
-    void hi; void lo;
-    ctx.strokeStyle = withAlpha(color, 0.5);
-    ctx.setLineDash([3, 4]);
-    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
-    ctx.setLineDash([]);
+    if (st.fibTrend !== false) {
+      ctx.strokeStyle = withAlpha(color, 0.5);
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([3, 4]);
+      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+      ctx.setLineDash([]);
+    }
     if (selected) { handle(a); handle(b); }
   } else if (d.type === 'rr' && b) {
     const c3 = px[2] || null;
     const { long, risk, reward, target, rr } = rrParts(a, b, c3 ? { p: c3.p } : null);
     const yT = c3 ? c3.y : Y(target);
     if (yT == null) { ctx.restore(); return; }
+    const win = st.profitColor || '#35C4A1';
+    const loss = st.lossColor || '#FF5C5C';
+    const entry = st.entryColor || '#E7E9EE';
     const left = c3 ? a.x : Math.min(a.x, b.x);
     const right = c3 ? Math.max(b.x, left + 70) : Math.max(Math.max(a.x, b.x), left + 70);
     const w = right - left;
     const active = selected || hovered || ghost;
-    ctx.fillStyle = `rgba(53,196,161,${active ? 0.2 : 0.14})`;
+    const fa = fillA(0.14) * (active ? 1.4 : 1);
+    ctx.fillStyle = withAlpha(win, Math.min(fa, 0.6));
     ctx.fillRect(left, Math.min(a.y, yT), w, Math.abs(yT - a.y));
-    ctx.fillStyle = `rgba(255,92,92,${active ? 0.2 : 0.14})`;
+    ctx.fillStyle = withAlpha(loss, Math.min(fa, 0.6));
     ctx.fillRect(left, Math.min(a.y, b.y), w, Math.abs(b.y - a.y));
-    ctx.lineWidth = active ? 2 : 1.5;
-    ctx.strokeStyle = '#35C4A1'; ctx.beginPath(); ctx.moveTo(left, yT); ctx.lineTo(right, yT); ctx.stroke();
-    ctx.strokeStyle = '#FF5C5C'; ctx.beginPath(); ctx.moveTo(left, b.y); ctx.lineTo(right, b.y); ctx.stroke();
-    ctx.strokeStyle = '#E7E9EE'; ctx.lineWidth = 1.5; ctx.setLineDash([4, 4]);
+    ctx.setLineDash(dashPattern(st.dash));
+    ctx.lineWidth = lw(1.5) + (active ? 0.5 : 0);
+    ctx.strokeStyle = win; ctx.beginPath(); ctx.moveTo(left, yT); ctx.lineTo(right, yT); ctx.stroke();
+    ctx.strokeStyle = loss; ctx.beginPath(); ctx.moveTo(left, b.y); ctx.lineTo(right, b.y); ctx.stroke();
+    ctx.strokeStyle = entry; ctx.lineWidth = 1.5; ctx.setLineDash([4, 4]);
     ctx.beginPath(); ctx.moveTo(left, a.y); ctx.lineTo(right, a.y); ctx.stroke(); ctx.setLineDash([]);
 
-    // Details (side, R:R, SL / TP distances) only while hovering or selected.
-    if (active) {
+    // Details (side, R:R, SL / TP distances) only while hovering or selected — or when pinned in settings.
+    if (active || st.alwaysLabels) {
       const pct = (v) => (a.p ? `${((v / a.p) * 100).toFixed(2)}%` : '');
       pill(ctx, `${long ? 'Long' : 'Short'} · R:R 1:${rr.toFixed(2)}`, left + 6, a.y - 12, { bg: 'rgba(12,16,23,.94)', fg: '#E7E9EE' });
-      pill(ctx, `TP ${fmtP(target, prec)} · +${fmtP(reward, prec)} (${pct(reward)})`, right - 4, yT + (long ? 12 : -12), { bg: '#35C4A1', align: 'right' });
-      pill(ctx, `SL ${fmtP(b.p, prec)} · −${fmtP(risk, prec)} (${pct(risk)})`, right - 4, b.y + (long ? -12 : 12), { bg: '#FF5C5C', align: 'right' });
+      pill(ctx, `TP ${fmtP(target, prec)} · +${fmtP(reward, prec)} (${pct(reward)})`, right - 4, yT + (long ? 12 : -12), { bg: win, align: 'right' });
+      pill(ctx, `SL ${fmtP(b.p, prec)} · −${fmtP(risk, prec)} (${pct(risk)})`, right - 4, b.y + (long ? -12 : 12), { bg: loss, align: 'right' });
     }
     if (selected) { handle({ x: left, y: a.y }); handle({ x: left, y: b.y }); if (c3) handle({ x: left, y: c3.y }); }
   } else if (d.type === 'measure' && b) {
     const up = b.p >= a.p;
-    const c = up ? '#35C4A1' : '#FF5C5C';
+    const c = up ? (st.upColor || '#35C4A1') : (st.downColor || '#FF5C5C');
     const x = Math.min(a.x, b.x), y = Math.min(a.y, b.y), w = Math.abs(b.x - a.x), h = Math.abs(b.y - a.y);
-    ctx.fillStyle = withAlpha(c, 0.12);
+    ctx.fillStyle = withAlpha(c, fillA(0.12));
     ctx.fillRect(x, y, w, h);
     ctx.strokeStyle = withAlpha(c, 0.7);
     ctx.lineWidth = 1;
-    ctx.setLineDash([4, 3]);
+    ctx.setLineDash(dashPattern(st.dash || 'dashed', 1));
     ctx.strokeRect(x, y, w, h);
     ctx.setLineDash([]);
     ctx.strokeStyle = c;
-    ctx.lineWidth = 1.5;
+    ctx.lineWidth = lw(1.5);
     ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
-    const dp = b.p - a.p;
-    const pct = a.p ? (dp / a.p) * 100 : 0;
-    const bars = Math.abs(Math.round(env.toIdx(b.t) - env.toIdx(a.t)));
-    const secs = Math.abs(b.t - a.t);
-    const text = `${dp >= 0 ? '+' : ''}${fmtP(dp, prec)} (${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%) · ${bars} bars · ${fmtDur(secs)}`;
-    pill(ctx, text, x + w / 2, Math.max(16, y - 14), { bg: c, align: 'center' });
+    if (st.label !== false) pill(ctx, moveText(d.pts[0], d.pts[1] || d.cursor || d.pts[0]), x + w / 2, Math.max(16, y - 14), { bg: c, align: 'center' });
   }
   ctx.restore();
   void H;
@@ -325,8 +376,8 @@ function hit(d, px, py, env) {
       if (!b) return false;
       const left = Math.min(a.x, b.x);
       if (px < left - T) return false;
-      return FIB_LEVELS.some((l) => {
-        const y = env.Y(b.p - (b.p - a.p) * l);
+      return fibLevelsOf(d).some((l) => {
+        const y = env.Y(b.p - (b.p - a.p) * l.v);
         return y != null && Math.abs(py - y) <= T;
       });
     }

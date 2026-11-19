@@ -1,5 +1,5 @@
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
-import { ArrowRightToLine, BarChart3, Minus, Plus, Trash2, X } from 'lucide-react';
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState, useSyncExternalStore } from 'react';
+import { ArrowRightToLine, BarChart3, Copy, Eye, EyeOff, Lock, Minus, Plus, Settings2, Trash2, Unlock, X } from 'lucide-react';
 import {
   createChart, createSeriesMarkers,
   CandlestickSeries, BarSeries, LineSeries, AreaSeries, HistogramSeries,
@@ -8,7 +8,10 @@ import {
 
 import EmptyState from '@/shared/components/EmptyState';
 import { chartTheme, alpha } from '../lib/chartTheme';
-import { INDICATORS, heikinAshi } from '../lib/indicators';
+import { INDICATORS, heikinAshi, indicatorStore } from '../lib/indicators';
+import { loadDrawingDefaults } from '../lib/chartSettings';
+import DrawingSettingsDialog from './settings/DrawingSettingsDialog';
+import IndicatorSettingsDialog from './settings/IndicatorSettingsDialog';
 import {
   DrawingsPrimitive, TradesPrimitive, TOOL_BY_ID, TOOL_HINTS, DRAW_COLORS, buildIndex, newId, rrNormalize,
 } from '../lib/drawings';
@@ -99,15 +102,25 @@ const CandlestickChart = forwardRef(function CandlestickChart({
     onToolChange, onDrawingsChange, onSelect, onSelectTrade, onAtEdgeChange, interval,
   };
 
+  // Live preview of a drawing being edited in the settings dialog (committed on OK).
+  const previewRef = useRef(null);
+  const [dlg, setDlg] = useState(null);
+  const settingsVersion = useSyncExternalStore(indicatorStore.subscribe, indicatorStore.getVersion);
+
   const drawPrimRef = useRef(null);
   if (drawPrimRef.current === null) {
     drawPrimRef.current = new DrawingsPrimitive(() => ({
       index: indexRef.current,
       offset: propsRef.current.displayOffset,
       // While dragging, preview the moved points without touching app state.
-      drawings: dragRef.current
-        ? propsRef.current.drawings.map((d) => (d.id === dragRef.current.id ? { ...d, pts: dragRef.current.pts } : d))
-        : propsRef.current.drawings,
+      drawings: (() => {
+        let list = dragRef.current
+          ? propsRef.current.drawings.map((d) => (d.id === dragRef.current.id ? { ...d, pts: dragRef.current.pts } : d))
+          : propsRef.current.drawings;
+        const pv = previewRef.current;
+        if (pv) list = list.map((d) => (d.id === pv.id ? pv.drawing : d));
+        return list;
+      })(),
       draft: draftRef.current,
       selectedId: propsRef.current.selectedId,
       precision: propsRef.current.precision,
@@ -247,6 +260,8 @@ const CandlestickChart = forwardRef(function CandlestickChart({
           id: newId(), type: 'rr', color,
           pts: [pt, { t: tEnd, p: slP }, { t: tEnd, p: tpP }],
         };
+        const dflt = loadDrawingDefaults('rr');
+        if (dflt && Object.keys(dflt).length) d.style = dflt;
         propsRef.current.onDrawingsChange?.([...list, d]);
         propsRef.current.onSelect?.(d.id);
         propsRef.current.onToolChange?.('cursor');
@@ -265,7 +280,14 @@ const CandlestickChart = forwardRef(function CandlestickChart({
       const dr = draftRef.current && draftRef.current.type === tl ? draftRef.current : { id: 'draft', type: tl, pts: [], color };
       const pts = [...dr.pts, pt];
       if (pts.length >= need) {
+        // The risk/reward tool becomes a full 3-point position: target starts at 2R and is draggable.
+        if (tl === 'rr' && pts.length === 2) {
+          const [e0, s0] = pts;
+          pts.push({ t: s0.t, p: e0.p + (e0.p - s0.p) * 2 });
+        }
         const d = { id: newId(), type: tl, color, pts };
+        const dflt = loadDrawingDefaults(tl);
+        if (dflt && Object.keys(dflt).length) d.style = dflt;
         draftRef.current = null;
         propsRef.current.onDrawingsChange?.([...list, d]);
         propsRef.current.onSelect?.(d.id);
@@ -346,6 +368,13 @@ const CandlestickChart = forwardRef(function CandlestickChart({
       const d = propsRef.current.drawings.find((v) => v.id === id);
       const s = mainRef.current;
       if (!d || !s) return;
+      if (d.locked) {
+        // Locked: select it (so it can be unlocked / edited) but never drag it.
+        e.preventDefault();
+        e.stopPropagation();
+        propsRef.current.onSelect?.(id);
+        return;
+      }
       e.preventDefault();
       e.stopPropagation();
       propsRef.current.onSelect?.(id);
@@ -372,6 +401,16 @@ const CandlestickChart = forwardRef(function CandlestickChart({
       const prim = drawPrimRef.current;
       setCur(prim.hitHandle(p.x, p.y, size) ? 'grab' : prim.hit(p.x, p.y, size) ? 'move' : '');
     };
+    const onDbl = (e) => {
+      if (propsRef.current.tool !== 'cursor') return;
+      const p = local(e);
+      if (!inPane(p)) return;
+      const id = drawPrimRef.current.hit(p.x, p.y, paneSize());
+      if (!id) return;
+      e.preventDefault();
+      propsRef.current.onSelect?.(id);
+      setDlg({ kind: 'drawing', id });
+    };
     // Legacy mouse/touch events fired after a handled pointerdown must not reach the chart.
     const swallow = (e) => { if (dragRef.current) e.stopPropagation(); };
 
@@ -379,6 +418,7 @@ const CandlestickChart = forwardRef(function CandlestickChart({
     el.addEventListener('mousedown', swallow, true);
     el.addEventListener('touchstart', swallow, true);
     el.addEventListener('pointermove', onHover);
+    el.addEventListener('dblclick', onDbl);
 
     chart.subscribeCrosshairMove(onMove);
     chart.subscribeClick(onClick);
@@ -389,6 +429,7 @@ const CandlestickChart = forwardRef(function CandlestickChart({
       el.removeEventListener('mousedown', swallow, true);
       el.removeEventListener('touchstart', swallow, true);
       el.removeEventListener('pointermove', onHover);
+      el.removeEventListener('dblclick', onDbl);
       window.removeEventListener('pointermove', onDragMove);
       window.removeEventListener('pointerup', onDragEnd);
       window.removeEventListener('pointercancel', onDragEnd);
@@ -484,8 +525,10 @@ const CandlestickChart = forwardRef(function CandlestickChart({
     const chart = chartRef.current;
     if (!chart) return;
     const safe = Array.isArray(bars) ? bars : [];
-    const active = INDICATORS.filter((i) => enabledIndicators.includes(i.id) && !(i.intradayOnly && interval === '1d'));
-    const key = `${precision}|${active.map((i) => i.id).join(',')}`;
+    // Hidden indicators stay in the legend (eye icon) but are not drawn.
+    const active = INDICATORS.filter((i) => enabledIndicators.includes(i.id) && !i.hidden && !(i.intradayOnly && interval === '1d'));
+    const key = `${precision}|${active.map((i) => `${i.id}:${(i.levels || []).join('/')}`).join(',')}`;
+    const LS = { solid: LineStyle.Solid, dashed: LineStyle.Dashed, dotted: LineStyle.Dotted };
 
     if (structRef.current !== key) {
       for (const group of Object.values(indRef.current)) {
@@ -500,12 +543,12 @@ const CandlestickChart = forwardRef(function CandlestickChart({
         const group = {};
         for (const ln of ind.lines) {
           if (ln.type === 'hist') {
-            group[ln.k] = chart.addSeries(HistogramSeries, { priceFormat, priceLineVisible: false, lastValueVisible: false }, paneIdx);
+            group[ln.k] = chart.addSeries(HistogramSeries, { priceFormat, priceLineVisible: false, lastValueVisible: false, visible: ln.visible }, paneIdx);
           } else {
             const opts = {
               color: ln.color, lineWidth: ln.width || 2, priceFormat, priceLineVisible: false,
               lastValueVisible: !ind.overlay, crosshairMarkerVisible: false,
-              lineStyle: ln.dash ? LineStyle.Dashed : LineStyle.Solid,
+              lineStyle: LS[ln.lineStyle] ?? LineStyle.Solid, visible: ln.visible,
             };
             if (ind.range) opts.autoscaleInfoProvider = () => ({ priceRange: { minValue: ind.range[0], maxValue: ind.range[1] } });
             group[ln.k] = chart.addSeries(LineSeries, opts, paneIdx);
@@ -528,6 +571,11 @@ const CandlestickChart = forwardRef(function CandlestickChart({
     for (const ind of active) {
       const group = indRef.current[ind.id];
       if (!group) continue;
+      // Style edits never rebuild the series — they are applied in place.
+      for (const ln of ind.lines) {
+        if (ln.type === 'hist') group[ln.k].applyOptions({ visible: ln.visible });
+        else group[ln.k].applyOptions({ color: ln.color, lineWidth: ln.width || 2, lineStyle: LS[ln.lineStyle] ?? LineStyle.Solid, visible: ln.visible });
+      }
       const res = safe.length > 1 ? ind.calc(safe) : {};
       const last = {};
       for (const ln of ind.lines) {
@@ -538,7 +586,7 @@ const CandlestickChart = forwardRef(function CandlestickChart({
       indLastRef.current[ind.id] = last;
     }
     setIndVals({ ...indLastRef.current });
-  }, [bars, enabledIndicators, interval, precision]);
+  }, [bars, enabledIndicators, interval, precision, settingsVersion]);
 
   /* ----- scale mode, markers, redraw triggers, focus ----- */
   useEffect(() => { chartRef.current?.priceScale('right').applyOptions({ mode: logScale ? PriceScaleMode.Logarithmic : PriceScaleMode.Normal }); }, [logScale]);
@@ -621,6 +669,19 @@ const CandlestickChart = forwardRef(function CandlestickChart({
   const recolor = (color) => onDrawingsChange?.(drawings.map((d) => (d.id === selectedId ? { ...d, color } : d)));
   const removeSelected = () => { onDrawingsChange?.(drawings.filter((d) => d.id !== selectedId)); onSelect?.(null); };
 
+  // Copy a drawing a few bars to the right so it doesn't sit on top of the original.
+  const duplicateDrawing = (src) => {
+    const off = displayOffset || 0;
+    const ix = indexRef.current;
+    const shift = (t) => Math.round(ix.toSec(ix.toIdx(t + off) + 8) - off);
+    const copy = { ...src, id: newId(), locked: false, pts: src.pts.map((q) => ({ ...q, t: shift(q.t) })) };
+    onDrawingsChange?.([...drawings, copy]);
+    onSelect?.(copy.id);
+  };
+
+  const dlgDrawing = dlg?.kind === 'drawing' ? drawings.find((d) => d.id === dlg.id) || null : null;
+  const closeDrawingDialog = () => { previewRef.current = null; drawPrimRef.current.redraw(); setDlg(null); };
+
   return (
     <div className="mk-cv">
       <div ref={containerRef} className={`mk-cv-canvas${tool !== 'cursor' ? ' is-tool' : ''}`} />
@@ -633,10 +694,15 @@ const CandlestickChart = forwardRef(function CandlestickChart({
               {activeInds.map((ind) => {
                 const v = indVals[ind.id]?.[ind.primary];
                 return (
-                  <span key={ind.id} className="mk-ind">
+                  <span key={ind.id} className="mk-ind" style={ind.hidden ? { opacity: 0.55 } : undefined}>
                     <i className="mk-dot" style={{ background: ind.lines.find((l) => l.k === ind.primary)?.color || ind.lines[0].color }} />{ind.label}
-                    {v != null && <b>{fmtPrice(v, ind.overlay ? precision : 2)}</b>}
-                    <button type="button" onClick={() => onToggleIndicator?.(ind.id)} aria-label={`Remove ${ind.label}`}><X size={10} /></button>
+                    {v != null && !ind.hidden && <b>{fmtPrice(v, ind.overlay ? precision : 2)}</b>}
+                    <button
+                      type="button" onClick={() => indicatorStore.patch(ind.id, (o) => ({ ...o, hidden: !o.hidden }))}
+                      aria-label={ind.hidden ? `Show ${ind.label}` : `Hide ${ind.label}`} title={ind.hidden ? 'Show' : 'Hide'}
+                    >{ind.hidden ? <EyeOff size={10} /> : <Eye size={10} />}</button>
+                    <button type="button" onClick={() => setDlg({ kind: 'indicator', id: ind.id })} aria-label={`${ind.label} settings`} title="Settings"><Settings2 size={10} /></button>
+                    <button type="button" onClick={() => onToggleIndicator?.(ind.id)} aria-label={`Remove ${ind.label}`} title="Remove"><X size={10} /></button>
                   </span>
                 );
               })}
@@ -653,6 +719,9 @@ const CandlestickChart = forwardRef(function CandlestickChart({
             <button key={c} type="button" className={`mk-swatch${selected.color === c ? ' is-on' : ''}`} style={{ background: c }} onClick={() => recolor(c)} aria-label={`Color ${c}`} />
           ))}
           <span className="mk-sel-sep" />
+          <button type="button" className="mk-sel-del" style={{ color: 'inherit' }} onClick={() => setDlg({ kind: 'drawing', id: selected.id })} aria-label="Drawing settings" title="Settings (double-click)"><Settings2 size={13} /></button>
+          <button type="button" className="mk-sel-del" style={{ color: 'inherit' }} onClick={() => duplicateDrawing(selected)} aria-label="Duplicate drawing" title="Duplicate"><Copy size={13} /></button>
+          <button type="button" className="mk-sel-del" style={{ color: selected.locked ? '#F5B544' : 'inherit' }} onClick={() => onDrawingsChange?.(drawings.map((d) => (d.id === selected.id ? { ...d, locked: !d.locked } : d)))} aria-pressed={!!selected.locked} aria-label={selected.locked ? 'Unlock drawing' : 'Lock drawing'} title={selected.locked ? 'Unlock' : 'Lock'}>{selected.locked ? <Lock size={13} /> : <Unlock size={13} />}</button>
           <button type="button" className="mk-sel-del" onClick={removeSelected} aria-label="Delete drawing" title="Delete (Del)"><Trash2 size={13} /></button>
         </div>
       )}
@@ -665,6 +734,20 @@ const CandlestickChart = forwardRef(function CandlestickChart({
           <button type="button" className="txt" onClick={() => chartRef.current?.priceScale('right').applyOptions({ autoScale: true })} title="Reset price scale">Auto</button>
           {!atEdge && <button type="button" className="go" onClick={() => chartRef.current?.timeScale().scrollToRealTime()} title="Go to current price" aria-label="Go to current price"><ArrowRightToLine size={14} /></button>}
         </div>
+      )}
+
+      {dlg?.kind === 'indicator' && <IndicatorSettingsDialog indicatorId={dlg.id} onClose={() => setDlg(null)} />}
+      {dlgDrawing && (
+        <DrawingSettingsDialog
+          key={dlgDrawing.id}
+          drawing={dlgDrawing}
+          precision={precision}
+          onPreview={(d) => { previewRef.current = { id: d.id, drawing: d }; drawPrimRef.current.redraw(); }}
+          onCommit={(d) => { previewRef.current = null; onDrawingsChange?.(drawings.map((x) => (x.id === d.id ? d : x))); setDlg(null); }}
+          onCancel={closeDrawingDialog}
+          onDelete={(d) => { previewRef.current = null; onDrawingsChange?.(drawings.filter((x) => x.id !== d.id)); onSelect?.(null); setDlg(null); }}
+          onDuplicate={(d) => { previewRef.current = null; duplicateDrawing(d); setDlg(null); }}
+        />
       )}
 
       {showEmptyState && (

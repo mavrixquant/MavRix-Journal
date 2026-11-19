@@ -1,13 +1,46 @@
 // Pure indicator maths + registry. Bars are { time, open, high, low, close, volume }.
+//
+// Every indicator has editable INPUTS (period, source, ...) and per-line STYLE
+// (colour, opacity, width, line style, visibility). Overrides live in a tiny
+// persisted store (`indicatorStore`); the registry entries read it through
+// getters, so anything that already renders `ind.label`, `ind.lines[].color`
+// or calls `ind.calc(bars)` automatically reflects the user's settings.
+import { composeColor, parseColor } from './colorUtil';
+
 const num = (v) => Number(v);
 
-export function sma(bars, n) {
+/* --------------------------------- sources --------------------------------- */
+export const SOURCES = [
+  { v: 'close', l: 'Close' },
+  { v: 'open', l: 'Open' },
+  { v: 'high', l: 'High' },
+  { v: 'low', l: 'Low' },
+  { v: 'hl2', l: 'HL2 (high + low) / 2' },
+  { v: 'hlc3', l: 'HLC3 (typical price)' },
+  { v: 'ohlc4', l: 'OHLC4' },
+];
+
+export function pickSource(b, src = 'close') {
+  switch (src) {
+    case 'open': return num(b.open);
+    case 'high': return num(b.high);
+    case 'low': return num(b.low);
+    case 'hl2': return (num(b.high) + num(b.low)) / 2;
+    case 'hlc3': return (num(b.high) + num(b.low) + num(b.close)) / 3;
+    case 'ohlc4': return (num(b.open) + num(b.high) + num(b.low) + num(b.close)) / 4;
+    default: return num(b.close);
+  }
+}
+
+/* ---------------------------------- maths ---------------------------------- */
+export function sma(bars, n, src = 'close') {
   const out = [];
   let sum = 0;
-  bars.forEach((b, i) => {
-    sum += num(b.close);
-    if (i >= n) sum -= num(bars[i - n].close);
-    if (i >= n - 1) out.push({ time: b.time, value: sum / n });
+  const v = bars.map((b) => pickSource(b, src));
+  v.forEach((x, i) => {
+    sum += x;
+    if (i >= n) sum -= v[i - n];
+    if (i >= n - 1) out.push({ time: bars[i].time, value: sum / n });
   });
   return out;
 }
@@ -18,12 +51,13 @@ function emaValues(values, n) {
   const out = new Array(values.length).fill(null);
   let prev = null;
   let sum = 0;
+  let count = 0;
   for (let i = 0; i < values.length; i++) {
     const v = values[i];
     if (v == null) continue;
     if (prev == null) {
       sum += v;
-      const count = values.slice(0, i + 1).filter((x) => x != null).length;
+      count += 1;
       if (count === n) { prev = sum / n; out[i] = prev; }
     } else {
       prev = v * k + prev * (1 - k);
@@ -33,14 +67,14 @@ function emaValues(values, n) {
   return out;
 }
 
-export function ema(bars, n) {
-  const vals = emaValues(bars.map((b) => num(b.close)), n);
+export function ema(bars, n, src = 'close') {
+  const vals = emaValues(bars.map((b) => pickSource(b, src)), n);
   const out = [];
   vals.forEach((v, i) => { if (v != null) out.push({ time: bars[i].time, value: v }); });
   return out;
 }
 
-export function vwap(bars) {
+export function vwap(bars, src = 'hlc3') {
   const out = [];
   let day = null, pv = 0, vol = 0;
   for (const b of bars) {
@@ -48,21 +82,22 @@ export function vwap(bars) {
     const d = Math.floor(t / 86400);
     if (d !== day) { day = d; pv = 0; vol = 0; }
     const v = num(b.volume) || 0;
-    pv += ((num(b.high) + num(b.low) + num(b.close)) / 3) * v;
+    pv += pickSource(b, src) * v;
     vol += v;
     if (vol > 0) out.push({ time: b.time, value: pv / vol });
   }
   return out;
 }
 
-export function bollinger(bars, n = 20, k = 2) {
+export function bollinger(bars, n = 20, k = 2, src = 'close') {
   const u = [], m = [], l = [];
+  const vals = bars.map((b) => pickSource(b, src));
   for (let i = n - 1; i < bars.length; i++) {
     let s = 0;
-    for (let j = i - n + 1; j <= i; j++) s += num(bars[j].close);
+    for (let j = i - n + 1; j <= i; j++) s += vals[j];
     const mean = s / n;
     let v = 0;
-    for (let j = i - n + 1; j <= i; j++) v += (num(bars[j].close) - mean) ** 2;
+    for (let j = i - n + 1; j <= i; j++) v += (vals[j] - mean) ** 2;
     const sd = Math.sqrt(v / n);
     const time = bars[i].time;
     u.push({ time, value: mean + k * sd });
@@ -73,11 +108,12 @@ export function bollinger(bars, n = 20, k = 2) {
 }
 
 // Wilder's RSI
-export function rsi(bars, n = 14) {
+export function rsi(bars, n = 14, src = 'close') {
   const out = [];
   let g = 0, l = 0;
+  const vals = bars.map((b) => pickSource(b, src));
   for (let i = 1; i < bars.length; i++) {
-    const d = num(bars[i].close) - num(bars[i - 1].close);
+    const d = vals[i] - vals[i - 1];
     const up = Math.max(d, 0), dn = Math.max(-d, 0);
     if (i <= n) {
       g += up; l += dn;
@@ -94,8 +130,8 @@ export function rsi(bars, n = 14) {
   return out;
 }
 
-export function macd(bars, fast = 12, slow = 26, signal = 9) {
-  const closes = bars.map((b) => num(b.close));
+export function macd(bars, fast = 12, slow = 26, signal = 9, src = 'close', up = 'rgba(53,196,161,.55)', down = 'rgba(255,92,92,.55)') {
+  const closes = bars.map((b) => pickSource(b, src));
   const ef = emaValues(closes, fast);
   const es = emaValues(closes, slow);
   const line = closes.map((_, i) => (ef[i] != null && es[i] != null ? ef[i] - es[i] : null));
@@ -107,7 +143,7 @@ export function macd(bars, fast = 12, slow = 26, signal = 9) {
     if (sig[i] != null) {
       s.push({ time: b.time, value: sig[i] });
       const hv = line[i] - sig[i];
-      h.push({ time: b.time, value: hv, color: hv >= 0 ? 'rgba(53,196,161,.55)' : 'rgba(255,92,92,.55)' });
+      h.push({ time: b.time, value: hv, color: hv >= 0 ? up : down });
     }
   });
   return { m, s, h };
@@ -142,38 +178,162 @@ export function heikinAshi(bars) {
   });
 }
 
-/*
-  Registry. overlay:true draws on the price pane, otherwise in its own pane.
-  lines[].type: 'line' (default) | 'hist'.
-*/
+/* ------------------------------ settings store ------------------------------ */
+// { [indicatorId]: { params: {…}, lines: { [lineKey]: { color, opacity, width, style, visible, colorDown? } }, hidden } }
+const STORE_KEY = 'mavrix:chart:indicator-settings:v1';
+let overrides = (() => {
+  try { return JSON.parse(localStorage.getItem(STORE_KEY)) || {}; } catch { return {}; }
+})();
+let version = 0;
+const listeners = new Set();
+
+function emit() {
+  version += 1;
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(overrides)); } catch { /* private mode / quota */ }
+  listeners.forEach((fn) => fn());
+}
+
+export const indicatorStore = {
+  subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn); },
+  getVersion: () => version,
+  get: (id) => overrides[id] || {},
+  /** Replace one indicator's overrides (pass null to reset it to the defaults). */
+  set(id, next) {
+    if (next == null || (!Object.keys(next.params || {}).length && !Object.keys(next.lines || {}).length && !next.hidden)) delete overrides[id];
+    else overrides[id] = next;
+    emit();
+  },
+  patch(id, fn) { this.set(id, fn(overrides[id] || {})); },
+  snapshot: (id) => JSON.parse(JSON.stringify(overrides[id] || {})),
+  isModified: (id) => !!overrides[id],
+};
+
+/* --------------------------------- registry --------------------------------- */
+const SRC_PARAM = { key: 'source', label: 'Source', type: 'select', options: SOURCES.map((s) => ({ value: s.v, label: s.l })) };
+const LEN = (def = 14, min = 1, max = 500) => ({ key: 'period', label: 'Length', type: 'int', min, max, def });
+
+function make(def) {
+  const entry = {
+    id: def.id,
+    group: def.group,
+    overlay: def.overlay,
+    primary: def.primary,
+    intradayOnly: def.intradayOnly,
+    height: def.height,
+    range: def.range,
+    paramSpecs: def.paramSpecs,
+    defaultParams: def.defaults,
+    defaultLines: def.lines,
+    get params() {
+      return { ...def.defaults, ...(overrides[def.id]?.params || {}) };
+    },
+    get hidden() { return !!overrides[def.id]?.hidden; },
+    get label() { return def.title(this.params); },
+    get defaultLabel() { return def.title(def.defaults); },
+    get lines() {
+      const ov = overrides[def.id]?.lines || {};
+      return def.lines.map((ln) => {
+        const o = ov[ln.k] || {};
+        const dflt = parseColor(ln.color);
+        const color = composeColor(o.color ?? dflt.hex, o.opacity ?? dflt.alpha);
+        const style = o.style ?? (ln.dash ? 'dashed' : 'solid');
+        const out = {
+          ...ln,
+          color,
+          width: o.width ?? ln.width,
+          lineStyle: style,
+          dash: style !== 'solid',
+          visible: o.visible !== false,
+        };
+        if (ln.type === 'hist') out.colorDown = composeColor(o.colorDown ?? '#ff5c5c', o.opacity ?? 0.55);
+        return out;
+      });
+    },
+    get levels() { return def.levels ? def.levels(this.params) : undefined; },
+    calc(bars) {
+      const p = this.params;
+      const ln = this.lines.find((l) => l.type === 'hist');
+      return def.calc(bars, p, ln ? { up: ln.color, down: ln.colorDown } : undefined);
+    },
+  };
+  return entry;
+}
+
+const MA = (id, label, fn, period, color) => make({
+  id, group: 'Moving averages', overlay: true, primary: 'v',
+  paramSpecs: [LEN(period, 1, 500), SRC_PARAM],
+  defaults: { period, source: 'close' },
+  title: (p) => `${label} ${p.period}`,
+  lines: [{ k: 'v', name: label, color }],
+  calc: (b, p) => ({ v: fn(b, p.period, p.source) }),
+});
+
 export const INDICATORS = [
-  { id: 'ema9', label: 'EMA 9', group: 'Moving averages', overlay: true, primary: 'v', lines: [{ k: 'v', color: '#FFD166' }], calc: (b) => ({ v: ema(b, 9) }) },
-  { id: 'ema20', label: 'EMA 20', group: 'Moving averages', overlay: true, primary: 'v', lines: [{ k: 'v', color: '#F5B544' }], calc: (b) => ({ v: ema(b, 20) }) },
-  { id: 'ema50', label: 'EMA 50', group: 'Moving averages', overlay: true, primary: 'v', lines: [{ k: 'v', color: '#5EA8FF' }], calc: (b) => ({ v: ema(b, 50) }) },
-  { id: 'ema200', label: 'EMA 200', group: 'Moving averages', overlay: true, primary: 'v', lines: [{ k: 'v', color: '#FF8AD8' }], calc: (b) => ({ v: ema(b, 200) }) },
-  { id: 'sma50', label: 'SMA 50', group: 'Moving averages', overlay: true, primary: 'v', lines: [{ k: 'v', color: '#7DD3FC' }], calc: (b) => ({ v: sma(b, 50) }) },
-  { id: 'sma200', label: 'SMA 200', group: 'Moving averages', overlay: true, primary: 'v', lines: [{ k: 'v', color: '#B58CFF' }], calc: (b) => ({ v: sma(b, 200) }) },
-  { id: 'vwap', label: 'VWAP (daily)', group: 'Overlays', overlay: true, primary: 'v', intradayOnly: true, lines: [{ k: 'v', color: '#FF8AD8', width: 2 }], calc: (b) => ({ v: vwap(b) }) },
-  {
-    id: 'bb', label: 'Bollinger 20, 2', group: 'Overlays', overlay: true, primary: 'm',
+  MA('ema9', 'EMA', ema, 9, '#FFD166'),
+  MA('ema20', 'EMA', ema, 20, '#F5B544'),
+  MA('ema50', 'EMA', ema, 50, '#5EA8FF'),
+  MA('ema200', 'EMA', ema, 200, '#FF8AD8'),
+  MA('sma50', 'SMA', sma, 50, '#7DD3FC'),
+  MA('sma200', 'SMA', sma, 200, '#B58CFF'),
+  make({
+    id: 'vwap', group: 'Overlays', overlay: true, primary: 'v', intradayOnly: true,
+    paramSpecs: [{ ...SRC_PARAM, def: 'hlc3' }],
+    defaults: { source: 'hlc3' },
+    title: () => 'VWAP (daily)',
+    lines: [{ k: 'v', name: 'VWAP', color: '#FF8AD8', width: 2 }],
+    calc: (b, p) => ({ v: vwap(b, p.source) }),
+  }),
+  make({
+    id: 'bb', group: 'Overlays', overlay: true, primary: 'm',
+    paramSpecs: [LEN(20, 2, 500), { key: 'mult', label: 'Std. deviation', type: 'float', min: 0.1, max: 10, step: 0.1, def: 2 }, SRC_PARAM],
+    defaults: { period: 20, mult: 2, source: 'close' },
+    title: (p) => `Bollinger ${p.period}, ${p.mult}`,
     lines: [
-      { k: 'u', color: 'rgba(94,168,255,.75)', width: 1 },
-      { k: 'm', color: 'rgba(94,168,255,.45)', width: 1, dash: true },
-      { k: 'l', color: 'rgba(94,168,255,.75)', width: 1 },
+      { k: 'u', name: 'Upper band', color: 'rgba(94,168,255,.75)', width: 1 },
+      { k: 'm', name: 'Basis', color: 'rgba(94,168,255,.45)', width: 1, dash: true },
+      { k: 'l', name: 'Lower band', color: 'rgba(94,168,255,.75)', width: 1 },
     ],
-    calc: (b) => bollinger(b, 20, 2),
-  },
-  { id: 'rsi', label: 'RSI 14', group: 'Oscillators', overlay: false, primary: 'v', height: 120, range: [0, 100], levels: [30, 70], lines: [{ k: 'v', color: '#B58CFF', width: 1.5 }], calc: (b) => ({ v: rsi(b, 14) }) },
-  {
-    id: 'macd', label: 'MACD 12, 26, 9', group: 'Oscillators', overlay: false, primary: 'm', height: 130,
+    calc: (b, p) => bollinger(b, p.period, p.mult, p.source),
+  }),
+  make({
+    id: 'rsi', group: 'Oscillators', overlay: false, primary: 'v', height: 120, range: [0, 100],
+    paramSpecs: [
+      LEN(14, 2, 200), SRC_PARAM,
+      { key: 'lower', label: 'Oversold level', type: 'float', min: 1, max: 99, step: 1, def: 30 },
+      { key: 'upper', label: 'Overbought level', type: 'float', min: 1, max: 99, step: 1, def: 70 },
+    ],
+    defaults: { period: 14, source: 'close', lower: 30, upper: 70 },
+    title: (p) => `RSI ${p.period}`,
+    levels: (p) => [p.lower, p.upper],
+    lines: [{ k: 'v', name: 'RSI', color: '#B58CFF', width: 1.5 }],
+    calc: (b, p) => ({ v: rsi(b, p.period, p.source) }),
+  }),
+  make({
+    id: 'macd', group: 'Oscillators', overlay: false, primary: 'm', height: 130,
+    paramSpecs: [
+      { key: 'fast', label: 'Fast length', type: 'int', min: 1, max: 200, def: 12 },
+      { key: 'slow', label: 'Slow length', type: 'int', min: 2, max: 400, def: 26 },
+      { key: 'signal', label: 'Signal length', type: 'int', min: 1, max: 200, def: 9 },
+      SRC_PARAM,
+    ],
+    defaults: { fast: 12, slow: 26, signal: 9, source: 'close' },
+    title: (p) => `MACD ${p.fast}, ${p.slow}, ${p.signal}`,
     lines: [
-      { k: 'h', color: 'rgba(53,196,161,.55)', type: 'hist' },
-      { k: 'm', color: '#5EA8FF', width: 1.5 },
-      { k: 's', color: '#F5B544', width: 1.5 },
+      { k: 'h', name: 'Histogram', color: 'rgba(53,196,161,.55)', type: 'hist' },
+      { k: 'm', name: 'MACD line', color: '#5EA8FF', width: 1.5 },
+      { k: 's', name: 'Signal line', color: '#F5B544', width: 1.5 },
     ],
-    calc: (b) => macd(b, 12, 26, 9),
-  },
-  { id: 'atr', label: 'ATR 14', group: 'Volatility', overlay: false, primary: 'v', height: 100, lines: [{ k: 'v', color: '#7DD3FC', width: 1.5 }], calc: (b) => ({ v: atr(b, 14) }) },
+    calc: (b, p, hist) => macd(b, p.fast, Math.max(p.slow, p.fast + 1), p.signal, p.source, hist?.up, hist?.down),
+  }),
+  make({
+    id: 'atr', group: 'Volatility', overlay: false, primary: 'v', height: 100,
+    paramSpecs: [LEN(14, 1, 200)],
+    defaults: { period: 14 },
+    title: (p) => `ATR ${p.period}`,
+    lines: [{ k: 'v', name: 'ATR', color: '#7DD3FC', width: 1.5 }],
+    calc: (b, p) => ({ v: atr(b, p.period) }),
+  }),
 ];
 
 export const INDICATOR_GROUPS = [...new Set(INDICATORS.map((i) => i.group))];
+export const INDICATOR_BY_ID = Object.fromEntries(INDICATORS.map((i) => [i.id, i]));
