@@ -50,6 +50,13 @@ export async function getAdminGexDays(symbol) {
   return data.days;
 }
 
+export async function getAdminGexDay(date, symbol) {
+  const data = await apiJson(
+    `/api/admin/gex/${encodeURIComponent(date)}${withSymbol(symbol)}`
+  );
+  return data.day;
+}
+
 export async function upsertAdminGex({
   date,
   symbol,

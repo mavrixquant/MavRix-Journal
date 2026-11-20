@@ -53,6 +53,15 @@ export async function listAdminGexDays(symbol) {
   return rows.map(serializeListItem);
 }
 
+export async function getAdminGexDay(date, symbol) {
+  const s = resolveSymbol(symbol);
+  const row = await prisma.gexDay.findUnique({
+    where: { date_symbol: { date, symbol: s } },
+  });
+  if (!row) throw new HttpError(404, `No GEX data for ${s} · ${date}`);
+  return serializeFull(row);
+}
+
 
 // ---------------------------------------------------------------------------
 // Admin export — dump GEX data for download.

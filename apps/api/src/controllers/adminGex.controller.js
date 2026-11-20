@@ -18,6 +18,14 @@ export async function list(req, res, next) {
 }
 
 
+export async function get(req, res, next) {
+  try {
+    const day = await svc.getAdminGexDay(req.params.date, req.query.symbol);
+    res.json({ day });
+  } catch (e) { next(e); }
+}
+
+
 export async function download(req, res, next) {
   try {
     const symbol = req.query.symbol;

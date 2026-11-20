@@ -235,6 +235,7 @@ adminRoutes.get('/calendar/logs', opsCtrl.calendarLogs);
 // GEX — symbol-aware. GET/DELETE take ?symbol=..., POST takes symbol in body.
 adminRoutes.get('/gex', validateSymbolQuery, gexCtrl.list);
 adminRoutes.get('/gex/export', validateSymbolQuery, gexCtrl.download);
+adminRoutes.get('/gex/:date', validateSymbolQuery, gexCtrl.get);
 adminRoutes.post('/gex', writeLimiter, validate(gexDaySchema), gexCtrl.upsert);
 adminRoutes.delete('/gex/:date', requireSuperadmin, sensitive, validateSymbolQuery, gexCtrl.remove);
 

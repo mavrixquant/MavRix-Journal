@@ -2,7 +2,7 @@ import { useState, useCallback, useMemo } from 'react';
 import {
   RefreshCw, Trash2, CheckCircle2, AlertTriangle,
   Clipboard, ClipboardCheck, Layers, Save, Wand2,
-  Download, FileJson, FileText, FileSpreadsheet, X,
+  Download, FileJson, FileText, FileSpreadsheet, X, Pencil,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -14,6 +14,7 @@ import {
   downloadAdminGex,
 } from '@/shared/api/gex';
 import Portal from '@/shared/components/Portal';
+import EditGexModal from '../components/EditGexModal';
 import { useAdminPageHeader } from '../AdminPageHeader';
 import Alert from '@/shared/components/Alert';
 import {
@@ -502,6 +503,7 @@ const CSS = `
     border-color: rgba(96,165,250,.30);
   }
 
+  .gexp-actions { display: inline-flex; align-items: center; gap: 6px; }
   .gexp-btn-icon {
     width: 26px; height: 26px; padding: 0;
     display: inline-flex; align-items: center; justify-content: center;
@@ -515,6 +517,11 @@ const CSS = `
     color: #f87171;
     border-color: rgba(239,68,68,.42);
     background: rgba(239,68,68,.08);
+  }
+  .gexp-btn-icon.gexp-btn-edit:hover:not(:disabled) {
+    color: var(--accent);
+    border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
   }
   .gexp-btn-icon:disabled { opacity: .35; cursor: not-allowed; }
 
@@ -565,6 +572,7 @@ export default function AdminGexPage() {
 
   const [overwritePrompt, setOverwritePrompt] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [editTarget, setEditTarget] = useState(null);
 
   // Download dropdown state
   const [downloadOpen, setDownloadOpen] = useState(false);
@@ -962,15 +970,25 @@ export default function AdminGexPage() {
                       </td>
                       <td className="gexp-td muted">{relativeTime(d.uploadedAt)}</td>
                       <td className="gexp-td right">
-                        <button
-                          type="button"
-                          className="gexp-btn-icon"
-                          disabled={!isSuper || remove.isPending}
-                          title={isSuper ? `Delete ${d.symbol} · ${d.date}` : 'Superadmin only'}
-                          onClick={() => setDeleteTarget(d)}
-                        >
-                          <Trash2 size={12} />
-                        </button>
+                        <div className="gexp-actions">
+                          <button
+                            type="button"
+                            className="gexp-btn-icon gexp-btn-edit"
+                            title={`Edit ${d.symbol} · ${d.date}`}
+                            onClick={() => setEditTarget(d)}
+                          >
+                            <Pencil size={12} />
+                          </button>
+                          <button
+                            type="button"
+                            className="gexp-btn-icon"
+                            disabled={!isSuper || remove.isPending}
+                            title={isSuper ? `Delete ${d.symbol} · ${d.date}` : 'Superadmin only'}
+                            onClick={() => setDeleteTarget(d)}
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -998,6 +1016,12 @@ export default function AdminGexPage() {
         cancelText="Cancel"
         onConfirm={handleConfirmOverwrite}
         onCancel={() => setOverwritePrompt(null)}
+      />
+
+      <EditGexModal
+        isOpen={!!editTarget}
+        gexDay={editTarget}
+        onClose={() => setEditTarget(null)}
       />
 
       <Alert
