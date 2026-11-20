@@ -33,7 +33,9 @@ export function useCalendarFilters() {
   const [to, setTo] = useState(initialRange.to);
   const [rangePreset, setRangePreset] = useState('today');
 
-  const [currencies, setCurrencies] = useState([]);
+  // Start with the seven primary currencies selected so the calendar is
+  // focused on the markets most relevant to the workspace by default.
+  const [currencies, setCurrencies] = useState(() => [...DEFAULT_CALENDAR_CURRENCIES]);
   const [impacts, setImpacts] = useState([]);
 
   const [selectedEventId, setSelectedEventId] = useState(null);

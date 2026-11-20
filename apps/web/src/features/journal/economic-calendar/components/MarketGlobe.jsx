@@ -3,6 +3,7 @@ import { geoContains } from 'd3-geo';
 import { feature } from 'topojson-client';
 import landTopo from 'world-atlas/land-110m.json';
 import { CURRENCY_GEO } from '../lib/currencyGeo';
+import { DEFAULT_CALENDAR_CURRENCIES } from '@mavrix/shared';
 
 /* ------------------------------------------------------------------ */
 /*  Land dots: sampled once from real coastline data, then cached      */
@@ -410,7 +411,11 @@ export default function MarketGlobe({
     setTip(null);
   };
 
-  const chips = stats.slice(0, 8);
+  // Keep the pulse chips limited to the seven primary currencies, in the
+  // same stable order as the default filter selection.
+  const chips = DEFAULT_CALENDAR_CURRENCIES
+    .map((currency) => stats.find((s) => s.currency === currency))
+    .filter(Boolean);
 
   return (
     <div className="ec-card eg-card">

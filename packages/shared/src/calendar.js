@@ -9,7 +9,7 @@ export const IMPACT_META = {
 };
 
 
-export const DEFAULT_CALENDAR_CURRENCIES = ['USD', 'EUR', 'GBP', 'JPY'];
+export const DEFAULT_CALENDAR_CURRENCIES = ['EUR', 'GBP', 'JPY', 'USD', 'CAD', 'CHF', 'AUD'];
 
 export const CURRENCY_NAMES = {
   USD: 'US Dollar',

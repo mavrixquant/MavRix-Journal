@@ -5,6 +5,7 @@ import {
   useCalendarCurrencies,
   useCalendarMeta,
 } from '@/shared/api/calendar';
+import { DEFAULT_CALENDAR_CURRENCIES } from '@mavrix/shared';
 import { usePageHeader } from '@/app/layout/PageHeaderProvider';
 
 import { useCalendarFilters } from './hooks/useCalendarFilters';
@@ -288,14 +289,16 @@ export default function EconomicCalendarPage() {
   const geoStats = useMemo(() => {
     const map = new Map();
     for (const e of week) {
-      if (!e.currency) continue;
+      if (!e.currency || !DEFAULT_CALENDAR_CURRENCIES.includes(e.currency)) continue;
       const s = map.get(e.currency) ?? { currency: e.currency, count: 0, high: 0, pending: 0 };
       s.count += 1;
       if (e.impact === 'high') s.high += 1;
       if (isPending(e)) s.pending += 1;
       map.set(e.currency, s);
     }
-    return [...map.values()].sort((a, b) => b.high - a.high || b.count - a.count);
+    return DEFAULT_CALENDAR_CURRENCIES
+      .map((currency) => map.get(currency))
+      .filter(Boolean);
   }, [week]);
 
   const upcoming = useMemo(() => {
