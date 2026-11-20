@@ -21,7 +21,13 @@ const app = express();
 
 app.use(helmet());
 app.use(compression());
-app.use(cors({ origin: env.clientOrigin, credentials: true }));
+app.use(cors({
+  origin: env.clientOrigin,
+  credentials: true,
+  // Admin GEX export returns the server-chosen filename in this header; it
+  // must be exposed or the browser can't read it on a cross-origin response.
+  exposedHeaders: ['X-Suggested-Filename'],
+}));
 app.use(express.json({ limit: '12mb' }));
 app.use(cookieParser());
 app.use(morgan(env.isProd ? 'combined' : 'dev'));

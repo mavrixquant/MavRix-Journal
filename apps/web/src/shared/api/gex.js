@@ -3,7 +3,7 @@ import {
   useMutation,
   useQueryClient,
 } from '@tanstack/react-query';
-import { apiJson } from './client.js';
+import { apiJson, apiFetch } from './client.js';
 import { useSSEFallback } from './sse.js';
 import { useEffect } from 'react';
 import { DEFAULT_GEX_SYMBOL, GEX_SYMBOLS } from '@mavrix/shared';
@@ -71,6 +71,25 @@ export async function deleteAdminGex(date, symbol) {
     `/api/admin/gex/${encodeURIComponent(date)}${withSymbol(symbol)}`,
     { method: 'DELETE' }
   );
+}
+
+export async function downloadAdminGex(symbol, { scope = 'symbol', format = 'json' } = {}) {
+  const params = new URLSearchParams();
+  if (symbol && scope !== 'all') params.set('symbol', symbol);
+  if (scope === 'all') params.set('scope', 'all');
+  params.set('format', format);
+
+  const res = await apiFetch(`/api/admin/gex/export?${params.toString()}`);
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.error || `Export failed (${res.status})`);
+  }
+
+  const blob = await res.blob();
+  const suggested = res.headers.get('X-Suggested-Filename');
+  const ext = format === 'text' ? 'txt' : format;
+  const fallback = scope === 'all' ? `mavrix-gex-all.${ext}` : `mavrix-gex-${symbol}.${ext}`;
+  return { blob, filename: suggested || fallback };
 }
 
 

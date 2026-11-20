@@ -2,6 +2,7 @@ import { useState, useCallback, useMemo } from 'react';
 import {
   RefreshCw, Trash2, CheckCircle2, AlertTriangle,
   Clipboard, ClipboardCheck, Layers, Save, Wand2,
+  Download, FileJson, FileText, FileSpreadsheet, X,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -10,7 +11,9 @@ import {
   useAdminGexDays,
   useAdminUpsertGex,
   useAdminDeleteGex,
+  downloadAdminGex,
 } from '@/shared/api/gex';
+import Portal from '@/shared/components/Portal';
 import { useAdminPageHeader } from '../AdminPageHeader';
 import Alert from '@/shared/components/Alert';
 import {
@@ -348,6 +351,115 @@ const CSS = `
     background: rgba(255,255,255,.08); border-radius: 99px;
   }
 
+  /* ---------- Download modal ---------- */
+  .gexp-dl-overlay {
+    position: fixed; inset: 0;
+    background: rgba(4,6,9,.78);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 3000; padding: 16px;
+    animation: gexpDlFade .16s ease;
+  }
+  .gexp-dl-modal {
+    width: 100%; max-width: 460px;
+    background: linear-gradient(180deg, #12161F, #0C1017);
+    border: 1px solid rgba(255,255,255,.10);
+    border-radius: 16px;
+    color: #E7E9EE;
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
+    overflow: hidden;
+    position: relative;
+    animation: gexpDlIn .24s cubic-bezier(.2,.8,.25,1);
+    box-shadow: 0 40px 100px -30px rgba(0,0,0,.95);
+  }
+  .gexp-dl-modal::before {
+    content: '';
+    position: absolute; left: 0; right: 0; top: 0; height: 2px;
+    background: linear-gradient(90deg, transparent, var(--accent), var(--accent-2), var(--accent), transparent);
+    background-size: 200% 100%;
+    animation: gexpDlGrad 4s linear infinite;
+  }
+  .gexp-dl-head {
+    padding: 20px 22px 10px;
+    display: flex; align-items: flex-start; gap: 12px;
+  }
+  .gexp-dl-icon { color: var(--accent); flex-shrink: 0; margin-top: 2px; }
+  .gexp-dl-title {
+    margin: 0; font-size: 16px; font-weight: 700;
+    letter-spacing: -.01em; color: #FFFFFF;
+  }
+  .gexp-dl-sub {
+    margin: 5px 0 0;
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 11px; line-height: 1.6; color: #8892A3;
+  }
+  .gexp-dl-close {
+    margin-left: auto;
+    width: 28px; height: 28px;
+    display: inline-flex; align-items: center; justify-content: center;
+    border-radius: 8px; border: 1px solid rgba(255,255,255,.09);
+    background: rgba(255,255,255,.025); color: #8892A3;
+    cursor: pointer; transition: all .18s;
+  }
+  .gexp-dl-close:hover { color: #E7E9EE; background: rgba(255,255,255,.06); }
+
+  .gexp-dl-body {
+    padding: 6px 22px 18px;
+    display: flex; flex-direction: column; gap: 16px;
+  }
+  .gexp-dl-group { display: flex; flex-direction: column; gap: 8px; }
+  .gexp-dl-label {
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 10px; font-weight: 700;
+    letter-spacing: .14em; text-transform: uppercase; color: #545E6E;
+  }
+  .gexp-dl-options { display: grid; gap: 8px; }
+  .gexp-dl-options.is-2 { grid-template-columns: 1fr 1fr; }
+  .gexp-dl-opt {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px; border-radius: 10px;
+    border: 1px solid rgba(255,255,255,.09);
+    background: rgba(255,255,255,.02);
+    color: #8892A3; cursor: pointer; text-align: left;
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 11.5px; font-weight: 600;
+    transition: all .16s;
+  }
+  .gexp-dl-opt:hover { color: #E7E9EE; border-color: rgba(255,255,255,.18); background: rgba(255,255,255,.04); }
+  .gexp-dl-opt.is-active {
+    color: #FFFFFF;
+    border-color: color-mix(in srgb, var(--accent) 50%, transparent);
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
+    box-shadow: 0 0 22px -12px color-mix(in srgb, var(--accent) 60%, transparent);
+  }
+  .gexp-dl-opt svg { flex-shrink: 0; opacity: .7; }
+  .gexp-dl-opt.is-active svg { color: var(--accent); opacity: 1; }
+  .gexp-dl-opt-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .gexp-dl-opt-name { font-weight: 700; letter-spacing: .02em; }
+  .gexp-dl-opt-desc {
+    font-size: 10px; font-weight: 500; color: #545E6E;
+    letter-spacing: 0; white-space: normal; line-height: 1.45;
+  }
+  .gexp-dl-opt.is-active .gexp-dl-opt-desc { color: rgba(255,255,255,.55); }
+
+  .gexp-dl-foot {
+    display: flex; justify-content: flex-end; gap: 10px;
+    padding: 14px 22px;
+    border-top: 1px solid rgba(255,255,255,.05);
+    background: rgba(0,0,0,.15);
+  }
+
+  @keyframes gexpDlFade { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes gexpDlIn {
+    from { opacity: 0; transform: translateY(-10px) scale(.97); }
+    to   { opacity: 1; transform: none; }
+  }
+  @keyframes gexpDlGrad {
+    0%   { background-position: 0% 50%; }
+    100% { background-position: 200% 50%; }
+  }
+
   .gexp-table {
     width: 100%; border-collapse: collapse;
     font-family: 'IBM Plex Mono', ui-monospace, monospace;
@@ -454,6 +566,12 @@ export default function AdminGexPage() {
   const [overwritePrompt, setOverwritePrompt] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
 
+  // Download dropdown state
+  const [downloadOpen, setDownloadOpen] = useState(false);
+  const [downloadFormat, setDownloadFormat] = useState('json');
+  const [downloadScope, setDownloadScope] = useState('symbol'); // 'symbol' | 'all'
+  const [downloading, setDownloading] = useState(false);
+
   const { data: days = [], isLoading } = useAdminGexDays(symbol);
   const upsert = useAdminUpsertGex();
   const remove = useAdminDeleteGex();
@@ -558,6 +676,31 @@ export default function AdminGexPage() {
       toast.error('Copy failed');
     }
   }, [preview]);
+
+  const handleDownload = useCallback(async () => {
+    if (downloading || days.length === 0) return;
+    setDownloading(true);
+    try {
+      const { blob, filename } = await downloadAdminGex(symbol, {
+        scope: downloadScope,
+        format: downloadFormat,
+      });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = filename;
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+      URL.revokeObjectURL(url);
+      toast.success(`Downloaded ${downloadFormat.toUpperCase()} (${downloadScope === 'all' ? 'All symbols' : symbol})`);
+    } catch (err) {
+      toast.error(err.message || 'Download failed');
+    } finally {
+      setDownloading(false);
+      setDownloadOpen(false);
+    }
+  }, [symbol, days.length, downloadFormat, downloadScope, downloading]);
 
   const canSave = hasPreview && !!date && !upsert.isPending;
   const counts = preview?.counts;
@@ -760,6 +903,19 @@ export default function AdminGexPage() {
             <span className="gexp-card-sub">
               {days.length} {days.length === 1 ? 'day' : 'days'}
             </span>
+
+            {days.length > 0 && (
+              <button
+                type="button"
+                className="gexp-btn"
+                style={{ marginLeft: 8 }}
+                onClick={() => setDownloadOpen(true)}
+                title="Download GEX data"
+              >
+                <Download size={12} />
+                Download
+              </button>
+            )}
           </div>
           <div className="gexp-card-body" style={{ padding: 0 }}>
             {isLoading ? (
@@ -858,6 +1014,129 @@ export default function AdminGexPage() {
         onConfirm={handleConfirmDelete}
         onCancel={() => setDeleteTarget(null)}
       />
+
+      {downloadOpen && (
+        <Portal>
+          <div
+            className="gexp-dl-overlay"
+            onClick={(e) => {
+              if (e.target === e.currentTarget && !downloading) setDownloadOpen(false);
+            }}
+          >
+            <div className="gexp-dl-modal" role="dialog" aria-modal="true" aria-labelledby="gexp-dl-title">
+              <div className="gexp-dl-head">
+                <Download size={18} className="gexp-dl-icon" />
+                <div>
+                  <h3 className="gexp-dl-title" id="gexp-dl-title">Download GEX data</h3>
+                  <p className="gexp-dl-sub">
+                    {downloadScope === 'all'
+                      ? `Export every ${GEX_SYMBOLS.join(' + ')} day`
+                      : `Export ${days.length} ${symbol} ${days.length === 1 ? 'day' : 'days'}`}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="gexp-dl-close"
+                  onClick={() => setDownloadOpen(false)}
+                  disabled={downloading}
+                  aria-label="Close"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+
+              <div className="gexp-dl-body">
+                <div className="gexp-dl-group">
+                  <span className="gexp-dl-label">Scope</span>
+                  <div className="gexp-dl-options is-2">
+                    <button
+                      type="button"
+                      className={`gexp-dl-opt${downloadScope === 'symbol' ? ' is-active' : ''}`}
+                      onClick={() => setDownloadScope('symbol')}
+                    >
+                      <Layers size={14} />
+                      <span className="gexp-dl-opt-main">
+                        <span className="gexp-dl-opt-name">{symbol} only</span>
+                        <span className="gexp-dl-opt-desc">Active symbol</span>
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      className={`gexp-dl-opt${downloadScope === 'all' ? ' is-active' : ''}`}
+                      onClick={() => setDownloadScope('all')}
+                    >
+                      <Layers size={14} />
+                      <span className="gexp-dl-opt-main">
+                        <span className="gexp-dl-opt-name">All symbols</span>
+                        <span className="gexp-dl-opt-desc">{GEX_SYMBOLS.join(' + ')}</span>
+                      </span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="gexp-dl-group">
+                  <span className="gexp-dl-label">Format</span>
+                  <div className="gexp-dl-options">
+                    <button
+                      type="button"
+                      className={`gexp-dl-opt${downloadFormat === 'json' ? ' is-active' : ''}`}
+                      onClick={() => setDownloadFormat('json')}
+                    >
+                      <FileJson size={14} />
+                      <span className="gexp-dl-opt-main">
+                        <span className="gexp-dl-opt-name">JSON</span>
+                        <span className="gexp-dl-opt-desc">Full data — levels, counts, metadata. Best for backups & scripts.</span>
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      className={`gexp-dl-opt${downloadFormat === 'csv' ? ' is-active' : ''}`}
+                      onClick={() => setDownloadFormat('csv')}
+                    >
+                      <FileSpreadsheet size={14} />
+                      <span className="gexp-dl-opt-main">
+                        <span className="gexp-dl-opt-name">CSV</span>
+                        <span className="gexp-dl-opt-desc">One row per level — opens in Excel / Sheets.</span>
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      className={`gexp-dl-opt${downloadFormat === 'text' ? ' is-active' : ''}`}
+                      onClick={() => setDownloadFormat('text')}
+                    >
+                      <FileText size={14} />
+                      <span className="gexp-dl-opt-main">
+                        <span className="gexp-dl-opt-name">TEXT</span>
+                        <span className="gexp-dl-opt-desc">TradingView pipe-strings, one per day.</span>
+                      </span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="gexp-dl-foot">
+                <button
+                  type="button"
+                  className="gexp-btn"
+                  onClick={() => setDownloadOpen(false)}
+                  disabled={downloading}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="gexp-btn gexp-btn-primary"
+                  onClick={handleDownload}
+                  disabled={downloading}
+                >
+                  <Download size={11} />
+                  {downloading ? 'Downloading…' : 'Download'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </Portal>
+      )}
     </>
   );
 }

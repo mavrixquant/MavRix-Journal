@@ -54,6 +54,125 @@ export async function listAdminGexDays(symbol) {
 }
 
 
+// ---------------------------------------------------------------------------
+// Admin export — dump GEX data for download.
+//
+// `scope`:
+//   'symbol' → every day for the active symbol (default; matches the table)
+//   'all'    → every day for every GEX symbol, grouped per symbol
+// `format`:
+//   'json'   → self-describing JSON payload (levels, counts, metadata)
+//   'text'   → TradingView pipe-string per day (TYPE|PRICE|LABEL;…)
+//   'csv'    → flat row per level (date,symbol,type,price,label)
+// ---------------------------------------------------------------------------
+
+const EXPORT_FORMATS = ['json', 'text', 'csv'];
+
+function serializeExportRow(row) {
+  return {
+    id: row.id,
+    date: row.date,
+    symbol: row.symbol,
+    levels: row.levels,
+    converted: row.converted,
+    levelCount: row.levelCount,
+    blCount: row.blCount,
+    gexCount: row.gexCount,
+    otherCount: row.otherCount,
+    sourceTimezone: row.sourceTimezone,
+    uploadedBy: row.uploadedBy,
+    createdAt: row.createdAt,
+    uploadedAt: row.updatedAt,
+  };
+}
+
+export async function exportAdminGex(symbol, { scope = 'symbol', format = 'json' } = {}) {
+  const fmt = EXPORT_FORMATS.includes(format) ? format : 'json';
+  const wantAll = scope === 'all';
+
+  const fetchRows = async (sym) => {
+    const rows = await prisma.gexDay.findMany({
+      where: { symbol: sym },
+      orderBy: { date: 'asc' },
+    });
+    return rows.map(serializeExportRow);
+  };
+
+  const stamp = new Date().toISOString();
+  const filenameBase = wantAll ? `mavrix-gex-all` : `mavrix-gex-${resolveSymbol(symbol)}`;
+
+  if (wantAll) {
+    const bySymbol = {};
+    for (const sym of GEX_SYMBOLS) bySymbol[sym] = await fetchRows(sym);
+
+    if (fmt === 'json') {
+      const payload = {
+        kind: 'mavrix.gex.export',
+        exportedAt: stamp,
+        scope: 'all',
+        symbols: GEX_SYMBOLS,
+        data: bySymbol,
+      };
+      return { filename: `${filenameBase}.json`, mime: 'application/json', content: JSON.stringify(payload, null, 2) };
+    }
+
+    if (fmt === 'csv') {
+      const lines = ['date,symbol,type,price,label'];
+      for (const sym of GEX_SYMBOLS) {
+        for (const day of bySymbol[sym]) {
+          for (const lvl of day.levels) {
+            lines.push([day.date, sym, lvl.type, lvl.price, csvEscape(lvl.label)].join(','));
+          }
+        }
+      }
+      return { filename: `${filenameBase}.csv`, mime: 'text/csv', content: lines.join('\n') };
+    }
+
+    // text — TradingView pipe-string per day
+    const chunks = [];
+    for (const sym of GEX_SYMBOLS) {
+      chunks.push(`# ${sym} — ${bySymbol[sym].length} day(s)`);
+      for (const day of bySymbol[sym]) chunks.push(`${day.date}|${day.converted}`);
+    }
+    return { filename: `${filenameBase}.txt`, mime: 'text/plain', content: chunks.join('\n') };
+  }
+
+  const rows = await fetchRows(resolveSymbol(symbol));
+
+  if (fmt === 'json') {
+    const payload = {
+      kind: 'mavrix.gex.export',
+      exportedAt: stamp,
+      scope: 'symbol',
+      symbol: resolveSymbol(symbol),
+      count: rows.length,
+      days: rows,
+    };
+    return { filename: `${filenameBase}.json`, mime: 'application/json', content: JSON.stringify(payload, null, 2) };
+  }
+
+  if (fmt === 'csv') {
+    const lines = ['date,symbol,type,price,label'];
+    for (const day of rows) {
+      for (const lvl of day.levels) {
+        lines.push([day.date, day.symbol, lvl.type, lvl.price, csvEscape(lvl.label)].join(','));
+      }
+    }
+    return { filename: `${filenameBase}.csv`, mime: 'text/csv', content: lines.join('\n') };
+  }
+
+  // text — TradingView pipe-string per day
+  const chunks = rows.map((d) => `${d.date}|${d.converted}`);
+  return { filename: `${filenameBase}.txt`, mime: 'text/plain', content: chunks.join('\n') };
+}
+
+function csvEscape(value) {
+  const s = String(value ?? '');
+  if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+  return s;
+}
+
+
 export async function upsertGexDay(actor, payload, { overwrite = false } = {}) {
   const { date, levels, converted, sourceTimezone, symbol: rawSymbol } = payload;
   const symbol = resolveSymbol(rawSymbol);

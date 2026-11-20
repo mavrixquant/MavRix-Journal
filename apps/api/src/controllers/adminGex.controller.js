@@ -18,6 +18,26 @@ export async function list(req, res, next) {
 }
 
 
+export async function download(req, res, next) {
+  try {
+    const symbol = req.query.symbol;
+    const scope = req.query.scope === 'all' ? 'all' : 'symbol';
+    const format = req.query.format || 'json';
+
+    const result = await svc.exportAdminGex(symbol, { scope, format });
+
+    const safeFormat = (result.filename.split('.').pop() || 'json');
+    const safeSymbol = String(symbol || 'all').toUpperCase();
+    res.setHeader('Content-Type', result.mime);
+    res.setHeader('Content-Disposition',
+      `attachment; filename="${safeSymbol}-gex-${safeFormat}"`);
+    res.setHeader('X-Suggested-Filename', result.filename);
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.send(result.content);
+  } catch (e) { next(e); }
+}
+
+
 export async function upsert(req, res, next) {
   try {
     const actor = await buildActor(req);
