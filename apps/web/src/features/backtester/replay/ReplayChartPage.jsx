@@ -11,10 +11,10 @@ import {
   useBacktestSession, useBacktestTrades, useCreateBacktestTrade, useUpdateBacktestTrade,
   useDeleteBacktestTrade, useUpdateBacktestSession,
 } from '@/shared/api/backtestSessions';
-import DrawingToolbar from '@/features/charts/components/DrawingToolbar';
-import { CSS as MK_CSS } from '@/features/charts/lib/chartStyles';
-import { pricePrecision } from '@/features/charts/lib/chartTheme';
-import { DRAW_COLORS } from '@/features/charts/lib/drawings';
+import DrawingToolbar from '@/shared/charts/DrawingToolbar';
+import { CSS as MK_CSS } from '@/shared/charts/chartStyles';
+import { pricePrecision } from '@/shared/charts/chartTheme';
+import { DRAW_COLORS } from '@/shared/charts/drawings';
 
 import ReplayChart from './components/ReplayChart';
 import ReplayHeader from './components/ReplayHeader';

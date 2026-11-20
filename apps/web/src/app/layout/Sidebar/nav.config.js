@@ -8,7 +8,6 @@ import {
   FaClock,
   FaChartPie,
   FaChartLine,
-  FaClipboardList,
   FaChartBar,
   FaWallet,
   FaBrain,

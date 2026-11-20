@@ -1,5 +1,5 @@
 import { forwardRef, useMemo } from 'react';
-import CandlestickChart from '@/features/charts/components/CandlestickChart';
+import CandlestickChart from '@/shared/charts/CandlestickChart';
 import { buildDisplayEntries, displayUpTo, unrealisedPnl } from '../../lib/replayMath';
 import { isPending, orderLabel } from '../../lib/orders';
 import { getPointValue } from '@mavrix/shared';

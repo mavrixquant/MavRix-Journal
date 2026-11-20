@@ -36,6 +36,7 @@ export function useStats() {
     accountId,
     state.accounts,
     selectedAccount,
+    getFilteredTrades,
   ]);
 
   const stats = useMemo(() => {

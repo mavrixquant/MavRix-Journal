@@ -59,7 +59,7 @@ export function checkOrderFill(order, bar) {
 }
 
 /** Money at risk / reward for a planned position. */
-export function plannedRisk({ side, entry, stopLoss, takeProfit, quantity, symbol }) {
+export function plannedRisk({ side: _side, entry, stopLoss, takeProfit, quantity, symbol }) {
   const q = Number(quantity) || 0;
   const pv = getPointValue(symbol);
   const risk = stopLoss != null ? Math.abs(entry - stopLoss) * q * pv : null;

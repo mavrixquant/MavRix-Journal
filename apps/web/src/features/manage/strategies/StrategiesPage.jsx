@@ -73,7 +73,7 @@ export default function StrategiesPage() {
     subtitle: 'Define playbooks, track performance',
   });
 
-  const statsById = overview?.stats || {};
+  const statsById = useMemo(() => overview?.stats || {}, [overview?.stats]);
   const totals = overview?.totals;
 
   const counts = useMemo(() => {
