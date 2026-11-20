@@ -139,6 +139,8 @@ const CandlestickChart = forwardRef(function CandlestickChart({
   const [ohlc, setOhlc] = useState(null);
   const [indVals, setIndVals] = useState({});
   const [atEdge, setAtEdge] = useState(true);
+  const [fitEnabled, setFitEnabled] = useState(false);
+  const [autoScaleEnabled, setAutoScaleEnabled] = useState(true);
 
   const lastLegend = () => {
     const d = ohlcRef.current;
@@ -491,7 +493,9 @@ const CandlestickChart = forwardRef(function CandlestickChart({
     }
     firstTimeRef.current = data[0].time;
 
-    if (fitKey !== null && fitKey !== lastFitKeyRef.current) {
+    if (fitEnabled) {
+      ts.fitContent();
+    } else if (fitKey !== null && fitKey !== lastFitKeyRef.current) {
       lastFitKeyRef.current = fitKey;
       if (fitMode === 'recent' && data.length > 150) ts.setVisibleLogicalRange({ from: data.length - 150, to: data.length + 10 });
       else ts.fitContent();
@@ -499,7 +503,7 @@ const CandlestickChart = forwardRef(function CandlestickChart({
     const last = ohlcData[ohlcData.length - 1];
     setOhlc({ open: last.open, high: last.high, low: last.low, close: last.close, volume: safe[safe.length - 1]?.volume });
     drawPrimRef.current.redraw();
-  }, [bars, chartType, precision, fitKey, fitMode, interval]);
+  }, [bars, chartType, precision, fitKey, fitMode, interval, fitEnabled]);
 
   /* ----- volume ----- */
   useEffect(() => {
@@ -730,8 +734,8 @@ const CandlestickChart = forwardRef(function CandlestickChart({
         <div className="mk-zoom" role="group" aria-label="Zoom">
           <button type="button" onClick={() => zoomBy(0.8)} aria-label="Zoom out" title="Zoom out"><Minus size={13} /></button>
           <button type="button" onClick={() => zoomBy(1.25)} aria-label="Zoom in" title="Zoom in"><Plus size={13} /></button>
-          <button type="button" className="txt" onClick={() => { chartRef.current?.timeScale().fitContent(); }} title="Fit all loaded data">Fit</button>
-          <button type="button" className="txt" onClick={() => chartRef.current?.priceScale('right').applyOptions({ autoScale: true })} title="Reset price scale">Auto</button>
+          <button type="button" className={`txt${fitEnabled ? ' is-on' : ''}`} onClick={() => { const next = !fitEnabled; setFitEnabled(next); if (next) chartRef.current?.timeScale().fitContent(); }} aria-pressed={fitEnabled} title="Keep all loaded data fitted">Fit</button>
+          <button type="button" className={`txt${autoScaleEnabled ? ' is-on' : ''}`} onClick={() => { const next = !autoScaleEnabled; setAutoScaleEnabled(next); chartRef.current?.priceScale('right').applyOptions({ autoScale: next }); }} aria-pressed={autoScaleEnabled} title="Toggle automatic price scaling">Auto</button>
           {!atEdge && <button type="button" className="go" onClick={() => chartRef.current?.timeScale().scrollToRealTime()} title="Go to current price" aria-label="Go to current price"><ArrowRightToLine size={14} /></button>}
         </div>
       )}

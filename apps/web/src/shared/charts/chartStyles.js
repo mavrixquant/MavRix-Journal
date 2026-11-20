@@ -138,6 +138,7 @@ export const CSS = `
   .mk-zoom { position: absolute; bottom: 34px; right: 76px; z-index: 5; display: flex; gap: 2px; padding: 3px; border-radius: 10px; background: var(--mk-glass); border: 1px solid var(--mk-line); backdrop-filter: blur(10px); }
   .mk-zoom button { min-width: 26px; height: 26px; padding: 0 7px; display: inline-flex; align-items: center; justify-content: center; border: 0; border-radius: 6px; background: transparent; color: var(--mk-ink-2); font: 700 10.5px 'IBM Plex Mono', monospace; cursor: pointer; }
   .mk-zoom button:hover { color: var(--mk-ink-1); background: rgba(255,255,255,.07); }
+  .mk-zoom button.is-on { color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
   .mk-zoom .go { color: var(--accent); }
   .mk-cv-empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; }
 
