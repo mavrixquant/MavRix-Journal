@@ -5,6 +5,8 @@ import { AlertTriangle, RotateCw, X } from 'lucide-react';
 import { useMarketCatalog, useMarketBars } from '@/shared/api/marketData';
 import { queryClient } from '@/shared/api/queryClient';
 import { useJournalTrades } from '@/shared/api/journalTrades';
+import { useGexDay, useGexDays } from '@/shared/api/gex';
+import { GEX_SYMBOLS, parseGexString } from '@mavrix/shared';
 import { getTimezoneOffsetSeconds, toDisplaySeconds, tradeTimeToUtcSeconds } from '@/shared/trading/tradeTime';
 import { resolveTimezone } from '@/shared/format/datetime';
 import { useSettings } from '@/app/layout/Settings/SettingsProvider';
@@ -292,6 +294,36 @@ export default function MarketChartPage() {
   const symInfo = catalog?.symbols?.find((s) => s.code === symbol);
   const precision = pricePrecision(symInfo, symbol);
 
+  /* ---------------------------- GEX levels (for GEX indicator) ---------------------------- */
+  // GEX is only available for NQ and ES. Resolve the latest uploaded day (newest first) so the
+  // chart always shows the most recent GEX levels regardless of which bars are loaded.
+  const isGexSymbol = GEX_SYMBOLS.includes(symbol);
+  const { data: gexDays } = useGexDays(isGexSymbol ? symbol : null);
+  const latestGexDate = gexDays?.[0]?.date ?? null;
+  const { data: gexDay } = useGexDay(latestGexDate, symbol);
+
+  const gexLevels = useMemo(() => {
+    if (!gexDay) return [];
+
+    // The converted string is the canonical format used by the GEX page and
+    // remains compatible with older rows whose JSON levels are unavailable.
+    const parsed = parseGexString(gexDay.converted);
+    if (parsed.levels.length) return parsed.levels;
+
+    const raw = typeof gexDay.levels === 'string'
+      ? (() => { try { return JSON.parse(gexDay.levels); } catch { return []; } })()
+      : gexDay.levels;
+    return Array.isArray(raw)
+      ? raw
+        .map((level) => ({
+          type: String(level?.type || '').trim().toUpperCase(),
+          price: Number(level?.price),
+          label: String(level?.label || '').trim(),
+        }))
+        .filter((level) => Number.isFinite(level.price))
+      : [];
+  }, [gexDay]);
+
   /* ------------------------ journal trades -> boxes, markers, list ------------------------ */
   const journalResult = useJournalTrades({ accountId });
   const journal = journalResult?.trades || EMPTY;
@@ -502,6 +534,7 @@ export default function MarketChartPage() {
                 focus={focus} fitKey={fitKey} fitMode={fromParam ? 'all' : 'recent'}
                 hasMoreOlder={hasMoreOlder} onRequestOlder={handleLoadOlder} displayOffset={displayOffset} loading={barsQuery.isLoading}
                 onOhlcChange={setCrosshairOhlc}
+                gexLevels={gexLevels}
               />
               {barsQuery.isLoading && bars.length === 0 && <div className="mk-skel" aria-hidden />}
               {barsQuery.isError && bars.length === 0 && (

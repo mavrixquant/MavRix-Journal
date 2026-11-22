@@ -1,10 +1,9 @@
 import { Clock, Loader2 } from 'lucide-react';
 
-const fmtN = (n, d = 2) => Number(n).toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: Math.max(d, 4) });
 const fmtPrice = (n, d = 2) => (n == null || Number.isNaN(Number(n)) ? '—' : Number(n).toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: Math.max(d, 4) }));
 const fmtVol = (n) => (n == null || !Number(n) ? null : Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 2 }).format(Number(n)));
 
-export default function StatusBar({ barCount, rangeStats, precision = 2, tz, lastCandle, isLive, loadingOlder, filling, ohlc, symbol, interval, chartType }) {
+export default function StatusBar({ precision = 2, tz, lastCandle, isLive, loadingOlder, filling, ohlc, symbol, interval, chartType }) {
   const chg = ohlc ? Number(ohlc.close) - Number(ohlc.open) : 0;
   const pct = ohlc && Number(ohlc.open) ? (chg / Number(ohlc.open)) * 100 : 0;
   const cls = chg >= 0 ? 'is-up' : 'is-down';

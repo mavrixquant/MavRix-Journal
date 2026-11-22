@@ -19,6 +19,20 @@ import {
 const num = (v) => Number(v);
 const fmtPrice = (n, d = 2) => (n == null || Number.isNaN(Number(n)) ? '—' : Number(n).toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: Math.max(d, 4) }));
 
+// Classify GEX level into one of the 5 user-configurable categories.
+const classifyGex = (label, type) => {
+  const lbl = String(label || '').toLowerCase();
+  const k = String(type || '').toLowerCase();
+  const text = `${lbl} ${k}`;
+
+  if (text.includes('1d') || text.includes('min') || text.includes('max')) return 'oneD';
+  if (text.includes('hvl')) return 'hvl';
+  if (text.includes('resist') || text.includes('ressist') || text.includes('call') || text.includes('wall')) return 'resistance';
+  if (text.includes('support') || text.includes('put')) return 'support';
+  if (text.includes('gex')) return 'gex';
+  return 'gex';
+};
+
 function addMainSeries(chart, type, precision) {
   const priceFormat = { type: 'price', precision, minMove: 1 / 10 ** precision };
   const common = { priceFormat, priceLineVisible: true, lastValueVisible: true };
@@ -58,6 +72,7 @@ const CandlestickChart = forwardRef(function CandlestickChart({
   hasMoreOlder = false, onRequestOlder, displayOffset = 0, onAtEdgeChange,
   loading = false,
   onOhlcChange,
+  gexLevels = [],
 }, ref) {
   const containerRef = useRef(null);
   const chartRef = useRef(null);
@@ -67,6 +82,7 @@ const CandlestickChart = forwardRef(function CandlestickChart({
   const indRef = useRef({});
   const indLastRef = useRef({});
   const structRef = useRef('');
+  const gexLinesRef = useRef([]);
   const ohlcRef = useRef([]);
   const indexRef = useRef({ length: 0 });
   const draftRef = useRef(null);
@@ -513,6 +529,8 @@ const CandlestickChart = forwardRef(function CandlestickChart({
     const safe = Array.isArray(bars) ? bars : [];
     // Hidden indicators stay in the legend (eye icon) but are not drawn.
     const active = INDICATORS.filter((i) => enabledIndicators.includes(i.id) && !i.hidden && !(i.intradayOnly && interval === '1d'));
+    // GEX is rendered as price lines on the main series, not as an empty time series.
+    const renderable = active.filter((i) => i.id !== 'gex');
     const key = `${precision}|${active.map((i) => `${i.id}:${(i.levels || []).join('/')}`).join(',')}`;
     const LS = { solid: LineStyle.Solid, dashed: LineStyle.Dashed, dotted: LineStyle.Dotted };
 
@@ -522,7 +540,7 @@ const CandlestickChart = forwardRef(function CandlestickChart({
       }
       indRef.current = {}; indLastRef.current = {};
       let pane = 0;
-      for (const ind of active) {
+      for (const ind of renderable) {
         const paneIdx = ind.overlay ? 0 : ++pane;
         const prec = ind.overlay ? precision : ind.id === 'rsi' ? 2 : Math.min(6, precision + 1);
         const priceFormat = { type: 'price', precision: prec, minMove: 1 / 10 ** prec };
@@ -554,7 +572,7 @@ const CandlestickChart = forwardRef(function CandlestickChart({
       });
     }
 
-    for (const ind of active) {
+    for (const ind of renderable) {
       const group = indRef.current[ind.id];
       if (!group) continue;
       // Style edits never rebuild the series — they are applied in place.
@@ -572,7 +590,51 @@ const CandlestickChart = forwardRef(function CandlestickChart({
       indLastRef.current[ind.id] = last;
     }
     setIndVals({ ...indLastRef.current });
-  }, [bars, enabledIndicators, interval, precision, settingsVersion]);
+  }, [bars, enabledIndicators, interval, precision, settingsVersion]); // GEX price lines managed separately on mainRef
+
+  // GEX is a collection of horizontal price levels, not a time series. Attach its
+  // lines to the populated main price series so they render on the main price scale.
+  useEffect(() => {
+    const main = mainRef.current;
+    if (!main) return undefined;
+
+    const removeLines = () => {
+      gexLinesRef.current.forEach((line) => {
+        try { main.removePriceLine(line); } catch { /* series may already be removed */ }
+      });
+      gexLinesRef.current = [];
+    };
+
+    removeLines();
+    const gex = enabledIndicators.includes('gex') ? INDICATORS.find((i) => i.id === 'gex') : null;
+
+    if (gex) {
+      const lineMap = Object.fromEntries(gex.lines.map((ln) => [ln.k, ln]));
+      const LS = { solid: LineStyle.Solid, dashed: LineStyle.Dashed, dotted: LineStyle.Dotted };
+
+      gexLevels.forEach(({ price, label, type }) => {
+        // Classify level into one of the 5 user-configurable categories.
+        const cat = classifyGex(label, type);
+        const style = lineMap[cat] || lineMap.gex || {};
+        if (style.visible === false) return; // Hidden by user
+
+        const color = style.color || '#F5B544';
+        const lineWidth = style.width || 2;
+        const lineStyle = LS[style.lineStyle] ?? (style.dash ? LineStyle.Dashed : LineStyle.Solid);
+
+        gexLinesRef.current.push(main.createPriceLine({
+          price,
+          color,
+          lineWidth,
+          lineStyle,
+          axisLabelVisible: true,
+          title: label || type || cat.toUpperCase(),
+        }));
+      });
+    }
+
+    return removeLines;
+  }, [enabledIndicators, gexLevels, settingsVersion, chartType, precision]);
 
   /* ----- scale mode, markers, redraw triggers, focus ----- */
   useEffect(() => { chartRef.current?.priceScale('right').applyOptions({ mode: logScale ? PriceScaleMode.Logarithmic : PriceScaleMode.Normal }); }, [logScale]);

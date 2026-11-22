@@ -236,7 +236,7 @@ function make(def) {
         const o = ov[ln.k] || {};
         const dflt = parseColor(ln.color);
         const color = composeColor(o.color ?? dflt.hex, o.opacity ?? dflt.alpha);
-        const style = o.style ?? (ln.dash ? 'dashed' : 'solid');
+        const style = o.style ?? (ln.lineStyle || (ln.dash ? 'dashed' : 'solid'));
         const out = {
           ...ln,
           color,
@@ -332,6 +332,20 @@ export const INDICATORS = [
     title: (p) => `ATR ${p.period}`,
     lines: [{ k: 'v', name: 'ATR', color: '#7DD3FC', width: 1.5 }],
     calc: (b, p) => ({ v: atr(b, p.period) }),
+  }),
+  make({
+    id: 'gex', group: 'Overlays', overlay: true, primary: 'gex',
+    paramSpecs: [],
+    defaults: {},
+    title: () => 'GEX',
+    lines: [
+      { k: 'gex', name: 'GEX', color: '#F5B544', width: 2, lineStyle: 'solid' },
+      { k: 'support', name: 'Support', color: '#35C4A1', width: 2, lineStyle: 'solid' },
+      { k: 'resistance', name: 'Resistance', color: '#FF5C5C', width: 2, lineStyle: 'dashed', dash: true },
+      { k: 'oneD', name: '1D', color: '#FFFFFF', width: 1, lineStyle: 'dotted' },
+      { k: 'hvl', name: 'HVL', color: '#5EA8FF', width: 2, lineStyle: 'dashed', dash: true },
+    ],
+    calc: () => ({ gex: [], support: [], resistance: [], oneD: [], hvl: [] }),
   }),
 ];
 
