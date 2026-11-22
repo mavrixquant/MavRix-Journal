@@ -69,6 +69,10 @@ export const REPLAY_CSS = `
   .rp-status { display: flex; align-items: center; gap: 6px 18px; flex-wrap: wrap; padding: 6px 14px; border-top: 1px solid var(--rp-line-2); font: 500 10.5px 'IBM Plex Mono', monospace; color: var(--rp-ink-3); }
   .rp-status b { color: var(--rp-ink-2); } .rp-grow { flex: 1; }
   .rp-status .is-open { color: var(--rp-amber); } .rp-status .is-warn { color: var(--rp-amber); }
+  .rp-status .is-up { color: #35C4A1; } .rp-status .is-down { color: #FF5C5C; }
+  .rp-st-ohlc { display: inline-flex; align-items: center; gap: 5px; }
+  .rp-st-ohlc em { font-style: normal; color: var(--rp-ink-3); font-weight: 700; font-size: 9.5px; }
+  .rp-st-ohlc b { color: var(--rp-ink-2); font-weight: 700; font-variant-numeric: tabular-nums; }
 
   /* ---------- side panel ---------- */
   .rp-panel { overflow-y: auto; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.12) transparent; }

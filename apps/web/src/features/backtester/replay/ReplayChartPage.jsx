@@ -11,10 +11,10 @@ import {
   useBacktestSession, useBacktestTrades, useCreateBacktestTrade, useUpdateBacktestTrade,
   useDeleteBacktestTrade, useUpdateBacktestSession,
 } from '@/shared/api/backtestSessions';
-import DrawingToolbar from '@/shared/charts/DrawingToolbar';
-import { CSS as MK_CSS } from '@/shared/charts/chartStyles';
-import { pricePrecision } from '@/shared/charts/chartTheme';
-import { DRAW_COLORS } from '@/shared/charts/drawings';
+import DrawingToolbar from '@/features/charts/components/DrawingToolbar';
+import { CSS as MK_CSS } from '@/features/charts/lib/chartStyles';
+import { pricePrecision } from '@/features/charts/lib/chartTheme';
+import { DRAW_COLORS } from '@/features/charts/lib/drawings';
 
 import ReplayChart from './components/ReplayChart';
 import ReplayHeader from './components/ReplayHeader';
@@ -29,6 +29,7 @@ import { dayKey } from '../lib/time';
 import { REPLAY_CSS } from './replayStyles';
 
 const EMPTY = [];
+const INDICATORS_KEY = 'mavrix:replay:indicators:v1';
 const drawKey = (sid, sym) => `mavrix:replay:drawings:${sid}:${sym}`;
 const readJson = (k, f) => { try { const r = localStorage.getItem(k); return r ? JSON.parse(r) : f; } catch { return f; } };
 const writeJson = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* ignore */ } };
@@ -98,6 +99,17 @@ export default function ReplayChartPage() {
   const [panelOpen, setPanelOpen] = useState(true);
   const [drawer, setDrawer] = useState(false);
   const [selectedTradeId, setSelectedTradeId] = useState(null);
+  const [crosshairOhlc, setCrosshairOhlc] = useState(null);
+
+  // Indicators: instance ids (see IndicatorMenu). Computed only from candles up to the replay cursor.
+  const [indicators, setIndicators] = useState(() => readJson(INDICATORS_KEY, EMPTY));
+  const [indOpen, setIndOpen] = useState(false);
+  const toggleIndicator = useCallback((id) => setIndicators((p) => {
+    const next = p.includes(id) ? p.filter((x) => x !== id) : [...p, id];
+    writeJson(INDICATORS_KEY, next);
+    return next;
+  }), []);
+  const clearIndicators = useCallback(() => { setIndicators([]); writeJson(INDICATORS_KEY, []); }, []);
   const activeOrders = engine.openPositions.length + engine.pendingOrders.length;
 
   /* ------------------------------ full screen ------------------------------ */
@@ -179,6 +191,7 @@ export default function ReplayChartPage() {
       else if (e.key === 'ArrowLeft') { e.preventDefault(); engine.step(-1); }
       else if (e.key === '[') setPanelOpen((v) => !v);
       else if (e.key === 'f' || e.key === 'F') toggleFs();
+      else if (e.key === 'i' || e.key === 'I') setIndOpen((v) => !v);
       else if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId) {
         setDrawings(drawings.filter((d) => d.id !== selectedId));
         setSelectedId(null);
@@ -261,6 +274,8 @@ export default function ReplayChartPage() {
           <ReplayToolbar
             engine={engine} baseInterval={session.interval} viewInterval={view} onViewInterval={setViewInterval}
             tz={tz} currentBar={engine.currentBar} onArm={armTool} tool={tool} disabled={loading} range={dateRange}
+            indicators={indicators} onToggleIndicator={toggleIndicator} onClearIndicators={clearIndicators}
+            indicatorsOpen={indOpen} onIndicatorsOpenChange={setIndOpen}
           />
 
           <div className="mk-body">
@@ -279,11 +294,12 @@ export default function ReplayChartPage() {
                 baseInterval={session.interval} viewInterval={view}
                 bars={barsQ.bars} idx={engine.idx} trades={trades} tz={tz} precision={precision}
                 onSelectTrade={setSelectedTradeId}
+                onOhlcChange={setCrosshairOhlc}
                 chartProps={{
                   tool, onToolChange: setTool, magnet,
                   drawings: hideDrawings ? EMPTY : drawings, onDrawingsChange: setDrawings,
                   selectedId, onSelect: setSelectedId, drawColor,
-                  enabledIndicators: EMPTY, showVolume: true,
+                  enabledIndicators: indicators, onToggleIndicator: toggleIndicator, showVolume: true,
                 }}
               />
 
@@ -330,6 +346,7 @@ export default function ReplayChartPage() {
             symbol={symbol} baseInterval={session.interval} barCount={barsQ.bars.length} idx={engine.idx}
             tz={tz} loading={loading} loaded={barsQ.bars.length} filling={false}
             currentBar={engine.currentBar} open={engine.openPositions.length} pending={engine.pendingOrders.length}
+            ohlc={crosshairOhlc} viewInterval={view} precision={precision}
           />
         </div>
       </div>

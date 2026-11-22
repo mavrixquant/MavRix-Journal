@@ -1,8 +1,8 @@
 import { useMemo, useRef, useState } from 'react';
-import { INDICATOR_BY_ID, indicatorStore } from '../../lib/indicators';
-import { composeColor, parseColor } from '../../lib/colorUtil';
+import { indicatorStore, resolveIndicator } from '../../lib/indicators';
+import { parseColor } from '../../lib/colorUtil';
 import {
-  CheckField, ColorField, LineStyleField, NumberField, Note, RangeField, Row, SelectField, Section, WidthField,
+  CheckField, ColorField, LineStyleField, NumberField, Note, Row, SelectField, Section, WidthField,
 } from './fields';
 import SettingsDialog from './SettingsDialog';
 
@@ -11,7 +11,7 @@ import SettingsDialog from './SettingsDialog';
  * the snapshot taken when the dialog opened.
  */
 export default function IndicatorSettingsDialog({ indicatorId, onClose }) {
-  const ind = INDICATOR_BY_ID[indicatorId];
+  const ind = resolveIndicator(indicatorId);
   const snapshot = useRef(indicatorStore.snapshot(indicatorId));
   const [, force] = useState(0);
   const [tab, setTab] = useState('inputs');
@@ -41,8 +41,8 @@ export default function IndicatorSettingsDialog({ indicatorId, onClose }) {
     bump();
   };
 
-  const reset = () => { indicatorStore.set(indicatorId, null); setDraftVals({}); setErrors({}); bump(); };
-  const cancel = () => { indicatorStore.set(indicatorId, Object.keys(snapshot.current).length ? snapshot.current : null); onClose(); };
+  const reset = () => { indicatorStore.reset(indicatorId); setDraftVals({}); setErrors({}); bump(); };
+  const cancel = () => { indicatorStore.restore(indicatorId, snapshot.current); onClose(); };
   const hasErr = Object.values(errors).some(Boolean);
 
   const tabs = useMemo(() => [{ id: 'inputs', label: 'Inputs' }, { id: 'style', label: 'Style' }], []);
@@ -50,7 +50,7 @@ export default function IndicatorSettingsDialog({ indicatorId, onClose }) {
 
   return (
     <SettingsDialog
-      title={ind.label} dot={primary.color} tabs={tabs} tab={tab} onTab={setTab} onCancel={cancel}
+      title={ind.label} subtitle={ind.name} dot={primary.color} tabs={tabs} tab={tab} onTab={setTab} onCancel={cancel}
       footer={(
         <>
           <button type="button" className="cs-btn" onClick={reset} disabled={!indicatorStore.isModified(indicatorId)}>Reset to defaults</button>
@@ -98,13 +98,17 @@ export default function IndicatorSettingsDialog({ indicatorId, onClose }) {
                 <div className="cs-line-head">
                   <CheckField id={`ln-${ln.k}`} checked={ln.visible} onChange={(v) => setLine(ln.k, { visible: v })}>{ln.name || ln.k}</CheckField>
                 </div>
-                <Row label={hist ? 'Up colour' : 'Colour'}><ColorField value={parsed.hex} onChange={setColor} label={`${ln.name} colour`} /></Row>
+                <Row label={hist ? 'Up colour' : 'Colour'}>
+                  <ColorField
+                    value={parsed.hex} onChange={setColor} label={`${ln.name} colour`}
+                    opacity={o.opacity ?? parsed.alpha} onOpacity={(v) => setLine(ln.k, { opacity: v })}
+                  />
+                </Row>
                 {hist && (
                   <Row label="Down colour">
                     <ColorField value={parseColor(ln.colorDown).hex} onChange={(hex) => setLine(ln.k, { colorDown: hex })} label={`${ln.name} down colour`} />
                   </Row>
                 )}
-                <Row label="Opacity"><RangeField value={o.opacity ?? parsed.alpha} min={0.1} max={1} step={0.05} onChange={(v) => setLine(ln.k, { opacity: v })} label={`${ln.name} opacity`} /></Row>
                 {!hist && (
                   <>
                     <Row label="Width"><WidthField value={ln.width ?? 2} onChange={(w) => setLine(ln.k, { width: w })} /></Row>
@@ -121,5 +125,3 @@ export default function IndicatorSettingsDialog({ indicatorId, onClose }) {
   );
 }
 
-// kept for tests / hosts that want a one-off colour string
-export { composeColor };

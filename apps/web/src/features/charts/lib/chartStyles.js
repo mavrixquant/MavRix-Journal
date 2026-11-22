@@ -219,6 +219,13 @@ export const CSS = `
   .mk-st { display: inline-flex; align-items: center; gap: 6px; }
   .mk-st b { color: #C9CFDA; font-weight: 600; font-variant-numeric: tabular-nums; }
   .mk-st b.is-up { color: #35C4A1; } .mk-st b.is-down { color: #FF5C5C; }
+  .mk-st.is-up { color: #35C4A1; } .mk-st.is-down { color: #FF5C5C; }
+  .mk-st-sym { color: #fff; font-weight: 800; letter-spacing: .02em; }
+  .mk-st-tf { padding: 1px 6px; border-radius: 4px; background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.06); color: var(--mk-ink-2); font-size: 9.5px; font-weight: 700; }
+  .mk-st-ohlc { gap: 5px; }
+  .mk-st-ohlc em { font-style: normal; color: var(--mk-ink-3); font-weight: 700; font-size: 9.5px; }
+  .mk-st-ohlc b { color: #C9CFDA; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .mk-st-sep { height: 12px; flex-shrink: 0; }
   .mk-live { width: 6px; height: 6px; border-radius: 50%; background: #35C4A1; box-shadow: 0 0 0 3px rgba(53,196,161,.18); }
   .mk-live.is-hist { background: var(--mk-ink-3); box-shadow: none; }
 

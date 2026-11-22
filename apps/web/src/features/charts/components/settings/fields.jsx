@@ -1,10 +1,5 @@
-import { Check } from 'lucide-react';
-import { LINE_STYLES, isHexColor, parseColor } from '../../lib/colorUtil';
-
-const PALETTE = [
-  '#F5B544', '#FF5C5C', '#35C4A1', '#5EA8FF', '#B58CFF', '#FF8AD8',
-  '#FFD166', '#7DD3FC', '#E7E9EE', '#8892A3',
-];
+import { LINE_STYLES } from '../../lib/colorUtil';
+import { ColorPopover } from './ColorPalette';
 
 export function Row({ label, htmlFor, children, check }) {
   return (
@@ -18,22 +13,9 @@ export function Row({ label, htmlFor, children, check }) {
 export const Section = ({ children }) => <div className="cs-sect">{children}</div>;
 export const Note = ({ children }) => <p className="cs-note">{children}</p>;
 
-export function ColorField({ value, onChange, label = 'Colour' }) {
-  const hex = parseColor(value).hex;
-  return (
-    <div className="cs-colors" role="group" aria-label={label}>
-      {PALETTE.map((c) => (
-        <button
-          key={c} type="button" className={`cs-sw${hex === c ? ' is-on' : ''}`} style={{ background: c }}
-          onClick={() => onChange(c)} aria-label={`${label} ${c}`} aria-pressed={hex === c}
-        />
-      ))}
-      <label className="cs-custom" title="Custom colour" style={!PALETTE.includes(hex) && isHexColor(hex) ? { background: hex, borderStyle: 'solid' } : undefined}>
-        {PALETTE.includes(hex) ? '+' : <Check size={11} color="#0A0D14" />}
-        <input type="color" value={hex} onChange={(e) => onChange(e.target.value)} aria-label={`Custom ${label}`} />
-      </label>
-    </div>
-  );
+/** Colour row control: swatch + hex that opens the full palette. Pass opacity/onOpacity to add an opacity slider. */
+export function ColorField({ value, onChange, label = 'Colour', opacity, onOpacity }) {
+  return <ColorPopover value={value} onChange={onChange} label={label} opacity={opacity} onOpacity={onOpacity} />;
 }
 
 export function RangeField({ value, onChange, min = 0, max = 1, step = 0.05, format, id, label }) {

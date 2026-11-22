@@ -14,7 +14,7 @@ const EMPTY = [];
  */
 const ReplayChart = forwardRef(function ReplayChart({
   sessionId, symbol, baseInterval, viewInterval, bars, idx, trades, tz, precision,
-  chartProps, onSelectTrade,
+  chartProps, onSelectTrade, onOhlcChange,
 }, ref) {
   const isDaily = baseInterval === '1d';
   const offset = useMemo(
@@ -123,6 +123,7 @@ const ReplayChart = forwardRef(function ReplayChart({
       showTrades
       showTradeLabels={false}
       onSelectTrade={onSelectTrade}
+      onOhlcChange={onOhlcChange}
       fitKey={`${sessionId}-${symbol}-${viewInterval}`}
       fitMode="recent"
       hasMoreOlder={false}

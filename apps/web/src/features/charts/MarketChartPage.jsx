@@ -154,6 +154,7 @@ export default function MarketChartPage() {
   const [hideDrawings, setHideDrawings] = useState(false);
   const [focus, setFocus] = useState(null);
   const [activeTradeId, setActiveTradeId] = useState(null);
+  const [crosshairOhlc, setCrosshairOhlc] = useState(null);
   const fullRef = useRef(false);
   fullRef.current = full;
 
@@ -500,6 +501,7 @@ export default function MarketChartPage() {
                 markers={chartMarkers} trades={chartTrades} showTrades={showTrades} showTradeLabels={showLabels}
                 focus={focus} fitKey={fitKey} fitMode={fromParam ? 'all' : 'recent'}
                 hasMoreOlder={hasMoreOlder} onRequestOlder={handleLoadOlder} displayOffset={displayOffset} loading={barsQuery.isLoading}
+                onOhlcChange={setCrosshairOhlc}
               />
               {barsQuery.isLoading && bars.length === 0 && <div className="mk-skel" aria-hidden />}
               {barsQuery.isError && bars.length === 0 && (
@@ -520,6 +522,7 @@ export default function MarketChartPage() {
             barCount={bars.length} rangeStats={rangeStats} precision={precision} tz={displayTz}
             lastCandle={formatChartTime(lastBarTime, interval, displayTz)} isLive={isLive}
             loadingOlder={barsQuery.isFetchingNextPage} filling={!!filling}
+            ohlc={crosshairOhlc} symbol={symbol} interval={interval} chartType={chartType}
           />
         </div>
 

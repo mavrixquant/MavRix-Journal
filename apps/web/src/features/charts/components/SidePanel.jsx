@@ -5,7 +5,7 @@ import { useMarketQuotes } from '@/shared/api/marketData';
 import { SymbolIcon } from '@/shared/symbols';
 import EmptyState from '@/shared/components/EmptyState';
 import { TOOL_BY_ID } from '../lib/drawings';
-import { INDICATORS } from '../lib/indicators';
+import { indicatorStore } from '../lib/indicators';
 
 const COLLAPSED_KEY = 'mavrix:chart:watchlist:collapsed';
 const FAV_KEY = 'mavrix:chart:favorites';
@@ -175,7 +175,7 @@ function TradesTab({ symbol, rows, activeId, onFocus, showTrades, onToggleTrades
 
 /* --------------------------------- Objects ---------------------------------- */
 function ObjectsTab({ drawings, selectedId, onSelect, onRemove, onClear, precision, enabledIndicators, onToggleIndicator }) {
-  const inds = INDICATORS.filter((i) => enabledIndicators.includes(i.id));
+  const inds = enabledIndicators.map((id) => indicatorStore.resolve(id)).filter(Boolean);
   return (
     <div className="mk-scroll">
       <div className="mk-group-title">Drawings <em>{drawings.length}</em>{drawings.length > 0 && <button type="button" onClick={onClear}>Clear all</button>}</div>

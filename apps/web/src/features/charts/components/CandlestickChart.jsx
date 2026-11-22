@@ -8,17 +8,26 @@ import {
 
 import EmptyState from '@/shared/components/EmptyState';
 import { chartTheme, alpha } from '../lib/chartTheme';
-import { INDICATORS, heikinAshi, indicatorStore } from '../lib/indicators';
+import { heikinAshi, indicatorStore, resolveIndicator } from '../lib/indicators';
 import { loadDrawingDefaults } from '../lib/chartSettings';
 import DrawingSettingsDialog from './settings/DrawingSettingsDialog';
 import IndicatorSettingsDialog from './settings/IndicatorSettingsDialog';
+import { ColorPopover } from './settings/ColorPalette';
 import {
   DrawingsPrimitive, TradesPrimitive, TOOL_BY_ID, TOOL_HINTS, DRAW_COLORS, buildIndex, newId, rrNormalize,
 } from '../lib/drawings';
 
+// Small polish for the indicator legend chips (hide / settings / remove buttons).
+const LEGEND_CSS = `
+  .mk-ind button { opacity: .45; transition: opacity .12s, color .12s; cursor: pointer; }
+  .mk-ind:hover button, .mk-ind button:focus-visible { opacity: 1; }
+  .mk-ind button:hover { color: #E7E9EE; }
+  @media (hover: none) { .mk-ind button { opacity: .85; } }
+  @media (prefers-reduced-motion: reduce) { .mk-ind button { transition: none; } }
+`;
+
 const num = (v) => Number(v);
 const fmtPrice = (n, d = 2) => (n == null || Number.isNaN(Number(n)) ? '—' : Number(n).toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: Math.max(d, 4) }));
-const fmtVol = (n) => (n == null || !Number(n) ? null : Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 2 }).format(Number(n)));
 
 function addMainSeries(chart, type, precision) {
   const priceFormat = { type: 'price', precision, minMove: 1 / 10 ** precision };
@@ -48,27 +57,6 @@ function addMainSeries(chart, type, precision) {
   }
 }
 
-function OhlcLegend({ ohlc, interval, chartType, symbol, precision }) {
-  if (!ohlc) return null;
-  const o = Number(ohlc.open), c = Number(ohlc.close);
-  const up = c >= o;
-  const cls = up ? 'is-up' : 'is-down';
-  const chg = c - o;
-  const pct = o ? (chg / o) * 100 : 0;
-  const vol = fmtVol(ohlc.volume);
-  return (
-    <div className="mk-ohlc" aria-hidden>
-      <span className="mk-ohlc-sym">{symbol}</span>
-      {interval && <span className="mk-ohlc-tf">{interval.toUpperCase()}{chartType === 'ha' ? ' · HA' : ''}</span>}
-      {['open', 'high', 'low', 'close'].map((k) => (
-        <span key={k} className="mk-ohlc-item"><em>{k[0].toUpperCase()}</em><b className={cls}>{fmtPrice(ohlc[k], precision)}</b></span>
-      ))}
-      <span className={`mk-ohlc-chg ${cls}`}>{chg >= 0 ? '+' : ''}{fmtPrice(chg, precision)} ({pct >= 0 ? '+' : ''}{pct.toFixed(2)}%)</span>
-      {vol && <span className="mk-ohlc-item"><em>Vol</em><b>{vol}</b></span>}
-    </div>
-  );
-}
-
 const CandlestickChart = forwardRef(function CandlestickChart({
   bars, interval, symbol, precision = 2,
   chartType = 'candles', enabledIndicators = [], onToggleIndicator,
@@ -79,6 +67,7 @@ const CandlestickChart = forwardRef(function CandlestickChart({
   focus = null, fitKey = null, fitMode = 'recent',
   hasMoreOlder = false, onRequestOlder, displayOffset = 0, onAtEdgeChange,
   loading = false,
+  onOhlcChange,
 }, ref) {
   const containerRef = useRef(null);
   const chartRef = useRef(null);
@@ -99,7 +88,7 @@ const CandlestickChart = forwardRef(function CandlestickChart({
   const propsRef = useRef({});
   propsRef.current = {
     tool, magnet, drawings, selectedId, drawColor, displayOffset, precision, trades, showTrades, showTradeLabels,
-    onToolChange, onDrawingsChange, onSelect, onSelectTrade, onAtEdgeChange, interval,
+    onToolChange, onDrawingsChange, onSelect, onSelectTrade, onAtEdgeChange, interval, onOhlcChange,
   };
 
   // Live preview of a drawing being edited in the settings dialog (committed on OK).
@@ -139,8 +128,9 @@ const CandlestickChart = forwardRef(function CandlestickChart({
   const [ohlc, setOhlc] = useState(null);
   const [indVals, setIndVals] = useState({});
   const [atEdge, setAtEdge] = useState(true);
-  const [fitEnabled, setFitEnabled] = useState(false);
-  const [autoScaleEnabled, setAutoScaleEnabled] = useState(true);
+
+  // Expose live crosshair OHLC (and last bar when idle) to the parent status bar.
+  useEffect(() => { onOhlcChange?.(ohlc); }, [ohlc, onOhlcChange]);
 
   const lastLegend = () => {
     const d = ohlcRef.current;
@@ -493,9 +483,7 @@ const CandlestickChart = forwardRef(function CandlestickChart({
     }
     firstTimeRef.current = data[0].time;
 
-    if (fitEnabled) {
-      ts.fitContent();
-    } else if (fitKey !== null && fitKey !== lastFitKeyRef.current) {
+    if (fitKey !== null && fitKey !== lastFitKeyRef.current) {
       lastFitKeyRef.current = fitKey;
       if (fitMode === 'recent' && data.length > 150) ts.setVisibleLogicalRange({ from: data.length - 150, to: data.length + 10 });
       else ts.fitContent();
@@ -503,7 +491,7 @@ const CandlestickChart = forwardRef(function CandlestickChart({
     const last = ohlcData[ohlcData.length - 1];
     setOhlc({ open: last.open, high: last.high, low: last.low, close: last.close, volume: safe[safe.length - 1]?.volume });
     drawPrimRef.current.redraw();
-  }, [bars, chartType, precision, fitKey, fitMode, interval, fitEnabled]);
+  }, [bars, chartType, precision, fitKey, fitMode, interval]);
 
   /* ----- volume ----- */
   useEffect(() => {
@@ -530,7 +518,7 @@ const CandlestickChart = forwardRef(function CandlestickChart({
     if (!chart) return;
     const safe = Array.isArray(bars) ? bars : [];
     // Hidden indicators stay in the legend (eye icon) but are not drawn.
-    const active = INDICATORS.filter((i) => enabledIndicators.includes(i.id) && !i.hidden && !(i.intradayOnly && interval === '1d'));
+    const active = enabledIndicators.map(resolveIndicator).filter((i) => i && !i.hidden && !(i.intradayOnly && interval === '1d'));
     const key = `${precision}|${active.map((i) => `${i.id}:${(i.levels || []).join('/')}`).join(',')}`;
     const LS = { solid: LineStyle.Solid, dashed: LineStyle.Dashed, dotted: LineStyle.Dotted };
 
@@ -667,7 +655,7 @@ const CandlestickChart = forwardRef(function CandlestickChart({
   const empty = !bars || bars.length === 0;
   const showEmptyState = empty && !loading;
   const selected = drawings.find((d) => d.id === selectedId) || null;
-  const activeInds = INDICATORS.filter((i) => enabledIndicators.includes(i.id) && !(i.intradayOnly && interval === '1d'));
+  const activeInds = enabledIndicators.map(resolveIndicator).filter((i) => i && !(i.intradayOnly && interval === '1d'));
   const hint = TOOL_HINTS[tool];
 
   const recolor = (color) => onDrawingsChange?.(drawings.map((d) => (d.id === selectedId ? { ...d, color } : d)));
@@ -683,6 +671,14 @@ const CandlestickChart = forwardRef(function CandlestickChart({
     onSelect?.(copy.id);
   };
 
+  useEffect(() => {
+    const req = indicatorStore.peekRequest();
+    if (req && enabledIndicators.includes(req)) {
+      indicatorStore.clearRequest();
+      setDlg({ kind: 'indicator', id: req });
+    }
+  }, [settingsVersion, enabledIndicators]);
+
   const dlgDrawing = dlg?.kind === 'drawing' ? drawings.find((d) => d.id === dlg.id) || null : null;
   const closeDrawingDialog = () => { previewRef.current = null; drawPrimRef.current.redraw(); setDlg(null); };
 
@@ -690,28 +686,25 @@ const CandlestickChart = forwardRef(function CandlestickChart({
     <div className="mk-cv">
       <div ref={containerRef} className={`mk-cv-canvas${tool !== 'cursor' ? ' is-tool' : ''}`} />
 
-      {!empty && (
+      {!empty && activeInds.length > 0 && (
         <div className="mk-cv-top">
-          <OhlcLegend ohlc={ohlc} interval={interval} chartType={chartType} symbol={symbol} precision={precision} />
-          {activeInds.length > 0 && (
-            <div className="mk-inds">
-              {activeInds.map((ind) => {
-                const v = indVals[ind.id]?.[ind.primary];
-                return (
-                  <span key={ind.id} className="mk-ind" style={ind.hidden ? { opacity: 0.55 } : undefined}>
-                    <i className="mk-dot" style={{ background: ind.lines.find((l) => l.k === ind.primary)?.color || ind.lines[0].color }} />{ind.label}
-                    {v != null && !ind.hidden && <b>{fmtPrice(v, ind.overlay ? precision : 2)}</b>}
-                    <button
-                      type="button" onClick={() => indicatorStore.patch(ind.id, (o) => ({ ...o, hidden: !o.hidden }))}
-                      aria-label={ind.hidden ? `Show ${ind.label}` : `Hide ${ind.label}`} title={ind.hidden ? 'Show' : 'Hide'}
-                    >{ind.hidden ? <EyeOff size={10} /> : <Eye size={10} />}</button>
-                    <button type="button" onClick={() => setDlg({ kind: 'indicator', id: ind.id })} aria-label={`${ind.label} settings`} title="Settings"><Settings2 size={10} /></button>
-                    <button type="button" onClick={() => onToggleIndicator?.(ind.id)} aria-label={`Remove ${ind.label}`} title="Remove"><X size={10} /></button>
-                  </span>
-                );
-              })}
-            </div>
-          )}
+          <div className="mk-inds">
+            {activeInds.map((ind) => {
+              const v = indVals[ind.id]?.[ind.primary];
+              return (
+                <span key={ind.id} className="mk-ind" style={ind.hidden ? { opacity: 0.55 } : undefined}>
+                  <i className="mk-dot" style={{ background: ind.lines.find((l) => l.k === ind.primary)?.color || ind.lines[0].color }} />{ind.label}
+                  {v != null && !ind.hidden && <b>{fmtPrice(v, ind.overlay ? precision : 2)}</b>}
+                  <button
+                    type="button" onClick={() => indicatorStore.patch(ind.id, (o) => ({ ...o, hidden: !o.hidden }))}
+                    aria-label={ind.hidden ? `Show ${ind.label}` : `Hide ${ind.label}`} title={ind.hidden ? 'Show' : 'Hide'}
+                  >{ind.hidden ? <EyeOff size={10} /> : <Eye size={10} />}</button>
+                  <button type="button" onClick={() => setDlg({ kind: 'indicator', id: ind.id })} aria-label={`${ind.label} settings`} title="Settings"><Settings2 size={10} /></button>
+                  <button type="button" onClick={() => { onToggleIndicator?.(ind.id); indicatorStore.remove(ind.id); }} aria-label={`Remove ${ind.label}`} title="Remove"><X size={10} /></button>
+                </span>
+              );
+            })}
+          </div>
         </div>
       )}
 
@@ -722,6 +715,16 @@ const CandlestickChart = forwardRef(function CandlestickChart({
           {DRAW_COLORS.map((c) => (
             <button key={c} type="button" className={`mk-swatch${selected.color === c ? ' is-on' : ''}`} style={{ background: c }} onClick={() => recolor(c)} aria-label={`Color ${c}`} />
           ))}
+          <ColorPopover
+            value={selected.color} onChange={recolor} label="Drawing colour"
+            renderTrigger={({ ref, onClick, open }) => (
+              <button
+                ref={ref} type="button" className={`mk-swatch${open ? ' is-on' : ''}`} onClick={onClick}
+                style={{ background: 'conic-gradient(from 90deg, #ff5c5c, #f5b544, #35c4a1, #5ea8ff, #b58cff, #ff5c5c)' }}
+                aria-haspopup="dialog" aria-expanded={open} aria-label="More colours" title="More colours"
+              />
+            )}
+          />
           <span className="mk-sel-sep" />
           <button type="button" className="mk-sel-del" style={{ color: 'inherit' }} onClick={() => setDlg({ kind: 'drawing', id: selected.id })} aria-label="Drawing settings" title="Settings (double-click)"><Settings2 size={13} /></button>
           <button type="button" className="mk-sel-del" style={{ color: 'inherit' }} onClick={() => duplicateDrawing(selected)} aria-label="Duplicate drawing" title="Duplicate"><Copy size={13} /></button>
@@ -734,12 +737,13 @@ const CandlestickChart = forwardRef(function CandlestickChart({
         <div className="mk-zoom" role="group" aria-label="Zoom">
           <button type="button" onClick={() => zoomBy(0.8)} aria-label="Zoom out" title="Zoom out"><Minus size={13} /></button>
           <button type="button" onClick={() => zoomBy(1.25)} aria-label="Zoom in" title="Zoom in"><Plus size={13} /></button>
-          <button type="button" className={`txt${fitEnabled ? ' is-on' : ''}`} onClick={() => { const next = !fitEnabled; setFitEnabled(next); if (next) chartRef.current?.timeScale().fitContent(); }} aria-pressed={fitEnabled} title="Keep all loaded data fitted">Fit</button>
-          <button type="button" className={`txt${autoScaleEnabled ? ' is-on' : ''}`} onClick={() => { const next = !autoScaleEnabled; setAutoScaleEnabled(next); chartRef.current?.priceScale('right').applyOptions({ autoScale: next }); }} aria-pressed={autoScaleEnabled} title="Toggle automatic price scaling">Auto</button>
+          <button type="button" className="txt" onClick={() => { chartRef.current?.timeScale().fitContent(); }} title="Fit all loaded data">Fit</button>
+          <button type="button" className="txt" onClick={() => chartRef.current?.priceScale('right').applyOptions({ autoScale: true })} title="Reset price scale">Auto</button>
           {!atEdge && <button type="button" className="go" onClick={() => chartRef.current?.timeScale().scrollToRealTime()} title="Go to current price" aria-label="Go to current price"><ArrowRightToLine size={14} /></button>}
         </div>
       )}
 
+      <style>{LEGEND_CSS}</style>
       {dlg?.kind === 'indicator' && <IndicatorSettingsDialog indicatorId={dlg.id} onClose={() => setDlg(null)} />}
       {dlgDrawing && (
         <DrawingSettingsDialog

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Pause, Play, RotateCcw, StepBack, StepForward } from 'lucide-react';
 import { BACKTEST_INTERVALS } from '@mavrix/shared';
 import { tradeTimeToUtcSeconds } from '@/shared/trading/tradeTime';
+import IndicatorMenu from '@/features/charts/components/IndicatorMenu';
 import { SPEEDS } from '../hooks/useReplayEngine';
 import { INTERVAL_SECONDS, dayKey, clockOf } from '../../lib/time';
 
@@ -38,6 +39,7 @@ function ProgressSlider({ idx, last, min, onCommit, disabled }) {
 
 export default function ReplayToolbar({
   engine, baseInterval, viewInterval, onViewInterval, tz, currentBar, onArm, tool, disabled, range,
+  indicators, onToggleIndicator, onClearIndicators, indicatorsOpen, onIndicatorsOpenChange,
 }) {
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
@@ -109,6 +111,11 @@ export default function ReplayToolbar({
           <button key={v} type="button" className={viewInterval === v ? 'is-on' : ''} onClick={() => onViewInterval(v)}>{v.toUpperCase()}</button>
         ))}
       </div>
+
+      <IndicatorMenu
+        enabledIndicators={indicators} onToggleIndicator={onToggleIndicator} onClearIndicators={onClearIndicators}
+        interval={viewInterval} open={indicatorsOpen} onOpenChange={onIndicatorsOpenChange}
+      />
 
       <div className="rp-group rp-order-btns">
         <button type="button" className={`rp-buy${tool === 'rrLong' ? ' is-on' : ''}`} onClick={() => onArm(tool === 'rrLong' ? 'cursor' : 'rrLong')} disabled={off || !engine.writable} title="Click the chart to place a long position">Long</button>

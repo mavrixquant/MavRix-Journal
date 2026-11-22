@@ -1,13 +1,13 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import {
   Activity, BarChart3, Calendar as CalendarIcon, Camera, Check, ChevronDown, Keyboard, Maximize2, Minimize2,
-  PanelRightClose, PanelRightOpen, RefreshCw, Search, Undo2,
+  PanelRightClose, PanelRightOpen, RefreshCw, Undo2,
 } from 'lucide-react';
 
 import { Popover, PopoverContent, PopoverTrigger } from '@/shared/ui/popover';
 import RangeCalendar from './RangeCalendar';
 import { CHART_TYPES, TypeIcon } from './ChartIcons';
-import { INDICATORS, INDICATOR_GROUPS } from '../lib/indicators';
+import IndicatorMenu from './IndicatorMenu';
 
 const INTERVALS = [
   { id: '1m', label: '1m' }, { id: '5m', label: '5m' }, { id: '15m', label: '15m' },
@@ -29,18 +29,10 @@ export default function ChartToolbar({
   const [typeOpen, setTypeOpen] = useState(false);
   const indOpen = !!indicatorsOpen;
   const setIndOpen = (v) => onIndicatorsOpenChange?.(v);
-  const [indQuery, setIndQuery] = useState('');
 
   const short = (v) => new Date(v).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   const rangeLabel = from && to ? `${short(from)} – ${short(to)}` : 'Custom range';
   const currentType = CHART_TYPES.find((t) => t.id === chartType) || CHART_TYPES[0];
-
-  const filteredGroups = useMemo(() => {
-    const q = indQuery.trim().toLowerCase();
-    return INDICATOR_GROUPS
-      .map((g) => [g, INDICATORS.filter((i) => i.group === g && (!q || i.label.toLowerCase().includes(q)))])
-      .filter(([, items]) => items.length > 0);
-  }, [indQuery]);
 
   return (
     <div className="mk-toolbar" role="toolbar" aria-label="Chart controls">
@@ -66,41 +58,10 @@ export default function ChartToolbar({
         </PopoverContent>
       </Popover>
 
-      <Popover open={indOpen} onOpenChange={setIndOpen}>
-        <PopoverTrigger asChild>
-          <button type="button" className={`mk-btn${enabledIndicators.length ? ' is-on' : ''}`} title="Indicators (I)">
-            <Activity size={13} />Indicators{enabledIndicators.length ? <span className="mk-n">{enabledIndicators.length}</span> : null}
-          </button>
-        </PopoverTrigger>
-        <PopoverContent align="start" sideOffset={8} className="mk-pop mk-pop-md">
-          <div className="mk-pop-search">
-            <Search size={12} />
-            <input value={indQuery} onChange={(e) => setIndQuery(e.target.value)} placeholder="Search indicators…" spellCheck={false} autoComplete="off" />
-          </div>
-          <div className="mk-pop-list">
-            {filteredGroups.length === 0 && <div className="mk-pop-empty">No indicators match “{indQuery}”.</div>}
-            {filteredGroups.map(([g, items]) => (
-              <div key={g}>
-                <div className="mk-menu-head">{g}</div>
-                {items.map((ind) => {
-                  const off = ind.intradayOnly && interval === '1d';
-                  const on = enabledIndicators.includes(ind.id);
-                  return (
-                    <button key={ind.id} type="button" className="mk-menu-item" disabled={off} onClick={() => onToggleIndicator?.(ind.id)} title={off ? 'Intraday timeframes only' : undefined}>
-                      <i className="mk-dot" style={{ background: ind.lines.find((l) => l.k === ind.primary)?.color || ind.lines[0].color }} />{ind.label}
-                      {ind.overlay ? null : <span className="mk-tag">pane</span>}
-                      {on && !off && <Check size={12} className="mk-check" />}
-                    </button>
-                  );
-                })}
-              </div>
-            ))}
-          </div>
-          {enabledIndicators.length > 0 && (
-            <button type="button" className="mk-pop-foot" onClick={onClearIndicators}>Remove all indicators</button>
-          )}
-        </PopoverContent>
-      </Popover>
+      <IndicatorMenu
+        enabledIndicators={enabledIndicators} onToggleIndicator={onToggleIndicator} onClearIndicators={onClearIndicators}
+        interval={interval} open={indOpen} onOpenChange={setIndOpen}
+      />
 
       <button type="button" className={`mk-btn${showVolume ? ' is-on' : ''}`} onClick={onToggleVolume} aria-pressed={showVolume}><BarChart3 size={13} />Vol</button>
       <button type="button" className={`mk-btn${logScale ? ' is-on' : ''}`} onClick={onToggleLog} aria-pressed={logScale} title="Logarithmic price scale">Log</button>
@@ -146,3 +107,5 @@ export default function ChartToolbar({
     </div>
   );
 }
+
+

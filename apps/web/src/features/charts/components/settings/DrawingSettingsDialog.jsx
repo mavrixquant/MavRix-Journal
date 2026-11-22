@@ -7,6 +7,7 @@ import {
   CheckField, ColorField, LineStyleField, Note, RangeField, Row, Section, WidthField,
 } from './fields';
 import SettingsDialog from './SettingsDialog';
+import { ColorSwatch } from './ColorPalette';
 
 const TITLES = {
   hline: 'Horizontal line', trend: 'Trend line', ray: 'Ray', rect: 'Rectangle',
@@ -71,7 +72,7 @@ export default function DrawingSettingsDialog({
 
   return (
     <SettingsDialog
-      title={TITLES[type] || 'Drawing'} dot={draft.color} tabs={tabs} tab={tab} onTab={setTab} onCancel={onCancel}
+      title={TITLES[type] || 'Drawing'} subtitle={draft.locked ? 'Locked' : undefined} dot={draft.color} tabs={tabs} tab={tab} onTab={setTab} onCancel={onCancel}
       footer={(
         <>
           <button type="button" className="cs-btn is-danger" onClick={() => onDelete(draft)} aria-label="Delete drawing"><Trash2 size={13} /></button>
@@ -163,10 +164,9 @@ export default function DrawingSettingsDialog({
                   onChange={(e) => setLevels(levels.map((x, k) => (k === i ? { ...x, on: e.target.checked } : x)))}
                 />
                 <b>{l.v}</b>
-                <input
-                  type="color" className="cs-input" style={{ padding: 2, height: 26, maxWidth: 64 }}
-                  value={parseColor(l.color || draft.color).hex} aria-label={`Colour for level ${l.v}`}
-                  onChange={(e) => setLevels(levels.map((x, k) => (k === i ? { ...x, color: e.target.value } : x)))}
+                <ColorSwatch
+                  value={l.color || draft.color} label={`Colour for level ${l.v}`}
+                  onChange={(c) => setLevels(levels.map((x, k) => (k === i ? { ...x, color: c } : x)))}
                 />
                 {!FIB_PRESET.includes(l.v) ? (
                   <button type="button" className="cs-btn" onClick={() => setLevels(levels.filter((_, k) => k !== i))} aria-label={`Remove level ${l.v}`}>Remove</button>

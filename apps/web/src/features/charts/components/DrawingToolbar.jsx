@@ -1,7 +1,7 @@
 import { Eye, EyeOff, Magnet, Trash2 } from 'lucide-react';
-import { Popover, PopoverContent, PopoverTrigger } from '@/shared/ui/popover';
-import { TOOLS, DRAW_COLORS } from '../lib/drawings';
+import { TOOLS } from '../lib/drawings';
 import { ToolIcon } from './ChartIcons';
+import { ColorPopover } from './settings/ColorPalette';
 
 export default function DrawingToolbar({
   tool, onTool, magnet, onMagnet, color, onColor,
@@ -27,16 +27,14 @@ export default function DrawingToolbar({
 
       <button type="button" className={`mk-tool${magnet ? ' is-on' : ''}`} onClick={onMagnet} aria-pressed={magnet} aria-label="Magnet mode" title="Snap to OHLC (Q)"><Magnet size={15} /></button>
 
-      <Popover>
-        <PopoverTrigger asChild>
-          <button type="button" className="mk-tool" aria-label="Drawing color" title="Drawing color"><i className="mk-color-dot" style={{ background: color }} /></button>
-        </PopoverTrigger>
-        <PopoverContent side="right" align="start" sideOffset={8} className="mk-pop mk-pop-colors">
-          {DRAW_COLORS.map((c) => (
-            <button key={c} type="button" className={`mk-swatch${c === color ? ' is-on' : ''}`} style={{ background: c }} onClick={() => onColor(c)} aria-label={`Color ${c}`} />
-          ))}
-        </PopoverContent>
-      </Popover>
+      <ColorPopover
+        value={color} onChange={onColor} placement="right" label="Drawing colour"
+        renderTrigger={({ ref, onClick, open }) => (
+          <button ref={ref} type="button" className={`mk-tool${open ? ' is-on' : ''}`} onClick={onClick} aria-haspopup="dialog" aria-expanded={open} aria-label="Drawing colour" title="Drawing colour">
+            <i className="mk-color-dot" style={{ background: color }} />
+          </button>
+        )}
+      />
 
       <span className="mk-rail-grow" />
 
@@ -47,3 +45,5 @@ export default function DrawingToolbar({
     </div>
   );
 }
+
+
