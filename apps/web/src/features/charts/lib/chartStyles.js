@@ -83,7 +83,9 @@ export const CSS = `
 
   /* ---------- body ---------- */
   .mk-body { position: relative; display: grid; grid-template-columns: 46px minmax(0,1fr) var(--mk-panel-w); min-height: 0; }
+  .mk-body.is-multigrid { grid-template-columns: minmax(0,1fr) var(--mk-panel-w); }
   .mk-root.is-panel-closed .mk-body { grid-template-columns: 46px minmax(0,1fr) 0; }
+  .mk-root.is-panel-closed .mk-body.is-multigrid { grid-template-columns: minmax(0,1fr) 0; }
   .mk-root.is-panel-closed .mk-panel { visibility: hidden; border-left-width: 0; }
   .mk-rail { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 8px 0; border-right: 1px solid var(--mk-line-2); background: rgba(0,0,0,.14); overflow-y: auto; scrollbar-width: none; }
   .mk-tool { width: 32px; height: 32px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--mk-ink-2); cursor: pointer; transition: color .15s, background-color .15s, border-color .15s; }
@@ -96,7 +98,7 @@ export const CSS = `
   .mk-swatch { width: 20px; height: 20px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; padding: 0; }
   .mk-swatch.is-on { border-color: #fff; box-shadow: 0 0 0 1px rgba(0,0,0,.5); }
 
-  .mk-stage { position: relative; min-width: 0; min-height: 0; background: linear-gradient(180deg, rgba(15,18,25,.5), rgba(10,13,19,.3)); }
+  .mk-stage { position: relative; width: 100%; height: 100%; min-width: 0; min-height: 0; background: linear-gradient(180deg, rgba(15,18,25,.5), rgba(10,13,19,.3)); }
   .mk-bar { position: absolute; top: 0; left: 0; right: 0; height: 2px; z-index: 20; overflow: hidden; }
   .mk-bar i { display: block; height: 100%; width: 30%; background: linear-gradient(90deg, transparent, var(--accent), transparent); animation: mkSlide 1.3s ease infinite; }
   @keyframes mkSlide { 0% { transform: translateX(-100%); } 100% { transform: translateX(400%); } }
@@ -260,6 +262,7 @@ export const CSS = `
   @media (max-width: 1250px) { .mk-stats { display: none; } .mk-st-opt { display: none; } }
   @media (max-width: 1100px) {
     .mk-body, .mk-root.is-panel-closed .mk-body { grid-template-columns: 46px minmax(0,1fr); }
+    .mk-multigrid { grid-template-columns: minmax(0,1fr) var(--mk-panel-w); }
     .mk-menu { display: inline-flex; }
     .mk-desk { display: none; }
     .mk-panel, .mk-root.is-panel-closed .mk-panel { position: fixed; inset: 0 0 0 auto; z-index: 2500; width: min(340px, 90vw); visibility: visible; border-left: 1px solid var(--mk-line); background: #0A0D13; transform: translateX(102%); transition: transform .25s cubic-bezier(.2,.8,.25,1); }
@@ -272,6 +275,7 @@ export const CSS = `
     .mk-root { height: max(540px, calc(100dvh - 130px)); }
     .mk-quote { padding: 8px 10px; gap: 10px 14px; flex-wrap: wrap; }
     .mk-body, .mk-root.is-panel-closed .mk-body { grid-template-columns: 40px minmax(0,1fr); }
+    .mk-multigrid { grid-template-columns: minmax(0,1fr) 0; }
     .mk-tool { width: 30px; height: 30px; }
     .mk-cv-top { max-width: calc(100% - 20px); }
     .mk-zoom { right: 8px; bottom: 34px; }

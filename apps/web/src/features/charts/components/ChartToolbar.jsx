@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
-  Activity, BarChart3, Calendar as CalendarIcon, Camera, Check, ChevronDown, Keyboard, Maximize2, Minimize2,
-  PanelRightClose, PanelRightOpen, RefreshCw, Undo2,
+  BarChart3, Calendar as CalendarIcon, Camera, Check, ChevronDown, Keyboard, LayoutGrid, Maximize2, Minimize2,
+  PanelRightClose, PanelRightOpen, RefreshCw, Undo2, Link2, Unlink,
 } from 'lucide-react';
 
 import { Popover, PopoverContent, PopoverTrigger } from '@/shared/ui/popover';
@@ -24,9 +24,19 @@ export default function ChartToolbar({
   onRefresh, isRefreshing, onToggleFullscreen, isFullscreen, onHelp,
   panelOpen, onTogglePanel,
   indicatorsOpen, onIndicatorsOpenChange,
+  gridMode = '1x1', onGridModeChange,
+  syncCrosshair, onSyncCrosshair,
+  syncSymbol, onSyncSymbol,
+  syncInterval, onSyncInterval,
+  syncChartType, onSyncChartType,
+  syncIndicators, onSyncIndicators,
+  syncVolume, onSyncVolume,
+  syncLogScale, onSyncLogScale,
 }) {
   const [rangeOpen, setRangeOpen] = useState(false);
   const [typeOpen, setTypeOpen] = useState(false);
+  const [gridOpen, setGridOpen] = useState(false);
+  const [syncOpen, setSyncOpen] = useState(false);
   const indOpen = !!indicatorsOpen;
   const setIndOpen = (v) => onIndicatorsOpenChange?.(v);
 
@@ -67,6 +77,66 @@ export default function ChartToolbar({
       <button type="button" className={`mk-btn${logScale ? ' is-on' : ''}`} onClick={onToggleLog} aria-pressed={logScale} title="Logarithmic price scale">Log</button>
 
       <span className="mk-vsep" />
+
+      <Popover open={gridOpen} onOpenChange={setGridOpen}>
+        <PopoverTrigger asChild>
+          <button type="button" className={`mk-btn${gridMode !== '1x1' ? ' is-on' : ''}`} title="Multi-chart grid layout"><LayoutGrid size={13} />{gridMode === '1x1' ? '1x1' : gridMode.toUpperCase()}<ChevronDown size={11} /></button>
+        </PopoverTrigger>
+        <PopoverContent align="start" sideOffset={8} className="mk-pop mk-pop-sm">
+          {[
+            { id: '1x1', label: 'Single (1x1)' },
+            { id: '1x2', label: 'Split Horizontal (1x2)' },
+            { id: '2x1', label: 'Split Vertical (2x1)' },
+            { id: '2x2', label: 'Grid 4-Pane (2x2)' },
+          ].map((m) => (
+            <button key={m.id} type="button" className="mk-menu-item" onClick={() => { onGridModeChange?.(m.id); setGridOpen(false); }}>
+              {m.label}
+              {m.id === gridMode && <Check size={12} className="mk-check" />}
+            </button>
+          ))}
+        </PopoverContent>
+      </Popover>
+
+      {gridMode !== '1x1' && (
+        <>
+          <Popover open={syncOpen} onOpenChange={setSyncOpen}>
+            <PopoverTrigger asChild>
+              <button type="button" className={`mk-btn${[syncSymbol, syncInterval, syncChartType, syncIndicators, syncVolume, syncLogScale].some(Boolean) ? ' is-on' : ''}`} title="Sync panes"><Link2 size={13} />Sync<ChevronDown size={11} /></button>
+            </PopoverTrigger>
+            <PopoverContent align="start" sideOffset={8} className="mk-pop mk-pop-sm">
+              {[
+                { id: 'crosshair', label: 'Crosshair', value: syncCrosshair, onChange: onSyncCrosshair, icon: <Link2 size={12} /> },
+                { id: 'symbol', label: 'Symbol', value: syncSymbol, onChange: onSyncSymbol },
+                { id: 'interval', label: 'Timeframe', value: syncInterval, onChange: onSyncInterval },
+                { id: 'chartType', label: 'Chart type', value: syncChartType, onChange: onSyncChartType },
+                { id: 'indicators', label: 'Indicators', value: syncIndicators, onChange: onSyncIndicators },
+                { id: 'volume', label: 'Volume', value: syncVolume, onChange: onSyncVolume },
+                { id: 'logScale', label: 'Log scale', value: syncLogScale, onChange: onSyncLogScale },
+              ].map((s) => (
+                <button key={s.id} type="button" className="mk-menu-item" onClick={() => s.onChange?.(!s.value)}>
+                  {s.label}
+                  {s.value ? <Check size={12} className="mk-check" /> : null}
+                </button>
+              ))}
+              <button
+                type="button"
+                className="mk-menu-item"
+                onClick={() => {
+                  const allOn = [syncSymbol, syncInterval, syncChartType, syncIndicators, syncVolume, syncLogScale].every(Boolean);
+                  const next = !allOn;
+                  onSyncSymbol?.(next); onSyncInterval?.(next); onSyncChartType?.(next);
+                  onSyncIndicators?.(next); onSyncVolume?.(next); onSyncLogScale?.(next);
+                }}
+                style={{ borderTop: '1px solid rgba(255,255,255,.08)', marginTop: 4, paddingTop: 6 }}
+              >
+                <Unlink size={12} />Toggle all
+              </button>
+            </PopoverContent>
+          </Popover>
+
+          <span className="mk-vsep" />
+        </>
+      )}
 
       {presets.length > 0 && (
         <div className="mk-seg soft" role="group" aria-label="Date range">

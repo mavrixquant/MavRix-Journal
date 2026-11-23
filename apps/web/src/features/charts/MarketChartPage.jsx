@@ -14,6 +14,7 @@ import { useDashboardAccount } from '@/app/providers/useDashboardAccount';
 import { usePageHeader } from '@/app/layout/PageHeaderProvider';
 
 import CandlestickChart from './components/CandlestickChart';
+import { MultiChartGrid } from './components/MultiChartGrid';
 import QuoteHeader from './components/QuoteHeader';
 import ChartToolbar from './components/ChartToolbar';
 import DrawingToolbar from './components/DrawingToolbar';
@@ -80,6 +81,7 @@ function loadPrefs() {
     chartType: old.ha ? 'ha' : 'candles',
     volume: old.volume !== false,
     log: !!old.log,
+    gridMode: '1x1',
     indicators: Array.isArray(old.indicators) ? old.indicators.filter((i) => ['ema20', 'ema50', 'sma200', 'vwap', 'bb', 'rsi'].includes(i)) : ['ema20'],
   };
 }
@@ -135,15 +137,24 @@ export default function MarketChartPage() {
   const [showVolume, setShowVolume] = useState(prefs.volume !== false);
   const [logScale, setLogScale] = useState(!!prefs.log);
   const [magnet, setMagnet] = useState(!!prefs.magnet);
+  const [gridMode, setGridMode] = useState(prefs.gridMode || '1x1');
   const [indicators, setIndicators] = useState(Array.isArray(prefs.indicators) ? prefs.indicators : ['ema20']);
   const [panelOpen, setPanelOpen] = useState(prefs.panelOpen !== false);
   const [panelTab, setPanelTab] = useState(prefs.panelTab || 'watch');
   const [drawColor, setDrawColor] = useState(prefs.drawColor || DRAW_COLORS[0]);
   const [showTrades, setShowTrades] = useState(prefs.showTrades !== false);
   const [showLabels, setShowLabels] = useState(!!prefs.showLabels);
+  // Multi-chart sync preferences
+  const [syncCrosshair, setSyncCrosshair] = useState(true);
+  const [syncSymbol, setSyncSymbol] = useState(false);
+  const [syncInterval, setSyncInterval] = useState(false);
+  const [syncChartType, setSyncChartType] = useState(false);
+  const [syncIndicators, setSyncIndicators] = useState(false);
+  const [syncVolume, setSyncVolume] = useState(false);
+  const [syncLogScale, setSyncLogScale] = useState(false);
   useEffect(() => {
-    writeJson(PREF_KEY, { chartType, volume: showVolume, log: logScale, magnet, indicators, panelOpen, panelTab, drawColor, showTrades, showLabels });
-  }, [chartType, showVolume, logScale, magnet, indicators, panelOpen, panelTab, drawColor, showTrades, showLabels]);
+    writeJson(PREF_KEY, { chartType, volume: showVolume, log: logScale, magnet, gridMode, indicators, panelOpen, panelTab, drawColor, showTrades, showLabels });
+  }, [chartType, showVolume, logScale, magnet, gridMode, indicators, panelOpen, panelTab, drawColor, showTrades, showLabels]);
 
   /* ----------------------------------- UI state ----------------------------------- */
   const [drawer, setDrawer] = useState(false);
@@ -511,39 +522,79 @@ export default function MarketChartPage() {
             onRefresh={handleRefresh} isRefreshing={barsQuery.isFetching && !barsQuery.isFetchingNextPage}
             onToggleFullscreen={toggleFull} isFullscreen={full} onHelp={() => setHelp(true)}
             panelOpen={panelOpen} onTogglePanel={() => setPanelOpen((v) => !v)}
+            gridMode={gridMode} onGridModeChange={setGridMode}
+            syncCrosshair={syncCrosshair} onSyncCrosshair={setSyncCrosshair}
+            syncSymbol={syncSymbol} onSyncSymbol={setSyncSymbol}
+            syncInterval={syncInterval} onSyncInterval={setSyncInterval}
+            syncChartType={syncChartType} onSyncChartType={setSyncChartType}
+            syncIndicators={syncIndicators} onSyncIndicators={setSyncIndicators}
+            syncVolume={syncVolume} onSyncVolume={setSyncVolume}
+            syncLogScale={syncLogScale} onSyncLogScale={setSyncLogScale}
           />
 
-          <div className="mk-body">
-            <DrawingToolbar
-              tool={tool} onTool={setTool} magnet={magnet} onMagnet={() => setMagnet((v) => !v)}
-              color={drawColor} onColor={setDrawColor} hidden={hideDrawings} onToggleHidden={() => setHideDrawings((v) => !v)}
-              count={drawings.length} onClear={clearDrawings}
-            />
+          <div className={`mk-body${gridMode !== '1x1' ? ' is-multigrid' : ''}`}>
+            {gridMode === '1x1' && (
+              <DrawingToolbar
+                tool={tool} onTool={setTool} magnet={magnet} onMagnet={() => setMagnet((v) => !v)}
+                color={drawColor} onColor={setDrawColor} hidden={hideDrawings} onToggleHidden={() => setHideDrawings((v) => !v)}
+                count={drawings.length} onClear={clearDrawings}
+              />
+            )}
 
             <div className="mk-stage">
-              {(filling || barsQuery.isFetchingNextPage) && <div className="mk-bar"><i /></div>}
-              <CandlestickChart
-                ref={chartRef}
-                bars={displayBars} interval={interval} symbol={symbol} precision={precision}
-                chartType={chartType} enabledIndicators={indicators} onToggleIndicator={toggleIndicator}
-                showVolume={showVolume} logScale={logScale} magnet={magnet}
-                tool={tool} onToolChange={setTool}
-                drawings={hideDrawings ? EMPTY : drawings} onDrawingsChange={setDrawings}
-                selectedId={selectedId} onSelect={setSelectedId} drawColor={drawColor}
-                markers={chartMarkers} trades={chartTrades} showTrades={showTrades} showTradeLabels={showLabels}
-                focus={focus} fitKey={fitKey} fitMode={fromParam ? 'all' : 'recent'}
-                hasMoreOlder={hasMoreOlder} onRequestOlder={handleLoadOlder} displayOffset={displayOffset} loading={barsQuery.isLoading}
-                onOhlcChange={setCrosshairOhlc}
-                gexLevels={gexLevels}
-              />
-              {barsQuery.isLoading && bars.length === 0 && <div className="mk-skel" aria-hidden />}
-              {barsQuery.isError && bars.length === 0 && (
-                <div className="mk-state" role="alert">
-                  <AlertTriangle size={22} color="#F5B544" />
-                  <b>Couldn’t load {symbol} {interval.toUpperCase()} data</b>
-                  <p>The market data service didn’t respond. Check your connection and try again.</p>
-                  <button type="button" className="mk-retry" onClick={() => barsQuery.refetch()}><RotateCw size={12} /> Retry</button>
-                </div>
+              {gridMode !== '1x1' ? (
+                <MultiChartGrid
+                  mode={gridMode}
+                  displayTz={displayTz}
+                  journal={journal}
+                  showTrades={showTrades}
+                  showTradeLabels={showLabels}
+                  sync={{
+                    crosshair: syncCrosshair,
+                    symbol: syncSymbol,
+                    interval: syncInterval,
+                    chartType: syncChartType,
+                    indicators: syncIndicators,
+                    volume: syncVolume,
+                    logScale: syncLogScale,
+                  }}
+                  onSyncChange={(prop, val) => {
+                    if (prop === 'crosshair') setSyncCrosshair(val);
+                    else if (prop === 'symbol') setSyncSymbol(val);
+                    else if (prop === 'interval') setSyncInterval(val);
+                    else if (prop === 'chartType') setSyncChartType(val);
+                    else if (prop === 'indicators') setSyncIndicators(val);
+                    else if (prop === 'volume') setSyncVolume(val);
+                    else if (prop === 'logScale') setSyncLogScale(val);
+                  }}
+                />
+              ) : (
+                <>
+                  {(filling || barsQuery.isFetchingNextPage) && <div className="mk-bar"><i /></div>}
+                  <CandlestickChart
+                    ref={chartRef}
+                    bars={displayBars} interval={interval} symbol={symbol} precision={precision}
+                    chartType={chartType} enabledIndicators={indicators} onToggleIndicator={toggleIndicator}
+                    showVolume={showVolume} logScale={logScale} magnet={magnet}
+                    tool={tool} onToolChange={setTool}
+                    drawings={hideDrawings ? EMPTY : drawings} onDrawingsChange={setDrawings}
+                    selectedId={selectedId} onSelect={setSelectedId} drawColor={drawColor}
+                    markers={chartMarkers} trades={chartTrades} showTrades={showTrades} showTradeLabels={showLabels}
+                    focus={focus} fitKey={fitKey} fitMode={fromParam ? 'all' : 'recent'}
+                    hasMoreOlder={hasMoreOlder} onRequestOlder={handleLoadOlder} displayOffset={displayOffset} loading={barsQuery.isLoading}
+                    onOhlcChange={setCrosshairOhlc}
+                    gexLevels={gexLevels}
+                  />
+                  {barsQuery.isLoading && bars.length === 0 && <div className="mk-skel" aria-hidden />}
+                  {barsQuery.isError && bars.length === 0 && (
+                    <div className="mk-state" role="alert">
+                      <AlertTriangle size={22} color="#F5B544" />
+                      <b>Couldn’t load {symbol} {interval.toUpperCase()} data</b>
+                      <p>The market data service didn’t respond. Check your connection and try again.</p>
+                      <button type="button" className="mk-retry" onClick={() => barsQuery.refetch()}><RotateCw size={12} /> Retry</button>
+                    </div>
+                  )}
+                </>
               )}
             </div>
 

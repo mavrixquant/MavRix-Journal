@@ -1,4 +1,4 @@
-import { Eye, EyeOff, Magnet, Trash2 } from 'lucide-react';
+import { Eye, EyeOff, Magnet, Trash2, Undo2 } from 'lucide-react';
 import { TOOLS } from '../lib/drawings';
 import { ToolIcon } from './ChartIcons';
 import { ColorPopover } from './settings/ColorPalette';
@@ -6,6 +6,7 @@ import { ColorPopover } from './settings/ColorPalette';
 export default function DrawingToolbar({
   tool, onTool, magnet, onMagnet, color, onColor,
   hidden, onToggleHidden, count, onClear,
+  onUndo, canUndo,
 }) {
   return (
     <div className="mk-rail" role="toolbar" aria-label="Drawing tools" aria-orientation="vertical">
@@ -38,6 +39,7 @@ export default function DrawingToolbar({
 
       <span className="mk-rail-grow" />
 
+      <button type="button" className="mk-tool" onClick={onUndo} disabled={!canUndo} aria-label="Undo (Ctrl+Z)" title="Undo (Ctrl+Z)"><Undo2 size={15} /></button>
       <button type="button" className={`mk-tool${hidden ? ' is-on' : ''}`} onClick={onToggleHidden} aria-pressed={hidden} aria-label={hidden ? 'Show drawings' : 'Hide drawings'} title={hidden ? 'Show drawings' : 'Hide drawings'}>
         {hidden ? <EyeOff size={15} /> : <Eye size={15} />}
       </button>

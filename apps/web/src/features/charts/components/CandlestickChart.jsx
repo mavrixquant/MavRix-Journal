@@ -714,6 +714,8 @@ const CandlestickChart = forwardRef(function CandlestickChart({
     toRealtime: () => chartRef.current?.timeScale().scrollToRealTime(),
     resetScale: () => chartRef.current?.priceScale('right').applyOptions({ autoScale: true }),
     zoom: zoomBy,
+    chart: chartRef.current,
+    main: mainRef.current,
   }), [screenshot, zoomBy]);
 
   const empty = !bars || bars.length === 0;
