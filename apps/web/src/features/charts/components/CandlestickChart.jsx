@@ -74,7 +74,7 @@ function addMainSeries(chart, type, precision) {
 const CandlestickChart = forwardRef(function CandlestickChart({
   bars, interval, symbol, precision = 2,
   chartType = 'candles', enabledIndicators = [], onToggleIndicator,
-  showVolume = true, logScale = false, magnet = false,
+  logScale = false, magnet = false,
   tool = 'cursor', onToolChange,
   drawings = [], onDrawingsChange, selectedId = null, onSelect, drawColor = '#F5B544',
   markers = [], trades = [], showTrades = true, showTradeLabels = false, onSelectTrade,
@@ -87,7 +87,6 @@ const CandlestickChart = forwardRef(function CandlestickChart({
   const containerRef = useRef(null);
   const chartRef = useRef(null);
   const mainRef = useRef(null);
-  const volRef = useRef(null);
   const markersRef = useRef(null);
   const indRef = useRef({});
   const indLastRef = useRef({});
@@ -144,6 +143,7 @@ const CandlestickChart = forwardRef(function CandlestickChart({
   const [ohlc, setOhlc] = useState(null);
   const [indVals, setIndVals] = useState({});
   const [atEdge, setAtEdge] = useState(true);
+  const [autoScaleEnabled, setAutoScaleEnabled] = useState(true);
 
   // Expose live crosshair OHLC (and last bar when idle) to the parent status bar.
   useEffect(() => { onOhlcChange?.(ohlc); }, [ohlc, onOhlcChange]);
@@ -447,7 +447,7 @@ const CandlestickChart = forwardRef(function CandlestickChart({
         chart.timeScale().unsubscribeVisibleLogicalRangeChange(onRange);
         chart.remove();
       } catch { /* already gone */ }
-      chartRef.current = mainRef.current = volRef.current = markersRef.current = null;
+      chartRef.current = mainRef.current = markersRef.current = null;
       indRef.current = {}; indLastRef.current = {}; structRef.current = ''; draftRef.current = null;
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -509,25 +509,6 @@ const CandlestickChart = forwardRef(function CandlestickChart({
     drawPrimRef.current.redraw();
   }, [bars, chartType, precision, fitKey, fitMode, interval]);
 
-  /* ----- volume ----- */
-  useEffect(() => {
-    const chart = chartRef.current;
-    if (!chart) return;
-    const safe = Array.isArray(bars) ? bars : [];
-    const has = showVolume && safe.some((b) => Number(b.volume) > 0);
-    if (has && !volRef.current) {
-      volRef.current = chart.addSeries(HistogramSeries, { priceFormat: { type: 'volume' }, priceScaleId: '', lastValueVisible: false, priceLineVisible: false });
-      volRef.current.priceScale().applyOptions({ scaleMargins: { top: 0.86, bottom: 0 } });
-    } else if (!has && volRef.current) {
-      try { chart.removeSeries(volRef.current); } catch { /* */ }
-      volRef.current = null;
-    }
-    if (volRef.current) {
-      volRef.current.setData(safe.map((b) => ({ time: b.time, value: Number(b.volume) || 0, color: Number(b.close) >= Number(b.open) ? chartTheme.volumeUp : chartTheme.volumeDown })));
-    }
-    chart.priceScale('right').applyOptions({ scaleMargins: { top: 0.08, bottom: has ? 0.2 : 0.08 } });
-  }, [bars, showVolume]);
-
   /* ----- indicators (always computed on raw bars) ----- */
   useEffect(() => {
     const chart = chartRef.current;
@@ -537,6 +518,7 @@ const CandlestickChart = forwardRef(function CandlestickChart({
     const active = enabledIndicators.map(resolveIndicator).filter((i) => i && !i.hidden && !(i.intradayOnly && interval === '1d'));
     // GEX is rendered as price lines on the main series, not as an empty time series.
     const renderable = active.filter((i) => i.family !== 'gex');
+    const hasVol = renderable.some((i) => i.isVolumeOverlay || i.family === 'volume');
     const key = `${precision}|${active.map((i) => `${i.id}:${(i.levels || []).join('/')}`).join(',')}`;
     const LS = { solid: LineStyle.Solid, dashed: LineStyle.Dashed, dotted: LineStyle.Dotted };
 
@@ -547,21 +529,31 @@ const CandlestickChart = forwardRef(function CandlestickChart({
       indRef.current = {}; indLastRef.current = {};
       let pane = 0;
       for (const ind of renderable) {
+        const isVol = ind.isVolumeOverlay || ind.family === 'volume';
         const paneIdx = ind.overlay ? 0 : ++pane;
         const prec = ind.overlay ? precision : ind.id === 'rsi' ? 2 : Math.min(6, precision + 1);
-        const priceFormat = { type: 'price', precision: prec, minMove: 1 / 10 ** prec };
+        const priceFormat = isVol ? { type: 'volume' } : { type: 'price', precision: prec, minMove: 1 / 10 ** prec };
         const group = {};
         for (const ln of ind.lines) {
           if (ln.type === 'hist') {
-            group[ln.k] = chart.addSeries(HistogramSeries, { priceFormat, priceLineVisible: false, lastValueVisible: false, visible: ln.visible }, paneIdx);
+            const histOpts = { priceFormat, priceLineVisible: false, lastValueVisible: false, visible: ln.visible };
+            if (isVol) histOpts.priceScaleId = 'volume';
+            group[ln.k] = chart.addSeries(HistogramSeries, histOpts, paneIdx);
+            if (isVol) {
+              group[ln.k].priceScale().applyOptions({ scaleMargins: { top: 0.78, bottom: 0 } });
+            }
           } else {
             const opts = {
               color: ln.color, lineWidth: ln.width || 2, priceFormat, priceLineVisible: false,
               lastValueVisible: !ind.overlay, crosshairMarkerVisible: false,
               lineStyle: LS[ln.lineStyle] ?? LineStyle.Solid, visible: ln.visible,
             };
+            if (isVol) opts.priceScaleId = 'volume';
             if (ind.range) opts.autoscaleInfoProvider = () => ({ priceRange: { minValue: ind.range[0], maxValue: ind.range[1] } });
             group[ln.k] = chart.addSeries(LineSeries, opts, paneIdx);
+            if (isVol) {
+              group[ln.k].priceScale().applyOptions({ scaleMargins: { top: 0.78, bottom: 0 } });
+            }
           }
         }
         if (ind.levels) {
@@ -569,6 +561,11 @@ const CandlestickChart = forwardRef(function CandlestickChart({
         }
         indRef.current[ind.id] = group;
       }
+      if (hasVol) {
+        chart.priceScale('volume').applyOptions({ scaleMargins: { top: 0.78, bottom: 0 } });
+      }
+      chart.priceScale('right').applyOptions({ scaleMargins: { top: 0.08, bottom: hasVol ? 0.22 : 0.08 } });
+
       structRef.current = key;
       requestAnimationFrame(() => {
         try {
@@ -803,8 +800,8 @@ const CandlestickChart = forwardRef(function CandlestickChart({
         <div className="mk-zoom" role="group" aria-label="Zoom">
           <button type="button" onClick={() => zoomBy(0.8)} aria-label="Zoom out" title="Zoom out"><Minus size={13} /></button>
           <button type="button" onClick={() => zoomBy(1.25)} aria-label="Zoom in" title="Zoom in"><Plus size={13} /></button>
-          <button type="button" className="txt" onClick={() => { chartRef.current?.timeScale().fitContent(); }} title="Fit all loaded data">Fit</button>
-          <button type="button" className="txt" onClick={() => chartRef.current?.priceScale('right').applyOptions({ autoScale: true })} title="Reset price scale">Auto</button>
+          <button type="button" className={`txt${autoScaleEnabled ? ' is-on' : ''}`} onClick={() => { const next = !autoScaleEnabled; setAutoScaleEnabled(next); chartRef.current?.priceScale('right').applyOptions({ autoScale: next }); }} aria-pressed={autoScaleEnabled} title="Toggle automatic price scaling">Auto</button>
+          <button type="button" className={`txt${logScale ? ' is-on' : ''}`} onClick={() => { chartRef.current?.priceScale('right').applyOptions({ mode: !logScale ? PriceScaleMode.Logarithmic : PriceScaleMode.Normal }); }} aria-pressed={logScale} title="Switch to logarithmic scale">Log</button>
           {!atEdge && <button type="button" className="go" onClick={() => chartRef.current?.timeScale().scrollToRealTime()} title="Go to current price" aria-label="Go to current price"><ArrowRightToLine size={14} /></button>}
         </div>
       )}

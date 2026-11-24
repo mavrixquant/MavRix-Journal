@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import {
-  BarChart3, Calendar as CalendarIcon, Camera, Check, ChevronDown, Keyboard, LayoutGrid, Maximize2, Minimize2,
+  Calendar as CalendarIcon, Camera, Check, ChevronDown, Keyboard, LayoutGrid, Maximize2, Minimize2,
   PanelRightClose, PanelRightOpen, RefreshCw, Undo2, Link2, Unlink,
 } from 'lucide-react';
 
@@ -18,7 +18,6 @@ export default function ChartToolbar({
   interval, onIntervalChange,
   chartType, onChartType,
   enabledIndicators, onToggleIndicator, onClearIndicators,
-  showVolume, onToggleVolume, logScale, onToggleLog,
   from, to, presets = [], activePreset, onPreset, onRangeChange,
   canUndo, onUndo, onScreenshot,
   onRefresh, isRefreshing, onToggleFullscreen, isFullscreen, onHelp,
@@ -72,9 +71,6 @@ export default function ChartToolbar({
         enabledIndicators={enabledIndicators} onToggleIndicator={onToggleIndicator} onClearIndicators={onClearIndicators}
         interval={interval} open={indOpen} onOpenChange={setIndOpen}
       />
-
-      <button type="button" className={`mk-btn${showVolume ? ' is-on' : ''}`} onClick={onToggleVolume} aria-pressed={showVolume}><BarChart3 size={13} />Vol</button>
-      <button type="button" className={`mk-btn${logScale ? ' is-on' : ''}`} onClick={onToggleLog} aria-pressed={logScale} title="Logarithmic price scale">Log</button>
 
       <span className="mk-vsep" />
 

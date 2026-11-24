@@ -245,6 +245,45 @@ const FAMILY_LIST = [
     calc: (b, p) => ({ v: vwap(b, p.source) }),
   },
   {
+    id: 'volume', name: 'Volume', short: 'Vol', desc: 'Volume histogram with moving average, standard platform style.', group: 'Volume', overlay: true, isVolumeOverlay: true, primary: 'v', intradayOnly: false, rotateColor: false,
+    paramSpecs: [
+      { key: 'maLength', label: 'MA Length', type: 'int', min: 1, max: 200, def: 20 },
+    ],
+    defaults: { maLength: 20 },
+    title: (p) => `Vol ${p.maLength ? `(${p.maLength})` : ''}`,
+    lines: [
+      { k: 'v', name: 'Volume', color: 'rgba(53,196,161,.75)', colorDown: 'rgba(255,92,92,.75)', type: 'hist' },
+      { k: 'ma', name: 'Volume MA', color: '#5EA8FF', width: 1.5 },
+    ],
+    calc: (bars, p) => {
+      const v = [];
+      const vols = [];
+      const upColor = 'rgba(53,196,161,.75)';
+      const downColor = 'rgba(255,92,92,.75)';
+
+      for (let i = 0; i < bars.length; i++) {
+        const b = bars[i];
+        const val = num(b.volume) || 0;
+        vols.push(val);
+        const isUp = num(b.close) >= num(b.open);
+        v.push({ time: b.time, value: val, color: isUp ? upColor : downColor });
+      }
+
+      const ma = [];
+      const len = p?.maLength || 20;
+      let sum = 0;
+      for (let i = 0; i < vols.length; i++) {
+        sum += vols[i];
+        if (i >= len) sum -= vols[i - len];
+        if (i >= len - 1) {
+          ma.push({ time: bars[i].time, value: sum / len });
+        }
+      }
+
+      return { v, ma };
+    },
+  },
+  {
     id: 'bb', name: 'Bollinger Bands', short: 'BB', desc: 'Moving average with standard-deviation bands.', group: 'Overlays', overlay: true, primary: 'm',
     paramSpecs: [LEN(20, 2, 500), { key: 'mult', label: 'Std. deviation', type: 'float', min: 0.1, max: 10, step: 0.1, def: 2 }, SRC_PARAM],
     defaults: { period: 20, mult: 2, source: 'close' },
@@ -341,7 +380,7 @@ const LEGACY = {
   ema200: { family: 'ema', params: { period: 200 }, color: '#FF8AD8' },
   sma50: { family: 'sma', params: { period: 50 }, color: '#7DD3FC' },
   sma200: { family: 'sma', params: { period: 200 }, color: '#B58CFF' },
-  vwap: { family: 'vwap' }, bb: { family: 'bb' }, rsi: { family: 'rsi' }, macd: { family: 'macd' }, atr: { family: 'atr' },
+  vwap: { family: 'vwap' }, bb: { family: 'bb' }, rsi: { family: 'rsi' }, macd: { family: 'macd' }, atr: { family: 'atr' }, volume: { family: 'volume' },
 };
 
 /* ------------------------------ instance store ------------------------------ */

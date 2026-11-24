@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, forwardRef, useImperativeHandle } from 'react';
-import { AlertTriangle, Eye, EyeOff, Link2, Magnet, Maximize2, Minimize2, RotateCw, Settings } from 'lucide-react';
+import { AlertTriangle, Eye, EyeOff, Magnet, Maximize2, Minimize2, RotateCw, Settings } from 'lucide-react';
 
 import { useMarketBars, useMarketCatalog } from '@/shared/api/marketData';
 import { useGexDay, useGexDays } from '@/shared/api/gex';
@@ -19,10 +19,10 @@ const STORAGE_KEY = 'mavrix:chart:multi-panes:v1';
 const DRAWING_KEY = (id) => `mavrix:chart:multi-drawings:${id}`;
 
 const PANE_DEFAULTS = {
-  p1: { symbol: 'NQ', interval: '1m', chartType: 'candles', showVolume: true, logScale: false, indicators: ['ema20'] },
-  p2: { symbol: 'ES', interval: '5m', chartType: 'candles', showVolume: true, logScale: false, indicators: ['ema20'] },
-  p3: { symbol: 'NQ', interval: '15m', chartType: 'candles', showVolume: true, logScale: false, indicators: ['ema20'] },
-  p4: { symbol: 'ES', interval: '1h', chartType: 'candles', showVolume: true, logScale: false, indicators: ['ema20'] },
+  p1: { symbol: 'NQ', interval: '1m', chartType: 'candles', logScale: false, indicators: ['ema20', 'volume'] },
+  p2: { symbol: 'ES', interval: '5m', chartType: 'candles', logScale: false, indicators: ['ema20', 'volume'] },
+  p3: { symbol: 'NQ', interval: '15m', chartType: 'candles', logScale: false, indicators: ['ema20', 'volume'] },
+  p4: { symbol: 'ES', interval: '1h', chartType: 'candles', logScale: false, indicators: ['ema20', 'volume'] },
 };
 
 const DEFAULT_MODES = {
@@ -99,8 +99,16 @@ export const MULTI_CSS = `
   .mc-grid.mode-1x2 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr; }
   .mc-grid.mode-2x1 { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; }
   .mc-grid.mode-2x2 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
-  .mc-pane { position: relative; display: flex; flex-direction: column; width: 100%; height: 100%; border-radius: 10px; border: 1px solid rgba(255,255,255,.08); background: rgba(15,18,26,.85); overflow: hidden; min-width: 0; min-height: 0; transition: border-color .15s, box-shadow .15s; }
+  .mc-pane { position: relative; display: flex; flex-direction: row; width: 100%; height: 100%; border-radius: 10px; border: 1px solid rgba(255,255,255,.08); background: rgba(15,18,26,.85); overflow: hidden; min-width: 0; min-height: 0; transition: border-color .15s, box-shadow .15s; }
   .mc-pane.is-focused { border-color: color-mix(in srgb, var(--mk-accent, #5ea8ff) 60%, transparent); box-shadow: 0 0 0 1px color-mix(in srgb, var(--mk-accent, #5ea8ff) 45%, transparent); }
+  .mc-rail { flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 3px; width: 34px; border-right: 1px solid rgba(255,255,255,.06); background: rgba(0,0,0,.18); overflow-y: auto; overflow-x: hidden; scrollbar-width: none; }
+  .mc-rail::-webkit-scrollbar { display: none; }
+  .mc-rail-sep { width: 18px; height: 1px; flex: 0 0 auto; background: rgba(255,255,255,.08); margin: 3px 0; }
+  .mc-rail-grow { flex: 1 1 auto; min-height: 4px; }
+  .mc-rail-btn { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 26px; height: 26px; border: 0; border-radius: 6px; background: transparent; color: #8892A3; cursor: pointer; transition: background .12s, color .12s; }
+  .mc-rail-btn:hover { color: #fff; background: rgba(255,255,255,.1); }
+  .mc-rail-btn.is-on { color: var(--mk-accent, #5ea8ff); background: rgba(94,168,255,.16); }
+  .mc-pane-main { position: relative; flex: 1 1 auto; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
   .mc-pane-head { position: absolute; top: 8px; left: 12px; z-index: 12; display: flex; align-items: center; gap: 6px; padding: 3px 6px 3px 9px; border-radius: 8px; background: rgba(12,16,23,.92); backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,.1); font: 700 11px 'IBM Plex Mono', monospace; color: #E7E9EE; pointer-events: auto; }
   .mc-pane-head select { background: transparent; border: 0; color: inherit; font: inherit; outline: none; cursor: pointer; max-width: 90px; }
   .mc-pane-head select option { background: #11151F; color: #E7E9EE; }
@@ -109,7 +117,7 @@ export const MULTI_CSS = `
   .mc-icon-btn { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border: 0; border-radius: 5px; background: transparent; color: #8892A3; cursor: pointer; transition: background .12s, color .12s; }
   .mc-icon-btn:hover { color: #fff; background: rgba(255,255,255,.12); }
   .mc-icon-btn.is-on { color: var(--mk-accent, #5ea8ff); background: rgba(94,168,255,.14); }
-  .mc-toolbar { position: absolute; top: 6px; right: 8px; z-index: 12; display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 3px; max-width: 62%; padding: 3px 5px; border-radius: 9px; background: rgba(12,16,23,.9); backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,.1); opacity: 0; transform: translateY(-3px); transition: opacity .14s, transform .14s; pointer-events: none; }
+  .mc-toolbar { position: absolute; top: 6px; right: 8px; z-index: 12; display: flex; flex-wrap: nowrap; align-items: center; justify-content: flex-end; gap: 3px; padding: 3px 5px; border-radius: 9px; background: rgba(12,16,23,.9); backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,.1); opacity: 0; transform: translateY(-3px); transition: opacity .14s, transform .14s; pointer-events: none; }
   .mc-pane:hover .mc-toolbar, .mc-pane:focus-within .mc-toolbar, .mc-pane.is-focused .mc-toolbar { opacity: 1; transform: none; pointer-events: auto; }
   .mc-toolbar .mk-btn, .mc-toolbar .mk-btn.sq { height: 24px; min-width: 24px; padding: 0 6px; font-size: 10.5px; }
   .mc-toolbar .mk-vsep { height: 16px; margin: 0 1px; }
@@ -117,10 +125,6 @@ export const MULTI_CSS = `
   .mc-type-seg button { width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; border: 0; border-radius: 5px; background: transparent; color: #8892A3; cursor: pointer; }
   .mc-type-seg button:hover { color: #fff; background: rgba(255,255,255,.1); }
   .mc-type-seg button.is-on { color: var(--mk-accent, #5ea8ff); background: rgba(94,168,255,.16); }
-  .mc-draw-seg { display: inline-flex; gap: 1px; }
-  .mc-draw-seg button { width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; border: 0; border-radius: 5px; background: transparent; color: #8892A3; cursor: pointer; }
-  .mc-draw-seg button:hover { color: #fff; background: rgba(255,255,255,.1); }
-  .mc-draw-seg button.is-on { color: var(--mk-accent, #5ea8ff); background: rgba(94,168,255,.16); }
   .mc-pane-body { flex: 1; min-width: 0; min-height: 0; position: relative; }
   .mc-overlay { position: absolute; inset: 0; z-index: 8; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; text-align: center; padding: 18px; background: rgba(10,13,19,.9); color: #8892A3; font: 500 12px 'IBM Plex Mono', monospace; }
   .mc-overlay b { color: #E7E9EE; font-size: 13px; }
@@ -249,31 +253,6 @@ export function MultiChartGrid({
           />
         ))}
       </div>
-
-      {onSyncChange && activePanes.length > 1 && (
-        <div className="mc-sync-bar">
-          <button
-            type="button" className={`mc-icon-btn${sync.crosshair !== false ? ' is-on' : ''}`}
-            onClick={() => onSyncChange('crosshair', sync.crosshair === false)} title="Sync crosshair" aria-pressed={sync.crosshair !== false}
-          ><Link2 size={14} /></button>
-          <button
-            type="button" className={`mc-icon-btn${sync.symbol ? ' is-on' : ''}`}
-            onClick={() => onSyncChange('symbol', !sync.symbol)} title="Sync symbol" aria-pressed={!!sync.symbol}
-          >SYM</button>
-          <button
-            type="button" className={`mc-icon-btn${sync.interval ? ' is-on' : ''}`}
-            onClick={() => onSyncChange('interval', !sync.interval)} title="Sync timeframe" aria-pressed={!!sync.interval}
-          >TF</button>
-          <button
-            type="button" className={`mc-icon-btn${sync.chartType ? ' is-on' : ''}`}
-            onClick={() => onSyncChange('chartType', !sync.chartType)} title="Sync chart type" aria-pressed={!!sync.chartType}
-          >TYP</button>
-          <button
-            type="button" className={`mc-icon-btn${sync.indicators ? ' is-on' : ''}`}
-            onClick={() => onSyncChange('indicators', !sync.indicators)} title="Sync indicators" aria-pressed={!!sync.indicators}
-          >IND</button>
-        </div>
-      )}
     </>
   );
 }
@@ -393,58 +372,59 @@ const ChartPane = forwardRef(function ChartPane({
 
   return (
     <div className={`mc-pane${isFocused ? ' is-focused' : ''}`} onMouseEnter={onFocus}>
-      {/* Header: symbol / timeframe / maximize */}
-      <div className="mc-pane-head">
-        <select value={symbol} onChange={(e) => onUpdate({ symbol: e.target.value })} aria-label="Select symbol">
-          {(catalog?.symbols || [{ code: symbol }]).map((s) => (<option key={s.code} value={s.code}>{s.code}</option>))}
-        </select>
-        <span className="mc-dot-sep">·</span>
-        <select value={interval} onChange={(e) => onUpdate({ interval: e.target.value })} aria-label="Select timeframe">
-          {INTERVALS.map((tf) => (<option key={tf} value={tf}>{tf.toUpperCase()}</option>))}
-        </select>
-        <span className="mc-pane-actions">
-          <button type="button" className="mc-icon-btn" onClick={(e) => { e.stopPropagation(); try { chartHandle.current?.fit?.(); } catch { /* noop */ } }} title="Fit content" aria-label="Fit content">
-            <Settings size={12} />
+      {/* Left drawing rail */}
+      <aside className="mc-rail" role="toolbar" aria-label="Drawing tools" aria-orientation="vertical">
+        {DRAW_TOOLS.map((tid) => (
+          <button key={tid} type="button" className={`mc-rail-btn${tool === tid ? ' is-on' : ''}`} onClick={() => onTool(tid)} aria-pressed={tool === tid} title={TOOL_BY_ID[tid]?.label || tid} aria-label={TOOL_BY_ID[tid]?.label || tid}>
+            <ToolIcon id={tid} />
           </button>
-          <button type="button" className="mc-icon-btn" onClick={onToggleMax} title={isMaximized ? 'Restore grid' : 'Maximize pane'} aria-label={isMaximized ? 'Restore grid' : 'Maximize pane'}>
-            {isMaximized ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
-          </button>
-        </span>
-      </div>
-
-      {/* Per-pane toolbar: chart type / volume / log / indicators / draw tools */}
-      <div className="mc-toolbar" role="toolbar" aria-label="Pane tools">
-        <CascadingIndicators enabledIndicators={indicators} onToggleIndicator={toggleIndicator} onClearIndicators={() => onUpdate({ indicators: [] })} interval={interval} />
-        <span className="mk-vsep" />
-        <div className="mc-type-seg" role="group" aria-label="Chart type">
-          {CHART_TYPES.map((t) => (
-            <button key={t.id} type="button" className={chartType === t.id ? 'is-on' : ''} onClick={() => onUpdate({ chartType: t.id })} aria-pressed={chartType === t.id} title={t.label} aria-label={t.label}>
-              <TypeIcon id={t.id} />
-            </button>
-          ))}
-        </div>
-        <button type="button" className={`mk-btn${showVolume ? ' is-on' : ''}`} onClick={() => onUpdate({ showVolume: !showVolume })} aria-pressed={showVolume} title="Volume">Vol</button>
-        <button type="button" className={`mk-btn${logScale ? ' is-on' : ''}`} onClick={() => onUpdate({ logScale: !logScale })} aria-pressed={logScale} title="Log scale">Log</button>
-        <span className="mk-vsep" />
-        <div className="mc-draw-seg" role="group" aria-label="Drawing tools">
-          {DRAW_TOOLS.map((tid) => (
-            <button key={tid} type="button" className={tool === tid ? 'is-on' : ''} onClick={() => onTool(tid)} aria-pressed={tool === tid} title={TOOL_BY_ID[tid]?.label || tid} aria-label={TOOL_BY_ID[tid]?.label || tid}>
-              <ToolIcon id={tid} />
-            </button>
-          ))}
-        </div>
-        <button type="button" className={`mc-icon-btn${magnet ? ' is-on' : ''}`} onClick={() => setMagnet((v) => !v)} title="Magnet (snap to OHLC)" aria-pressed={magnet} aria-label="Magnet"><Magnet size={13} /></button>
+        ))}
+        <span className="mc-rail-sep" />
+        <button type="button" className={`mc-rail-btn${magnet ? ' is-on' : ''}`} onClick={() => setMagnet((v) => !v)} title="Magnet (snap to OHLC)" aria-pressed={magnet} aria-label="Magnet"><Magnet size={14} /></button>
         <ColorPopover
-          value={drawColor} onChange={setDrawColor} placement="bottom" label="Drawing colour"
+          value={drawColor} onChange={setDrawColor} placement="right" label="Drawing colour"
           renderTrigger={({ ref: cRef, onClick, open }) => (
-            <button ref={cRef} type="button" className={`mc-icon-btn${open ? ' is-on' : ''}`} onClick={onClick} aria-label="Drawing colour" title="Drawing colour"><i className="mk-color-dot" style={{ background: drawColor }} /></button>
+            <button ref={cRef} type="button" className={`mc-rail-btn${open ? ' is-on' : ''}`} onClick={onClick} aria-label="Drawing colour" title="Drawing colour"><i className="mk-color-dot" style={{ background: drawColor }} /></button>
           )}
         />
-        <button type="button" className={`mc-icon-btn${hideDrawings ? ' is-on' : ''}`} onClick={() => setHideDrawings((v) => !v)} title={hideDrawings ? 'Show drawings' : 'Hide drawings'} aria-pressed={hideDrawings} aria-label="Toggle drawings">{hideDrawings ? <EyeOff size={13} /> : <Eye size={13} />}</button>
-      </div>
+        <button type="button" className={`mc-rail-btn${hideDrawings ? ' is-on' : ''}`} onClick={() => setHideDrawings((v) => !v)} title={hideDrawings ? 'Show drawings' : 'Hide drawings'} aria-pressed={hideDrawings} aria-label="Toggle drawings">{hideDrawings ? <EyeOff size={14} /> : <Eye size={14} />}</button>
+      </aside>
 
-      {/* Chart area */}
-      <div className="mc-pane-body">
+      <div className="mc-pane-main">
+        {/* Header: symbol / timeframe / maximize */}
+        <div className="mc-pane-head">
+          <select value={symbol} onChange={(e) => onUpdate({ symbol: e.target.value })} aria-label="Select symbol">
+            {(catalog?.symbols || [{ code: symbol }]).map((s) => (<option key={s.code} value={s.code}>{s.code}</option>))}
+          </select>
+          <span className="mc-dot-sep">·</span>
+          <select value={interval} onChange={(e) => onUpdate({ interval: e.target.value })} aria-label="Select timeframe">
+            {INTERVALS.map((tf) => (<option key={tf} value={tf}>{tf.toUpperCase()}</option>))}
+          </select>
+          <span className="mc-pane-actions">
+            <button type="button" className="mc-icon-btn" onClick={(e) => { e.stopPropagation(); try { chartHandle.current?.fit?.(); } catch { /* noop */ } }} title="Fit content" aria-label="Fit content">
+              <Settings size={12} />
+            </button>
+            <button type="button" className="mc-icon-btn" onClick={onToggleMax} title={isMaximized ? 'Restore grid' : 'Maximize pane'} aria-label={isMaximized ? 'Restore grid' : 'Maximize pane'}>
+              {isMaximized ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
+            </button>
+          </span>
+        </div>
+
+        {/* Per-pane toolbar: indicators / chart type */}
+        <div className="mc-toolbar" role="toolbar" aria-label="Pane tools">
+          <CascadingIndicators enabledIndicators={indicators} onToggleIndicator={toggleIndicator} onClearIndicators={() => onUpdate({ indicators: [] })} interval={interval} />
+          <span className="mk-vsep" />
+          <div className="mc-type-seg" role="group" aria-label="Chart type">
+            {CHART_TYPES.map((t) => (
+              <button key={t.id} type="button" className={chartType === t.id ? 'is-on' : ''} onClick={() => onUpdate({ chartType: t.id })} aria-pressed={chartType === t.id} title={t.label} aria-label={t.label}>
+                <TypeIcon id={t.id} />
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Chart area */}
+        <div className="mc-pane-body">
         {(filling || barsQ.isFetchingNextPage) && <div className="mc-fill-bar" aria-hidden><i /></div>}
 
         <CandlestickChart
@@ -504,6 +484,7 @@ const ChartPane = forwardRef(function ChartPane({
             </div>
           </div>
         )}
+        </div>
       </div>
     </div>
   );

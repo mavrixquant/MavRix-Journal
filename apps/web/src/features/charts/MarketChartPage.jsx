@@ -77,12 +77,18 @@ function loadPrefs() {
   const p = readJson(PREF_KEY, null);
   if (p) return p;
   const old = readJson(OLD_PREF_KEY, {});
+  // Migrate old volume preference to volume indicator
+  const oldIndicators = Array.isArray(old.indicators) ? old.indicators : [];
+  const hasOldVolume = old.volume !== false;
+  const indicators = oldIndicators.filter((i) => ['ema20', 'ema50', 'sma200', 'vwap', 'bb', 'rsi', 'macd', 'atr', 'volume'].includes(i));
+  if (hasOldVolume && !indicators.includes('volume')) {
+    indicators.push('volume');
+  }
   return {
     chartType: old.ha ? 'ha' : 'candles',
-    volume: old.volume !== false,
     log: !!old.log,
     gridMode: '1x1',
-    indicators: Array.isArray(old.indicators) ? old.indicators.filter((i) => ['ema20', 'ema50', 'sma200', 'vwap', 'bb', 'rsi'].includes(i)) : ['ema20'],
+    indicators: indicators.length ? indicators : ['ema20', 'volume'],
   };
 }
 
@@ -134,11 +140,10 @@ export default function MarketChartPage() {
   /* ------------------------------ persisted prefs ------------------------------ */
   const prefs = useRef(loadPrefs()).current;
   const [chartType, setChartType] = useState(prefs.chartType || 'candles');
-  const [showVolume, setShowVolume] = useState(prefs.volume !== false);
-  const [logScale, setLogScale] = useState(!!prefs.log);
+  const [logScale] = useState(!!prefs.log);
   const [magnet, setMagnet] = useState(!!prefs.magnet);
   const [gridMode, setGridMode] = useState(prefs.gridMode || '1x1');
-  const [indicators, setIndicators] = useState(Array.isArray(prefs.indicators) ? prefs.indicators : ['ema20']);
+  const [indicators, setIndicators] = useState(Array.isArray(prefs.indicators) ? prefs.indicators : ['ema20', 'volume']);
   const [panelOpen, setPanelOpen] = useState(prefs.panelOpen !== false);
   const [panelTab, setPanelTab] = useState(prefs.panelTab || 'watch');
   const [drawColor, setDrawColor] = useState(prefs.drawColor || DRAW_COLORS[0]);
@@ -153,8 +158,8 @@ export default function MarketChartPage() {
   const [syncVolume, setSyncVolume] = useState(false);
   const [syncLogScale, setSyncLogScale] = useState(false);
   useEffect(() => {
-    writeJson(PREF_KEY, { chartType, volume: showVolume, log: logScale, magnet, gridMode, indicators, panelOpen, panelTab, drawColor, showTrades, showLabels });
-  }, [chartType, showVolume, logScale, magnet, gridMode, indicators, panelOpen, panelTab, drawColor, showTrades, showLabels]);
+    writeJson(PREF_KEY, { chartType, log: logScale, magnet, gridMode, indicators, panelOpen, panelTab, drawColor, showTrades, showLabels });
+  }, [chartType, logScale, magnet, gridMode, indicators, panelOpen, panelTab, drawColor, showTrades, showLabels]);
 
   /* ----------------------------------- UI state ----------------------------------- */
   const [drawer, setDrawer] = useState(false);
@@ -516,7 +521,6 @@ export default function MarketChartPage() {
             chartType={chartType} onChartType={setChartType}
             enabledIndicators={indicators} onToggleIndicator={toggleIndicator} onClearIndicators={() => setIndicators([])}
             indicatorsOpen={indOpen} onIndicatorsOpenChange={setIndOpen}
-            showVolume={showVolume} onToggleVolume={() => setShowVolume((v) => !v)} logScale={logScale} onToggleLog={() => setLogScale((v) => !v)}
             from={fromParam} to={toParam} presets={PRESETS} activePreset={activePreset} onPreset={applyPreset} onRangeChange={handleRangeChange}
             canUndo={canUndo} onUndo={undo} onScreenshot={() => chartRef.current?.screenshot()}
             onRefresh={handleRefresh} isRefreshing={barsQuery.isFetching && !barsQuery.isFetchingNextPage}
@@ -575,7 +579,7 @@ export default function MarketChartPage() {
                     ref={chartRef}
                     bars={displayBars} interval={interval} symbol={symbol} precision={precision}
                     chartType={chartType} enabledIndicators={indicators} onToggleIndicator={toggleIndicator}
-                    showVolume={showVolume} logScale={logScale} magnet={magnet}
+                    logScale={logScale} magnet={magnet}
                     tool={tool} onToolChange={setTool}
                     drawings={hideDrawings ? EMPTY : drawings} onDrawingsChange={setDrawings}
                     selectedId={selectedId} onSelect={setSelectedId} drawColor={drawColor}
