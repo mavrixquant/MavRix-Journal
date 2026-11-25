@@ -4,7 +4,9 @@ build/
 .vscode/
 .idea/
 coverage/
-
+graphify-out/*
+!graphify-out/graph.json
+!graphify-out/graph.html
 
 
 .env
