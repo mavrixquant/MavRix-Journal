@@ -293,6 +293,7 @@ export default function ReplayChartPage() {
                 sessionId={session.id} symbol={symbol}
                 baseInterval={session.interval} viewInterval={view}
                 bars={barsQ.bars} idx={engine.idx} trades={trades} tz={tz} precision={precision}
+                engine={engine}
                 onSelectTrade={setSelectedTradeId}
                 onOhlcChange={setCrosshairOhlc}
                 chartProps={{

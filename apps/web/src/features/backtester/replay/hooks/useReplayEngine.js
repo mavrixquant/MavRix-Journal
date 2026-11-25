@@ -99,6 +99,9 @@ export default function useReplayEngine({
     if (!bars.length) return 0;
     let m = 0;
     for (const t of trades) {
+      // Pending orders (resting limit/stop) should not constrain rewind ability.
+      // If it fills, it becomes an open position with the same entryTime.
+      if (isPending(t)) continue;
       m = Math.max(m, snapToBar(bars, toMs(t.entryTime) / 1000));
       if (t.exitTime) m = Math.max(m, snapToBar(bars, toMs(t.exitTime) / 1000));
     }
@@ -185,7 +188,7 @@ export default function useReplayEngine({
           try {
             await updateTrade({
               tradeId: ord.tradeId,
-              patch: { fillTime: new Date(bar.utc * 1000).toISOString(), fillPrice: hit.price },
+              patch: { fillTime: new Date(bar.utc * 1000).toISOString(), filledAt: new Date(bar.utc * 1000).toISOString(), fillPrice: hit.price },
             });
             toast(`${orderLabel(ord.side, ord.orderType)} filled`, {
               description: `${ord.symbol} × ${ord.quantity} @ ${hit.price}`,
@@ -331,6 +334,28 @@ export default function useReplayEngine({
     }
   }, [deleteTrade]);
 
+  /**
+   * Update stop-loss and/or take-profit on an open position.
+   * Only works for active (running) trades — not closed or pending.
+   */
+  const updateSLTP = useCallback(async (trade, { stopLoss, takeProfit }) => {
+    const s = sessionRef.current;
+    if (!s || s.status !== 'active') throw new Error('This session is closed.');
+    if (!trade || !isOpenPosition(trade)) throw new Error('Trade is not an open position.');
+    setBusy(true);
+    try {
+      return await updateTrade({
+        tradeId: trade.tradeId,
+        patch: {
+          stopLoss: stopLoss ?? null,
+          takeProfit: takeProfit ?? null,
+        },
+      });
+    } finally {
+      setBusy(false);
+    }
+  }, [updateTrade]);
+
   const closeManual = useCallback(async (trade) => {
     const bar = barsRef.current[idxRef.current];
     if (!bar) return null;
@@ -430,7 +455,7 @@ export default function useReplayEngine({
     playing, play, pause, toggle, speed, setSpeed,
     step, jumpToTime, advanceTo, reset,
     openPosition, openPositions, pendingOrder, pendingOrders, openPnl, prop,
-    placeOrder, cancelOrder, closeManual, conclude,
+    placeOrder, cancelOrder, closeManual, conclude, updateSLTP,
     busy, writable,
   };
 }

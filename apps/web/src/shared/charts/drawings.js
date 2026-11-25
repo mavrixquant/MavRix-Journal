@@ -511,6 +511,8 @@ export class TradesPrimitive {
     this._rects = [];
     this._hover = null;
     this._selected = null;
+    // Drag state for SL/TP lines on active trades
+    this._dragRef = null;
     this._onMove = (p) => {
       const key = p?.point ? this.hit(p.point.x, p.point.y) : null;
       if (key !== this._hover) { this._hover = key; this._req?.(); }
@@ -545,6 +547,73 @@ export class TradesPrimitive {
     return null;
   }
 
+  // Hit-test SL/TP lines on active trades for dragging.
+  // Returns { key, line: 'sl' | 'tp', y, price } or null.
+  hitSLTP(x, y, radius = 8) {
+    if (!this._chart || !this._series) return null;
+    const st = this._get();
+    if (!st?.show || !st.trades?.length) return null;
+    const ts = this._chart.timeScale();
+    const s = this._series;
+    const W_pane = this._chart.paneSize().width;
+
+    for (const t of st.trades) {
+      if (t.entryTimeSec == null) continue;
+      const isActive = t.exitTimeSec == null && !t.pending;
+      if (!isActive) continue; // only draggable on running trades
+
+      const x1 = ts.timeToCoordinate(t.entryTimeSec * 1000);
+      if (x1 === null) continue; // time out of range
+      if (x > x1 + 4 && x < W_pane + 4) {
+        // Check SL line
+        if (t.stopLoss != null) {
+          const yS = s.priceToCoordinate(t.stopLoss);
+          if (yS !== null && Math.abs(y - yS) <= radius) {
+            return { key: t.id, line: 'sl', y: yS, price: t.stopLoss };
+          }
+        }
+        // Check TP line
+        if (t.takeProfit != null) {
+          const yT = s.priceToCoordinate(t.takeProfit);
+          if (yT !== null && Math.abs(y - yT) <= radius) {
+            return { key: t.id, line: 'tp', y: yT, price: t.takeProfit };
+          }
+        }
+      }
+    }
+    return null;
+  }
+
+  // Begin dragging an SL/TP line on an active trade.
+  // `onDragEnd` will be called with (tradeId, { stopLoss?, takeProfit? }) when drag ends.
+  beginDragSLTP(x, y, hit, onDragEnd) {
+    this._dragRef = { hit, startX: x, startY: y, onDragEnd };
+    this._req?.();
+  }
+
+  // Continue drag: update visual position and return the new price for the dragged line.
+  dragSLTP(x, y) {
+    if (!this._dragRef || !this._chart || !this._series) return null;
+    const { hit } = this._dragRef;
+    const s = this._series;
+    // Convert y to price
+    const price = s.coordinateToPrice(y);
+    if (price == null) return null;
+    // Update the hit's visual price
+    hit.price = price;
+    this._req?.();
+    return { tradeId: hit.key, line: hit.line, price };
+  }
+
+  // End drag: commit the change via onDragEnd callback.
+  endDragSLTP() {
+    if (!this._dragRef) return;
+    const { hit, onDragEnd } = this._dragRef;
+    onDragEnd(hit.key, { [hit.line]: hit.price });
+    this._dragRef = null;
+    this._req?.();
+  }
+
   _draw(target) {
     if (!this._chart || !this._series) return;
     const st = this._get();
@@ -553,50 +622,101 @@ export class TradesPrimitive {
     const s = this._series;
     target.useMediaCoordinateSpace(({ context: ctx }) => {
       const rects = [];
+      const W_pane = this._chart.paneSize().width;
+      // Store active trade SL/TP lines for hit-testing
+      this._activeSLTPLines = [];
+
       st.trades.forEach((t, n) => {
-        if (t.entryTimeSec == null || t.exitTimeSec == null) return;
+        if (t.entryTimeSec == null) return;
         const key = t.id ?? `i${n}`;
-        const x1 = ts.timeToCoordinate(t.entryTimeSec);
-        const x2 = ts.timeToCoordinate(t.exitTimeSec);
-        if (x1 === null || x2 === null) return;
+        const x1 = ts.timeToCoordinate(t.entryTimeSec * 1000);
+        if (x1 === null) return;
+        const isActive = t.exitTimeSec == null && !t.pending;
+        let x2, left, w;
+        if (isActive) {
+          left = x1;
+          w = W_pane - x1;
+        } else {
+          x2 = ts.timeToCoordinate(t.exitTimeSec * 1000);
+          if (x2 === null) return;
+          left = Math.min(x1, x2);
+          w = Math.max(Math.abs(x2 - x1), 2);
+        }
         const yE = t.entryPrice ? s.priceToCoordinate(t.entryPrice) : null;
         const yS = t.stopLoss ? s.priceToCoordinate(t.stopLoss) : null;
         const yT = t.takeProfit ? s.priceToCoordinate(t.takeProfit) : null;
         if (yE === null) return;
-        const left = Math.min(x1, x2);
-        const w = Math.max(Math.abs(x2 - x1), 2);
         const active = key === this._hover || key === this._selected;
         const ys = [yE, yS, yT].filter((v) => v !== null);
-        rects.push({ key, x1: left, x2: left + w, y1: Math.min(...ys), y2: Math.max(...ys) });
+        if (!isActive) {
+          rects.push({ key, x1: left, x2: left + w, y1: Math.min(...ys), y2: Math.max(...ys) });
+        } else {
+          // For active trades, track SL/TP line positions for drag hit-testing
+          if (yS !== null) {
+            this._activeSLTPLines.push({ key, line: 'sl', x1, x2: W_pane, y: yS, price: t.stopLoss });
+          }
+          if (yT !== null) {
+            this._activeSLTPLines.push({ key, line: 'tp', x1, x2: W_pane, y: yT, price: t.takeProfit });
+          }
+        }
 
         const a = active ? 1.35 : 1;
         const pend = !!t.pending;
-        const box = (y, fill, stroke) => {
-          const top = Math.min(yE, y), h = Math.abs(yE - y);
-          ctx.fillStyle = fill; ctx.fillRect(left, top, w, h);
-          ctx.strokeStyle = stroke; ctx.lineWidth = active ? 1.5 : 1;
-          ctx.setLineDash(pend ? [4, 3] : []);
-          ctx.strokeRect(left, top, w, h); ctx.setLineDash([]);
-        };
+        const fillA = pend ? 0.08 : 0.14;
         const line = (y, color, width, dash) => {
           ctx.strokeStyle = color; ctx.lineWidth = width; ctx.setLineDash(dash || []);
           ctx.beginPath(); ctx.moveTo(left, y); ctx.lineTo(left + w, y); ctx.stroke(); ctx.setLineDash([]);
         };
-        const fillA = pend ? 0.08 : 0.14;
-        if (yT !== null) box(yT, `rgba(53,196,161,${Math.min(fillA * a, 0.3)})`, 'rgba(53,196,161,.4)');
-        if (yS !== null) box(yS, `rgba(255,92,92,${Math.min(fillA * a, 0.3)})`, 'rgba(255,92,92,.4)');
-        if (yT !== null) line(yT, '#35C4A1', active ? 2.5 : 2);
-        if (yS !== null) line(yS, '#FF5C5C', active ? 2.5 : 2);
-        line(yE, '#F5B544', active ? 1.5 : 1, [4, 4]);
+        const drawTrade = (y, color, width, label, isSL) => {
+          if (isActive) {
+            // Active trade: extended horizontal line (no fill)
+            ctx.strokeStyle = color;
+            ctx.lineWidth = width;
+            ctx.setLineDash([]);
+            ctx.beginPath();
+            ctx.moveTo(x1, y);
+            ctx.lineTo(W_pane, y);
+            ctx.stroke();
+            // Price label on the line
+            pill(ctx, label, W_pane - 4, y, { bg: color, align: 'right' });
+          } else {
+            // Closed trade or pending order: box/segment
+            const top = Math.min(yE, y), h = Math.abs(yE - y);
+            ctx.fillStyle = `rgba(${isSL ? '255,92,92' : '53,196,161'},${Math.min(fillA * a, 0.3)})`;
+            ctx.fillRect(left, top, w, h);
+            ctx.strokeStyle = isSL ? 'rgba(255,92,92,.4)' : 'rgba(53,196,161,.4)';
+            ctx.lineWidth = active ? 1.5 : 1;
+            ctx.setLineDash(pend ? [4, 3] : []);
+            ctx.strokeRect(left, top, w, h);
+            ctx.strokeStyle = color;
+            ctx.lineWidth = width;
+            ctx.beginPath();
+            ctx.moveTo(left, y);
+            ctx.lineTo(left + w, y);
+            ctx.stroke();
+            ctx.setLineDash([]);
+          }
+        };
 
-        if (active || st.labels) {
-          const right = left + w;
-          const dir = yT !== null && yS !== null ? (yT < yE ? 1 : -1) : 1; // 1 = long (target above entry)
+        if (yT !== null) drawTrade(yT, '#35C4A1', active ? 2.5 : 2, t.tpLabel || `TP ${fmtP(t.takeProfit, st.precision ?? 2)}`, false);
+        if (yS !== null) drawTrade(yS, '#FF5C5C', active ? 2.5 : 2, t.slLabel || `SL ${fmtP(t.stopLoss, st.precision ?? 2)}`, true);
+
+        // Entry line for all trades
+        if (isActive) {
+          ctx.strokeStyle = '#F5B544';
+          ctx.lineWidth = active ? 1.5 : 1;
+          ctx.setLineDash([4, 4]);
+          ctx.beginPath();
+          ctx.moveTo(x1, yE);
+          ctx.lineTo(W_pane, yE);
+          ctx.stroke();
+          ctx.setLineDash([]);
+          pill(ctx, t.label || 'Entry', W_pane - 4, yE, { bg: '#F5B544', align: 'right' });
+        } else {
+          line(yE, '#F5B544', active ? 1.5 : 1, [4, 4]);
           if (t.label) {
             pill(ctx, t.label, left + 4, yE - 12, { bg: t.win === false ? '#FF5C5C' : t.win ? '#35C4A1' : '#F5B544' });
           }
-          if (yT !== null) pill(ctx, t.tpLabel || `TP ${fmtP(t.takeProfit, st.precision ?? 2)}`, right - 4, yT + (dir === 1 ? 12 : -12), { bg: '#35C4A1', align: 'right' });
-          if (yS !== null) pill(ctx, t.slLabel || `SL ${fmtP(t.stopLoss, st.precision ?? 2)}`, right - 4, yS + (dir === 1 ? -12 : 12), { bg: '#FF5C5C', align: 'right' });
         }
       });
       this._rects = rects;

@@ -92,7 +92,9 @@ export const REPLAY_CSS = `
   .rp-field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
   .rp-field > span { font: 600 10px 'IBM Plex Mono', monospace; letter-spacing: .08em; text-transform: uppercase; color: var(--rp-ink-3); }
   .rp-field > span i { font-style: normal; text-transform: none; letter-spacing: 0; color: var(--rp-ink-3); margin-left: 4px; }
-  .rp-field small { font: 500 10.5px 'IBM Plex Mono', monospace; color: var(--rp-ink-2); }
+  .rp-check { display: flex; align-items: center; gap: 8px; cursor: pointer; font: 500 11.5px 'IBM Plex Mono', monospace; color: var(--rp-ink-2); }
+  .rp-check input { accent-color: var(--accent); cursor: pointer; }
+  .rp-check span { user-select: none; }
   .rp-input { width: 100%; box-sizing: border-box; padding: 7px 9px; border-radius: 8px; border: 1px solid rgba(255,255,255,.1); background: rgba(10,13,19,.6); color: var(--rp-ink); font: 500 12.5px 'IBM Plex Mono', monospace; outline: none; transition: border-color .15s, box-shadow .15s; resize: vertical; }
   .rp-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent); }
   .rp-input:disabled { opacity: .5; }
@@ -100,9 +102,10 @@ export const REPLAY_CSS = `
   .rp-sidepick button { height: 34px; border-radius: 9px; border: 1px solid var(--rp-line); background: transparent; color: var(--rp-ink-2); font: 700 11.5px 'IBM Plex Mono', monospace; cursor: pointer; transition: all .15s; }
   .rp-sidepick .is-buy.is-on { color: var(--rp-win); border-color: var(--rp-win); background: rgba(53,196,161,.14); }
   .rp-sidepick .is-sell.is-on { color: var(--rp-loss); border-color: var(--rp-loss); background: rgba(255,92,92,.14); }
-  .rp-mode { display: inline-flex; align-self: flex-start; padding: 2px; gap: 2px; border-radius: 8px; background: rgba(255,255,255,.04); border: 1px solid var(--rp-line); }
-  .rp-mode button { border: 0; background: transparent; color: var(--rp-ink-2); font: 600 10px 'IBM Plex Mono', monospace; padding: 4px 9px; border-radius: 6px; cursor: pointer; }
-  .rp-mode button.is-on { background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent); }
+  .rp-modes { display: inline-flex; padding: 2px; gap: 2px; border-radius: 8px; background: rgba(255,255,255,.04); border: 1px solid var(--rp-line); }
+  .rp-modes button { border: 0; background: transparent; color: var(--rp-ink-2); font: 600 10.5px 'IBM Plex Mono', monospace; padding: 5px 10px; border-radius: 6px; cursor: pointer; transition: all .15s; }
+  .rp-modes button:hover { color: var(--rp-ink); background: rgba(255,255,255,.06); }
+  .rp-modes button.is-on { background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 30%, transparent); }
   .rp-rr { display: flex; justify-content: space-between; gap: 8px; font: 500 10.5px 'IBM Plex Mono', monospace; color: var(--rp-ink-3); padding: 7px 9px; border-radius: 8px; background: rgba(255,255,255,.03); }
   .rp-rr b { font-weight: 700; color: var(--rp-ink); margin-left: 3px; }
   .rp-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; } .rp-actions .rp-btn { justify-content: center; }
@@ -143,7 +146,6 @@ export const REPLAY_CSS = `
   .rp-root.is-fs { position: fixed; inset: 0; z-index: 2500; width: 100vw; height: 100dvh !important; max-height: none !important; margin: 0; border-radius: 0; background: #0A0D13; }
   .rp-root.is-fs .mk-shell { height: 100%; }
 
-  /* ---------- order panel (position-based) ---------- */
   .rp-guide { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; color: var(--rp-ink-2); font-size: 12px; line-height: 1.55; }
   .rp-guide svg { color: var(--accent); } .rp-guide p { margin: 0; } .rp-guide b { color: var(--rp-ink); }
   .rp-guide .rp-two { width: 100%; }
@@ -155,7 +157,14 @@ export const REPLAY_CSS = `
   .rp-pend { border-color: color-mix(in srgb, var(--accent) 35%, transparent); background: color-mix(in srgb, var(--accent) 6%, transparent); }
   .rp-pend header { display: flex; align-items: center; gap: 8px; } .rp-pend header em { font: 500 11px 'IBM Plex Mono', monospace; font-style: normal; color: var(--rp-ink-2); }
   .rp-card.is-selected { box-shadow: 0 0 0 1px var(--accent); }
-  .rp-sub { margin: 0; font-size: 11.5px; color: var(--rp-ink-3); }
+  .rp-field-row { display: grid; grid-template-columns: 1fr auto 70px; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .rp-field-row > span { font: 600 10px 'IBM Plex Mono', monospace; text-transform: uppercase; color: var(--rp-ink-2); }
+  .rp-toggle { display: inline-flex; padding: 2px; gap: 2px; border-radius: 6px; background: rgba(255,255,255,.04); border: 1px solid var(--rp-line); }
+  .rp-toggle button { border: 0; background: transparent; color: var(--rp-ink-2); font: 600 9px 'IBM Plex Mono', monospace; padding: 3px 7px; border-radius: 4px; cursor: pointer; transition: all .1s; }
+  .rp-toggle button:hover { color: var(--rp-ink); }
+  .rp-toggle button.is-on { background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 30%, transparent); }
+  .rp-check { display: flex; align-items: center; gap: 8px; font: 600 10px 'IBM Plex Mono', monospace; text-transform: uppercase; color: var(--rp-ink-2); cursor: pointer; margin-bottom: 4px; }
+  .rp-check input { accent-color: var(--accent); }
 
   @media (max-width: 1100px) { .rp-acct { display: none; } .rp-order-btns { margin-left: 0; } }
   @media (max-width: 768px) {

@@ -73,6 +73,7 @@ const CandlestickChart = forwardRef(function CandlestickChart({
   loading = false,
   onOhlcChange,
   gexLevels = [],
+  onSLTPChange, // callback(tradeId, { stopLoss, takeProfit })
 }, ref) {
   const containerRef = useRef(null);
   const chartRef = useRef(null);
@@ -87,6 +88,7 @@ const CandlestickChart = forwardRef(function CandlestickChart({
   const indexRef = useRef({ length: 0 });
   const draftRef = useRef(null);
   const dragRef = useRef(null);
+  const sltpDragRef = useRef(null);
   const firstTimeRef = useRef(null);
   const lastFitKeyRef = useRef(undefined);
   const lastLegendTimeRef = useRef(null);
@@ -95,6 +97,7 @@ const CandlestickChart = forwardRef(function CandlestickChart({
   propsRef.current = {
     tool, magnet, drawings, selectedId, drawColor, displayOffset, precision, trades, showTrades, showTradeLabels,
     onToolChange, onDrawingsChange, onSelect, onSelectTrade, onAtEdgeChange, interval, onOhlcChange,
+    onSLTPChange,
   };
 
   // Live preview of a drawing being edited in the settings dialog (committed on OK).
@@ -355,12 +358,57 @@ const CandlestickChart = forwardRef(function CandlestickChart({
       requestAnimationFrame(() => { dragRef.current = null; drawPrimRef.current.redraw(); });
     };
 
+    /* ----- dragging SL/TP lines on active trades ----- */
+    const onSLTPDragMove = (e) => {
+      const dr = sltpDragRef.current;
+      if (!dr) return;
+      const p = local(e);
+      const result = tradePrimRef.current.dragSLTP(p.x, p.y);
+      if (result) {
+        // Visual feedback - the line follows the cursor
+        tradePrimRef.current.redraw();
+      }
+    };
+
+    const onSLTPDragEnd = () => {
+      const dr = sltpDragRef.current;
+      window.removeEventListener('pointermove', onSLTPDragMove);
+      window.removeEventListener('pointerup', onSLTPDragEnd);
+      window.removeEventListener('pointercancel', onSLTPDragEnd);
+      chart.applyOptions({ handleScroll: true, handleScale: true });
+      setCur('');
+      if (dr) {
+        tradePrimRef.current.endDragSLTP();
+      }
+      sltpDragRef.current = null;
+      tradePrimRef.current.redraw();
+    };
+
     const onDown = (e) => {
-      if (e.button !== 0 || propsRef.current.tool !== 'cursor' || dragRef.current) return;
+      if (e.button !== 0 || propsRef.current.tool !== 'cursor' || dragRef.current || sltpDragRef.current) return;
       const p = local(e);
       if (!inPane(p)) return;
       const size = paneSize();
       const prim = drawPrimRef.current;
+
+      // First, check if clicking on SL/TP line of an active trade
+      const sltpHit = tradePrimRef.current.hitSLTP(p.x, p.y, size);
+      if (sltpHit) {
+        const s = mainRef.current;
+        if (!s) return;
+        e.preventDefault();
+        e.stopPropagation();
+        sltpDragRef.current = tradePrimRef.current.beginDragSLTP(p.x, p.y, sltpHit, (tradeId, patch) => {
+          propsRef.current.onSLTPChange?.(tradeId, patch);
+        });
+        chart.applyOptions({ handleScroll: false, handleScale: false });
+        setCur('grabbing');
+        window.addEventListener('pointermove', onSLTPDragMove);
+        window.addEventListener('pointerup', onSLTPDragEnd);
+        window.addEventListener('pointercancel', onSLTPDragEnd);
+        return;
+      }
+
       let id = null, mode = 'move', index = 0;
       const hh = prim.hitHandle(p.x, p.y, size);
       if (hh) { id = hh.id; mode = 'anchor'; index = hh.index; } else id = prim.hit(p.x, p.y, size);
@@ -433,7 +481,11 @@ const CandlestickChart = forwardRef(function CandlestickChart({
       window.removeEventListener('pointermove', onDragMove);
       window.removeEventListener('pointerup', onDragEnd);
       window.removeEventListener('pointercancel', onDragEnd);
+      window.removeEventListener('pointermove', onSLTPDragMove);
+      window.removeEventListener('pointerup', onSLTPDragEnd);
+      window.removeEventListener('pointercancel', onSLTPDragEnd);
       dragRef.current = null;
+      sltpDragRef.current = null;
       try {
         chart.unsubscribeCrosshairMove(onMove); chart.unsubscribeClick(onClick);
         chart.timeScale().unsubscribeVisibleLogicalRangeChange(onRange);

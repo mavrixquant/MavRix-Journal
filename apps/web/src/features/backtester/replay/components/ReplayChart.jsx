@@ -1,4 +1,4 @@
-import { forwardRef, useMemo } from 'react';
+import { forwardRef, useMemo, useCallback } from 'react';
 import CandlestickChart from '@/shared/charts/CandlestickChart';
 import { buildDisplayEntries, displayUpTo, unrealisedPnl } from '../../lib/replayMath';
 import { isPending, orderLabel } from '../../lib/orders';
@@ -14,9 +14,20 @@ const EMPTY = [];
  */
 const ReplayChart = forwardRef(function ReplayChart({
   sessionId, symbol, baseInterval, viewInterval, bars, idx, trades, tz, precision,
-  chartProps, onSelectTrade, onOhlcChange,
+  chartProps, onSelectTrade, onOhlcChange, engine,
 }, ref) {
   const isDaily = baseInterval === '1d';
+
+  const handleSLTPChange = useCallback(async (tradeId, patch) => {
+    if (!engine || !engine.updateSLTP) return;
+    const trade = trades.find(t => t.tradeId === tradeId);
+    if (!trade) return;
+    try {
+      await engine.updateSLTP(trade, patch);
+    } catch (e) {
+      console.error('Failed to update SL/TP:', e);
+    }
+  }, [engine, trades]);
   const offset = useMemo(
     () => displayOffsetFor(bars, baseInterval, tz),
     [bars, baseInterval, tz],
@@ -83,9 +94,13 @@ const ReplayChart = forwardRef(function ReplayChart({
       }
 
       let exitBar = lastDisp;
+      let exitTime = null;
       if (closed) {
         const xIdx = snapToBar(displayBars, toMs(t.exitTime) / 1000);
-        if (xIdx >= 0) exitBar = displayBars[Math.max(xIdx, eIdx)];
+        if (xIdx >= 0) {
+          exitBar = displayBars[Math.max(xIdx, eIdx)];
+          exitTime = exitBar.time;
+        }
         marks.push({
           time: exitBar.time,
           position: long ? 'aboveBar' : 'belowBar',
@@ -93,13 +108,16 @@ const ReplayChart = forwardRef(function ReplayChart({
           color: win ? '#35C4A1' : '#FF5C5C',
           text: sgn(pnl),
         });
+      } else if (pend) {
+        // Pending orders: stretch box to the last displayed candle
+        exitTime = lastDisp.time;
       }
 
       bx.push({
         id: t.tradeId,
         entryTimeSec: entryBar.time,
         // open positions and resting orders stretch to the newest candle
-        exitTimeSec: exitBar.time,
+        exitTimeSec: exitTime,
         entryPrice: entryPx,
         stopLoss: t.stopLoss || null,
         takeProfit: t.takeProfit || null,
@@ -124,6 +142,7 @@ const ReplayChart = forwardRef(function ReplayChart({
       showTradeLabels={false}
       onSelectTrade={onSelectTrade}
       onOhlcChange={onOhlcChange}
+      onSLTPChange={handleSLTPChange}
       fitKey={`${sessionId}-${symbol}-${viewInterval}`}
       fitMode="recent"
       hasMoreOlder={false}

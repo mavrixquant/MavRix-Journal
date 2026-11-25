@@ -60,6 +60,11 @@ export default function TradeTicket({
   const writable = engine.writable;
   const price = currentBar?.close ?? null;
   const [qty, setQty] = useState('1');
+  const [orderMode, setOrderMode] = useState('limit'); // 'limit' or 'market'
+  const [marketSL, setMarketSL] = useState(null);
+  const [marketTP, setMarketTP] = useState(null);
+  const [useMarketSL, setUseMarketSL] = useState(false);
+  const [useMarketTP, setUseMarketTP] = useState(false);
   const [error, setError] = useState('');
 
   const pos = useMemo(() => positionFromDrawing(drawing), [drawing]);
@@ -94,6 +99,27 @@ export default function TradeTicket({
     }
   };
 
+  const placeMarket = async (side) => {
+    if (!writable) { setError('This session is closed.'); return; }
+    if (engine.openPosition) { setError(`You already have an open ${symbol} position.`); return; }
+    if (engine.pendingOrder) { setError(`You already have a pending ${symbol} order. Cancel it first.`); return; }
+    if (price == null) { setError('Waiting for price…'); return; }
+    const q = numOrNull(qty);
+    if (!q || q <= 0) { setError('Enter a quantity above zero.'); return; }
+    if (session.type === 'prop' && cfg?.maxPositionSize && q > cfg.maxPositionSize) {
+      setError(`Max position size for this account is ${cfg.maxPositionSize}.`); return;
+    }
+    setError('');
+    try {
+      const sl = useMarketSL && marketSL ? (side === 'long' ? price - marketSL : price + marketSL) : null;
+      const tp = useMarketTP && marketTP ? (side === 'long' ? price + marketTP : price - marketTP) : null;
+      await engine.placeOrder({ side, entry: price, quantity: q, stopLoss: sl, takeProfit: tp });
+      toast.success(`${side === 'long' ? 'Bought' : 'Sold'} ${q} ${symbol} @ ${price}`);
+    } catch (ex) {
+      setError(ex?.message || 'Could not place the market order.');
+    }
+  };
+
   const recent = useMemo(() => [...trades].reverse().slice(0, 6), [trades]);
   const fmtP = (v) => (v == null ? '—' : Number(v).toFixed(precision));
 
@@ -117,12 +143,64 @@ export default function TradeTicket({
       ))}
 
       <section className="rp-card">
-        <header className="rp-card-head"><b>Place order</b><em>{symbol}</em></header>
+        <header className="rp-card-head">
+          <b>Place order</b>
+          <div className="rp-modes">
+            <button type="button" className={orderMode === 'limit' ? 'is-on' : ''} onClick={() => setOrderMode('limit')}>Limit/Stop</button>
+            <button type="button" className={orderMode === 'market' ? 'is-on' : ''} onClick={() => setOrderMode('market')}>Market</button>
+          </div>
+        </header>
 
-        {!pos ? (
+        {orderMode === 'market' ? (
           <div className="rp-guide">
-            <MousePointerClick size={18} />
-            <p>Mark your trade on the chart: pick <b>Long</b> or <b>Short</b>, click the entry price, then drag the stop and target. Select the position to place it.</p>
+            <p>Place a market order:</p>
+            <label className="rp-field">
+              <span>Quantity</span>
+              <input className="rp-input" type="number" min="0" step="any" value={qty} onChange={(e) => setQty(e.target.value)} disabled={!writable} />
+            </label>
+            <div className="rp-field-row">
+              <span>Stop Loss</span>
+              <div className="rp-toggle">
+                <button type="button" className={!useMarketSL ? 'is-on' : ''} onClick={() => setUseMarketSL(false)}>Off</button>
+                <button type="button" className={useMarketSL ? 'is-on' : ''} onClick={() => setUseMarketSL(true)}>On</button>
+              </div>
+              <input
+                className="rp-input"
+                type="number"
+                min="0"
+                step="any"
+                value={marketSL || ''}
+                onChange={(e) => setMarketSL(numOrNull(e.target.value))}
+                disabled={!useMarketSL || !writable}
+                placeholder="pts"
+              />
+            </div>
+            <div className="rp-field-row">
+              <span>Take Profit</span>
+              <div className="rp-toggle">
+                <button type="button" className={!useMarketTP ? 'is-on' : ''} onClick={() => setUseMarketTP(false)}>Off</button>
+                <button type="button" className={useMarketTP ? 'is-on' : ''} onClick={() => setUseMarketTP(true)}>On</button>
+              </div>
+              <input
+                className="rp-input"
+                type="number"
+                min="0"
+                step="any"
+                value={marketTP || ''}
+                onChange={(e) => setMarketTP(numOrNull(e.target.value))}
+                disabled={!useMarketTP || !writable}
+                placeholder="pts"
+              />
+            </div>
+            <div className="rp-two">
+              <button type="button" className={`rp-buy ${orderMode === 'market' ? 'is-on' : ''}`} onClick={() => placeMarket('long')} disabled={!writable}>Buy Market</button>
+              <button type="button" className={`rp-sell ${orderMode === 'market' ? 'is-on' : ''}`} onClick={() => placeMarket('short')} disabled={!writable}>Sell Market</button>
+            </div>
+            {error && <div className="rp-error" role="alert">{error}</div>}
+          </div>
+        ) : !pos ? (
+          <div className="rp-guide">
+            <p><MousePointerClick size={16} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '6px' }} /> Mark your trade on the chart: pick <b>Long</b> or <b>Short</b>, click the entry price, then drag the stop and target. Select the position to place it.</p>
             <div className="rp-two">
               <button type="button" className="rp-buy is-on" onClick={() => onArm('rrLong')} disabled={!writable}>Long</button>
               <button type="button" className="rp-sell is-on" onClick={() => onArm('rrShort')} disabled={!writable}>Short</button>
