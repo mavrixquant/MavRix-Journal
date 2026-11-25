@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   Calendar as CalendarIcon, Camera, Check, ChevronDown, Keyboard, LayoutGrid, Maximize2, Minimize2,
-  PanelRightClose, PanelRightOpen, RefreshCw, Undo2, Link2, Unlink,
+  PanelRightClose, PanelRightOpen, RefreshCw, Undo2, Link2,
 } from 'lucide-react';
 
 import { Popover, PopoverContent, PopoverTrigger } from '@/shared/ui/popover';
@@ -24,13 +24,9 @@ export default function ChartToolbar({
   panelOpen, onTogglePanel,
   indicatorsOpen, onIndicatorsOpenChange,
   gridMode = '1x1', onGridModeChange,
-  syncCrosshair, onSyncCrosshair,
-  syncSymbol, onSyncSymbol,
-  syncInterval, onSyncInterval,
-  syncChartType, onSyncChartType,
-  syncIndicators, onSyncIndicators,
-  syncVolume, onSyncVolume,
-  syncLogScale, onSyncLogScale,
+  syncCrosshair = true, onSyncCrosshair,
+  syncSymbol = false, onSyncSymbol,
+  syncInterval = false, onSyncInterval,
 }) {
   const [rangeOpen, setRangeOpen] = useState(false);
   const [typeOpen, setTypeOpen] = useState(false);
@@ -38,6 +34,7 @@ export default function ChartToolbar({
   const [syncOpen, setSyncOpen] = useState(false);
   const indOpen = !!indicatorsOpen;
   const setIndOpen = (v) => onIndicatorsOpenChange?.(v);
+  const isMultigrid = gridMode !== '1x1';
 
   const short = (v) => new Date(v).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   const rangeLabel = from && to ? `${short(from)} – ${short(to)}` : 'Custom range';
@@ -45,34 +42,39 @@ export default function ChartToolbar({
 
   return (
     <div className="mk-toolbar" role="toolbar" aria-label="Chart controls">
-      <div className="mk-seg" role="group" aria-label="Timeframe">
-        {INTERVALS.map((tf) => (
-          <button key={tf.id} type="button" className={tf.id === interval ? 'is-active' : ''} aria-pressed={tf.id === interval} onClick={() => onIntervalChange?.(tf.id)}>{tf.label}</button>
-        ))}
-      </div>
+      {/* Timeframe / chart type / indicators are per-pane in multi-chart mode, so they only appear in 1x1. */}
+      {!isMultigrid && (
+        <>
+          <div className="mk-seg" role="group" aria-label="Timeframe">
+            {INTERVALS.map((tf) => (
+              <button key={tf.id} type="button" className={tf.id === interval ? 'is-active' : ''} aria-pressed={tf.id === interval} onClick={() => onIntervalChange?.(tf.id)}>{tf.label}</button>
+            ))}
+          </div>
 
-      <span className="mk-vsep" />
+          <span className="mk-vsep" />
 
-      <Popover open={typeOpen} onOpenChange={setTypeOpen}>
-        <PopoverTrigger asChild>
-          <button type="button" className="mk-btn" title="Chart type"><TypeIcon id={currentType.id} />{currentType.label}<ChevronDown size={11} /></button>
-        </PopoverTrigger>
-        <PopoverContent align="start" sideOffset={8} className="mk-pop mk-pop-sm">
-          {CHART_TYPES.map((t) => (
-            <button key={t.id} type="button" className="mk-menu-item" onClick={() => { onChartType?.(t.id); setTypeOpen(false); }}>
-              <TypeIcon id={t.id} />{t.label}
-              {t.id === chartType && <Check size={12} className="mk-check" />}
-            </button>
-          ))}
-        </PopoverContent>
-      </Popover>
+          <Popover open={typeOpen} onOpenChange={setTypeOpen}>
+            <PopoverTrigger asChild>
+              <button type="button" className="mk-btn" title="Chart type"><TypeIcon id={currentType.id} />{currentType.label}<ChevronDown size={11} /></button>
+            </PopoverTrigger>
+            <PopoverContent align="start" sideOffset={8} className="mk-pop mk-pop-sm">
+              {CHART_TYPES.map((t) => (
+                <button key={t.id} type="button" className="mk-menu-item" onClick={() => { onChartType?.(t.id); setTypeOpen(false); }}>
+                  <TypeIcon id={t.id} />{t.label}
+                  {t.id === chartType && <Check size={12} className="mk-check" />}
+                </button>
+              ))}
+            </PopoverContent>
+          </Popover>
 
-      <IndicatorMenu
-        enabledIndicators={enabledIndicators} onToggleIndicator={onToggleIndicator} onClearIndicators={onClearIndicators}
-        interval={interval} open={indOpen} onOpenChange={setIndOpen}
-      />
+          <IndicatorMenu
+            enabledIndicators={enabledIndicators} onToggleIndicator={onToggleIndicator} onClearIndicators={onClearIndicators}
+            interval={interval} open={indOpen} onOpenChange={setIndOpen}
+          />
 
-      <span className="mk-vsep" />
+          <span className="mk-vsep" />
+        </>
+      )}
 
       <Popover open={gridOpen} onOpenChange={setGridOpen}>
         <PopoverTrigger asChild>
@@ -97,36 +99,19 @@ export default function ChartToolbar({
         <>
           <Popover open={syncOpen} onOpenChange={setSyncOpen}>
             <PopoverTrigger asChild>
-              <button type="button" className={`mk-btn${[syncSymbol, syncInterval, syncChartType, syncIndicators, syncVolume, syncLogScale].some(Boolean) ? ' is-on' : ''}`} title="Sync panes"><Link2 size={13} />Sync<ChevronDown size={11} /></button>
+              <button type="button" className={`mk-btn${[syncCrosshair !== false, syncSymbol, syncInterval].some(Boolean) ? ' is-on' : ''}`} title="Sync panes"><Link2 size={13} />Sync<ChevronDown size={11} /></button>
             </PopoverTrigger>
             <PopoverContent align="start" sideOffset={8} className="mk-pop mk-pop-sm">
               {[
-                { id: 'crosshair', label: 'Crosshair', value: syncCrosshair, onChange: onSyncCrosshair, icon: <Link2 size={12} /> },
+                { id: 'crosshair', label: 'Crosshair', value: syncCrosshair !== false, onChange: onSyncCrosshair },
                 { id: 'symbol', label: 'Symbol', value: syncSymbol, onChange: onSyncSymbol },
                 { id: 'interval', label: 'Timeframe', value: syncInterval, onChange: onSyncInterval },
-                { id: 'chartType', label: 'Chart type', value: syncChartType, onChange: onSyncChartType },
-                { id: 'indicators', label: 'Indicators', value: syncIndicators, onChange: onSyncIndicators },
-                { id: 'volume', label: 'Volume', value: syncVolume, onChange: onSyncVolume },
-                { id: 'logScale', label: 'Log scale', value: syncLogScale, onChange: onSyncLogScale },
               ].map((s) => (
                 <button key={s.id} type="button" className="mk-menu-item" onClick={() => s.onChange?.(!s.value)}>
                   {s.label}
                   {s.value ? <Check size={12} className="mk-check" /> : null}
                 </button>
               ))}
-              <button
-                type="button"
-                className="mk-menu-item"
-                onClick={() => {
-                  const allOn = [syncSymbol, syncInterval, syncChartType, syncIndicators, syncVolume, syncLogScale].every(Boolean);
-                  const next = !allOn;
-                  onSyncSymbol?.(next); onSyncInterval?.(next); onSyncChartType?.(next);
-                  onSyncIndicators?.(next); onSyncVolume?.(next); onSyncLogScale?.(next);
-                }}
-                style={{ borderTop: '1px solid rgba(255,255,255,.08)', marginTop: 4, paddingTop: 6 }}
-              >
-                <Unlink size={12} />Toggle all
-              </button>
             </PopoverContent>
           </Popover>
 

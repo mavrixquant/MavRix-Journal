@@ -153,10 +153,6 @@ export default function MarketChartPage() {
   const [syncCrosshair, setSyncCrosshair] = useState(true);
   const [syncSymbol, setSyncSymbol] = useState(false);
   const [syncInterval, setSyncInterval] = useState(false);
-  const [syncChartType, setSyncChartType] = useState(false);
-  const [syncIndicators, setSyncIndicators] = useState(false);
-  const [syncVolume, setSyncVolume] = useState(false);
-  const [syncLogScale, setSyncLogScale] = useState(false);
   useEffect(() => {
     writeJson(PREF_KEY, { chartType, log: logScale, magnet, gridMode, indicators, panelOpen, panelTab, drawColor, showTrades, showLabels });
   }, [chartType, logScale, magnet, gridMode, indicators, panelOpen, panelTab, drawColor, showTrades, showLabels]);
@@ -530,10 +526,6 @@ export default function MarketChartPage() {
             syncCrosshair={syncCrosshair} onSyncCrosshair={setSyncCrosshair}
             syncSymbol={syncSymbol} onSyncSymbol={setSyncSymbol}
             syncInterval={syncInterval} onSyncInterval={setSyncInterval}
-            syncChartType={syncChartType} onSyncChartType={setSyncChartType}
-            syncIndicators={syncIndicators} onSyncIndicators={setSyncIndicators}
-            syncVolume={syncVolume} onSyncVolume={setSyncVolume}
-            syncLogScale={syncLogScale} onSyncLogScale={setSyncLogScale}
           />
 
           <div className={`mk-body${gridMode !== '1x1' ? ' is-multigrid' : ''}`}>
@@ -557,19 +549,6 @@ export default function MarketChartPage() {
                     crosshair: syncCrosshair,
                     symbol: syncSymbol,
                     interval: syncInterval,
-                    chartType: syncChartType,
-                    indicators: syncIndicators,
-                    volume: syncVolume,
-                    logScale: syncLogScale,
-                  }}
-                  onSyncChange={(prop, val) => {
-                    if (prop === 'crosshair') setSyncCrosshair(val);
-                    else if (prop === 'symbol') setSyncSymbol(val);
-                    else if (prop === 'interval') setSyncInterval(val);
-                    else if (prop === 'chartType') setSyncChartType(val);
-                    else if (prop === 'indicators') setSyncIndicators(val);
-                    else if (prop === 'volume') setSyncVolume(val);
-                    else if (prop === 'logScale') setSyncLogScale(val);
                   }}
                 />
               ) : (

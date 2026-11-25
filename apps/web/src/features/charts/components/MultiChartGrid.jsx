@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, forwardRef, useImperativeHandle } from 'react';
-import { AlertTriangle, Eye, EyeOff, Magnet, Maximize2, Minimize2, RotateCw, Settings } from 'lucide-react';
+import { AlertTriangle, Eye, EyeOff, Magnet, Maximize2, Minimize2, RotateCw } from 'lucide-react';
 
 import { useMarketBars, useMarketCatalog } from '@/shared/api/marketData';
 import { useGexDay, useGexDays } from '@/shared/api/gex';
@@ -151,7 +151,6 @@ export function MultiChartGrid({
   showTrades = true,
   showTradeLabels = false,
   sync = {},
-  onSyncChange,
 }) {
   const [panes, setPanes] = useState(() => {
     const saved = readJson(STORAGE_KEY, null);
@@ -204,30 +203,128 @@ export function MultiChartGrid({
     setTools((prev) => ({ ...prev, [id]: tool === prev[id] ? 'cursor' : tool }));
   }, []);
 
-  // Synchronized crosshair hover across active panes.
+  // When symbol sync is turned on, immediately align all panes to the focused or first pane's symbol.
+  useEffect(() => {
+    if (!sync.symbol) return;
+    setPanes((prev) => {
+      const source = prev.find((p) => p.id === focusedId) || prev[0];
+      if (!source) return prev;
+      const allSame = prev.every((p) => p.symbol === source.symbol);
+      if (allSame) return prev;
+      return prev.map((p) => (p.symbol === source.symbol ? p : { ...p, symbol: source.symbol }));
+    });
+  }, [sync.symbol, focusedId]);
+
+  // When timeframe sync is turned on, immediately align all panes to the focused or first pane's timeframe.
+  useEffect(() => {
+    if (!sync.interval) return;
+    setPanes((prev) => {
+      const source = prev.find((p) => p.id === focusedId) || prev[0];
+      if (!source) return prev;
+      const allSame = prev.every((p) => p.interval === source.interval);
+      if (allSame) return prev;
+      return prev.map((p) => (p.interval === source.interval ? p : { ...p, interval: source.interval }));
+    });
+  }, [sync.interval, focusedId]);
+
+  const [chartsReady, setChartsReady] = useState(0);
+
+  // Poll until all active panes have their charts ready on mount/mode change.
   useEffect(() => {
     if (sync.crosshair === false) return undefined;
+    let timer;
+    const checkReady = () => {
+      let ready = true;
+      activePanes.forEach((pane) => {
+        if (!chartRefs.current[pane.id]?.chart?.()) ready = false;
+      });
+      if (ready) {
+        setChartsReady((v) => v + 1);
+      } else {
+        timer = setTimeout(checkReady, 50);
+      }
+    };
+    checkReady();
+    return () => clearTimeout(timer);
+  }, [activePanes, sync.crosshair]);
+
+  // Synchronized crosshair hover across active panes (both vertical time line and horizontal price line).
+  useEffect(() => {
+    if (sync.crosshair === false || chartsReady === 0) return undefined;
     const unsubs = [];
     activePanes.forEach((paneA) => {
       const handleA = chartRefs.current[paneA.id];
       const chartA = handleA?.chart?.();
+      const mainA = handleA?.main?.();
       if (!chartA) return;
+
       const handler = (param) => {
+        if (!param || !param.time) {
+          activePanes.forEach((paneB) => {
+            if (paneB.id !== paneA.id) {
+              chartRefs.current[paneB.id]?.chart?.clearCrosshairPosition?.();
+            }
+          });
+          return;
+        }
+
+        let priceA = null;
+        if (param.point && mainA) {
+          priceA = mainA.coordinateToPrice(param.point.y);
+        }
+        if (priceA == null && param.seriesData && mainA) {
+          const d = param.seriesData.get(mainA);
+          if (d) priceA = d.close ?? d.value;
+        }
+
         activePanes.forEach((paneB) => {
           if (paneB.id === paneA.id) return;
+          // Re-read live refs: the series can be mid-swap during a symbol / timeframe / chartType change.
           const handleB = chartRefs.current[paneB.id];
           const chartB = handleB?.chart?.();
           const mainB = handleB?.main?.();
-          if (!chartB) return;
-          if (!param || !param.time || !mainB) { chartB.clearCrosshairPosition?.(); return; }
-          try { chartB.setCrosshairPosition(0, param.time, mainB); } catch { /* out of range */ }
+          if (!chartB || !mainB) return;
+
+          let targetPrice = 0;
+          if (priceA != null) {
+            if (paneB.symbol === paneA.symbol) {
+              targetPrice = priceA;
+            } else {
+              try {
+                const rangeA = chartA.priceScale('right').getVisiblePriceRange();
+                const rangeB = chartB.priceScale('right').getVisiblePriceRange();
+                if (rangeA && rangeB && rangeA.to !== rangeA.from && rangeB.to !== rangeB.from) {
+                  const pct = (priceA - rangeA.from) / (rangeA.to - rangeA.from);
+                  targetPrice = rangeB.from + pct * (rangeB.to - rangeB.from);
+                } else {
+                  targetPrice = priceA;
+                }
+              } catch {
+                targetPrice = priceA;
+              }
+            }
+          }
+
+          // lightweight-charts throws "Value is null" if the price isn't finite or the series
+          // was just removed/recreated. Never retry with the same series inside the catch — clear instead.
+          if (!Number.isFinite(targetPrice)) {
+            try { chartB.clearCrosshairPosition?.(); } catch { /* series gone */ }
+            return;
+          }
+          try {
+            chartB.setCrosshairPosition(targetPrice, param.time, mainB);
+          } catch {
+            try { chartB.clearCrosshairPosition?.(); } catch { /* series gone */ }
+          }
         });
       };
+
       chartA.subscribeCrosshairMove(handler);
       unsubs.push(() => { try { chartA.unsubscribeCrosshairMove(handler); } catch { /* gone */ } });
     });
+
     return () => unsubs.forEach((fn) => fn());
-  }, [activePanes, sync.crosshair]);
+  }, [activePanes, sync.crosshair, chartsReady]);
 
   return (
     <>
@@ -401,9 +498,6 @@ const ChartPane = forwardRef(function ChartPane({
             {INTERVALS.map((tf) => (<option key={tf} value={tf}>{tf.toUpperCase()}</option>))}
           </select>
           <span className="mc-pane-actions">
-            <button type="button" className="mc-icon-btn" onClick={(e) => { e.stopPropagation(); try { chartHandle.current?.fit?.(); } catch { /* noop */ } }} title="Fit content" aria-label="Fit content">
-              <Settings size={12} />
-            </button>
             <button type="button" className="mc-icon-btn" onClick={onToggleMax} title={isMaximized ? 'Restore grid' : 'Maximize pane'} aria-label={isMaximized ? 'Restore grid' : 'Maximize pane'}>
               {isMaximized ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
             </button>
