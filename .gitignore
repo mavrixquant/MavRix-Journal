@@ -6,7 +6,6 @@ build/
 coverage/
 graphify-out/*
 !graphify-out/graph.json
-!graphify-out/graph.html
 
 
 .env
@@ -14,6 +13,8 @@ graphify-out/*
 !.env.example
 *.log
 .DS_Store
+.claude/
+CLAUDE.md
 
 
 apps/api/prisma/migrations/dev.db*
