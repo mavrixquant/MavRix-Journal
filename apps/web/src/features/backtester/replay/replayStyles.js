@@ -120,7 +120,7 @@ export const REPLAY_CSS = `
   .rp-recent li em { font-style: normal; color: var(--rp-ink-3); } .rp-recent li strong { margin-left: auto; font-variant-numeric: tabular-nums; }
 
   /* ---------- prop HUD ---------- */
-  .rp-hud { position: absolute; top: 10px; right: 64px; z-index: 12; width: 218px; border-radius: 12px; background: rgba(10,13,20,.92); border: 1px solid var(--rp-line); backdrop-filter: blur(8px); box-shadow: 0 14px 34px -14px rgba(0,0,0,.8); }
+  .rp-hud { position: absolute; top: 10px; right: 84px; z-index: 12; width: 218px; border-radius: 12px; background: rgba(10,13,20,.92); border: 1px solid var(--rp-line); backdrop-filter: blur(8px); box-shadow: 0 14px 34px -14px rgba(0,0,0,.8); }
   .rp-hud.is-failed { border-color: rgba(255,92,92,.5); } .rp-hud.is-passed { border-color: rgba(53,196,161,.5); }
   .rp-hud-head { width: 100%; display: flex; align-items: center; gap: 7px; padding: 8px 10px; border: 0; background: transparent; color: var(--rp-ink); font: 700 11.5px 'IBM Plex Mono', monospace; cursor: pointer; }
   .rp-hud-head em { margin-left: auto; font-style: normal; font-size: 9.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--rp-ink-2); }

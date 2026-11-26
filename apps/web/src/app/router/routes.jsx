@@ -14,6 +14,26 @@ const LandingPage = lazy(() => import('@/features/landing/LandingPage'));
 // FIXED 2026-11-15 — full-page maintenance screen.
 const MaintenancePage = lazy(() => import('@/features/maintenance/MaintenancePage'));
 
+// FIXED 2026-11-26 — guard to prevent admins from accessing /maintenance.
+// During maintenance mode, admins should go to /admin to manage it.
+function MaintenanceGuard({ children }) {
+  const { user, loading } = useAuth();
+  const { data: status, isError } = useSystemStatus();
+
+  // During auth loading, wait (same pattern as other guards)
+  if (loading) return <BootLoader label="Checking access" />;
+
+  // Only redirect admins during maintenance mode
+  const statusKnown = !isError && status && typeof status === 'object';
+  const maintenanceOn = statusKnown ? !!status.maintenanceMode : true;
+
+  if (maintenanceOn && (user?.role === 'admin' || user?.role === 'superadmin')) {
+    return <Navigate to="/admin" replace />;
+  }
+
+  return children;
+}
+
 const Login = lazy(() => import('@/features/auth/pages/LoginPage'));
 const Signup = lazy(() => import('@/features/auth/pages/SignupPage'));
 const VerifyEmail = lazy(() => import('@/features/auth/pages/VerifyEmailPage'));
@@ -126,9 +146,11 @@ export function AppRoutes() {
       <Route
         path="/maintenance"
         element={
-          <Suspense fallback={<BootLoader label="Loading" />}>
-            <MaintenancePage />
-          </Suspense>
+          <MaintenanceGuard>
+            <Suspense fallback={<BootLoader label="Loading" />}>
+              <MaintenancePage />
+            </Suspense>
+          </MaintenanceGuard>
         }
       />
 
