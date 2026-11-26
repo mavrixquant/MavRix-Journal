@@ -18,10 +18,10 @@ const MaintenancePage = lazy(() => import('@/features/maintenance/MaintenancePag
 // During maintenance mode, admins should go to /admin to manage it.
 function MaintenanceGuard({ children }) {
   const { user, loading } = useAuth();
-  const { data: status, isError } = useSystemStatus();
+  const { data: status, isLoading: statusLoading, isError } = useSystemStatus();
 
-  // During auth loading, wait (same pattern as other guards)
-  if (loading) return <BootLoader label="Checking access" />;
+  // Wait for both auth and status to be ready (same pattern as other guards)
+  if (loading || statusLoading) return <BootLoader label="Checking access" />;
 
   // Only redirect admins during maintenance mode
   const statusKnown = !isError && status && typeof status === 'object';
