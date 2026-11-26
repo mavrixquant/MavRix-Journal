@@ -116,6 +116,7 @@ export const CSS = `
   .mk-cv-canvas[data-cur="move"], .mk-cv-canvas[data-cur="move"] * { cursor: move !important; }
   .mk-cv-canvas[data-cur="grab"], .mk-cv-canvas[data-cur="grab"] * { cursor: grab !important; }
   .mk-cv-canvas[data-cur="grabbing"], .mk-cv-canvas[data-cur="grabbing"] * { cursor: grabbing !important; }
+  .mk-cv-canvas[data-cur="pointer"], .mk-cv-canvas[data-cur="pointer"] * { cursor: pointer !important; }
   .mk-cv-top { position: absolute; top: 10px; left: 12px; z-index: 3; display: flex; flex-direction: column; gap: 6px; max-width: calc(100% - 90px); pointer-events: none; }
   .mk-ohlc { display: inline-flex; flex-wrap: wrap; align-items: center; align-self: flex-start; gap: 5px 14px; padding: 6px 12px; border-radius: 8px; background: rgba(12,16,23,.72); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,.06); font: 11px 'IBM Plex Mono', monospace; letter-spacing: .02em; }
   .mk-ohlc-sym { font-weight: 800; color: #fff; }

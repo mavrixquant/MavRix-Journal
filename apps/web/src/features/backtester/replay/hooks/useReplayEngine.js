@@ -356,6 +356,28 @@ export default function useReplayEngine({
     }
   }, [updateTrade]);
 
+  /**
+   * Update stop-loss and/or take-profit on a pending order.
+   * Only works for pending (resting) orders — not closed positions.
+   */
+  const updatePending = useCallback(async (trade, { stopLoss, takeProfit }) => {
+    const s = sessionRef.current;
+    if (!s || s.status !== 'active') throw new Error('This session is closed.');
+    if (!trade || !isPending(trade)) throw new Error('Trade is not a pending order.');
+    setBusy(true);
+    try {
+      return await updateTrade({
+        tradeId: trade.tradeId,
+        patch: {
+          stopLoss: stopLoss ?? null,
+          takeProfit: takeProfit ?? null,
+        },
+      });
+    } finally {
+      setBusy(false);
+    }
+  }, [updateTrade]);
+
   const closeManual = useCallback(async (trade) => {
     const bar = barsRef.current[idxRef.current];
     if (!bar) return null;
@@ -455,7 +477,7 @@ export default function useReplayEngine({
     playing, play, pause, toggle, speed, setSpeed,
     step, jumpToTime, advanceTo, reset,
     openPosition, openPositions, pendingOrder, pendingOrders, openPnl, prop,
-    placeOrder, cancelOrder, closeManual, conclude, updateSLTP,
+    placeOrder, cancelOrder, closeManual, conclude, updateSLTP, updatePending,
     busy, writable,
   };
 }

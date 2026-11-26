@@ -1,4 +1,5 @@
 import { forwardRef, useMemo, useCallback } from 'react';
+import { toast } from 'sonner';
 import CandlestickChart from '@/shared/charts/CandlestickChart';
 import { buildDisplayEntries, displayUpTo, unrealisedPnl } from '../../lib/replayMath';
 import { isPending, orderLabel } from '../../lib/orders';
@@ -14,20 +15,49 @@ const EMPTY = [];
  */
 const ReplayChart = forwardRef(function ReplayChart({
   sessionId, symbol, baseInterval, viewInterval, bars, idx, trades, tz, precision,
-  chartProps, onSelectTrade, onOhlcChange, engine,
+  chartProps, onSelectTrade, onOhlcChange, engine, showTrades = true,
 }, ref) {
   const isDaily = baseInterval === '1d';
 
+  /**
+   * The chart calls this when you drop an SL or TP line (or a "+ SL / + TP" chip).
+   * It sends ONE of { sl } or { tp }. We keep the other value, check the side, and save.
+   * It THROWS on a bad drop / failed save so the chart snaps the line back at once.
+   */
   const handleSLTPChange = useCallback(async (tradeId, patch) => {
-    if (!engine || !engine.updateSLTP) return;
-    const trade = trades.find(t => t.tradeId === tradeId);
+    if (!engine) return;
+    const trade = trades.find((t) => t.tradeId === tradeId);
     if (!trade) return;
-    try {
-      await engine.updateSLTP(trade, patch);
-    } catch (e) {
-      console.error('Failed to update SL/TP:', e);
+    const pend = isPending(trade);
+    const long = trade.side !== 'short';
+    const entry = Number(pend ? (trade.orderPrice ?? trade.entryPrice) : trade.entryPrice);
+    const round = (v) => Number(Number(v).toFixed(precision));
+
+    const next = {
+      stopLoss: patch.sl != null ? round(patch.sl) : (trade.stopLoss ?? null),
+      takeProfit: patch.tp != null ? round(patch.tp) : (trade.takeProfit ?? null),
+    };
+
+    let problem = null;
+    if (patch.sl != null && (long ? next.stopLoss >= entry : next.stopLoss <= entry)) {
+      problem = long ? 'Stop loss must be below the entry price.' : 'Stop loss must be above the entry price.';
+    } else if (patch.tp != null && (long ? next.takeProfit <= entry : next.takeProfit >= entry)) {
+      problem = long ? 'Take profit must be above the entry price.' : 'Take profit must be below the entry price.';
     }
-  }, [engine, trades]);
+    if (problem) {
+      toast.error(problem);
+      throw new Error(problem);
+    }
+
+    try {
+      if (pend) await engine.updatePending(trade, next);
+      else await engine.updateSLTP(trade, next);
+    } catch (e) {
+      toast.error(e?.message || 'Could not update SL/TP.');
+      throw e;
+    }
+  }, [engine, trades, precision]);
+
   const offset = useMemo(
     () => displayOffsetFor(bars, baseInterval, tz),
     [bars, baseInterval, tz],
@@ -59,14 +89,15 @@ const ReplayChart = forwardRef(function ReplayChart({
       const long = t.side !== 'short';
       const pend = isPending(t);
       const eIdx = snapToBar(displayBars, toMs(t.entryTime) / 1000);
-      if (eIdx < 0) continue;
-      const entryBar = displayBars[eIdx];
+      // Pending orders stay visible even if their entry time is before the first display bar.
+      // Closed / open positions are skipped in that case.
+      if (eIdx < 0 && !pend) continue;
+      const entryBar = eIdx >= 0 ? displayBars[eIdx] : displayBars[0];
       const closed = !!t.exitTime;
       const pv = getPointValue(t.symbol);
       const q = Number(t.quantity) || 0;
       const entryPx = pend ? (t.orderPrice ?? t.entryPrice) : t.entryPrice;
 
-      // Details shown only while the position is hovered / selected.
       const slPts = t.stopLoss ? Math.abs(entryPx - t.stopLoss) : null;
       const tpPts = t.takeProfit ? Math.abs(t.takeProfit - entryPx) : null;
       const slLabel = t.stopLoss ? `SL ${f(t.stopLoss)} · ${sgn(-slPts * q * pv)} (${slPts.toFixed(2)} pts)` : undefined;
@@ -93,35 +124,32 @@ const ReplayChart = forwardRef(function ReplayChart({
         });
       }
 
-      let exitBar = lastDisp;
       let exitTime = null;
       if (closed) {
         const xIdx = snapToBar(displayBars, toMs(t.exitTime) / 1000);
         if (xIdx >= 0) {
-          exitBar = displayBars[Math.max(xIdx, eIdx)];
+          const exitBar = displayBars[Math.max(xIdx, eIdx)];
           exitTime = exitBar.time;
+          marks.push({
+            time: exitBar.time,
+            position: long ? 'aboveBar' : 'belowBar',
+            shape: 'circle',
+            color: win ? '#35C4A1' : '#FF5C5C',
+            text: sgn(pnl),
+          });
         }
-        marks.push({
-          time: exitBar.time,
-          position: long ? 'aboveBar' : 'belowBar',
-          shape: 'circle',
-          color: win ? '#35C4A1' : '#FF5C5C',
-          text: sgn(pnl),
-        });
-      } else if (pend) {
-        // Pending orders: stretch box to the last displayed candle
-        exitTime = lastDisp.time;
       }
 
       bx.push({
         id: t.tradeId,
-        entryTimeSec: entryBar.time,
-        // open positions and resting orders stretch to the newest candle
-        exitTimeSec: exitTime,
+        // Pending order whose time is before the visible range: null -> line starts at the left edge.
+        entryTimeSec: pend && eIdx < 0 ? null : entryBar.time,
+        // null = still running (pending or open) -> lines stretch to the right edge and are draggable.
+        exitTimeSec: pend ? null : exitTime,
         entryPrice: entryPx,
         stopLoss: t.stopLoss || null,
         takeProfit: t.takeProfit || null,
-        label, slLabel, tpLabel, win, pending: pend,
+        label, slLabel, tpLabel, win, pending: pend, closed, long,
       });
     }
 

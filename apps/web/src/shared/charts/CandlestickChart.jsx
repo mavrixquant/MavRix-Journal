@@ -73,7 +73,7 @@ const CandlestickChart = forwardRef(function CandlestickChart({
   loading = false,
   onOhlcChange,
   gexLevels = [],
-  onSLTPChange, // callback(tradeId, { stopLoss, takeProfit })
+  onSLTPChange, // (tradeId, { sl } | { tp }) => Promise — return the promise so the dropped line stays put while saving
 }, ref) {
   const containerRef = useRef(null);
   const chartRef = useRef(null);
@@ -131,6 +131,7 @@ const CandlestickChart = forwardRef(function CandlestickChart({
       show: propsRef.current.showTrades,
       labels: propsRef.current.showTradeLabels,
       precision: propsRef.current.precision,
+      editable: !!propsRef.current.onSLTPChange,
     }));
   }
 
@@ -149,7 +150,12 @@ const CandlestickChart = forwardRef(function CandlestickChart({
     return l ? { open: l.open, high: l.high, low: l.low, close: l.close, volume: bars?.[bars.length - 1]?.volume } : null;
   };
 
+  // The volume series dies with the chart; forget it so it is re-created after a remount.
+  useEffect(() => () => { volRef.current = null; }, []);
+
   /* ----- create chart once ----- */
+  // COORDINATE RULE: every pixel below is a CSS pixel (what lightweight-charts gives us in
+  // `point`, and what it expects in coordinateToPrice / coordinateToLogical). No devicePixelRatio.
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return undefined;
@@ -326,9 +332,15 @@ const CandlestickChart = forwardRef(function CandlestickChart({
         if (!pt) return;
         const target = propsRef.current.drawings.find((v) => v.id === dr.id);
         if (target?.type === 'rr' && dr.orig.length === 3) {
-          // Positions keep their time span; handles only change price levels.
-          const next = dr.orig.map((q, i) => ({ t: q.t, p: i === dr.index ? pt.p : q.p }));
-          dr.pts = rrNormalize(next, dr.index);
+          if (dr.index === 0) {
+            // Dragging the ENTRY moves the whole position up / down (entry, stop and target together).
+            const dp = pt.p - dr.orig[0].p;
+            dr.pts = dr.orig.map((q) => ({ t: q.t, p: q.p + dp }));
+          } else {
+            // Stop / target handles only change their own price level.
+            const next = dr.orig.map((q, i) => ({ t: q.t, p: i === dr.index ? pt.p : q.p }));
+            dr.pts = rrNormalize(next, dr.index);
+          }
         } else {
           dr.pts = dr.orig.map((q, i) => (i === dr.index ? pt : { t: q.t, p: q.p }));
         }
@@ -358,30 +370,22 @@ const CandlestickChart = forwardRef(function CandlestickChart({
       requestAnimationFrame(() => { dragRef.current = null; drawPrimRef.current.redraw(); });
     };
 
-    /* ----- dragging SL/TP lines on active trades ----- */
+    /* ----- dragging SL / TP lines (and "+ SL / + TP" chips) of open / pending trades ----- */
     const onSLTPDragMove = (e) => {
-      const dr = sltpDragRef.current;
-      if (!dr) return;
+      if (!sltpDragRef.current) return;
       const p = local(e);
-      const result = tradePrimRef.current.dragSLTP(p.x, p.y);
-      if (result) {
-        // Visual feedback - the line follows the cursor
-        tradePrimRef.current.redraw();
-      }
+      tradePrimRef.current.dragSLTP(p.x, p.y);
     };
 
     const onSLTPDragEnd = () => {
-      const dr = sltpDragRef.current;
+      const drag = sltpDragRef.current;
+      sltpDragRef.current = null;
       window.removeEventListener('pointermove', onSLTPDragMove);
       window.removeEventListener('pointerup', onSLTPDragEnd);
       window.removeEventListener('pointercancel', onSLTPDragEnd);
       chart.applyOptions({ handleScroll: true, handleScale: true });
       setCur('');
-      if (dr) {
-        tradePrimRef.current.endDragSLTP();
-      }
-      sltpDragRef.current = null;
-      tradePrimRef.current.redraw();
+      if (drag) tradePrimRef.current.endDragSLTP();
     };
 
     const onDown = (e) => {
@@ -391,26 +395,30 @@ const CandlestickChart = forwardRef(function CandlestickChart({
       const size = paneSize();
       const prim = drawPrimRef.current;
 
-      // First, check if clicking on SL/TP line of an active trade
-      const sltpHit = tradePrimRef.current.hitSLTP(p.x, p.y, size);
-      if (sltpHit) {
-        const s = mainRef.current;
-        if (!s) return;
-        e.preventDefault();
-        e.stopPropagation();
-        sltpDragRef.current = tradePrimRef.current.beginDragSLTP(p.x, p.y, sltpHit, (tradeId, patch) => {
-          propsRef.current.onSLTPChange?.(tradeId, patch);
-        });
-        chart.applyOptions({ handleScroll: false, handleScale: false });
-        setCur('grabbing');
-        window.addEventListener('pointermove', onSLTPDragMove);
-        window.addEventListener('pointerup', onSLTPDragEnd);
-        window.addEventListener('pointercancel', onSLTPDragEnd);
-        return;
+      // 1) anchor handle of the selected drawing (e.g. the position you are about to place)
+      const hh = prim.hitHandle(p.x, p.y, size);
+
+      // 2) SL / TP line (or "+ SL / + TP" chip) of an open / pending trade
+      if (!hh) {
+        const sltpHit = tradePrimRef.current.hitSLTP(p.x, p.y);
+        if (sltpHit) {
+          e.preventDefault();
+          e.stopPropagation();
+          sltpDragRef.current = tradePrimRef.current.beginDragSLTP(
+            p.x, p.y, sltpHit,
+            (tradeId, patch) => propsRef.current.onSLTPChange?.(tradeId, patch), // returns the promise
+          );
+          chart.applyOptions({ handleScroll: false, handleScale: false });
+          setCur('grabbing');
+          window.addEventListener('pointermove', onSLTPDragMove);
+          window.addEventListener('pointerup', onSLTPDragEnd);
+          window.addEventListener('pointercancel', onSLTPDragEnd);
+          return;
+        }
       }
 
+      // 3) a drawing (handle -> resize, body -> move)
       let id = null, mode = 'move', index = 0;
-      const hh = prim.hitHandle(p.x, p.y, size);
       if (hh) { id = hh.id; mode = 'anchor'; index = hh.index; } else id = prim.hit(p.x, p.y, size);
       if (!id) return;
       const d = propsRef.current.drawings.find((v) => v.id === id);
@@ -430,7 +438,7 @@ const CandlestickChart = forwardRef(function CandlestickChart({
       dragRef.current = {
         id, mode, index, startX: p.x, startY: p.y, moved: false,
         logical0: chart.timeScale().coordinateToLogical(p.x), price0: s.coordinateToPrice(p.y),
-        orig: d.pts.map((q) => ({ idx: indexRef.current.toIdx(q.t + off), t: q.t, p: q.p })),
+        orig: d.pts?.map((q) => ({ idx: indexRef.current.toIdx(q.t + off), t: q.t, p: q.p })) || [],
         pts: d.pts,
       };
       chart.applyOptions({ handleScroll: false, handleScale: false });
@@ -441,13 +449,15 @@ const CandlestickChart = forwardRef(function CandlestickChart({
     };
 
     const onHover = (e) => {
-      if (dragRef.current) return;
+      if (dragRef.current || sltpDragRef.current) return;
       if (propsRef.current.tool !== 'cursor') { setCur(''); return; }
       const p = local(e);
       if (!inPane(p)) { setCur(''); return; }
       const size = paneSize();
       const prim = drawPrimRef.current;
-      setCur(prim.hitHandle(p.x, p.y, size) ? 'grab' : prim.hit(p.x, p.y, size) ? 'move' : '');
+      if (prim.hitHandle(p.x, p.y, size)) { setCur('grab'); return; }
+      if (tradePrimRef.current.hitSLTP(p.x, p.y)) { setCur('pointer'); return; }
+      setCur(prim.hit(p.x, p.y, size) ? 'move' : '');
     };
     const onDbl = (e) => {
       if (propsRef.current.tool !== 'cursor') return;
@@ -460,7 +470,7 @@ const CandlestickChart = forwardRef(function CandlestickChart({
       setDlg({ kind: 'drawing', id });
     };
     // Legacy mouse/touch events fired after a handled pointerdown must not reach the chart.
-    const swallow = (e) => { if (dragRef.current) e.stopPropagation(); };
+    const swallow = (e) => { if (dragRef.current || sltpDragRef.current) e.stopPropagation(); };
 
     el.addEventListener('pointerdown', onDown, true);
     el.addEventListener('mousedown', swallow, true);
@@ -491,7 +501,7 @@ const CandlestickChart = forwardRef(function CandlestickChart({
         chart.timeScale().unsubscribeVisibleLogicalRangeChange(onRange);
         chart.remove();
       } catch { /* already gone */ }
-      chartRef.current = mainRef.current = volRef.current = markersRef.current = null;
+      chartRef.current = mainRef.current = markersRef.current = null;
       indRef.current = {}; indLastRef.current = {}; structRef.current = ''; draftRef.current = null;
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -861,5 +871,3 @@ const CandlestickChart = forwardRef(function CandlestickChart({
 });
 
 export default CandlestickChart;
-
-
