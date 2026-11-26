@@ -684,29 +684,43 @@ export class TradesPrimitive {
         const active = key === this._hover || key === this._selected;
         const winBg = t.win === false ? '#FF5C5C' : t.win ? '#35C4A1' : '#F5B544';
 
-        // entry line (+ summary pill for open / pending trades)
-        if (yE != null) {
+        // entry line (+ summary pill for open / pending trades) - only for open/pending trades
+        if (yE != null && !closed) {
           stroke(left, right, yE, '#F5B544', active ? 1.5 : 1, [4, 4]);
-          if (!closed && t.label) pill(ctx, t.label, right - 4, yE, { bg: winBg, align: 'right' });
+          if (t.label) pill(ctx, t.label, right - 4, yE, { bg: winBg, align: 'right' });
         }
 
-        // take profit
-        if (yT != null) {
-          stroke(left, right, yT, '#35C4A1', active || d?.line === 'tp' ? 2.5 : 2, []);
-          if (!closed) {
-            const text = tpP === (t.takeProfit ?? null) && t.tpLabel ? t.tpLabel : `TP ${fp(tpP)}`;
-            pill(ctx, text, right - 4, yT, { bg: '#35C4A1', align: 'right' });
-            spots.push({ key, line: 'tp', y: yT, x1: left, price: tpP });
+        // Closed trade signal markers only (entry and exit)
+        if (closed) {
+          const x2 = t.exitTimeSec != null ? ts.timeToCoordinate(t.exitTimeSec) : null;
+          if (x2 == null) return;
+
+          // Entry marker (small square)
+          if (yE != null) {
+            ctx.fillStyle = winBg;
+            ctx.fillRect(x1 + 1, yE - 3, 6, 6);
+            if (t.label) pill(ctx, t.label, x1 + 10, yE - 12, { bg: winBg, align: 'left' });
+          }
+          // Exit marker (small square)
+          if (yE != null) {
+            ctx.fillStyle = winBg;
+            ctx.fillRect(x2 - 3, yE - 3, 6, 6);
           }
         }
-        // stop loss
-        if (yS != null) {
+
+        // take profit - only for open/pending trades
+        if (yT != null && !closed) {
+          stroke(left, right, yT, '#35C4A1', active || d?.line === 'tp' ? 2.5 : 2, []);
+          const text = tpP === (t.takeProfit ?? null) && t.tpLabel ? t.tpLabel : `TP ${fp(tpP)}`;
+          pill(ctx, text, right - 4, yT, { bg: '#35C4A1', align: 'right' });
+          spots.push({ key, line: 'tp', y: yT, x1: left, price: tpP });
+        }
+        // stop loss - only for open/pending trades
+        if (yS != null && !closed) {
           stroke(left, right, yS, '#FF5C5C', active || d?.line === 'sl' ? 2.5 : 2, []);
-          if (!closed) {
-            const text = slP === (t.stopLoss ?? null) && t.slLabel ? t.slLabel : `SL ${fp(slP)}`;
-            pill(ctx, text, right - 4, yS, { bg: '#FF5C5C', align: 'right' });
-            spots.push({ key, line: 'sl', y: yS, x1: left, price: slP });
-          }
+          const text = slP === (t.stopLoss ?? null) && t.slLabel ? t.slLabel : `SL ${fp(slP)}`;
+          pill(ctx, text, right - 4, yS, { bg: '#FF5C5C', align: 'right' });
+          spots.push({ key, line: 'sl', y: yS, x1: left, price: slP });
         }
 
         // "+ SL" / "+ TP" chips for trades that have none yet
@@ -720,23 +734,6 @@ export class TradesPrimitive {
             if (val != null) continue;
             pill(ctx, text, W - 8, y, { bg: 'rgba(12,16,23,.94)', fg: color, align: 'right' });
             spots.push({ key, line, ghost: true, y, x1: W - 8 - 44, x2: W - 8, price: entryPrice });
-          }
-        }
-
-        // closed trade box
-        if (closed) {
-          const ys = [yE, yS, yT].filter((v) => v != null);
-          if (ys.length) {
-            const top = Math.min(...ys), bottom = Math.max(...ys);
-            ctx.fillStyle = 'rgba(0,0,0,0.05)';
-            ctx.fillRect(left, top, right - left, bottom - top);
-            ctx.strokeStyle = 'rgba(0,0,0,0.15)';
-            ctx.lineWidth = active ? 1.5 : 1;
-            ctx.setLineDash([4, 3]);
-            ctx.strokeRect(left, top, right - left, bottom - top);
-            ctx.setLineDash([]);
-            if (t.label) pill(ctx, t.label, left + 4, top + 12, { bg: winBg });
-            rects.push({ key, x1: left, x2: right, y1: top, y2: bottom });
           }
         }
         void pend;
