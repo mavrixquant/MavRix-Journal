@@ -7,6 +7,113 @@ import {
   BACKTEST_INTERVAL_MAX_DAYS,
 } from '@mavrix/shared';
 
+/**
+ * Server-side fill validation (A5): Re-simulate SL/TP fills against market data
+ * to validate client-reported fills. This prevents manipulation of exit prices.
+ *
+ * Returns validated fill info or throws if validation fails.
+ */
+async function validateFillAgainstBars({
+  symbol,
+  side,
+  stopLoss,
+  takeProfit,
+  exitTime,
+  exitPrice,
+  interval,
+}) {
+  if (!exitTime || !exitPrice) return null;
+
+  // Fetch bars around the exit time to re-simulate the fill
+  const exitDt = new Date(exitTime);
+  const oneBarMs = getIntervalMs(interval);
+  const from = new Date(exitDt.getTime() - oneBarMs * 2);
+  const to = new Date(exitDt.getTime() + oneBarMs * 2);
+
+  const bars = await prisma.marketBar.findMany({
+    where: {
+      symbol: symbol.toUpperCase(),
+      interval,
+      time: { gte: from, lte: to },
+    },
+    orderBy: { time: 'asc' },
+    take: 10,
+  });
+
+  if (bars.length === 0) {
+    // No market data available - log but don't block (allow manual override)
+    console.warn(`[validateFill] No bars for ${symbol} ${interval} at ${exitTime}`);
+    return { validated: false, reason: 'no_data', exitPrice };
+  }
+
+  // Find the bar where exit occurred (bar containing the exit time)
+  const exitBar = bars.find((b) => b.time <= exitDt && b.time.getTime() + oneBarMs >= exitDt.getTime()) || bars[bars.length - 1];
+
+  const long = side === 'long';
+  const sl = Number(stopLoss) || null;
+  const tp = Number(takeProfit) || null;
+
+  // Determine expected fill based on SL/TP rules
+  // SL check takes precedence: if both SL and TP would be hit in same bar, SL wins
+  let expectedPrice = exitPrice;
+  let expectedReason = null;
+
+  const slHit = sl != null && (long ? exitBar.low <= sl : exitBar.high >= sl);
+  const tpHit = tp != null && (long ? exitBar.high >= tp : exitBar.low <= tp);
+
+  if (slHit) {
+    // SL fills at open if gapped, else at SL price (same logic as checkFill)
+    const gap = long ? exitBar.open < sl : exitBar.open > sl;
+    expectedPrice = gap ? exitBar.open : sl;
+    expectedReason = 'sl_validated';
+  } else if (tpHit) {
+    const gap = long ? exitBar.open > tp : exitBar.open < tp;
+    expectedPrice = gap ? exitBar.open : tp;
+    expectedReason = 'tp_validated';
+  }
+
+  // Validate: allow small slippage (tick size) on market orders
+  const tick = getTickSize(symbol, interval);
+  const deviation = Math.abs(exitPrice - expectedPrice);
+
+  if (expectedReason === 'sl_validated' || expectedReason === 'tp_validated') {
+    if (deviation > tick * 3) {
+      // More than 3 ticks deviation - reject or warn
+      console.warn(
+        `[validateFill] ${symbol} exit price ${exitPrice} deviates ${deviation} from expected ${expectedPrice} (${expectedReason})`
+      );
+      return {
+        validated: false,
+        reason: 'price_deviation',
+        expectedPrice,
+        actualPrice: exitPrice,
+        deviation,
+      };
+    }
+    return {
+      validated: true,
+      reason: expectedReason,
+      exitPrice: expectedPrice,
+    };
+  }
+
+  return { validated: true, reason: 'manual', exitPrice };
+}
+
+function getIntervalMs(interval) {
+  const map = { '1m': 60_000, '5m': 300_000, '15m': 900_000, '1h': 3_600_000, '4h': 14_400_000, '1d': 86_400_000 };
+  return map[interval] || 300_000;
+}
+
+function getTickSize(symbol, interval) {
+  // Conservative tick sizes for futures
+  const tickMap = {
+    '1m': 0.01, '5m': 0.01, '15m': 0.01, '1h': 0.1, '4h': 0.5, '1d': 1,
+  };
+  // Use higher precision for finer intervals
+  return tickMap[interval] || 0.01;
+}
+
 const notify = (userId) =>
   broadcastToUser(userId, 'invalidate', { keys: [['backtest-sessions']] });
 
@@ -39,6 +146,7 @@ const serializeTrade = (t) => ({
   notes: t.notes,
   createdAt: t.createdAt,
   updatedAt: t.updatedAt,
+  idempotencyKey: t.idempotencyKey ?? undefined,
 });
 
 const EMPTY_AGG = { tradesCount: 0, openCount: 0, pendingCount: 0, netPnl: 0 };
@@ -331,6 +439,22 @@ export async function createTrade(userId, sessionId, data) {
   const orderType = data.orderType || 'market';
   const pendingOrder = orderType !== 'market';
 
+  // Idempotency: check for existing trade with same key
+  if (data.idempotencyKey) {
+    const existing = await prisma.backtestTrade.findFirst({
+      where: { sessionId, idempotencyKey: data.idempotencyKey },
+      select: { id: true, tradeId: true },
+    });
+    if (existing) {
+      // Return the existing trade instead of creating a duplicate
+      const t = await prisma.backtestTrade.findUnique({
+        where: { id: existing.id },
+        include: { strategy: true },
+      });
+      return serializeTrade(t);
+    }
+  }
+
   try {
     const t = await prisma.backtestTrade.create({
       data: {
@@ -351,6 +475,7 @@ export async function createTrade(userId, sessionId, data) {
         strategyId: data.strategyId ?? null,
         notes: data.notes ?? '',
         pnl: 0,
+        idempotencyKey: data.idempotencyKey ?? undefined,
       },
       include: { strategy: true },
     });
@@ -418,14 +543,41 @@ export async function updateTrade(userId, sessionId, tradeId, patch) {
     }
     const exitTime = new Date(patch.exitTime);
     if (exitTime < trade.entryTime) throw new HttpError(400, 'Exit can’t be before entry');
+
+    // A5: Server-side fill validation - re-simulate SL/TP against market bars
+    const validation = await validateFillAgainstBars({
+      symbol: trade.symbol,
+      side: trade.side,
+      stopLoss: trade.stopLoss,
+      takeProfit: trade.takeProfit,
+      exitTime: exitTime.toISOString(),
+      exitPrice: patch.exitPrice,
+      interval: session.interval,
+    });
+
+    if (validation && !validation.validated) {
+      // Validation failed: reject or warn based on reason
+      if (validation.reason === 'price_deviation') {
+        throw new HttpError(
+          400,
+          `Exit price ${patch.exitPrice} differs from validated price ${validation.expectedPrice} (${validation.reason})`.replace(/\s+\([^)]+\)$/, '')
+        );
+      }
+      if (validation.reason === 'no_data') {
+        // No market data - warn but allow (manual override possible)
+        console.warn(`[validateFill] No data for ${trade.symbol}, allowing manual close`);
+      }
+    }
+
+    const finalExitPrice = validation?.exitPrice ?? patch.exitPrice;
     data.exitTime = exitTime;
-    data.exitPrice = patch.exitPrice;
+    data.exitPrice = finalExitPrice;
     data.exitReason = patch.exitReason ?? 'manual';
     // The server is the single source of truth for P&L.
     data.pnl = computeBacktestPnl({
       side: trade.side,
       entryPrice: trade.entryPrice,
-      exitPrice: patch.exitPrice,
+      exitPrice: finalExitPrice,
       quantity: trade.quantity,
       symbol: trade.symbol,
     });

@@ -1,6 +1,10 @@
 import { useState } from 'react';
 import { Send, Radio, Mail, AlertTriangle, Info, Siren, Bell, Clock } from 'lucide-react';
 import { toast } from 'sonner';
+import {
+  AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogHeader, AlertDialogTitle, AlertDialogAction, AlertDialogCancel,
+} from '@/shared/ui/alert-dialog';
 
 import { useAdminBroadcast } from '../api';
 import { useAdminPageHeader } from '../AdminPageHeader';
@@ -219,13 +223,21 @@ export default function AdminBroadcastPage() {
   const trimmed = message.trim();
   const canSend = trimmed.length > 0 && !broadcast.isPending;
 
+  // Delete confirmation dialog state (N8 - async modal pattern)
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+  const [confirmMsg, setConfirmMsg] = useState('');
+
   const handleSend = async () => {
     if (!canSend) return;
-    const confirmMsg = sendEmail
+    const msg = sendEmail
       ? `Send "${level}" broadcast via SSE, email, and announcement banner?`
       : `Send "${level}" broadcast to all connected clients?`;
-    if (!window.confirm(confirmMsg)) return;
+    setConfirmMsg(msg);
+    setConfirmDialogOpen(true);
+  };
 
+  const handleConfirmSend = async () => {
+    setConfirmDialogOpen(false);
     try {
       const r = await broadcast.mutateAsync({
         message: trimmed,
@@ -398,6 +410,20 @@ export default function AdminBroadcastPage() {
           </div>
         </div>
       </div>
+
+      {/* Broadcast confirmation dialog (N8) */}
+      <AlertDialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Send broadcast?</AlertDialogTitle>
+            <AlertDialogDescription>{confirmMsg}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setConfirmDialogOpen(false)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmSend}>Send</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

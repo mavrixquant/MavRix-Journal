@@ -15,12 +15,19 @@ import { friendsRoutes } from './friends.routes.js';
 import { aiRoutes } from './ai.routes.js';
 import { bugReportRoutes } from './bugReport.routes.js';
 import { notificationsRoutes } from './notifications.routes.js';
+import { getMetrics } from '../lib/metrics.js';
 
 export const apiRouter = Router();
 
 apiRouter.get('/health', (_req, res) =>
   res.json({ ok: true, ts: Date.now() })
 );
+
+// Observability endpoint - Prometheus metrics
+apiRouter.get('/metrics', async (_req, res) => {
+  res.set('Content-Type', 'text/plain; charset=utf-8');
+  res.end(await getMetrics());
+});
 
 apiRouter.get('/version', getVersion);
 apiRouter.get('/changelog', getChangelog);

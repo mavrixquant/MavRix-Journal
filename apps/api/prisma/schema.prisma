@@ -80,6 +80,7 @@ model User {
 
   bugReports    BugReport[]
   notifications Notification[]
+  startedImportJobs MarketImportJob[] @relation("ImportJobStarter")
 
   @@index([role])
   @@index([plan])
@@ -545,11 +546,17 @@ model MarketImportJob {
   // Parent job link — set on child (per-interval) jobs; null on parent jobs.
   parentId      String?
 
+  // Relations
+  startedBy User      @relation("ImportJobStarter", fields: [startedById], references: [id], onDelete: Restrict)
+  parent    MarketImportJob? @relation("JobHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children  MarketImportJob[] @relation("JobHierarchy")
+
   chunks MarketImportChunk[]
 
   @@index([symbol, interval, status])
   @@index([startedAt])
   @@index([parentId])
+  @@index([startedById])
   @@map("market_import_jobs")
 }
 
@@ -569,7 +576,7 @@ model MarketImportJob {
 model MarketImportChunk {
   id         String    @id @default(cuid())
   jobId      String
-  index      Int
+  chunkIndex Int
   fromTime   DateTime
   toTime     DateTime
   status     String    @default("pending")
@@ -583,7 +590,7 @@ model MarketImportChunk {
 
   job MarketImportJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
 
-  @@index([jobId, index])
+  @@unique([jobId, chunkIndex])
   @@index([jobId, status])
   @@map("market_import_chunks")
 }
@@ -666,30 +673,31 @@ model BacktestSession {
 }
 
 model BacktestTrade {
-  id         String    @id @default(cuid())
-  sessionId  String
-  tradeId    String
-  symbol     String
-  side       String // 'long' | 'short'
-  entryTime  DateTime
-  entryPrice Float
-  exitTime   DateTime?
-  exitPrice  Float?
-  quantity   Float
-  pnl        Float     @default(0)
-  slPoints   Float?
-  takeProfit Float?
-  stopLoss   Float?
-  commission Float?
-  exitReason String? // manual | sl | tp | prop_breach | conclude
-  orderType  String    @default("market") // market | limit | stop
-  orderPrice Float?                        // resting price of a pending order
-  filledAt   DateTime?                     // set when a pending order triggers
-  strategyId String?
-  notes      String    @default("")
-  dynamic    Json      @default("{}")
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  id              String    @id @default(cuid())
+  sessionId       String
+  tradeId         String
+  symbol          String
+  side            String // 'long' | 'short'
+  entryTime       DateTime
+  entryPrice      Float
+  exitTime        DateTime?
+  exitPrice       Float?
+  quantity        Float
+  pnl             Float     @default(0)
+  slPoints        Float?
+  takeProfit      Float?
+  stopLoss        Float?
+  commission      Float?
+  exitReason      String? // manual | sl | tp | prop_breach | conclude
+  orderType       String    @default("market") // market | limit | stop
+  orderPrice      Float?                        // resting price of a pending order
+  filledAt        DateTime?                     // set when a pending order triggers
+  strategyId      String?
+  notes           String    @default("")
+  dynamic         Json      @default("{}")
+  idempotencyKey  String?   @unique // Client-generated key to prevent duplicate submissions
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   session  BacktestSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   strategy Strategy?       @relation(fields: [strategyId], references: [id], onDelete: SetNull)

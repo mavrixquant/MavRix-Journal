@@ -3,6 +3,10 @@ import {
   Rocket, Save, Send, RotateCw, EyeOff, Eye, Pencil, Trash2, X,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import {
+  AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogHeader, AlertDialogTitle, AlertDialogAction, AlertDialogCancel,
+} from '@/shared/ui/alert-dialog';
 
 import { useAdminPageHeader } from '../AdminPageHeader';
 import {
@@ -14,7 +18,6 @@ import {
   useUnpublishRelease,
   useDeleteRelease,
 } from '../api';
-import ConfirmDangerModal from '../components/ConfirmDangerModal';
 
 const VERSION_RE = /^\d+\.\d+\.\d+(-[\w.]+)?$/;
 const TODAY = new Date().toISOString().slice(0, 10);
@@ -205,22 +208,56 @@ export default function AdminReleasesPage() {
     }
   };
 
-  const handlePublish = async (r) => {
-    if (!window.confirm(`Publish v${r.version}? This sends a notification to every active user.`)) return;
-    try { await publishM.mutateAsync(r.id); toast.success(`Published v${r.version}`); }
-    catch (e) { toast.error(e?.message || 'Publish failed'); }
+  // Dialog state for async modal confirmation (N8)
+  const [actionDialogOpen, setActionDialogOpen] = useState(false);
+  const [actionTarget, setActionTarget] = useState(null);
+  const [actionType, setActionType] = useState(null); // 'publish', 'rebroadcast', 'unpublish', 'delete'
+
+  const getActionMessage = (type, r) => {
+    switch (type) {
+      case 'publish': return `Publish v${r.version}? This sends a notification to every active user.`;
+      case 'rebroadcast': return `Re-broadcast v${r.version}? Every active user gets the notification again.`;
+      case 'unpublish': return `Unpublish v${r.version}? It will be hidden from users but past notifications stay.`;
+      case 'delete': return `Delete v${r.version}? This permanently removes it.`;
+      default: return '';
+    }
   };
 
-  const handleRebroadcast = async (r) => {
-    if (!window.confirm(`Re-broadcast v${r.version}? Every active user gets the notification again.`)) return;
-    try { await rebroadcastM.mutateAsync(r.id); toast.success(`Re-broadcast v${r.version}`); }
-    catch (e) { toast.error(e?.message || 'Re-broadcast failed'); }
+  const openActionDialog = (type, r) => {
+    setActionTarget(r);
+    setActionType(type);
+    setActionDialogOpen(true);
   };
 
-  const handleUnpublish = async (r) => {
-    if (!window.confirm(`Unpublish v${r.version}? It will be hidden from users but past notifications stay.`)) return;
-    try { await unpublishM.mutateAsync(r.id); toast.success(`Unpublished v${r.version}`); }
-    catch (e) { toast.error(e?.message || 'Unpublish failed'); }
+  const closeActionDialog = () => {
+    setActionDialogOpen(false);
+    setActionTarget(null);
+    setActionType(null);
+  };
+
+  const handleConfirmAction = async () => {
+    if (!actionTarget || !actionType) return;
+    const r = actionTarget;
+
+    try {
+      if (actionType === 'publish') {
+        await publishM.mutateAsync(r.id);
+        toast.success(`Published v${r.version}`);
+      } else if (actionType === 'rebroadcast') {
+        await rebroadcastM.mutateAsync(r.id);
+        toast.success(`Re-broadcast v${r.version}`);
+      } else if (actionType === 'unpublish') {
+        await unpublishM.mutateAsync(r.id);
+        toast.success(`Unpublished v${r.version}`);
+      } else if (actionType === 'delete') {
+        await deleteM.mutateAsync(r.id);
+        toast.success(`Deleted v${r.version}`);
+      }
+    } catch (e) {
+      toast.error(e?.message || 'Action failed');
+    } finally {
+      closeActionDialog();
+    }
   };
 
   const handleDelete = async () => {
@@ -383,20 +420,20 @@ export default function AdminReleasesPage() {
                     <Pencil size={12} />
                   </button>
                   {!r.isPublished ? (
-                    <button type="button" className="rel-btn-icon is-accent" onClick={() => handlePublish(r)} title="Publish & broadcast" disabled={busy}>
+                    <button type="button" className="rel-btn-icon is-accent" onClick={() => openActionDialog('publish', r)} title="Publish & broadcast" disabled={busy}>
                       <Send size={12} />
                     </button>
                   ) : (
                     <>
-                      <button type="button" className="rel-btn-icon" onClick={() => handleRebroadcast(r)} title="Re-broadcast" disabled={busy}>
+                      <button type="button" className="rel-btn-icon" onClick={() => openActionDialog('rebroadcast', r)} title="Re-broadcast" disabled={busy}>
                         <RotateCw size={12} />
                       </button>
-                      <button type="button" className="rel-btn-icon" onClick={() => handleUnpublish(r)} title="Unpublish" disabled={busy}>
+                      <button type="button" className="rel-btn-icon" onClick={() => openActionDialog('unpublish', r)} title="Unpublish" disabled={busy}>
                         <EyeOff size={12} />
                       </button>
                     </>
                   )}
-                  <button type="button" className="rel-btn-icon is-danger" onClick={() => setDeleteTarget(r)} title="Delete" disabled={busy}>
+                  <button type="button" className="rel-btn-icon is-danger" onClick={() => openActionDialog('delete', r)} title="Delete" disabled={busy}>
                     <Trash2 size={12} />
                   </button>
                 </div>
@@ -406,16 +443,34 @@ export default function AdminReleasesPage() {
         </div>
       </div>
 
-      <ConfirmDangerModal
-        isOpen={!!deleteTarget}
-        title={deleteTarget ? `Delete v${deleteTarget.version}?` : ''}
-        description="Permanently removes this release. Past notifications to users stay untouched."
-        confirmPhrase={deleteTarget?.version || 'DELETE'}
-        confirmLabel="Delete release"
-        busy={deleteM.isPending}
-        onCancel={() => setDeleteTarget(null)}
-        onConfirm={handleDelete}
-      />
+      {/* Release action confirmation dialog (N8) */}
+      <AlertDialog open={actionDialogOpen} onOpenChange={closeActionDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {actionType === 'publish' && `Publish v${actionTarget?.version}?`}
+              {actionType === 'rebroadcast' && `Re-broadcast v${actionTarget?.version}?`}
+              {actionType === 'unpublish' && `Unpublish v${actionTarget?.version}?`}
+              {actionType === 'delete' && `Delete v${actionTarget?.version}?`}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {actionType === 'publish' && 'This sends a notification to every active user.'}
+              {actionType === 'rebroadcast' && 'Every active user gets the notification again.'}
+              {actionType === 'unpublish' && 'It will be hidden from users but past notifications stay.'}
+              {actionType === 'delete' && 'Permanently removes this release. Past notifications to users stay untouched.'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={closeActionDialog}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmAction}
+              className={actionType === 'delete' ? 'bg-red-600 hover:bg-red-700' : ''}
+            >
+              {actionType === 'delete' ? 'Delete release' : actionType === 'publish' ? 'Publish' : actionType === 'rebroadcast' ? 'Re-broadcast' : 'Unpublish'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

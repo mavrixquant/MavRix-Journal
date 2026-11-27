@@ -83,8 +83,13 @@ export const FUTURES_SPECS = {
 };
 
 export function getPointValue(symbol) {
-  const key = String(symbol || '').toUpperCase().replace(/[0-9]*!$/, '');
-  return FUTURES_SPECS[key]?.pointValue ?? 1;
+  // Strip common futures contract suffixes: month codes (F,G,H,J,K,M,N,Q,U,V,X,Z) + year digits + optional !
+  const key = String(symbol || '').toUpperCase().replace(/[FGHJKMNQUVXZ]\d{1,2}!?$/, '').replace(/\d+!?$/, '');
+  const spec = FUTURES_SPECS[key];
+  if (!spec) {
+    throw new Error(`Unknown futures symbol: ${key}`);
+  }
+  return spec.pointValue;
 }
 
 const round = (n, d = 2) => {
@@ -218,6 +223,8 @@ export const backtestTradeCreateSchema = z.object({
   // 'market' fills immediately at entryPrice. 'limit' / 'stop' rest as a pending order at
   // entryPrice (= the order price) until the replay reaches it.
   orderType: z.enum(BACKTEST_ORDER_TYPES).default('market'),
+  // Client-generated idempotency key to prevent duplicate submissions on retry
+  idempotencyKey: z.string().trim().min(1).max(64).optional(),
 });
 
 export const backtestTradePatchSchema = z.object({

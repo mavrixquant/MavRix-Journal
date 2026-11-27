@@ -27,6 +27,7 @@ const ALWAYS_ALLOWED = new Set([
   '/api/version',
   '/api/changelog',
   '/api/system/status',
+  '/api/metrics',
 ]);
 
 // Auth sub-tree is always reachable: superadmins need to log in / refresh

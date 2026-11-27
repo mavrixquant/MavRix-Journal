@@ -41,7 +41,7 @@ export function positionFromDrawing(d) {
 }
 
 /**
- * Does this bar trigger a resting order? Fills never happen on the bar the
+ * Did this bar trigger a resting order? Fills never happen on the bar the
  * order was placed on (the caller skips that). Gaps fill at the open.
  *   buy limit   : low  <= price  -> min(open, price)
  *   buy stop    : high >= price  -> max(open, price)

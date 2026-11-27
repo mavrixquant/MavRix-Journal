@@ -2,6 +2,10 @@ import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Flag, Play, RotateCcw, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
+import {
+  AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogHeader, AlertDialogTitle, AlertDialogAction, AlertDialogCancel,
+} from '@/shared/ui/alert-dialog';
 
 import { useSettings } from '@/app/layout/Settings/SettingsProvider';
 import { usePageHeader } from '@/app/layout/PageHeaderProvider';
@@ -35,6 +39,10 @@ export default function BacktesterDashboardPage() {
   const { sessionId } = useParams();
   const navigate = useNavigate();
   const { settings } = useSettings();
+
+  // Delete confirmation dialog state (N8 - async modal pattern)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+
   const tz = useMemo(() => resolveTimezone(settings?.preferences?.timezone || 'auto'), [settings]);
 
   // `fresh`: always re-read the rows from the server — every number below is recomputed from them.
@@ -83,11 +91,17 @@ export default function BacktesterDashboardPage() {
     try { await updateM.mutateAsync({ id: session.id, patch: { status } }); toast.success(msg); } catch (e) { toast.error(e?.message || 'Could not update the session.'); }
   };
 
-  const remove = async () => {
-    const ok = window.confirm(`Delete “${session.name}” and its ${trades.length} trade${trades.length === 1 ? '' : 's'}? This can’t be undone.`);
-    if (!ok) return;
-    try { await deleteM.mutateAsync(session.id); toast.success('Session deleted'); navigate('/backtester'); } catch (e) { toast.error(e?.message || 'Could not delete.'); }
+  const handleDelete = async () => {
+    setDeleteDialogOpen(false);
+    try {
+      await deleteM.mutateAsync(session.id);
+      toast.success('Session deleted');
+      navigate('/backtester');
+    } catch (e) { toast.error(e?.message || 'Could not delete.'); }
   };
+
+  const openDeleteDialog = () => setDeleteDialogOpen(true);
+  const closeDeleteDialog = () => setDeleteDialogOpen(false);
 
   return (
     <>
@@ -129,7 +143,7 @@ export default function BacktesterDashboardPage() {
                   <RotateCcw size={14} /> Reopen
                 </button>
               )}
-              <button type="button" className="hdr-btn-reset" onClick={remove} disabled={deleteM.isPending} aria-label="Delete session" title="Delete session"><Trash2 size={14} /></button>
+              <button type="button" className="hdr-btn-reset" onClick={openDeleteDialog} disabled={deleteM.isPending} aria-label="Delete session" title="Delete session"><Trash2 size={14} /></button>
             </div>
           </div>
         </div>
@@ -144,7 +158,7 @@ export default function BacktesterDashboardPage() {
         </div>
 
         {tradesQ.isError && (
-          <div className="bt-error" role="alert">Couldn’t refresh trades — the numbers below may be out of date. <button type="button" className="bt-link" onClick={() => tradesQ.refetch()}>Retry</button></div>
+          <div className="bt-error" role="alert">Couldn't refresh trades — the numbers below may be out of date. <button type="button" className="bt-link" onClick={() => tradesQ.refetch()}>Retry</button></div>
         )}
 
         {activeTab === 'overview' && <OverviewTab session={session} stats={stats} tz={tz} />}
@@ -152,6 +166,22 @@ export default function BacktesterDashboardPage() {
         {activeTab === 'risk' && <RiskTab session={session} stats={stats} />}
         {activeTab === 'prop' && <PropRulesTab session={session} prop={prop} />}
       </div>
+
+      {/* Delete session confirmation dialog (N8) */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete session?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {`Delete "${session.name}" and its ${trades.length} trade${trades.length === 1 ? '' : 's'}? This can't be undone.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={closeDeleteDialog}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

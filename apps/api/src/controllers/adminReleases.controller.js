@@ -1,13 +1,5 @@
-import { prisma } from '../lib/prisma.js';
 import * as svc from '../services/releases.service.js';
-
-async function buildActor(req) {
-  const u = await prisma.user.findUnique({
-    where: { id: req.userId },
-    select: { email: true },
-  });
-  return { id: req.userId, email: u?.email || '', role: req.userRole, req };
-}
+import { buildActor } from '../lib/buildActor.js';
 
 export async function list(_req, res, next) {
   try { res.json({ releases: await svc.listAll() }); }

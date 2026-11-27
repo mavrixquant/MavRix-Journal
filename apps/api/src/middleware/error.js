@@ -1,3 +1,5 @@
+import logger from '../lib/logger.js';
+
 export class HttpError extends Error {
   constructor(status, message, details) {
     super(message);
@@ -22,7 +24,9 @@ export const errorHandler = (err, req, res, _next) => {
   const body = { error: err.message || 'Internal error' };
   if (err.details) body.details = err.details;
 
-  if (status >= 500) console.error('[error]', err);
+  if (status >= 500) {
+    logger.error({ err, req: { method: req.method, url: req.url, userId: req.user?.id } }, err.message);
+  }
 
   res.status(status).json(body);
 };

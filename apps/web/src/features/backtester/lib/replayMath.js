@@ -110,6 +110,15 @@ export function displayUpTo(entries, base, idx) {
 }
 
 /**
+ * Does a bar's high/low envelope contain the given price?
+ * Returns true if price is within [low, high] range of the bar.
+ */
+export function barTouchesLevel(price, bar) {
+  if (price == null) return false;
+  return bar.low <= price && price <= bar.high;
+}
+
+/**
  * Did this bar touch the position's SL/TP?
  * Conservative rules:
  *  - both touched in the same bar  -> the stop wins

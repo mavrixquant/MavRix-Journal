@@ -2,6 +2,10 @@ import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, Trash2, TrendingUp } from 'lucide-react';
 import { toast } from 'sonner';
+import {
+  AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogHeader, AlertDialogTitle, AlertDialogAction, AlertDialogCancel,
+} from '@/shared/ui/alert-dialog';
 
 import { useAdminTrades, useAdminDeleteTrade } from '../api';
 import { useAdminPageHeader } from '../AdminPageHeader';
@@ -125,6 +129,7 @@ export default function AdminTradesPage() {
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [page, setPage] = useState(1);
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   const filters = useMemo(
     () => ({
@@ -159,10 +164,11 @@ export default function AdminTradesPage() {
     !!from ||
     !!to;
 
-  const handleDelete = async (t) => {
-    if (!window.confirm(`Delete trade "${t.tradeId}"?`)) return;
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleteTarget(null);
     try {
-      await deleteTrade.mutateAsync(t.id);
+      await deleteTrade.mutateAsync(deleteTarget.id);
       toast.success('Trade deleted');
     } catch (err) {
       toast.error(err?.message || 'Delete failed');
@@ -277,7 +283,7 @@ export default function AdminTradesPage() {
                           type="button"
                           className="atp-btn-icon danger"
                           title="Delete trade"
-                          onClick={() => handleDelete(t)}
+                          onClick={() => setDeleteTarget(t)}
                           disabled={deleteTrade.isPending}
                         >
                           <Trash2 size={12} />
@@ -293,6 +299,22 @@ export default function AdminTradesPage() {
 
         <Pagination page={page} pages={pages} total={total} onChange={setPage} />
       </div>
+
+      {/* Delete trade confirmation dialog (N8) */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete trade?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {`Delete trade "${deleteTarget?.tradeId}"? This cannot be undone.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setDeleteTarget(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

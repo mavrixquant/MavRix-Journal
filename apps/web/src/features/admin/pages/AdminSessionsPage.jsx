@@ -1,6 +1,10 @@
 import { useState } from 'react';
 import { Radio, Power, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
+import {
+  AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogHeader, AlertDialogTitle, AlertDialogAction, AlertDialogCancel,
+} from '@/shared/ui/alert-dialog';
 
 import { useAdminSessions, useAdminDisconnectSession } from '../api';
 import { useAdminPageHeader } from '../AdminPageHeader';
@@ -131,6 +135,7 @@ const CSS = `
 
 export default function AdminSessionsPage() {
   const [userId, setUserId] = useState('');
+  const [disconnectDialogOpen, setDisconnectDialogOpen] = useState(false);
   const { data, isLoading, refetch, isFetching } = useAdminSessions();
   const disconnect = useAdminDisconnectSession();
 
@@ -142,10 +147,17 @@ export default function AdminSessionsPage() {
     subtitle: 'Live Server-Sent Events (SSE) streams · refreshed every 15s',
   });
 
+  const openDisconnectDialog = () => {
+    if (!userId.trim()) {
+      toast.error('Enter a user ID');
+      return;
+    }
+    setDisconnectDialogOpen(true);
+  };
+
   const handleDisconnect = async () => {
     const id = userId.trim();
-    if (!id) { toast.error('Enter a user ID'); return; }
-    if (!window.confirm(`Disconnect all SSE streams for user ${id}?`)) return;
+    setDisconnectDialogOpen(false);
     try {
       const r = await disconnect.mutateAsync(id);
       toast.success(`Closed ${r.closedSockets} stream${r.closedSockets === 1 ? '' : 's'}`);
@@ -208,7 +220,7 @@ export default function AdminSessionsPage() {
               <button
                 type="button"
                 className="asp-btn danger"
-                onClick={handleDisconnect}
+                onClick={openDisconnectDialog}
                 disabled={disconnect.isPending || !userId.trim()}
               >
                 <Power size={12} />
@@ -218,6 +230,22 @@ export default function AdminSessionsPage() {
           </div>
         </div>
       </div>
+
+      {/* Disconnect confirmation dialog (N8) */}
+      <AlertDialog open={disconnectDialogOpen} onOpenChange={setDisconnectDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Disconnect all SSE streams for user {userId}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This closes every Server-Sent Events stream for this user across all devices. It does not revoke their tokens.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setDisconnectDialogOpen(false)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDisconnect}>Disconnect</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

@@ -2,6 +2,7 @@
 import { prisma } from './prisma.js';
 import { hashPassword } from './password.js';
 import { env } from '../config/env.js';
+import { log, warn, error } from './logger.js';
 
 export async function ensureSuperadmin() {
   const existing = await prisma.user.findFirst({
@@ -10,15 +11,16 @@ export async function ensureSuperadmin() {
   });
 
   if (existing) {
-    console.log(`[admin] superadmin already exists (${existing.email})`);
+    log('admin', `superadmin already exists (${existing.email})`);
     return;
   }
 
   const { bootstrapEmail, bootstrapPassword } = env.admin;
 
   if (!bootstrapEmail || !bootstrapPassword) {
-    console.warn(
-      '[admin] no superadmin exists and ADMIN_BOOTSTRAP_EMAIL / ' +
+    warn(
+      'admin',
+      'no superadmin exists and ADMIN_BOOTSTRAP_EMAIL / ' +
         'ADMIN_BOOTSTRAP_PASSWORD are not set.\n' +
         '        Set them, restart the API, then remove them from .env.'
     );
@@ -26,8 +28,9 @@ export async function ensureSuperadmin() {
   }
 
   if (bootstrapPassword.length < 8) {
-    console.error(
-      '[admin] ADMIN_BOOTSTRAP_PASSWORD must be at least 8 characters. Skipping bootstrap.'
+    error(
+      'admin',
+      'ADMIN_BOOTSTRAP_PASSWORD must be at least 8 characters. Skipping bootstrap.'
     );
     return;
   }
@@ -50,7 +53,7 @@ export async function ensureSuperadmin() {
         bannedBy: null,
       },
     });
-    console.log(`[admin] promoted existing user to superadmin: ${email}`);
+    log('admin', `promoted existing user to superadmin: ${email}`);
   } else {
     await prisma.user.create({
       data: {
@@ -62,11 +65,12 @@ export async function ensureSuperadmin() {
         role: 'superadmin',
       },
     });
-    console.log(`[admin] created superadmin: ${email}`);
+    log('admin', `created superadmin: ${email}`);
   }
 
-  console.warn(
-    '[admin] You can now remove ADMIN_BOOTSTRAP_EMAIL and ' +
+  warn(
+    'admin',
+    'You can now remove ADMIN_BOOTSTRAP_EMAIL and ' +
       'ADMIN_BOOTSTRAP_PASSWORD from .env.'
   );
 }

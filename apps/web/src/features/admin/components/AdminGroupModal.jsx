@@ -21,6 +21,10 @@ import {
   GROUP_DESCRIPTION_MAX,
   GROUP_ICON_EMOJI_MAX,
 } from '@mavrix/shared';
+import {
+  AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogHeader, AlertDialogTitle, AlertDialogAction, AlertDialogCancel,
+} from '@/shared/ui/alert-dialog';
 
 const CSS = `
   .agm-overlay {
@@ -664,10 +668,11 @@ export default function AdminGroupModal({ isOpen, onClose, groupId = null }) {
     [setRoleMutation, groupId]
   );
 
-  const handleDelete = useCallback(async () => {
-    if (!window.confirm(
-      `Delete "${group?.name}"?\n\nAll messages and members will be removed. This cannot be undone.`
-    )) return;
+  // Delete confirmation dialog state (N8 - async modal pattern)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+
+  const handleDelete = async () => {
+    setDeleteDialogOpen(false);
     setError('');
     try {
       await deleteMutation.mutateAsync(groupId);
@@ -675,370 +680,391 @@ export default function AdminGroupModal({ isOpen, onClose, groupId = null }) {
     } catch (err) {
       setError(err?.message || 'Could not delete channel.');
     }
-  }, [group, deleteMutation, groupId, onClose]);
+  };
+
+  const openDeleteDialog = () => setDeleteDialogOpen(true);
+  const closeDeleteDialog = () => setDeleteDialogOpen(false);
 
   if (!isOpen) return null;
 
   return (
-    <Portal>
-      <style>{CSS}</style>
-      <div
-        className="agm-overlay"
-        onClick={(e) => {
-          if (e.target === e.currentTarget && !saving) onClose();
-        }}
-      >
-        <div className="agm-modal" role="dialog" aria-modal="true">
-          {/* Header */}
-          <div className="agm-head">
-            <div style={{ minWidth: 0 }}>
-              <h2 className="agm-title">
-                {isCreate ? 'New channel' : (group?.name || 'Loading…')}
-              </h2>
-              <p className="agm-sub">
-                {isCreate
-                  ? 'Create a new channel'
-                  : `${members.length} member${members.length === 1 ? '' : 's'} · ${group?.visibility || '—'}`}
-              </p>
-            </div>
-            <button
-              type="button"
-              className="agm-close"
-              onClick={onClose}
-              disabled={saving}
-              aria-label="Close"
-            >
-              <X size={15} />
-            </button>
-          </div>
-
-          {/* Tabs */}
-          {!isCreate && (
-            <div className="agm-tabs" role="tablist">
+    <div>
+      <Portal>
+        <style>{CSS}</style>
+        <div
+          className="agm-overlay"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !saving) onClose();
+          }}
+        >
+          <div className="agm-modal" role="dialog" aria-modal="true">
+            {/* Header */}
+            <div className="agm-head">
+              <div style={{ minWidth: 0 }}>
+                <h2 className="agm-title">
+                  {isCreate ? 'New channel' : (group?.name || 'Loading…')}
+                </h2>
+                <p className="agm-sub">
+                  {isCreate
+                    ? 'Create a new channel'
+                    : `${members.length} member${members.length === 1 ? '' : 's'} · ${group?.visibility || '—'}`}
+                </p>
+              </div>
               <button
                 type="button"
-                role="tab"
-                aria-selected={tab === 'settings'}
-                className={`agm-tab${tab === 'settings' ? ' is-active' : ''}`}
-                onClick={() => setTab('settings')}
+                className="agm-close"
+                onClick={onClose}
+                disabled={saving}
+                aria-label="Close"
               >
-                Settings
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={tab === 'members'}
-                className={`agm-tab${tab === 'members' ? ' is-active' : ''}`}
-                onClick={() => setTab('members')}
-              >
-                Members
+                <X size={15} />
               </button>
             </div>
-          )}
 
-          {/* Body */}
-          <div className="agm-body">
-            {error && <div className="agm-error">{error}</div>}
-
-            {!isCreate && loadingGroup && (
-              <div className="agm-empty">
-                <Loader2 size={18} style={{ animation: 'agmSpin .8s linear infinite' }} />
-                <style>{`@keyframes agmSpin { to { transform: rotate(360deg); } }`}</style>
+            {/* Tabs */}
+            {!isCreate && (
+              <div className="agm-tabs" role="tablist">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={tab === 'settings'}
+                  className={`agm-tab${tab === 'settings' ? ' is-active' : ''}`}
+                  onClick={() => setTab('settings')}
+                >
+                  Settings
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={tab === 'members'}
+                  className={`agm-tab${tab === 'members' ? ' is-active' : ''}`}
+                  onClick={() => setTab('members')}
+                >
+                  Members
+                </button>
               </div>
             )}
 
-            {/* Settings */}
-            {(isCreate || tab === 'settings') && (!loadingGroup || isCreate) && (
-              <>
-                <div className="agm-field">
-                  <label className="agm-label" htmlFor="agm-name">
-                    <span>Name</span>
-                    <span className="agm-label-hint">{form.name.length} / {GROUP_NAME_MAX}</span>
-                  </label>
-                  <input
-                    id="agm-name"
-                    className="agm-input"
-                    type="text"
-                    value={form.name}
-                    maxLength={GROUP_NAME_MAX}
-                    placeholder="e.g. NQ Desk"
-                    autoFocus
-                    disabled={saving}
-                    onChange={(e) => set('name', e.target.value)}
-                  />
-                </div>
+            {/* Body */}
+            <div className="agm-body">
+              {error && <div className="agm-error">{error}</div>}
 
-                <div className="agm-field">
-                  <label className="agm-label" htmlFor="agm-desc">
-                    <span>Description</span>
-                    <span className="agm-label-hint">optional</span>
-                  </label>
-                  <textarea
-                    id="agm-desc"
-                    className="agm-textarea"
-                    value={form.description}
-                    maxLength={GROUP_DESCRIPTION_MAX}
-                    placeholder="What is this channel about?"
-                    disabled={saving}
-                    onChange={(e) => set('description', e.target.value)}
-                  />
+              {!isCreate && loadingGroup && (
+                <div className="agm-empty">
+                  <Loader2 size={18} style={{ animation: 'agmSpin .8s linear infinite' }} />
+                  <style>{`@keyframes agmSpin { to { transform: rotate(360deg); } }`}</style>
                 </div>
+              )}
 
-                <div className="agm-field">
-                  <span className="agm-label">
-                    <span>Visibility</span>
-                    {!isSuperadmin && <span className="agm-label-hint">superadmin only</span>}
-                  </span>
-                  <div className="agm-vis-row">
-                    <button
-                      type="button"
-                      className={`agm-vis-tile ${form.visibility === 'public' ? 'is-active' : ''}`}
-                      onClick={() => isSuperadmin && set('visibility', 'public')}
-                      disabled={saving || !isSuperadmin}
-                    >
-                      <span className="agm-vis-icon"><Hash size={13} /></span>
-                      <span>
-                        <div className="agm-vis-name">Public</div>
-                        <div className="agm-vis-desc">Anyone can discover and join.</div>
-                      </span>
-                    </button>
-                    <button
-                      type="button"
-                      className={`agm-vis-tile ${form.visibility === 'private' ? 'is-active' : ''}`}
-                      onClick={() => isSuperadmin && set('visibility', 'private')}
-                      disabled={saving || !isSuperadmin}
-                    >
-                      <span className="agm-vis-icon"><Lock size={13} /></span>
-                      <span>
-                        <div className="agm-vis-name">Private</div>
-                        <div className="agm-vis-desc">Invite-only. Hidden from discovery.</div>
-                      </span>
-                    </button>
+              {/* Settings */}
+              {(isCreate || tab === 'settings') && (!loadingGroup || isCreate) && (
+                <>
+                  <div className="agm-field">
+                    <label className="agm-label" htmlFor="agm-name">
+                      <span>Name</span>
+                      <span className="agm-label-hint">{form.name.length} / {GROUP_NAME_MAX}</span>
+                    </label>
+                    <input
+                      id="agm-name"
+                      className="agm-input"
+                      type="text"
+                      value={form.name}
+                      maxLength={GROUP_NAME_MAX}
+                      placeholder="e.g. NQ Desk"
+                      autoFocus
+                      disabled={saving}
+                      onChange={(e) => set('name', e.target.value)}
+                    />
                   </div>
-                </div>
 
-                {isSuperadmin && (
+                  <div className="agm-field">
+                    <label className="agm-label" htmlFor="agm-desc">
+                      <span>Description</span>
+                      <span className="agm-label-hint">optional</span>
+                    </label>
+                    <textarea
+                      id="agm-desc"
+                      className="agm-textarea"
+                      value={form.description}
+                      maxLength={GROUP_DESCRIPTION_MAX}
+                      placeholder="What is this channel about?"
+                      disabled={saving}
+                      onChange={(e) => set('description', e.target.value)}
+                    />
+                  </div>
+
                   <div className="agm-field">
                     <span className="agm-label">
-                      <span>Default channel</span>
-                      <span className="agm-label-hint">every user is auto-joined</span>
+                      <span>Visibility</span>
+                      {!isSuperadmin && <span className="agm-label-hint">superadmin only</span>}
                     </span>
                     <div className="agm-vis-row">
                       <button
                         type="button"
-                        className={`agm-vis-tile ${!form.isDefault ? 'is-active' : ''}`}
-                        onClick={() => set('isDefault', false)}
-                        disabled={saving}
+                        className={`agm-vis-tile ${form.visibility === 'public' ? 'is-active' : ''}`}
+                        onClick={() => isSuperadmin && set('visibility', 'public')}
+                        disabled={saving || !isSuperadmin}
                       >
                         <span className="agm-vis-icon"><Hash size={13} /></span>
                         <span>
-                          <div className="agm-vis-name">Standard</div>
-                          <div className="agm-vis-desc">Members join manually.</div>
+                          <div className="agm-vis-name">Public</div>
+                          <div className="agm-vis-desc">Anyone can discover and join.</div>
                         </span>
                       </button>
                       <button
                         type="button"
-                        className={`agm-vis-tile ${form.isDefault ? 'is-active' : ''}`}
-                        onClick={() => set('isDefault', true)}
-                        disabled={saving}
+                        className={`agm-vis-tile ${form.visibility === 'private' ? 'is-active' : ''}`}
+                        onClick={() => isSuperadmin && set('visibility', 'private')}
+                        disabled={saving || !isSuperadmin}
                       >
                         <span className="agm-vis-icon"><Lock size={13} /></span>
                         <span>
-                          <div className="agm-vis-name">Default</div>
-                          <div className="agm-vis-desc">Every user is auto-joined.</div>
+                          <div className="agm-vis-name">Private</div>
+                          <div className="agm-vis-desc">Invite-only. Hidden from discovery.</div>
                         </span>
                       </button>
                     </div>
                   </div>
-                )}
 
-                <div className="agm-field">
-                  <span className="agm-label"><span>Accent color</span></span>
-                  <div className="agm-colors">
-                    {GROUP_COLORS.map((c) => {
-                      const active = form.color === c.hex;
-                      return (
+                  {isSuperadmin && (
+                    <div className="agm-field">
+                      <span className="agm-label">
+                        <span>Default channel</span>
+                        <span className="agm-label-hint">every user is auto-joined</span>
+                      </span>
+                      <div className="agm-vis-row">
                         <button
-                          key={c.hex}
                           type="button"
-                          className={`agm-color ${active ? 'is-active' : ''}`}
-                          style={{ background: c.hex, '--swatch-color': c.hex }}
-                          onClick={() => set('color', c.hex)}
+                          className={`agm-vis-tile ${!form.isDefault ? 'is-active' : ''}`}
+                          onClick={() => set('isDefault', false)}
                           disabled={saving}
-                          title={c.label}
-                          aria-label={c.label}
-                          aria-pressed={active}
-                        />
+                        >
+                          <span className="agm-vis-icon"><Hash size={13} /></span>
+                          <span>
+                            <div className="agm-vis-name">Standard</div>
+                            <div className="agm-vis-desc">Members join manually.</div>
+                          </span>
+                        </button>
+                        <button
+                          type="button"
+                          className={`agm-vis-tile ${form.isDefault ? 'is-active' : ''}`}
+                          onClick={() => set('isDefault', true)}
+                          disabled={saving}
+                        >
+                          <span className="agm-vis-icon"><Lock size={13} /></span>
+                          <span>
+                            <div className="agm-vis-name">Default</div>
+                            <div className="agm-vis-desc">Every user is auto-joined.</div>
+                          </span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="agm-field">
+                    <span className="agm-label"><span>Accent color</span></span>
+                    <div className="agm-colors">
+                      {GROUP_COLORS.map((c) => {
+                        const active = form.color === c.hex;
+                        return (
+                          <button
+                            key={c.hex}
+                            type="button"
+                            className={`agm-color ${active ? 'is-active' : ''}`}
+                            style={{ background: c.hex, '--swatch-color': c.hex }}
+                            onClick={() => set('color', c.hex)}
+                            disabled={saving}
+                            title={c.label}
+                            aria-label={c.label}
+                            aria-pressed={active}
+                          />
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="agm-field">
+                    <label className="agm-label" htmlFor="agm-emoji">
+                      <span>Icon emoji</span>
+                      <span className="agm-label-hint">max {GROUP_ICON_EMOJI_MAX}</span>
+                    </label>
+                    <div className="agm-emoji-row">
+                      <input
+                        id="agm-emoji"
+                        className="agm-input"
+                        type="text"
+                        value={form.iconEmoji}
+                        maxLength={GROUP_ICON_EMOJI_MAX}
+                        placeholder="e.g. 📈 or 🎯"
+                        disabled={saving}
+                        onChange={(e) => set('iconEmoji', e.target.value)}
+                      />
+                      <span className="agm-emoji-preview">{form.iconEmoji.trim() || '·'}</span>
+                    </div>
+                  </div>
+
+                  {!isCreate && (
+                    <div className="agm-field">
+                      <button
+                        type="button"
+                        className="agm-btn agm-btn-danger"
+                        style={{ width: '100%', justifyContent: 'center' }}
+                        onClick={openDeleteDialog}
+                        disabled={saving}
+                      >
+                        <Trash2 size={11} />
+                        Delete channel
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* Members */}
+              {!isCreate && tab === 'members' && !loadingGroup && (
+                <>
+                  <div className="agm-search">
+                    <input
+                      type="text"
+                      placeholder="Search by username to add…"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      spellCheck={false}
+                    />
+
+                    {debouncedTerm.length >= 2 && (
+                      <div className="agm-add-results">
+                        {searchingUsers && addableUsers.length === 0 && (
+                          <div className="agm-empty" style={{ padding: 16 }}>
+                            <Loader2 size={16} style={{ animation: 'agmSpin .8s linear infinite' }} />
+                          </div>
+                        )}
+
+                        {!searchingUsers && addableUsers.length === 0 && (
+                          <div className="agm-empty" style={{ padding: 16 }}>
+                            No new users match “{debouncedTerm}”.
+                          </div>
+                        )}
+
+                        {addableUsers.slice(0, 8).map((u) => (
+                          <button
+                            key={u.id}
+                            type="button"
+                            className="agm-add-row"
+                            onClick={() => handleAddMember(u.id)}
+                            disabled={addMemberMutation.isPending}
+                          >
+                            <span className="agm-member-avatar">
+                              {u.photoUrl ? <img src={u.photoUrl} alt="" /> : initialsOf(u)}
+                            </span>
+                            <span className="agm-member-body">
+                              <span className="agm-member-name">{displayNameOf(u)}</span>
+                              <span className="agm-member-email">{u.email}</span>
+                            </span>
+                            <UserPlus size={14} style={{ color: 'var(--accent)', flexShrink: 0 }} />
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="agm-member-list">
+                    {members.length === 0 && (
+                      <div className="agm-empty">No members yet.</div>
+                    )}
+                    {members.map((m) => {
+                      const chipCls =
+                        m.role === 'owner' ? 'is-owner'
+                        : m.role === 'moderator' ? 'is-moderator'
+                        : 'is-member';
+                      const isSelf = m.userId === user?.id;
+                      const canRemove = !isSelf && !(m.role === 'owner' && ownerCount <= 1);
+                      const canMakeOwner = !isSelf && m.role !== 'owner';
+
+                      return (
+                        <div key={m.id} className="agm-member">
+                          <span className="agm-member-avatar">
+                            {m.user?.photoUrl ? <img src={m.user.photoUrl} alt="" /> : initialsOf(m.user)}
+                          </span>
+                          <div className="agm-member-body">
+                            <div className="agm-member-name">
+                              {displayNameOf(m.user)}
+                              {isSelf && <span className="agm-you">(you)</span>}
+                            </div>
+                            <div className="agm-member-email">{m.user?.email}</div>
+                          </div>
+                          <span className={`agm-role-chip ${chipCls}`}>
+                            {ROLE_LABELS[m.role] || m.role}
+                          </span>
+                          <div className="agm-member-actions">
+                            {canMakeOwner && (
+                              <button
+                                type="button"
+                                className="agm-icon-btn"
+                                onClick={() => handleMakeOwner(m.userId)}
+                                disabled={setRoleMutation.isPending}
+                                title="Make owner"
+                                aria-label="Make owner"
+                              >
+                                <Crown size={12} />
+                              </button>
+                            )}
+                            {canRemove && (
+                              <button
+                                type="button"
+                                className="agm-icon-btn is-danger"
+                                onClick={() => handleRemoveMember(m.userId)}
+                                disabled={removeMemberMutation.isPending}
+                                title="Remove from channel"
+                                aria-label="Remove from channel"
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            )}
+                          </div>
+                        </div>
                       );
                     })}
                   </div>
-                </div>
+                </>
+              )}
+            </div>
 
-                <div className="agm-field">
-                  <label className="agm-label" htmlFor="agm-emoji">
-                    <span>Icon emoji</span>
-                    <span className="agm-label-hint">max {GROUP_ICON_EMOJI_MAX}</span>
-                  </label>
-                  <div className="agm-emoji-row">
-                    <input
-                      id="agm-emoji"
-                      className="agm-input"
-                      type="text"
-                      value={form.iconEmoji}
-                      maxLength={GROUP_ICON_EMOJI_MAX}
-                      placeholder="e.g. 📈 or 🎯"
-                      disabled={saving}
-                      onChange={(e) => set('iconEmoji', e.target.value)}
-                    />
-                    <span className="agm-emoji-preview">{form.iconEmoji.trim() || '·'}</span>
-                  </div>
-                </div>
-
-                {!isCreate && (
-                  <div className="agm-field">
-                    <button
-                      type="button"
-                      className="agm-btn agm-btn-danger"
-                      style={{ width: '100%', justifyContent: 'center' }}
-                      onClick={handleDelete}
-                      disabled={saving}
-                    >
-                      <Trash2 size={11} />
-                      Delete channel
-                    </button>
-                  </div>
-                )}
-              </>
-            )}
-
-            {/* Members */}
-            {!isCreate && tab === 'members' && !loadingGroup && (
-              <>
-                <div className="agm-search">
-                  <input
-                    type="text"
-                    placeholder="Search by username to add…"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    spellCheck={false}
-                  />
-
-                  {debouncedTerm.length >= 2 && (
-                    <div className="agm-add-results">
-                      {searchingUsers && addableUsers.length === 0 && (
-                        <div className="agm-empty" style={{ padding: 16 }}>
-                          <Loader2 size={16} style={{ animation: 'agmSpin .8s linear infinite' }} />
-                        </div>
-                      )}
-
-                      {!searchingUsers && addableUsers.length === 0 && (
-                        <div className="agm-empty" style={{ padding: 16 }}>
-                          No new users match “{debouncedTerm}”.
-                        </div>
-                      )}
-
-                      {addableUsers.slice(0, 8).map((u) => (
-                        <button
-                          key={u.id}
-                          type="button"
-                          className="agm-add-row"
-                          onClick={() => handleAddMember(u.id)}
-                          disabled={addMemberMutation.isPending}
-                        >
-                          <span className="agm-member-avatar">
-                            {u.photoUrl ? <img src={u.photoUrl} alt="" /> : initialsOf(u)}
-                          </span>
-                          <span className="agm-member-body">
-                            <span className="agm-member-name">{displayNameOf(u)}</span>
-                            <span className="agm-member-email">{u.email}</span>
-                          </span>
-                          <UserPlus size={14} style={{ color: 'var(--accent)', flexShrink: 0 }} />
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <div className="agm-member-list">
-                  {members.length === 0 && (
-                    <div className="agm-empty">No members yet.</div>
-                  )}
-                  {members.map((m) => {
-                    const chipCls =
-                      m.role === 'owner' ? 'is-owner'
-                      : m.role === 'moderator' ? 'is-moderator'
-                      : 'is-member';
-                    const isSelf = m.userId === user?.id;
-                    const canRemove = !isSelf && !(m.role === 'owner' && ownerCount <= 1);
-                    const canMakeOwner = !isSelf && m.role !== 'owner';
-
-                    return (
-                      <div key={m.id} className="agm-member">
-                        <span className="agm-member-avatar">
-                          {m.user?.photoUrl ? <img src={m.user.photoUrl} alt="" /> : initialsOf(m.user)}
-                        </span>
-                        <div className="agm-member-body">
-                          <div className="agm-member-name">
-                            {displayNameOf(m.user)}
-                            {isSelf && <span className="agm-you">(you)</span>}
-                          </div>
-                          <div className="agm-member-email">{m.user?.email}</div>
-                        </div>
-                        <span className={`agm-role-chip ${chipCls}`}>
-                          {ROLE_LABELS[m.role] || m.role}
-                        </span>
-                        <div className="agm-member-actions">
-                          {canMakeOwner && (
-                            <button
-                              type="button"
-                              className="agm-icon-btn"
-                              onClick={() => handleMakeOwner(m.userId)}
-                              disabled={setRoleMutation.isPending}
-                              title="Make owner"
-                              aria-label="Make owner"
-                            >
-                              <Crown size={12} />
-                            </button>
-                          )}
-                          {canRemove && (
-                            <button
-                              type="button"
-                              className="agm-icon-btn is-danger"
-                              onClick={() => handleRemoveMember(m.userId)}
-                              disabled={removeMemberMutation.isPending}
-                              title="Remove from channel"
-                              aria-label="Remove from channel"
-                            >
-                              <Trash2 size={12} />
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </>
-            )}
-          </div>
-
-          {/* Footer */}
-          <div className="agm-foot">
-            <button type="button" className="agm-btn" onClick={onClose} disabled={saving}>
-              Close
-            </button>
-            {(isCreate || tab === 'settings') && (
-              <button
-                type="button"
-                className="agm-btn agm-btn-primary"
-                onClick={handleSave}
-                disabled={saving || !form.name.trim()}
-              >
-                {saving ? 'Saving…' : (isCreate ? 'Create channel' : 'Save changes')}
+            {/* Footer */}
+            <div className="agm-foot">
+              <button type="button" className="agm-btn" onClick={onClose} disabled={saving}>
+                Close
               </button>
-            )}
+              {(isCreate || tab === 'settings') && (
+                <button
+                  type="button"
+                  className="agm-btn agm-btn-primary"
+                  onClick={handleSave}
+                  disabled={saving || !form.name.trim()}
+                >
+                  {saving ? 'Saving…' : (isCreate ? 'Create channel' : 'Save changes')}
+                </button>
+              )}
+            </div>
           </div>
         </div>
-      </div>
-    </Portal>
+      </Portal>
+
+      {/* Delete channel confirmation dialog (N8) */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete channel?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {`Delete "${group?.name || 'this channel'}" and remove all its members? This can't be undone.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={closeDeleteDialog}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
   );
 }

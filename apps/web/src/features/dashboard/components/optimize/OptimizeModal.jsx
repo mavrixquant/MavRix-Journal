@@ -1,5 +1,11 @@
 
 import { useState, useEffect, useMemo } from 'react';
+import { toast } from 'sonner';
+import {
+  AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogHeader, AlertDialogTitle, AlertDialogAction, AlertDialogCancel,
+} from '@/shared/ui/alert-dialog';
+
 import Portal from '@/shared/components/Portal';
 import { useOptimization } from '@/features/dashboard/hooks/useOptimization';
 import { useAppContext } from '@/app/providers/AppProvider';
@@ -690,6 +696,7 @@ export default function OptimizeModal({ isOpen, onClose }) {
   } = useOptimization();
 
   const [openKey, setOpenKey] = useState(null);
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
 
   useEffect(() => {
     if (!openKey) return undefined;
@@ -771,13 +778,16 @@ export default function OptimizeModal({ isOpen, onClose }) {
 
   const handleClose = () => {
     if (isRunning) {
-      if (window.confirm('Optimization is running. Are you sure you want to cancel?')) {
-        resetOptimization();
-        onClose();
-      }
+      setCancelDialogOpen(true);
     } else {
       onClose();
     }
+  };
+
+  const handleConfirmCancel = () => {
+    setCancelDialogOpen(false);
+    resetOptimization();
+    onClose();
   };
 
   const getButtonLabel = (key) => {
@@ -799,6 +809,7 @@ export default function OptimizeModal({ isOpen, onClose }) {
   const valueHeader = isMoney ? 'Net P&L' : 'Total R';
 
   return (
+    <div>
     <Portal>
       <style>{optimalizeModalStyles}</style>
       <div
@@ -809,7 +820,6 @@ export default function OptimizeModal({ isOpen, onClose }) {
           className="opt-modal-container"
           onClick={(e) => e.stopPropagation()}
         >
-          {}
           <div className="opt-modal-header">
             <div className="opt-header-title">
               <span className="opt-header-icon" aria-hidden>
@@ -834,10 +844,8 @@ export default function OptimizeModal({ isOpen, onClose }) {
             </button>
           </div>
 
-          {}
           <div className="opt-modal-body">
 
-            {}
             <div className="opt-section">
               <label className="opt-section-label">
                 Select Active Filter Columns
@@ -1169,7 +1177,6 @@ export default function OptimizeModal({ isOpen, onClose }) {
                   </table>
                 </div>
 
-                {}
                 <div className="opt-pagination">
                   <button
                     type="button"
@@ -1196,7 +1203,6 @@ export default function OptimizeModal({ isOpen, onClose }) {
               </div>
             )}
 
-            {}
             {!isRunning && results.length === 0 && status.startsWith('Done') && (
               <div className="opt-empty">
                 <div className="opt-empty-title">No combinations found</div>
@@ -1210,5 +1216,22 @@ export default function OptimizeModal({ isOpen, onClose }) {
         </div>
       </div>
     </Portal>
+
+    {/* Cancel optimization confirmation dialog (N8) */}
+    <AlertDialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Cancel optimization?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Optimization is in progress. Are you sure you want to cancel? All progress will be lost.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel onClick={() => setCancelDialogOpen(false)}>Cancel</AlertDialogCancel>
+          <AlertDialogAction onClick={handleConfirmCancel}>Cancel Optimization</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </div>
   );
 }

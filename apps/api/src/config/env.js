@@ -1,3 +1,5 @@
+import { warn } from '../lib/logger.js';
+
 const required = (key) => {
   const v = process.env[key];
   if (!v) throw new Error(`Missing env var: ${key}`);
@@ -13,7 +15,7 @@ const validateUrl = (url, allowedHosts = []) => {
       throw new Error(`URL must use HTTPS: ${url}`);
     }
     if (allowedHosts.length > 0 && !allowedHosts.some(h => u.hostname === h || u.hostname.endsWith('.' + h))) {
-      console.warn(`[config] WARNING: base URL hostname "${u.hostname}" not in allowlist ${allowedHosts.join(', ')}`);
+      warn('config', `base URL hostname "${u.hostname}" not in allowlist ${allowedHosts.join(', ')}`);
     }
     return url;
   } catch (e) {
@@ -109,11 +111,11 @@ export const env = {
 
 // FIXED 2026-11-18 — startup validation for required secrets and config.
 if (!env.ai.masterKey) {
-  console.warn('[config] WARNING: MAVE_AI_MASTER_KEY is not set. BYOK encryption will fail at runtime.');
+  warn('config', 'MAVE_AI_MASTER_KEY is not set. BYOK encryption will fail at runtime.');
 }
 if (!env.twoFactor.encryptionKey) {
-  console.warn('[config] WARNING: TWO_FACTOR_ENCRYPTION_KEY is not set. TOTP secret encryption will fail at runtime.');
+  warn('config', 'TWO_FACTOR_ENCRYPTION_KEY is not set. TOTP secret encryption will fail at runtime.');
 }
 if (env.isProd && env.admin.bootstrapPassword) {
-  console.warn('[config] WARNING: ADMIN_BOOTSTRAP_PASSWORD is set in production. Remove after initial bootstrap.');
+  warn('config', 'ADMIN_BOOTSTRAP_PASSWORD is set in production. Remove after initial bootstrap.');
 }

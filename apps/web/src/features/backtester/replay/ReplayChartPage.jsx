@@ -2,6 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams, Link } from 'react-router-dom';
 import { AlertTriangle, RotateCw } from 'lucide-react';
 import { toast } from 'sonner';
+import {
+  AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogHeader, AlertDialogTitle, AlertDialogAction, AlertDialogCancel,
+} from '@/shared/ui/alert-dialog';
 
 import { useSettings } from '@/app/layout/Settings/SettingsProvider';
 import { usePageHeader } from '@/app/layout/PageHeaderProvider';
@@ -228,12 +232,44 @@ export default function ReplayChartPage() {
     return { min: dayKey(b[0].utc * 1000, tz), max: dayKey(b[b.length - 1].utc * 1000, tz) };
   }, [barsQ.bars, tz]);
 
+  // State for reset confirmation dialog (N8)
+  const [resetDialogOpen, setResetDialogOpen] = useState(false);
+  const [resetTradeCount, setResetTradeCount] = useState(0);
+
+  // Event listener for reset confirmation (N8)
+  useEffect(() => {
+    const handleResetConfirmation = (e) => {
+      setResetTradeCount(e.detail.tradeCount);
+      setResetDialogOpen(true);
+    };
+    window.addEventListener('backtester-reset-confirmation', handleResetConfirmation);
+    return () => window.removeEventListener('backtester-reset-confirmation', handleResetConfirmation);
+  }, []);
+
+  const handleResetConfirm = () => {
+    setResetDialogOpen(false);
+    engine.reset(true);
+  };
+
+  const handleResetCancel = () => {
+    setResetDialogOpen(false);
+  };
+
+  // State for conclude confirmation dialog
+  const [concludeDialogOpen, setConcludeDialogOpen] = useState(false);
+
   const onConclude = () => {
+    setConcludeDialogOpen(true);
+  };
+
+  const handleConcludeConfirm = () => {
+    setConcludeDialogOpen(false);
     const n = engine.openPositions.length;
-    const ok = window.confirm(
-      `Conclude this session?${n ? ` ${n} open position${n === 1 ? '' : 's'} will be closed at the current price.` : ''} Trades will be locked (you can reopen from the dashboard).`,
-    );
-    if (ok) engine.conclude();
+    engine.conclude();
+  };
+
+  const handleConcludeCancel = () => {
+    setConcludeDialogOpen(false);
   };
 
   /* ------------------------------ states ------------------------------ */
@@ -316,8 +352,8 @@ export default function ReplayChartPage() {
 
               {barsQ.isError && barsQ.bars.length === 0 && (
                 <Splash
-                  title={`Couldn’t load ${symbol} data`}
-                  text="The market data service didn’t respond. Check your connection and try again."
+                  title={`Couldn't load ${symbol} data`}
+                  text="The market data service didn't respond. Check your connection and try again."
                   action={<button type="button" className="rp-btn" onClick={() => barsQ.refetch()}><RotateCw size={12} /> Retry</button>}
                 />
               )}
@@ -351,6 +387,42 @@ export default function ReplayChartPage() {
           />
         </div>
       </div>
+
+      {/* Reset confirmation dialog (N8) */}
+      <AlertDialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reset replay?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {resetTradeCount > 0
+                ? `This will delete ${resetTradeCount} ${resetTradeCount === 1 ? 'trade' : 'trades'} and reset the replay to the starting point.`
+                : 'This will reset the replay to the starting point.'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleResetCancel}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleResetConfirm}>Reset</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Conclude confirmation dialog */}
+      <AlertDialog open={concludeDialogOpen} onOpenChange={setConcludeDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Conclude session?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {engine.openPositions.length > 0
+                ? `${engine.openPositions.length} open position${engine.openPositions.length === 1 ? '' : 's'} will be closed at the current price. Trades will be locked.`
+                : 'Trades will be locked (you can reopen from the dashboard).'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleConcludeCancel}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConcludeConfirm}>Conclude</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

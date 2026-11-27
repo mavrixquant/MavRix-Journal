@@ -195,66 +195,73 @@ export async function upsertGexDay(actor, payload, { overwrite = false } = {}) {
     );
   }
 
-  const existing = await prisma.gexDay.findUnique({
-    where: { date_symbol: { date, symbol } },
-  });
+  // Wrap in transaction to prevent TOCTOU race (B1 fix)
+  const wasUpdate = await prisma.$transaction(async (tx) => {
+    const existing = await tx.gexDay.findUnique({
+      where: { date_symbol: { date, symbol } },
+    });
 
-  if (existing && !overwrite) {
-    const err = new HttpError(
-      409,
-      `GEX data for ${symbol} · ${date} already exists. Confirm overwrite to replace it.`
-    );
-    err.details = {
-      existing: {
-        date: existing.date,
-        symbol: existing.symbol,
-        levelCount: existing.levelCount,
-        blCount: existing.blCount,
-        gexCount: existing.gexCount,
-        uploadedAt: existing.updatedAt,
-      },
+    if (existing && !overwrite) {
+      const err = new HttpError(
+        409,
+        `GEX data for ${symbol} · ${date} already exists. Confirm overwrite to replace it.`
+      );
+      err.details = {
+        existing: {
+          date: existing.date,
+          symbol: existing.symbol,
+          levelCount: existing.levelCount,
+          blCount: existing.blCount,
+          gexCount: existing.gexCount,
+          uploadedAt: existing.updatedAt,
+        },
+      };
+      throw err;
+    }
+
+    const blCount = levels.filter((l) => l.type === 'BL').length;
+    const gexCount = levels.filter((l) => l.type === 'GEX').length;
+    const otherCount = levels.length - blCount - gexCount;
+
+    const data = {
+      date,
+      symbol,
+      levels,
+      converted,
+      levelCount: levels.length,
+      blCount,
+      gexCount,
+      otherCount,
+      sourceTimezone: sourceTimezone || GEX_DEFAULT_TIMEZONE,
+      uploadedBy: actor.id,
     };
-    throw err;
-  }
 
-  const blCount = levels.filter((l) => l.type === 'BL').length;
-  const gexCount = levels.filter((l) => l.type === 'GEX').length;
-  const otherCount = levels.length - blCount - gexCount;
-
-  const data = {
-    date,
-    symbol,
-    levels,
-    converted,
-    levelCount: levels.length,
-    blCount,
-    gexCount,
-    otherCount,
-    sourceTimezone: sourceTimezone || GEX_DEFAULT_TIMEZONE,
-    uploadedBy: actor.id,
-  };
-
-  const row = existing
-    ? await prisma.gexDay.update({
+    if (existing) {
+      await tx.gexDay.update({
         where: { date_symbol: { date, symbol } },
         data,
-      })
-    : await prisma.gexDay.create({ data });
+      });
+      return true; // was update
+    } else {
+      await tx.gexDay.create({ data });
+      return false; // was create
+    }
+  });
 
   await writeAudit({
     actorId: actor.id,
     actorEmail: actor.email,
-    action: existing ? 'gex.overwrite' : 'gex.create',
+    action: wasUpdate ? 'gex.overwrite' : 'gex.create',
     targetType: 'gex_day',
     targetId: `${symbol}:${date}`,
     metadata: {
       symbol,
       date,
       levelCount: levels.length,
-      blCount,
-      gexCount,
-      otherCount,
-      previousLevelCount: existing?.levelCount ?? null,
+      blCount: wasUpdate ? undefined : levels.filter((l) => l.type === 'BL').length,
+      gexCount: wasUpdate ? undefined : levels.filter((l) => l.type === 'GEX').length,
+      otherCount: wasUpdate ? undefined : levels.length - levels.filter((l) => l.type === 'BL').length - levels.filter((l) => l.type === 'GEX').length,
+      previousLevelCount: wasUpdate ? undefined : null,
     },
     req: actor.req,
   });
@@ -283,6 +290,10 @@ export async function upsertGexDay(actor, payload, { overwrite = false } = {}) {
     console.error('[notify] gex bulk push failed:', err?.message || err);
   }
 
+  // Fetch the row to return (outside transaction for read)
+  const row = await prisma.gexDay.findUnique({
+    where: { date_symbol: { date, symbol } },
+  });
   return serializeFull(row);
 }
 

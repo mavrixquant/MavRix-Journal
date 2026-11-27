@@ -1,6 +1,11 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { X, Hash, Lock, Trash2, ShieldCheck } from 'lucide-react';
+import { toast } from 'sonner';
+import {
+  AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogHeader, AlertDialogTitle, AlertDialogAction, AlertDialogCancel,
+} from '@/shared/ui/alert-dialog';
 
 import Portal from '@/shared/components/Portal';
 import { useAuth } from '@/app/providers/AuthProvider';
@@ -36,6 +41,7 @@ export default function GroupSettingsModal({
     isDefault: false,
   });
   const [error, setError] = useState('');
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   const groupId = conversation?.id;
 
@@ -97,13 +103,21 @@ export default function GroupSettingsModal({
     }
   }, [form, conversation, isSuperadmin, updateGroup, groupId, onClose]);
 
+  const openDeleteDialog = () => {
+    if (!conversation?.name) {
+      setError('Group name is required.');
+      return;
+    }
+    setDeleteDialogOpen(true);
+  };
+
   const handleDelete = useCallback(async () => {
-    if (!window.confirm(
-      `Delete "${conversation.name}"?\n\nAll messages and members will be removed. This cannot be undone. If this is a default channel it will not be recreated automatically.`
-    )) return;
+    if (!conversation) return;
+    setDeleteDialogOpen(false);
     setError('');
     try {
       await deleteGroup.mutateAsync(groupId);
+      toast.success('Group deleted');
       onClose();
       onConversationClosed?.();
     } catch (err) {
@@ -116,6 +130,7 @@ export default function GroupSettingsModal({
   const set = (k, v) => setForm((prev) => ({ ...prev, [k]: v }));
 
   return (
+    <div>
     <Portal>
       <div
         className="chat-modal-overlay"
@@ -308,7 +323,7 @@ export default function GroupSettingsModal({
                   <button
                     type="button"
                     className="gsm-btn gsm-btn-danger"
-                    onClick={handleDelete}
+                    onClick={openDeleteDialog}
                     disabled={saving}
                   >
                     <Trash2 size={11} />
@@ -340,5 +355,22 @@ export default function GroupSettingsModal({
         </div>
       </div>
     </Portal>
+
+    {/* Delete group confirmation dialog (N8) */}
+    <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete group?</AlertDialogTitle>
+          <AlertDialogDescription>
+            {`Delete "${conversation?.name}"?\n\nAll messages and members will be removed. This cannot be undone. If this is a default channel it will not be recreated automatically.`}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel onClick={() => setDeleteDialogOpen(false)}>Cancel</AlertDialogCancel>
+          <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </div>
   );
 }

@@ -1,21 +1,9 @@
-import { prisma } from '../lib/prisma.js';
 import * as adminService from '../services/admin.service.js';
 import { getSettings, updateSettings } from '../lib/settings.js';
 import { writeAudit } from '../lib/audit.js';
 import { broadcastToAll } from '../lib/broadcaster.js';
-
-async function buildActor(req) {
-  const u = await prisma.user.findUnique({
-    where: { id: req.userId },
-    select: { email: true },
-  });
-  return {
-    id: req.userId,
-    email: u?.email || '',
-    role: req.userRole,
-    req,
-  };
-}
+import { buildActor } from '../lib/buildActor.js';
+import { warn } from '../lib/logger.js';
 
 export async function me(req, res, next) { /* unchanged */ try { res.json(await adminService.getAdminMe(req.userId)); } catch (e) { next(e); } }
 export async function stats(_req, res, next) { try { res.json(await adminService.getGlobalStats()); } catch (e) { next(e); } }
@@ -128,7 +116,7 @@ export async function updateSettingsCtrl(req, res, next) {
           ts: Date.now(),
         });
       } catch (err) {
-        console.warn('[admin] maintenance broadcast failed:', err?.message || err);
+        warn('admin', 'maintenance broadcast failed', err?.message || err);
       }
     }
 

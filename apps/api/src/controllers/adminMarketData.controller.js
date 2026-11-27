@@ -1,13 +1,5 @@
-import { prisma } from '../lib/prisma.js';
 import * as svc from '../services/marketDataImport.service.js';
-
-async function buildActor(req) {
-  const u = await prisma.user.findUnique({
-    where: { id: req.userId },
-    select: { email: true },
-  });
-  return { id: req.userId, email: u?.email || '', role: req.userRole, req };
-}
+import { buildActor } from '../lib/buildActor.js';
 
 export async function stats(_req, res, next) {
   try { res.json(await svc.getStats()); } catch (e) { next(e); }

@@ -10,14 +10,19 @@
     "./validators": "./src/validators.js"
   },
   "scripts": {
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "zod": "^3.23.8"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@vitest/coverage-v8": "^2.1.8",
     "eslint": "^10.9.0",
-    "globals": "^17.11.0"
+    "globals": "^17.11.0",
+    "vitest": "^2.1.8"
   }
 }

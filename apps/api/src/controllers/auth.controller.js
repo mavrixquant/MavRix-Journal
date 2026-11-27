@@ -1,4 +1,6 @@
 import * as authService from '../services/auth.service.js';
+import { prisma } from '../lib/prisma.js';
+import { invalidateSvCache } from '../lib/session.js';
 
 const REFRESH_COOKIE = 'refreshToken';
 const REFRESH_MAX_AGE = 30 * 24 * 60 * 60 * 1000;
@@ -53,8 +55,18 @@ export async function refresh(req, res, next) {
   } catch (e) { next(e); }
 }
 
-export async function logout(_req, res) {
+export async function logout(req, res) {
   clearRefreshCookie(res);
+
+  // C1 fix: Invalidate server-side session by incrementing tokenVersion
+  if (req.userId) {
+    await prisma.user.update({
+      where: { id: req.userId },
+      data: { tokenVersion: { increment: 1 } },
+    });
+    invalidateSvCache(req.userId);
+  }
+
   res.status(204).end();
 }
 

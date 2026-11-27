@@ -24,6 +24,7 @@ import StatusBar from './components/StatusBar';
 import { CSS } from './lib/chartStyles';
 import { pricePrecision } from './lib/chartTheme';
 import { DRAW_COLORS } from './lib/drawings';
+import { snapToBar } from '../backtester/lib/time';
 
 const DEFAULT_SYMBOL = 'NQ';
 const DEFAULT_INTERVAL = '1m';
@@ -102,16 +103,6 @@ function loadDrawings(symbol) {
     return old.filter((p) => Number.isFinite(p)).map((p, i) => ({ id: `legacy${i}`, type: 'hline', color: '#F5B544', pts: [{ t, p }] }));
   }
   return [];
-}
-
-// Latest bar index with time <= t (bars sorted ascending).
-function snapToBar(bars, t) {
-  let lo = 0, hi = bars.length - 1, ans = -1;
-  while (lo <= hi) {
-    const mid = (lo + hi) >> 1;
-    if (bars[mid].time <= t) { ans = mid; lo = mid + 1; } else hi = mid - 1;
-  }
-  return ans;
 }
 
 function formatChartTime(t, interval, tz) {

@@ -115,8 +115,21 @@ export function normalizeBars(rawBars, interval) {
   return [...seen.values()].sort((a, b) => a.utc - b.utc);
 }
 
-/** Latest index whose `utc` <= t (bars sorted ascending). -1 when none. */
+const snapToBarCache = new WeakMap();
+
+/**
+ * Latest index whose `utc` <= t (bars sorted ascending). -1 when none.
+ * Memoized by bars identity (WeakMap key) to avoid recomputation.
+ */
 export function snapToBar(bars, t, key = 'utc') {
+  if (!bars || !bars.length) return -1;
+
+  // Check cache first - WeakMap uses object identity
+  let cache = snapToBarCache.get(bars);
+  if (cache && cache.t === t && cache.key === key) {
+    return cache.result;
+  }
+
   let lo = 0;
   let hi = bars.length - 1;
   let ans = -1;
@@ -124,6 +137,9 @@ export function snapToBar(bars, t, key = 'utc') {
     const mid = (lo + hi) >> 1;
     if (bars[mid][key] <= t) { ans = mid; lo = mid + 1; } else hi = mid - 1;
   }
+
+  // Store in cache
+  snapToBarCache.set(bars, { t, key, result: ans });
   return ans;
 }
 

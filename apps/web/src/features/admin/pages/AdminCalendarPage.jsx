@@ -4,6 +4,10 @@ import {
   ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import {
+  AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogHeader, AlertDialogTitle, AlertDialogAction, AlertDialogCancel,
+} from '@/shared/ui/alert-dialog';
 
 import { useAuth } from '@/app/providers/AuthProvider';
 import { useAdminPageHeader } from '../AdminPageHeader';
@@ -737,6 +741,10 @@ function EventsTab() {
 function SyncImportTab() {
   const syncRangeMutation = useAdminSyncCalendarRange();
   const importMutation = useAdminImportCalendar();
+  // Dialog state for import confirmation (N8)
+  const [importConfirmOpen, setImportConfirmOpen] = useState(false);
+  const [parsedRows, setParsedRows] = useState([]);
+  const [importConfirmMsg, setImportConfirmMsg] = useState('');
 
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
@@ -779,10 +787,15 @@ function SyncImportTab() {
       toast.error('JSON must be a non-empty array of event objects');
       return;
     }
-    if (!window.confirm(`Import ${rows.length} events in "${mode}" mode?`)) return;
+    setParsedRows(rows);
+    setImportConfirmMsg(`Import ${rows.length} events in "${mode}" mode?`);
+    setImportConfirmOpen(true);
+  };
 
+  const confirmImport = async () => {
+    setImportConfirmOpen(false);
     try {
-      const r = await importMutation.mutateAsync({ rows, mode });
+      const r = await importMutation.mutateAsync({ rows: parsedRows, mode });
       const parts = [`created ${r.created}`, `updated ${r.updated}`];
       if (r.cleared) parts.push(`cleared ${r.cleared}`);
       toast.success(`Import complete · ${parts.join(', ')}`);
@@ -901,6 +914,20 @@ function SyncImportTab() {
           />
         </div>
       </div>
+
+      {/* Import confirmation dialog (N8) */}
+      <AlertDialog open={importConfirmOpen} onOpenChange={setImportConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Import events?</AlertDialogTitle>
+            <AlertDialogDescription>{importConfirmMsg}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setImportConfirmOpen(false)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmImport}>Import</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

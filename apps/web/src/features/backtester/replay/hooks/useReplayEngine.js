@@ -1,12 +1,84 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { evaluatePropRules } from '../../lib/propRules';
-import { checkFill, newTradeId, unrealisedPnl } from '../../lib/replayMath';
+import { barTouchesLevel, checkFill, newTradeId, unrealisedPnl } from '../../lib/replayMath';
 import { checkOrderFill, deriveOrderType, isOpenPosition, isPending, orderLabel } from '../../lib/orders';
 import { snapToBar, toMs } from '../../lib/time';
 
 export const SPEEDS = [1, 2, 5, 10, 25, 50];
 const WARMUP_BARS = 80;
+
+/**
+ * Index trades by symbol for O(1) lookup during bar-by-bar replay.
+ * Returns a Map<symbol, { open: [], pending: [] }>.
+ */
+function indexTradesBySymbol(trades) {
+  const map = new Map();
+  if (!trades?.length) return map;
+
+  for (const t of trades) {
+    if (!map.has(t.symbol)) {
+      map.set(t.symbol, { open: [], pending: [] });
+    }
+    const bucket = map.get(t.symbol);
+    if (isOpenPosition(t)) {
+      bucket.open.push(t);
+    } else if (isPending(t)) {
+      bucket.pending.push(t);
+    }
+  }
+  return map;
+}
+
+/**
+ * Build a Set of trade IDs currently being processed (for fill detection).
+ */
+function buildProcessingSet(trades) {
+  return new Set(trades.map((t) => t.tradeId));
+}
+
+/**
+ * Calculate the starting index for a session reset.
+ * @param {Array} bars - Array of bar data
+ * @returns {number} Starting bar index
+ */
+function calculateResetStart(bars) {
+  return Math.min(bars.length - 1, Math.min(WARMUP_BARS, Math.floor(bars.length * 0.2)));
+}
+
+/**
+ * Reset the replay for a specific symbol.
+ * @param {Object} params - Reset parameters
+ * @param {Array} params.bars - Array of bar data
+ * @param {Array} params.trades - Array of trades to delete
+ * @param {number} params.minIdxRef - Mutable ref to minimum index
+ * @param {Function} params.deleteTrade - Function to delete a trade
+ * @returns {Promise<boolean>} True if reset completed, false if cancelled
+ */
+export async function resetReplay({ bars, trades, minIdxRef, deleteTrade }) {
+  if (!bars.length) return false;
+  const existing = trades;
+  if (existing.length > 0) {
+    if (minIdxRef.current !== undefined && minIdxRef.current === 'cancelled') {
+      minIdxRef.current = 0;
+      return false;
+    }
+    minIdxRef.current = 0;
+  }
+  for (const t of existing) {
+    await deleteTrade(t.tradeId);
+  }
+  return true;
+}
+
+/**
+ * Get the count of trades to be deleted in a reset operation.
+ * @param {Array} trades - Array of trades
+ * @returns {number} Number of trades that will be deleted
+ */
+export function countTradesForReset(trades) {
+  return trades.length || 0;
+}
 
 /**
  * The replay clock + order engine.
@@ -29,6 +101,7 @@ export default function useReplayEngine({
   const idxRef = useRef(-1);
   const barsRef = useRef(bars);
   const tradesRef = useRef(trades);
+  const tradesBySymbolRef = useRef(new Map());
   const sessionRef = useRef(session);
   const symbolRef = useRef(symbol);
   const tzRef = useRef(tz);
@@ -41,6 +114,7 @@ export default function useReplayEngine({
   const concludingRef = useRef(false);
   barsRef.current = bars;
   tradesRef.current = trades;
+  tradesBySymbolRef.current = indexTradesBySymbol(trades);
   sessionRef.current = session;
   symbolRef.current = symbol;
   tzRef.current = tz;
@@ -170,14 +244,14 @@ export default function useReplayEngine({
 
     const sym = symbolRef.current;
     const s = sessionRef.current;
+    const symTrades = tradesBySymbolRef.current.get(sym) || { open: [], pending: [] };
 
     for (let i = cur + 1; i <= t; i += 1) {
       const bar = b[i];
 
       // 1) Resting limit / stop orders (never on the bar they were placed on).
-      const resting = tradesRef.current.filter(
-        (x) => isPending(x) && x.symbol === sym && !closingRef.current.has(x.tradeId),
-      );
+      // Use pre-indexed trades for O(symbol_trades) instead of O(all_trades) per bar.
+      const resting = symTrades.pending.filter((x) => !closingRef.current.has(x.tradeId));
       for (const ord of resting) {
         if (toMs(ord.entryTime) / 1000 >= bar.utc) continue;
         const hit = checkOrderFill(ord, bar);
@@ -204,10 +278,8 @@ export default function useReplayEngine({
       }
 
       // 2) Live positions: stop / target.
-      const opens = tradesRef.current.filter(
-        (x) => isOpenPosition(x) && x.symbol === sym && !closingRef.current.has(x.tradeId),
-      );
-
+      // Use pre-indexed trades for O(symbol_trades) instead of O(all_trades) per bar.
+      const opens = symTrades.open.filter((x) => !closingRef.current.has(x.tradeId));
       for (const pos of opens) {
         if (toMs(pos.entryTime) / 1000 >= bar.utc) continue; // never fill on/before the entry bar
         const fill = checkFill(pos, bar);
@@ -443,29 +515,33 @@ export default function useReplayEngine({
   }, [prop, session?.status, finishSession]);
 
   /* --------------------------------- reset --------------------------------- */
-  const reset = useCallback(async () => {
+  const reset = useCallback(async (confirmed = false) => {
     const b = barsRef.current;
     if (!b.length) return false;
     setPlaying(false);
     const existing = tradesRef.current;
-    if (existing.length > 0) {
-      const ok = window.confirm(
-        `Reset the replay? This deletes all ${existing.length} trade${existing.length === 1 ? '' : 's'} in this session.`,
-      );
-      if (!ok) return false;
-      setBusy(true);
-      try {
-        for (const t of existing) await deleteTrade(t.tradeId);
-      } catch (e) {
-        toast.error(e?.message || 'Could not delete trades.');
-        setBusy(false);
-        return false;
-      }
-      setBusy(false);
-      minIdxRef.current = 0;
+    if (existing.length > 0 && !confirmed) {
+      // Emit an event so the UI can show a confirmation dialog
+      const event = new CustomEvent('backtester-reset-confirmation', {
+        detail: { tradeCount: existing.length },
+      });
+      window.dispatchEvent(event);
+      return false;
     }
+    setBusy(true);
+    try {
+      if (existing.length > 0) {
+        for (const t of existing) await deleteTrade(t.tradeId);
+      }
+    } catch (e) {
+      toast.error(e?.message || 'Could not delete trades.');
+      setBusy(false);
+      return false;
+    }
+    setBusy(false);
+    minIdxRef.current = 0;
     concludingRef.current = false;
-    const start = Math.min(b.length - 1, Math.min(WARMUP_BARS, Math.floor(b.length * 0.2)));
+    const start = calculateResetStart(b);
     setIdx(start);
     savedCursorRef.current = null;
     saveCursor();

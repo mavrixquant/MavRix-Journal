@@ -1,6 +1,10 @@
 import { useMemo, useState } from 'react';
 import { Download, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
+import {
+  AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogHeader, AlertDialogTitle, AlertDialogAction, AlertDialogCancel,
+} from '@/shared/ui/alert-dialog';
 import { useDeleteBacktestTrade } from '@/shared/api/backtestSessions';
 import { fmtNum, fmtR, fmtSigned, toneOf } from '../../lib/format';
 import { isClosed, netOf, rOf } from '../../lib/sessionStats';
@@ -36,6 +40,28 @@ export default function TradesTab({ session, trades, tz }) {
   const [sort, setSort] = useState({ k: 'entry', dir: -1 });
   const cur = session.currency;
   const writable = session.status === 'active';
+
+  // Delete confirmation dialog state (N8 - async modal pattern)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [pendingDeleteTrade, setPendingDeleteTrade] = useState(null);
+
+  const handleDelete = async (trade) => {
+    setPendingDeleteTrade(null);
+    setDeleteDialogOpen(false);
+    try {
+      await del.mutateAsync(trade.tradeId);
+      toast.success('Trade deleted');
+    } catch (e) { toast.error(e?.message || 'Could not delete.'); }
+  };
+
+  const openDeleteDialog = (trade) => {
+    setPendingDeleteTrade(trade);
+    setDeleteDialogOpen(true);
+  };
+  const closeDeleteDialog = () => {
+    setPendingDeleteTrade(null);
+    setDeleteDialogOpen(false);
+  };
 
   const rows = useMemo(() => {
     const ordered = [...trades].sort((a, b) => +new Date(a.entryTime) - +new Date(b.entryTime));
@@ -80,11 +106,6 @@ export default function TradesTab({ session, trades, tz }) {
     a.download = `${session.name.replace(/[^a-z0-9]+/gi, '_')}_trades.csv`;
     a.click();
     URL.revokeObjectURL(url);
-  };
-
-  const remove = async (t) => {
-    if (!window.confirm('Delete this trade? This changes every statistic for the session.')) return;
-    try { await del.mutateAsync(t.tradeId); toast.success('Trade deleted'); } catch (e) { toast.error(e?.message || 'Could not delete.'); }
   };
 
   const symbols = session.instruments;
@@ -142,7 +163,7 @@ export default function TradesTab({ session, trades, tz }) {
                   <td>{REASON[r.t.exitReason] || (r.t.exitTime ? '—' : '')}</td>
                   <td>{r.t.strategy ? <span className="bt-strat"><i style={{ background: r.t.strategy.color }} />{r.t.strategy.name}</span> : '—'}</td>
                   {writable && (
-                    <td><button type="button" className="bt-icon-btn is-danger" onClick={() => remove(r.t)} disabled={del.isPending} aria-label="Delete trade"><Trash2 size={13} /></button></td>
+                    <td><button type="button" className="bt-icon-btn is-danger" onClick={() => openDeleteDialog(r.t)} disabled={del.isPending} aria-label="Delete trade"><Trash2 size={13} /></button></td>
                   )}
                 </tr>
               ))}
@@ -150,6 +171,22 @@ export default function TradesTab({ session, trades, tz }) {
           </table>
         </div>
       )}
+
+      {/* Delete trade confirmation dialog (N8) */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete trade?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {`This will delete the trade and change every statistic for the session.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={closeDeleteDialog}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => handleDelete(pendingDeleteTrade)}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
