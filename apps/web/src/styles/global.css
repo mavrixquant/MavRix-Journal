@@ -38,8 +38,9 @@
     --text: #E7E9EE;
     --text-dim: #8892A3;
     --text-faint: #545E6E;
+    --accent: #F59E0B;
     --amber: var(--accent);
-    --amber-dim: color-mix(in srgb, var(--accent) 55%, black);
+    --amber-dim: rgba(0, 0, 0, 0.55);
     --win: #35C4A1;
     --win-dim: #1B4F41;
     --loss: #FF5C5C;
@@ -71,7 +72,7 @@ html, body {
 
 body {
     background-image:
-        radial-gradient(circle at 15% 0%, color-mix(in srgb, var(--accent) 5%, transparent), transparent 40%),
+        radial-gradient(circle at 15% 0%, rgba(245, 158, 11, 0.05), transparent 40%),
         radial-gradient(circle at 85% 10%, rgba(76, 139, 245, 0.04), transparent 40%);
 }
 
@@ -293,7 +294,7 @@ main {
     color: var(--text);
 }
 .nav-item.active {
-    background: color-mix(in srgb, var(--accent) 12%, transparent);
+    background: rgba(245, 158, 11, 0.12);
     color: var(--amber);
 }
 
@@ -624,7 +625,7 @@ h1 {
 .rr-tab.active {
     background: var(--amber);
     color: #1A1200;
-    box-shadow: 0 0 16px color-mix(in srgb, var(--accent) 25%, transparent);
+    box-shadow: 0 0 16px -4px rgba(245, 158, 11, 0.45);
 }
 
 .btn-toolbar {
@@ -652,15 +653,15 @@ h1 {
 }
 
 .btn-optimize {
-    border-color: color-mix(in srgb, var(--accent) 40%, transparent);
-    background-color: color-mix(in srgb, var(--accent) 8%, transparent);
+    border-color: rgba(245, 158, 11, 0.40);
+    background-color: rgba(245, 158, 11, 0.08);
     color: var(--amber);
 }
 .btn-optimize:hover {
-    background-color: color-mix(in srgb, var(--accent) 18%, transparent);
+    background-color: rgba(245, 158, 11, 0.18);
     border-color: var(--amber);
     color: #fbbf24;
-    box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 20%, transparent);
+    box-shadow: 0 0 12px rgba(245, 158, 11, 0.20);
 }
 
 .btn-reset,
@@ -832,8 +833,8 @@ h1 {
     color: var(--amber);
     letter-spacing: 0.1em;
     text-transform: uppercase;
-    border: 1px solid var(--amber-dim);
-    background: color-mix(in srgb, var(--accent) 6%, transparent);
+    border: 1px solid rgba(0, 0, 0, 0.55);
+    background: rgba(245, 158, 11, 0.06);
     padding: 4px 9px;
     border-radius: 20px;
     width: fit-content;
@@ -1520,7 +1521,7 @@ tbody tr:hover td.sticky-col-right {
     border-radius: 50%;
     background: var(--amber);
     border: none;
-    box-shadow: 0 4px 16px color-mix(in srgb, var(--accent) 40%, transparent);
+    box-shadow: 0 4px 16px rgba(245, 158, 11, 0.40);
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -1532,7 +1533,7 @@ tbody tr:hover td.sticky-col-right {
 }
 .fab:hover {
     transform: scale(1.08);
-    box-shadow: 0 6px 24px color-mix(in srgb, var(--accent) 50%, transparent);
+    box-shadow: 0 6px 24px rgba(245, 158, 11, 0.50);
 }
 
 footer {
@@ -1716,4 +1717,281 @@ body {
 @media (max-width: 420px) {
   main            { padding-left: 12px; padding-right: 12px; }
   .hb-root        { padding: 0 10px; gap: 8px; }
+}
+
+/* ============================================================
+   Template Picker Modal Styles (SessionFormModal)
+   ============================================================ */
+
+.bt-template-picker-modal {
+  background: var(--panel);
+  border: 1px solid var(--border-soft);
+  border-radius: 14px;
+  padding: 24px 28px;
+  max-width: 600px;
+  width: 90%;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.bt-template-picker-modal:focus-within {
+  outline: 2px solid var(--amber);
+  outline-offset: -2px;
+}
+
+.bt-template-picker-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.bt-template-picker-head h3 {
+  font-family: var(--disp);
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0;
+}
+
+.bt-template-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.bt-tab {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-dim);
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  background: var(--bg-alt);
+  border: 1px solid var(--border-soft);
+  transition: all 0.15s ease;
+  text-align: center;
+  min-width: 120px;
+}
+
+.bt-tab:hover {
+  background: var(--panel-2);
+  color: var(--text);
+  border-color: var(--border);
+}
+
+.bt-tab.is-active {
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--amber);
+  border-color: var(--amber);
+  box-shadow: 0 0 16px -4px rgba(245, 158, 11, 0.45);
+}
+
+.bt-template-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.bt-template-card {
+  background: linear-gradient(180deg, rgba(255, 255, 255,.03), rgba(255, 255, 255,.01));
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  padding: 16px 20px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.bt-template-card:hover {
+  border-color: var(--border);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.3);
+}
+
+.bt-template-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.bt-firm-badge {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 4px 10px;
+  border-radius: 6px;
+  color: #fff;
+  white-space: nowrap;
+}
+
+.bt-template-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.bt-template-plan-name {
+  font-family: var(--disp);
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0 0 4px 0;
+}
+
+.bt-template-stats {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.bt-template-stat {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.bt-template-stat .bt-label {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.bt-template-stat .bt-value {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.bt-template-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.bt-btn {
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 16px;
+  min-width: 80px;
+}
+
+.bt-btn:hover {
+  transform: translateY(-1px);
+}
+
+.bt-btn.is-primary {
+  background: var(--amber);
+  color: #0A0D13;
+  border-color: var(--amber);
+}
+
+.bt-btn.is-primary:hover {
+  background: rgba(255, 255, 255, 0.80);
+  filter: brightness(1.1);
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.30);
+}
+
+.bt-btn.is-sm {
+  padding: 6px 12px;
+  font-size: 11px;
+  min-width: 60px;
+}
+
+.bt-btn.is-disabled,
+.bt-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.bt-note {
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+/* Scrollbar styling for template grid */
+.bt-template-grid::-webkit-scrollbar {
+  width: 8px;
+}
+
+.bt-template-grid::-webkit-scrollbar-track {
+  background: var(--bg-alt);
+  border-radius: 8px;
+}
+
+.bt-template-grid::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 8px;
+}
+
+.bt-template-grid::-webkit-scrollbar-thumb:hover {
+  background: var(--text-faint);
+}
+
+/* Smooth scrolling for template grid */
+.bt-template-grid {
+  scroll-behavior: smooth;
+}
+
+/* Mobile adjustments for template picker */
+@media (max-width: 640px) {
+  .bt-template-picker-modal {
+    padding: 20px 16px;
+    max-width: calc(100vw - 32px);
+    width: 100%;
+  }
+
+  .bt-template-picker-head h3 {
+    font-size: 1.15rem;
+  }
+
+  .bt-tab {
+    min-width: auto;
+    padding: 8px 12px;
+  }
+
+  .bt-template-card {
+    padding: 14px 16px;
+  }
+
+  .bt-template-stats {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .bt-template-picker-modal {
+    padding: 16px 12px;
+  }
+
+  .bt-template-picker-head h3 {
+    font-size: 1rem;
+  }
+
+  .bt-template-card h4 {
+    font-size: 0.95rem;
+  }
 }

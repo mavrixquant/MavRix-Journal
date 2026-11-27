@@ -1,7 +1,13 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { X, Check, ChevronLeft, ChevronRight, Search, DatabaseZap } from 'lucide-react';
+import { X, Check, ChevronLeft, ChevronRight, Search, DatabaseZap, Grid3x3 } from 'lucide-react';
 import { toast } from 'sonner';
+
+import {
+  FOREX_PROPFIRES,
+  FUTURES_PROPFIRES,
+} from '@/features/sessions/propfirm-mode/propFirmsData';
+import { planToTemplate } from './planToTemplate';
 
 import Portal from '@/shared/components/Portal';
 import { useMarketCatalog } from '@/shared/api/marketData';
@@ -190,7 +196,7 @@ function InstrumentPicker({ symbols, names, interval, availability, selected, on
 
 /* ---------------------------------- modal ---------------------------------- */
 
-export default function SessionFormModal({ isOpen, onClose }) {
+export default function SessionFormModal({ isOpen, onClose, planTemplate }) {
   const navigate = useNavigate();
   const createM = useCreateBacktestSession();
   const availQ = useBacktestAvailability({ enabled: isOpen });
@@ -199,6 +205,53 @@ export default function SessionFormModal({ isOpen, onClose }) {
   const [step, setStep] = useState(0);
   const [error, setError] = useState('');
   const saving = createM.isPending;
+  const [showTemplatePicker, setShowTemplatePicker] = useState(false);
+  const [activeTemplateTab, setActiveTemplateTab] = useState('forex');
+  const appliedInitialTemplate = useRef(false);
+
+  // Apply initial template from parent (passed from SessionListPage)
+  useEffect(() => {
+    if (isOpen && planTemplate && !appliedInitialTemplate.current) {
+      appliedInitialTemplate.current = true;
+      setForm((f) => ({
+        ...f,
+        type: 'prop',
+        firmName: planTemplate.firm?.name || 'FTMO',
+        accountSize: planTemplate.plan?.accountSizes?.[0] || f.balance,
+        target: limit(planTemplate.plan?.profitTarget || PROP_DEFAULTS.profitTargetPct),
+        daily: limit(planTemplate.plan?.dailyDrawdown || PROP_DEFAULTS.maxDailyLossPct),
+        total: limit(planTemplate.plan?.maxDrawdown || PROP_DEFAULTS.maxTotalLossPct),
+        minTradingDays: String(planTemplate.plan?.evaluationDuration?.replace(/\D/g, '') || '30'),
+        notes: planTemplate.plan?.name ? `Loaded from ${planTemplate.plan.name}` : f.notes,
+      }));
+      if (step !== 1) setStep(1); // Go to Prop rules step
+    }
+  }, [isOpen, planTemplate, step]);
+
+  // Reset applied flag when modal closes
+  useEffect(() => {
+    if (!isOpen) {
+      appliedInitialTemplate.current = false;
+    }
+  }, [isOpen]);
+
+  const handleLoadTemplate = (templateData) => {
+    const template = planToTemplate(templateData.plan, templateData.firm);
+    // Apply template values to form
+    setForm((f) => ({
+      ...f,
+      type: 'prop',
+      firmName: template.firm.name,
+      accountSize: template.plan.accountSizes[0] || '50000',
+      target: limit(template.plan.profitTarget),
+      daily: limit(template.plan.dailyDrawdown),
+      total: limit(template.plan.maxDrawdown),
+      minTradingDays: String(template.plan.evaluationDuration?.replace(/\D/g, '') || '30'),
+      notes: `Loaded from ${template.plan.name} (${template.firm.name})`,
+    }));
+    setShowTemplatePicker(false);
+    setStep(1); // Go to Prop rules step
+  };
 
   const idx = useMemo(() => indexAvailability(availQ.data), [availQ.data]);
   const catalogSymbols = catalogQ.data?.symbols;
@@ -283,6 +336,14 @@ export default function SessionFormModal({ isOpen, onClose }) {
     return next;
   });
 
+  // Auto-open template picker when Prop firm type is selected (on Basics step)
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  useEffect(() => {
+    if (form.type === 'prop' && step === 0 && !showTemplatePicker) {
+      setShowTemplatePicker(true);
+    }
+  }, [form.type, step, showTemplatePicker]);
+
   const toggleInstrument = (code) => {
     setError('');
     setForm((p) => {
@@ -336,7 +397,8 @@ export default function SessionFormModal({ isOpen, onClose }) {
   const amt = (l) => limitAmounts(l, size);
 
   return (
-    <Portal>
+    <div>
+      <Portal>
       <div className="bt-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget && !saving) onClose(); }}>
         <form className="bt-modal" onSubmit={submit} role="dialog" aria-modal="true" aria-label="New backtest session">
           <div className="bt-modal-head">
@@ -385,6 +447,16 @@ export default function SessionFormModal({ isOpen, onClose }) {
                   <span>Name <b>*</b></span>
                   <input className="bt-input" autoFocus maxLength={80} value={form.name} onChange={(e) => set('name', e.target.value)} placeholder="e.g. NQ opening range — Oct 2026" disabled={saving} />
                 </label>
+
+                <button
+                  type="button"
+                  className="bt-btn bt-btn-ghost"
+                  onClick={() => setShowTemplatePicker(true)}
+                  disabled={saving}
+                >
+                  <Grid3x3 size={16} className="mr-2" />
+                  Load Template
+                </button>
 
                 <div className="bt-row">
                   <label className="bt-field">
@@ -514,7 +586,111 @@ export default function SessionFormModal({ isOpen, onClose }) {
             )}
           </div>
         </form>
-      </div>
-    </Portal>
+        </div>
+      </Portal>
+
+      {/* Template Picker Modal - always rendered via Portal (no conditional Portal to avoid hook order issues) */}
+      <Portal>
+        {showTemplatePicker && (
+          <div
+            className="bt-overlay"
+            onMouseDown={(e) => { if (e.target === e.currentTarget) setShowTemplatePicker(false); }}
+          >
+            <div className="bt-template-picker-modal">
+              <div className="bt-template-picker-head">
+                <h3>Load Prop Firm Template</h3>
+                <button
+                  type="button"
+                  className="bt-icon-btn"
+                  onClick={() => setShowTemplatePicker(false)}
+                  aria-label="Close template picker"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              <div className="bt-template-tabs">
+                <button
+                  type="button"
+                  className={`bt-tab ${activeTemplateTab === 'forex' ? 'is-active' : ''}`}
+                  onClick={() => setActiveTemplateTab('forex')}
+                >
+                  Forex ({FOREX_PROPFIRES.length} Firms · {FOREX_PROPFIRES.reduce((sum, f) => sum + f.plans.length, 0)} Plans)
+                </button>
+                <button
+                  type="button"
+                  className={`bt-tab ${activeTemplateTab === 'futures' ? 'is-active' : ''}`}
+                  onClick={() => setActiveTemplateTab('futures')}
+                >
+                  Futures ({FUTURES_PROPFIRES.length} Firms · {FUTURES_PROPFIRES.reduce((sum, f) => sum + f.plans.length, 0)} Plans)
+                </button>
+              </div>
+
+              <div className="bt-template-grid">
+                {(() => {
+                  const firms = activeTemplateTab === 'forex' ? FOREX_PROPFIRES : FUTURES_PROPFIRES;
+                  const plans = firms.flatMap((firm) =>
+                    firm.plans.map((plan) => ({ plan, firm }))
+                  );
+
+                  return plans.map((template) => {
+                    const { plan, firm } = template;
+                    return (
+                      <div
+                        key={`${firm.id}-${plan.id}`}
+                        className="bt-template-card"
+                        onClick={() => handleLoadTemplate(template)}
+                      >
+                        <div className="bt-template-header">
+                          <div
+                            className="bt-firm-badge"
+                            style={{ background: firm.color }}
+                          >
+                            {firm.name}
+                          </div>
+                        </div>
+                        <div className="bt-template-body">
+                          <h4 className="bt-template-plan-name">{plan.name}</h4>
+                          <div className="bt-template-stats">
+                            <div className="bt-template-stat">
+                              <span className="bt-label">Profit Target</span>
+                              <span className="bt-value">{plan.profitTarget}</span>
+                            </div>
+                            <div className="bt-template-stat">
+                              <span className="bt-label">Daily DD</span>
+                              <span className="bt-value">{plan.dailyDrawdown}</span>
+                            </div>
+                            <div className="bt-template-stat">
+                              <span className="bt-label">Max DD</span>
+                              <span className="bt-value">{plan.maxDrawdown}</span>
+                            </div>
+                            <div className="bt-template-stat">
+                              <span className="bt-label">Account Size</span>
+                              <span className="bt-value">{plan.accountSizes.length > 0 ? `$${plan.accountSizes[0].toLocaleString()}` : '—'}</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="bt-template-footer">
+                          <button
+                            type="button"
+                            className="bt-btn bt-btn-sm bt-btn-primary"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleLoadTemplate(template);
+                            }}
+                          >
+                            Load Template
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  });
+                })()}
+              </div>
+            </div>
+          </div>
+        )}
+      </Portal>
+    </div>
   );
 }
