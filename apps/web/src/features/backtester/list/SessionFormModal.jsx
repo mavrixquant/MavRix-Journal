@@ -397,9 +397,9 @@ export default function SessionFormModal({ isOpen, onClose, planTemplate }) {
   const amt = (l) => limitAmounts(l, size);
 
   return (
-    <div>
+    <>
       <Portal>
-      <div className="bt-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget && !saving) onClose(); }}>
+    <div className="bt-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget && !saving) onClose(); }}>
         <form className="bt-modal" onSubmit={submit} role="dialog" aria-modal="true" aria-label="New backtest session">
           <div className="bt-modal-head">
             <div className="bt-modal-titles">
@@ -691,6 +691,6 @@ export default function SessionFormModal({ isOpen, onClose, planTemplate }) {
           </div>
         )}
       </Portal>
-    </div>
+    </>
   );
 }

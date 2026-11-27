@@ -38,9 +38,8 @@
     --text: #E7E9EE;
     --text-dim: #8892A3;
     --text-faint: #545E6E;
-    --accent: #F59E0B;
     --amber: var(--accent);
-    --amber-dim: rgba(0, 0, 0, 0.55);
+    --amber-dim: color-mix(in srgb, var(--accent) 55%, black);
     --win: #35C4A1;
     --win-dim: #1B4F41;
     --loss: #FF5C5C;
@@ -72,7 +71,7 @@ html, body {
 
 body {
     background-image:
-        radial-gradient(circle at 15% 0%, rgba(245, 158, 11, 0.05), transparent 40%),
+        radial-gradient(circle at 15% 0%, color-mix(in srgb, var(--accent) 5%, transparent), transparent 40%),
         radial-gradient(circle at 85% 10%, rgba(76, 139, 245, 0.04), transparent 40%);
 }
 
@@ -294,7 +293,7 @@ main {
     color: var(--text);
 }
 .nav-item.active {
-    background: rgba(245, 158, 11, 0.12);
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
     color: var(--amber);
 }
 
@@ -625,7 +624,7 @@ h1 {
 .rr-tab.active {
     background: var(--amber);
     color: #1A1200;
-    box-shadow: 0 0 16px -4px rgba(245, 158, 11, 0.45);
+    box-shadow: 0 0 16px color-mix(in srgb, var(--accent) 25%, transparent);
 }
 
 .btn-toolbar {
@@ -653,15 +652,15 @@ h1 {
 }
 
 .btn-optimize {
-    border-color: rgba(245, 158, 11, 0.40);
-    background-color: rgba(245, 158, 11, 0.08);
+    border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+    background-color: color-mix(in srgb, var(--accent) 8%, transparent);
     color: var(--amber);
 }
 .btn-optimize:hover {
-    background-color: rgba(245, 158, 11, 0.18);
+    background-color: color-mix(in srgb, var(--accent) 18%, transparent);
     border-color: var(--amber);
     color: #fbbf24;
-    box-shadow: 0 0 12px rgba(245, 158, 11, 0.20);
+    box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 20%, transparent);
 }
 
 .btn-reset,
@@ -833,8 +832,8 @@ h1 {
     color: var(--amber);
     letter-spacing: 0.1em;
     text-transform: uppercase;
-    border: 1px solid rgba(0, 0, 0, 0.55);
-    background: rgba(245, 158, 11, 0.06);
+    border: 1px solid var(--amber-dim);
+    background: color-mix(in srgb, var(--accent) 6%, transparent);
     padding: 4px 9px;
     border-radius: 20px;
     width: fit-content;
@@ -1521,7 +1520,7 @@ tbody tr:hover td.sticky-col-right {
     border-radius: 50%;
     background: var(--amber);
     border: none;
-    box-shadow: 0 4px 16px rgba(245, 158, 11, 0.40);
+    box-shadow: 0 4px 16px color-mix(in srgb, var(--accent) 40%, transparent);
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -1533,7 +1532,7 @@ tbody tr:hover td.sticky-col-right {
 }
 .fab:hover {
     transform: scale(1.08);
-    box-shadow: 0 6px 24px rgba(245, 158, 11, 0.50);
+    box-shadow: 0 6px 24px color-mix(in srgb, var(--accent) 50%, transparent);
 }
 
 footer {
