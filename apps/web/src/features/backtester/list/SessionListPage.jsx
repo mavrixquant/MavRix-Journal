@@ -6,15 +6,11 @@ import { toast } from 'sonner';
 import { usePageHeader } from '@/app/layout/PageHeaderProvider';
 import { useBacktestSessions, useDeleteBacktestSession } from '@/shared/api/backtestSessions';
 import Portal from '@/shared/components/Portal';
+import { getSelectablePropFirms } from './selectablePropFirms';
 
 import SessionCard from './SessionCard';
 import SessionFormModal from './SessionFormModal';
 import { BT_CSS } from '../backtesterStyles';
-import { planToTemplate } from './planToTemplate';
-import {
-  FOREX_PROPFIRES,
-  FUTURES_PROPFIRES,
-} from '@/features/sessions/propfirm-mode/propFirmsData';
 
 const FILTERS = [
   { id: 'all', label: 'All' },
@@ -23,37 +19,54 @@ const FILTERS = [
   { id: 'archived', label: 'Archived' },
 ];
 
+/* Finds { firm, plan, tier } for a plan id (and optional account size). */
+function findTemplate(planId, size) {
+  for (const firm of getSelectablePropFirms()) {
+    const plan = firm.plans.find((p) => p.id === planId && p.tiers?.length);
+    if (plan) {
+      const tier = plan.tiers.find((t) => t.size === Number(size)) || plan.tiers[0];
+      return { firm, plan, tier };
+    }
+  }
+  return null;
+}
+
+/**
+ * Opens the "New session" modal pre-filled from a prop firm plan.
+ * URL: /backtester?plan=<planId>[&size=<accountSize>]   e.g. ?plan=ftmo-2step&size=100000
+ * Prop: planTemplate = { firm, plan, tier? } (same shape the modal expects).
+ */
 export default function SessionListPage({ planTemplate: initialPlanTemplate }) {
   usePageHeader({ title: 'Backtester' });
   const { data: sessions = [], isLoading, isError, refetch } = useBacktestSessions();
   const deleteM = useDeleteBacktestSession();
   const [filter, setFilter] = useState('all');
-  const [creating, setCreating] = useState(false);
+  const [creating, setCreating] = useState(Boolean(initialPlanTemplate));
   const [currentPlan, setCurrentPlan] = useState(initialPlanTemplate || null);
   const [toDelete, setToDelete] = useState(null);
   const [typed, setTyped] = useState('');
-  const [searchParams, setSearchParamsHook] = useSearchParams();
-  const planOpenedRef = useRef(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const handledRef = useRef(false);
 
-  // Check for plan from URL query param and auto-open modal
   const planIdFromUrl = searchParams.get('plan');
+  const sizeFromUrl = searchParams.get('size');
 
+  // Open the modal from ?plan=..., then remove the params so a refresh doesn't reopen it.
   useEffect(() => {
-    if (planIdFromUrl && !planOpenedRef.current) {
-      // Find the plan in prop firms data
-      const allFirms = [...FOREX_PROPFIRES, ...FUTURES_PROPFIRES];
-      for (const firm of allFirms) {
-        const plan = firm.plans.find(p => p.id === planIdFromUrl);
-        if (plan) {
-          const template = planToTemplate(plan, firm);
-          setCurrentPlan(template);
-          setCreating(true);
-          planOpenedRef.current = true;
-          break;
-        }
-      }
+    if (!planIdFromUrl || handledRef.current) return;
+    handledRef.current = true;
+    const template = findTemplate(planIdFromUrl, sizeFromUrl);
+    if (template) {
+      setCurrentPlan(template);
+      setCreating(true);
+    } else {
+      toast.error('That prop firm plan no longer exists.');
     }
-  }, [planIdFromUrl]);
+    const params = new URLSearchParams(searchParams);
+    params.delete('plan');
+    params.delete('size');
+    setSearchParams(params, { replace: true });
+  }, [planIdFromUrl, sizeFromUrl, searchParams, setSearchParams]);
 
   const shown = useMemo(
     () => (filter === 'all' ? sessions : sessions.filter((s) => s.status === filter)),
@@ -70,16 +83,6 @@ export default function SessionListPage({ planTemplate: initialPlanTemplate }) {
       toast.error(e?.message || 'Could not delete the session.');
     }
   };
-
-  // Clear plan param from URL when modal closes without creating
-  useEffect(() => {
-    if (!creating && planOpenedRef.current && planIdFromUrl) {
-      const newSearchParams = new URLSearchParams(searchParams);
-      newSearchParams.delete('plan');
-      setSearchParamsHook(newSearchParams, { replace: true });
-      planOpenedRef.current = false;
-    }
-  }, [creating, planIdFromUrl, searchParams, setSearchParamsHook]);
 
   return (
     <>
@@ -132,10 +135,10 @@ export default function SessionListPage({ planTemplate: initialPlanTemplate }) {
       </div>
 
       <SessionFormModal
-            isOpen={creating}
-            onClose={() => { setCreating(false); setCurrentPlan(null); }}
-            planTemplate={currentPlan}
-          />
+        isOpen={creating}
+        onClose={() => { setCreating(false); setCurrentPlan(null); }}
+        planTemplate={currentPlan}
+      />
 
       {toDelete && (
         <Portal>

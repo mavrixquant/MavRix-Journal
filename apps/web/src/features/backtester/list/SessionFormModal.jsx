@@ -1,13 +1,7 @@
-import { useEffect, useMemo, useState, useRef } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { X, Check, ChevronLeft, ChevronRight, Search, DatabaseZap, Grid3x3 } from 'lucide-react';
 import { toast } from 'sonner';
-
-import {
-  FOREX_PROPFIRES,
-  FUTURES_PROPFIRES,
-} from '@/features/sessions/propfirm-mode/propFirmsData';
-import { planToTemplate } from './planToTemplate';
 
 import Portal from '@/shared/components/Portal';
 import { useMarketCatalog } from '@/shared/api/marketData';
@@ -22,6 +16,7 @@ import { fmtMoney } from '../lib/format';
 import {
   indexAvailability, intervalsWithData, rangeFor, symbolsFor,
 } from '../lib/availability';
+import TemplatePicker from './TemplatePicker';
 
 const addDays = (iso, n) => new Date(Date.parse(`${iso}T00:00:00Z`) + n * 86400000).toISOString().slice(0, 10);
 const num = (v) => (v === '' || v == null || !Number.isFinite(Number(v)) ? null : Number(v));
@@ -40,7 +35,8 @@ function initialForm() {
     fromDate: '',
     toDate: '',
     datesTouched: false,
-    firmName: 'Other', // Default to 'Other' so it shows 'Custom' in disabled input
+    firmName: 'Other',
+    firmNameCustom: '',
     accountSize: '50000',
     sizeTouched: false,
     target: limit(PROP_DEFAULTS.profitTargetPct),
@@ -49,6 +45,29 @@ function initialForm() {
     minTradingDays: String(PROP_DEFAULTS.minTradingDays),
     maxPositionSize: '',
     notes: '',
+  };
+}
+
+/* Turns a template (firm + plan + account-size tier) into form fields. */
+function templatePatch(firm, plan, tier) {
+  const lim = (v) => ({ mode: tier.mode, value: String(v) });
+  // Direct-funded models have no profit target → fall back to the app default (editable).
+  const target = tier.target == null ? limit(PROP_DEFAULTS.profitTargetPct) : lim(tier.target);
+  const total = tier.total == null ? limit(PROP_DEFAULTS.maxTotalLossPct) : lim(tier.total);
+  // No daily limit → mirror the total limit so validation passes.
+  const daily = tier.daily == null ? total : lim(tier.daily);
+  return {
+    type: 'prop',
+    balance: String(tier.size),
+    accountSize: String(tier.size),
+    sizeTouched: true,
+    firmName: 'Other',
+    firmNameCustom: firm.name,
+    target,
+    daily,
+    total,
+    minTradingDays: String(plan.minDays ?? 0),
+    notes: `${firm.name} · ${plan.name}`,
   };
 }
 
@@ -77,7 +96,7 @@ function toPayload(f) {
     });
     payload.propFirmConfig = {
       firmName: f.firmName,
-      ...(f.firmName === 'Other' ? { firmNameCustom: f.firmNameCustom.trim() } : {}),
+      ...(f.firmName === 'Other' ? { firmNameCustom: (f.firmNameCustom || '').trim() } : {}),
       accountSize: num(f.accountSize),
       ...put('profitTarget', f.target),
       ...put('maxDailyLoss', f.daily),
@@ -106,7 +125,7 @@ function checkBasics(f, range) {
 }
 
 function checkProp(f) {
-  if (f.firmName === 'Other' && !f.firmNameCustom.trim()) return 'Enter the firm name.';
+  if (f.firmName === 'Other' && !(f.firmNameCustom || '').trim()) return 'Enter the firm name.';
   const size = num(f.accountSize);
   if (!size || size <= 0) return 'Account size must be above zero.';
   const rows = [['Profit target', f.target], ['Max daily loss', f.daily], ['Max total loss', f.total]];
@@ -195,6 +214,10 @@ function InstrumentPicker({ symbols, names, interval, availability, selected, on
 
 /* ---------------------------------- modal ---------------------------------- */
 
+/**
+ * planTemplate (optional, from the session list): { firm, plan, tier }
+ * `tier` is one entry from plan.tiers; if omitted the plan's first tier is used.
+ */
 export default function SessionFormModal({ isOpen, onClose, planTemplate }) {
   const navigate = useNavigate();
   const createM = useCreateBacktestSession();
@@ -203,58 +226,14 @@ export default function SessionFormModal({ isOpen, onClose, planTemplate }) {
   const [form, setForm] = useState(initialForm);
   const [step, setStep] = useState(0);
   const [error, setError] = useState('');
-  const saving = createM.isPending;
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
-  const [activeTemplateTab, setActiveTemplateTab] = useState('forex');
-  const [templateLoaded, setTemplateLoaded] = useState(false);
-  const appliedInitialTemplate = useRef(false);
+  const saving = createM.isPending;
 
-  // Apply initial template from parent (passed from SessionListPage)
-  useEffect(() => {
-    if (isOpen && planTemplate && !appliedInitialTemplate.current) {
-      appliedInitialTemplate.current = true;
-      setForm((f) => ({
-        ...f,
-        type: 'prop',
-        firmName: 'Other', // Default to custom for loaded templates
-        firmNameCustom: planTemplate.firm?.name || '',
-        accountSize: planTemplate.plan?.accountSizes?.[0] || '50000',
-        target: limit(planTemplate.plan?.profitTarget || PROP_DEFAULTS.profitTargetPct),
-        daily: limit(planTemplate.plan?.dailyDrawdown || PROP_DEFAULTS.maxDailyLossPct),
-        total: limit(planTemplate.plan?.maxDrawdown || PROP_DEFAULTS.maxTotalLossPct),
-        minTradingDays: String(planTemplate.plan?.evaluationDuration?.replace(/\D/g, '') || '30'),
-        notes: planTemplate.plan?.name ? `Loaded from ${planTemplate.plan.name}` : f.notes,
-      }));
-      setTemplateLoaded(true);
-      setStep(1); // Go to Prop rules step
-    }
-  }, [isOpen, planTemplate]);
-
-  // Reset applied flag when modal closes
-  useEffect(() => {
-    if (!isOpen) {
-      appliedInitialTemplate.current = false;
-    }
-  }, [isOpen]);
-
-  const handleLoadTemplate = (templateData, selectedAccountSize = null) => {
-    const template = planToTemplate(templateData.plan, templateData.firm);
-    const acctSize = selectedAccountSize !== null ? selectedAccountSize : (template.plan.accountSizes[0] || '50000');
-    // Apply template values to form
-    setForm((f) => ({
-      ...f,
-      type: 'prop',
-      firmName: template.firm.name, // Use actual firm name
-      accountSize: acctSize,
-      target: limit(template.plan.profitTarget),
-      daily: limit(template.plan.dailyDrawdown),
-      total: limit(template.plan.maxDrawdown),
-      minTradingDays: String(template.plan.evaluationDuration?.replace(/\D/g, '') || '30'),
-      notes: `Loaded from ${template.plan.name} (${template.firm.name})`,
-    }));
+  const applyPlan = (firm, plan, tier) => {
+    setForm((f) => ({ ...f, ...templatePatch(firm, plan, tier) }));
     setShowTemplatePicker(false);
-    setTemplateLoaded(true);
-    setStep(1); // Go to Prop rules step
+    setError('');
+    setStep(1); // Prop rules step
   };
 
   const idx = useMemo(() => indexAvailability(availQ.data), [availQ.data]);
@@ -279,12 +258,22 @@ export default function SessionFormModal({ isOpen, onClose, planTemplate }) {
   );
   const stepName = steps[step];
 
+  /* Reset on open; if a template came from the parent, apply it afterwards (same effect = no ordering bug). */
   useEffect(() => {
     if (!isOpen) return;
-    setForm(initialForm());
-    setStep(0);
+    let next = initialForm();
+    let startStep = 0;
+    const tpl = planTemplate;
+    if (tpl?.firm && tpl?.plan?.tiers?.length) {
+      const tier = tpl.tier || tpl.plan.tiers[0];
+      next = { ...next, ...templatePatch(tpl.firm, tpl.plan, tier) };
+      startStep = 1;
+    }
+    setForm(next);
+    setStep(startStep);
     setError('');
-  }, [isOpen]);
+    setShowTemplatePicker(false);
+  }, [isOpen, planTemplate]);
 
   /* Keep interval / instruments / dates inside what actually has data. */
   useEffect(() => {
@@ -324,10 +313,10 @@ export default function SessionFormModal({ isOpen, onClose, planTemplate }) {
 
   useEffect(() => {
     if (!isOpen) return undefined;
-    const onKey = (e) => { if (e.key === 'Escape' && !saving) onClose(); };
+    const onKey = (e) => { if (e.key === 'Escape' && !saving && !showTemplatePicker) onClose(); };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [isOpen, saving, onClose]);
+  }, [isOpen, saving, showTemplatePicker, onClose]);
 
   if (!isOpen) return null;
 
@@ -395,305 +384,201 @@ export default function SessionFormModal({ isOpen, onClose, planTemplate }) {
   return (
     <>
       <Portal>
-    <div className="bt-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget && !saving) onClose(); }}>
-        <form className="bt-modal" onSubmit={submit} role="dialog" aria-modal="true" aria-label="New backtest session">
-          <div className="bt-modal-head">
-            <div className="bt-modal-titles">
-              <h2>New session</h2>
-              <p>{form.name.trim() || 'Untitled session'}</p>
-            </div>
-            <button type="button" className="bt-icon-btn" onClick={onClose} disabled={saving} aria-label="Close"><X size={16} /></button>
-          </div>
-
-          <ol className="bt-steps" aria-label="Progress">
-            {steps.map((s, i) => (
-              <li key={s} className={i === step ? 'is-on' : i < step ? 'is-done' : ''}>
-                <span>{i < step ? <Check size={11} /> : i + 1}</span>{s}
-              </li>
-            ))}
-          </ol>
-
-          <div className="bt-modal-body">
-            {error && <div className="bt-error" role="alert">{error}</div>}
-
-            {stepName === 'Basics' && availQ.isLoading && <div className="bt-note">Checking which market data is available…</div>}
-            {stepName === 'Basics' && availQ.isError && (
-              <div className="bt-error" role="alert">Couldn't load the available market data. <button type="button" className="bt-link" onClick={() => availQ.refetch()}>Retry</button></div>
-            )}
-            {stepName === 'Basics' && noData && (
-              <div className="bt-nodata">
-                <DatabaseZap size={20} />
-                <b>No market data is available yet</b>
-                <p>Backtests run on stored history. Ask an admin to import data (Admin → Market Data), then come back.</p>
+        <div className="bt-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget && !saving && !showTemplatePicker) onClose(); }}>
+          <form className="bt-modal" onSubmit={submit} role="dialog" aria-modal="true" aria-label="New backtest session">
+            <div className="bt-modal-head">
+              <div className="bt-modal-titles">
+                <h2>New session</h2>
+                <p>{form.name.trim() || 'Untitled session'}</p>
               </div>
-            )}
+              <button type="button" className="bt-icon-btn" onClick={onClose} disabled={saving} aria-label="Close"><X size={16} /></button>
+            </div>
 
-            {stepName === 'Basics' && !noData && (
-              <>
-                <div className="bt-field">
-                  <span>Session type</span>
-                  <div className="bt-seg" role="group" aria-label="Session type">
-                    <button type="button" className={form.type === 'standard' ? 'is-on' : ''} onClick={() => set('type', 'standard')}>Standard</button>
-                    <button type="button" className={form.type === 'prop' ? 'is-on' : ''} onClick={() => set('type', 'prop')}>Prop firm</button>
-                  </div>
-                  <small>{form.type === 'prop' ? 'Trade against a prop firm profit target, loss limits and minimum days.' : 'A plain account with no rules — just replay and review.'}</small>
+            <ol className="bt-steps" aria-label="Progress">
+              {steps.map((s, i) => (
+                <li key={s} className={i === step ? 'is-on' : i < step ? 'is-done' : ''}>
+                  <span>{i < step ? <Check size={11} /> : i + 1}</span>{s}
+                </li>
+              ))}
+            </ol>
+
+            <div className="bt-modal-body">
+              {error && <div className="bt-error" role="alert">{error}</div>}
+
+              {stepName === 'Basics' && availQ.isLoading && <div className="bt-note">Checking which market data is available…</div>}
+              {stepName === 'Basics' && availQ.isError && (
+                <div className="bt-error" role="alert">Couldn't load the available market data. <button type="button" className="bt-link" onClick={() => availQ.refetch()}>Retry</button></div>
+              )}
+              {stepName === 'Basics' && noData && (
+                <div className="bt-nodata">
+                  <DatabaseZap size={20} />
+                  <b>No market data is available yet</b>
+                  <p>Backtests run on stored history. Ask an admin to import data (Admin → Market Data), then come back.</p>
                 </div>
+              )}
 
-                <label className="bt-field">
-                  <span>Name <b>*</b></span>
-                  <input className="bt-input" autoFocus maxLength={80} value={form.name} onChange={(e) => set('name', e.target.value)} placeholder="e.g. NQ opening range — Oct 2026" disabled={saving} />
-                </label>
+              {stepName === 'Basics' && !noData && (
+                <>
+                  <div className="bt-field">
+                    <span>Session type</span>
+                    <div className="bt-seg" role="group" aria-label="Session type">
+                      <button type="button" className={form.type === 'standard' ? 'is-on' : ''} onClick={() => set('type', 'standard')}>Standard</button>
+                      <button type="button" className={form.type === 'prop' ? 'is-on' : ''} onClick={() => set('type', 'prop')}>Prop firm</button>
+                    </div>
+                    <small>{form.type === 'prop' ? 'Trade against a prop firm profit target, loss limits and minimum days.' : 'A plain account with no rules — just replay and review.'}</small>
+                  </div>
 
-                {form.type === 'standard' && (
+                  <label className="bt-field">
+                    <span>Name <b>*</b></span>
+                    <input className="bt-input" autoFocus maxLength={80} value={form.name} onChange={(e) => set('name', e.target.value)} placeholder="e.g. NQ opening range — Oct 2026" disabled={saving} />
+                  </label>
+
+                  {form.type === 'standard' && (
+                    <div className="bt-row">
+                      <label className="bt-field">
+                        <span>Account balance <b>*</b></span>
+                        <input className="bt-input" type="number" min="0" step="any" value={form.balance} onChange={(e) => set('balance', e.target.value)} disabled={saving} />
+                      </label>
+                      <label className="bt-field">
+                        <span>Currency</span>
+                        <select className="bt-input" value={form.currency} onChange={(e) => set('currency', e.target.value)} disabled={saving}>
+                          {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                      </label>
+                    </div>
+                  )}
+
+                  <div className="bt-field">
+                    <span>Interval <i>only intervals with stored data</i></span>
+                    <div className="bt-pills">
+                      {intervals.map((i) => (
+                        <button key={i} type="button" className={form.interval === i ? 'is-on' : ''} onClick={() => set('interval', i)} disabled={saving}>{i.toUpperCase()}</button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="bt-field">
+                    <span>Instruments <b>*</b> <i>{form.instruments.length}/{BACKTEST_MAX_INSTRUMENTS} · only instruments with {form.interval.toUpperCase()} data</i></span>
+                    <InstrumentPicker
+                      symbols={symbols} names={names} interval={form.interval} availability={idx}
+                      selected={form.instruments} onToggle={toggleInstrument} disabled={saving}
+                    />
+                  </div>
+
                   <div className="bt-row">
                     <label className="bt-field">
-                      <span>Account balance <b>*</b></span>
-                      <input className="bt-input" type="number" min="0" step="any" value={form.balance} onChange={(e) => set('balance', e.target.value)} disabled={saving} />
+                      <span>From <b>*</b></span>
+                      <input className="bt-input" type="date" min={range?.min} max={range?.max} value={form.fromDate} onChange={(e) => set('fromDate', e.target.value)} disabled={saving || !range} />
                     </label>
                     <label className="bt-field">
-                      <span>Currency</span>
-                      <select className="bt-input" value={form.currency} onChange={(e) => set('currency', e.target.value)} disabled={saving}>
-                        {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
-                      </select>
+                      <span>To <b>*</b></span>
+                      <input className="bt-input" type="date" min={range?.min} max={range?.max} value={form.toDate} onChange={(e) => set('toDate', e.target.value)} disabled={saving || !range} />
                     </label>
                   </div>
-                )}
+                  <small className={`bt-hint${!range || days > maxDays ? ' is-bad' : ''}`}>
+                    {range
+                      ? `Data available ${range.min} → ${range.max}${form.instruments.length > 1 ? ' (common to all selected)' : ''}. ${days > 0 ? `${days} day${days === 1 ? '' : 's'} selected` : 'Pick a range'} · ${form.interval.toUpperCase()} allows up to ${maxDays} days.`
+                      : 'The selected instruments don\'t share any dates.'}
+                  </small>
+                </>
+              )}
 
-                <div className="bt-field">
-                  <span>Interval <i>only intervals with stored data</i></span>
-                  <div className="bt-pills">
-                    {intervals.map((i) => (
-                      <button key={i} type="button" className={form.interval === i ? 'is-on' : ''} onClick={() => set('interval', i)} disabled={saving}>{i.toUpperCase()}</button>
-                    ))}
+              {stepName === 'Prop rules' && (
+                <>
+                  <div className="bt-row bt-row-firm">
+                    <label className="bt-field">
+                      <span>Firm</span>
+                      <input
+                        className="bt-input"
+                        maxLength={60}
+                        value={form.firmName === 'Other' ? (form.firmNameCustom || 'Custom') : form.firmName}
+                        disabled
+                        readOnly
+                      />
+                    </label>
+
+                    <button
+                      type="button"
+                      className="bt-btn is-sm is-ghost bt-load-tpl"
+                      onClick={() => setShowTemplatePicker(true)}
+                      disabled={saving}
+                    >
+                      <Grid3x3 size={16} />
+                      Load template
+                    </button>
                   </div>
-                </div>
 
-                <div className="bt-field">
-                  <span>Instruments <b>*</b> <i>{form.instruments.length}/{BACKTEST_MAX_INSTRUMENTS} · only instruments with {form.interval.toUpperCase()} data</i></span>
-                  <InstrumentPicker
-                    symbols={symbols} names={names} interval={form.interval} availability={idx}
-                    selected={form.instruments} onToggle={toggleInstrument} disabled={saving}
-                  />
-                </div>
-
-                <div className="bt-row">
                   <label className="bt-field">
-                    <span>From <b>*</b></span>
-                    <input className="bt-input" type="date" min={range?.min} max={range?.max} value={form.fromDate} onChange={(e) => set('fromDate', e.target.value)} disabled={saving || !range} />
+                    <span>Account size <i>{form.currency}</i></span>
+                    <input className="bt-input" type="number" min="0" step="any" value={form.accountSize} onChange={(e) => set('accountSize', e.target.value)} disabled={saving} />
                   </label>
+
+                  <div className="bt-row">
+                    <LimitField label="Profit target" l={form.target} onChange={(v) => set('target', v)} size={size} currency={form.currency} disabled={saving} />
+                    <label className="bt-field"><span>Min trading days</span>
+                      <input className="bt-input" type="number" min="0" step="1" value={form.minTradingDays} onChange={(e) => set('minTradingDays', e.target.value)} disabled={saving} /></label>
+                  </div>
+                  <div className="bt-row">
+                    <LimitField label="Max daily loss" l={form.daily} onChange={(v) => set('daily', v)} size={size} currency={form.currency} disabled={saving} />
+                    <LimitField label="Max total loss" l={form.total} onChange={(v) => set('total', v)} size={size} currency={form.currency} disabled={saving} />
+                  </div>
+
                   <label className="bt-field">
-                    <span>To <b>*</b></span>
-                    <input className="bt-input" type="date" min={range?.min} max={range?.max} value={form.toDate} onChange={(e) => set('toDate', e.target.value)} disabled={saving || !range} />
+                    <span>Max position size <i>contracts · optional</i></span>
+                    <input className="bt-input" type="number" min="0" step="any" value={form.maxPositionSize} onChange={(e) => set('maxPositionSize', e.target.value)} placeholder="No limit" disabled={saving} />
                   </label>
-                </div>
-                <small className={`bt-hint${!range || days > maxDays ? ' is-bad' : ''}`}>
-                  {range
-                    ? `Data available ${range.min} → ${range.max}${form.instruments.length > 1 ? ' (common to all selected)' : ''}. ${days > 0 ? `${days} day${days === 1 ? '' : 's'} selected` : 'Pick a range'} · ${form.interval.toUpperCase()} allows up to ${maxDays} days.`
-                    : 'The selected instruments don\'t share any dates.'}
-                </small>
-              </>
-            )}
 
-            {stepName === 'Prop rules' && (
-              <>
-
-                <div className="bt-row">
                   <label className="bt-field">
-                    <span>Firm</span>
-                    <input
-                      className="bt-input"
-                      maxLength={60}
-                      value={templateLoaded ? (form.firmName === 'Other' ? (form.firmNameCustom || '') : form.firmName) : (form.firmName === 'Other' ? 'Custom' : form.firmName)}
-                      placeholder="Type a firm name"
-                      disabled
-                      onFocus={(e) => e.target.blur()}
-                    />
+                    <span>Notes <i>optional</i></span>
+                    <textarea className="bt-input" rows={2} maxLength={1000} value={form.notes} onChange={(e) => set('notes', e.target.value)} placeholder="Anything specific about this challenge" disabled={saving} />
                   </label>
-                  
-                  <button
-                    type="button"
-                    className="bt-btn is-sm is-ghost mb-4"
-                    onClick={() => setShowTemplatePicker(true)}
-                    disabled={saving}
-                  >
-                    <Grid3x3 size={16} className="mr-2" />
-                    Load Template
-                  </button>
-                </div>
+                  <small className="bt-hint">Each limit can be a % of the account or a fixed amount — use the toggle next to the value. If a loss limit is hit during replay the session ends automatically and open positions are closed.</small>
+                </>
+              )}
 
-                <label className="bt-field">
-                  <span>Account size <i>{form.currency}</i></span>
-                  <input className="bt-input" type="number" min="0" step="any" value={form.accountSize} onChange={(e) => set('accountSize', e.target.value)} disabled={saving} />
-                </label>
+              {stepName === 'Review' && (
+                <dl className="bt-review">
+                  <div><dt>Name</dt><dd>{form.name.trim()}</dd></div>
+                  <div><dt>Type</dt><dd>{form.type === 'prop' ? `Prop firm · ${cfgFirm}` : 'Standard'}</dd></div>
+                  <div><dt>Balance</dt><dd>{fmtMoney(num(form.balance), form.currency, { digits: 0 })}</dd></div>
+                  <div><dt>Range</dt><dd>{form.fromDate} → {form.toDate} ({days} days)</dd></div>
+                  <div><dt>Interval</dt><dd>{form.interval.toUpperCase()}</dd></div>
+                  <div><dt>Instruments</dt><dd>{form.instruments.join(', ')}</dd></div>
+                  {form.type === 'prop' && (
+                    <>
+                      <div><dt>Account size</dt><dd>{fmtMoney(size, form.currency, { digits: 0 })}</dd></div>
+                      <div><dt>Profit target</dt><dd>{fmtMoney(amt(form.target).amount, form.currency, { digits: 0 })} · {round2(amt(form.target).pct)}%</dd></div>
+                      <div><dt>Max daily loss</dt><dd>{fmtMoney(amt(form.daily).amount, form.currency, { digits: 0 })} · {round2(amt(form.daily).pct)}%</dd></div>
+                      <div><dt>Max total loss</dt><dd>{fmtMoney(amt(form.total).amount, form.currency, { digits: 0 })} · {round2(amt(form.total).pct)}%</dd></div>
+                      <div><dt>Min trading days</dt><dd>{form.minTradingDays}</dd></div>
+                      <div><dt>Max position</dt><dd>{form.maxPositionSize || 'No limit'}</dd></div>
+                    </>
+                  )}
+                </dl>
+              )}
+            </div>
 
-                <div className="bt-row">
-                  <LimitField label="Profit target" l={form.target} onChange={(v) => set('target', v)} size={size} currency={form.currency} disabled={saving} />
-                  <label className="bt-field"><span>Min trading days</span>
-                    <input className="bt-input" type="number" min="0" step="1" value={form.minTradingDays} onChange={(e) => set('minTradingDays', e.target.value)} disabled={saving} /></label>
-                </div>
-                <div className="bt-row">
-                  <LimitField label="Max daily loss" l={form.daily} onChange={(v) => set('daily', v)} size={size} currency={form.currency} disabled={saving} />
-                  <LimitField label="Max total loss" l={form.total} onChange={(v) => set('total', v)} size={size} currency={form.currency} disabled={saving} />
-                </div>
-
-                <label className="bt-field">
-                  <span>Max position size <i>contracts · optional</i></span>
-                  <input className="bt-input" type="number" min="0" step="any" value={form.maxPositionSize} onChange={(e) => set('maxPositionSize', e.target.value)} placeholder="No limit" disabled={saving} />
-                </label>
-
-                <label className="bt-field">
-                  <span>Notes <i>optional</i></span>
-                  <textarea className="bt-input" rows={2} maxLength={1000} value={form.notes} onChange={(e) => set('notes', e.target.value)} placeholder="Anything specific about this challenge" disabled={saving} />
-                </label>
-                <small className="bt-hint">Each limit can be a % of the account or a fixed amount — use the toggle next to the value. If a loss limit is hit during replay the session ends automatically and open positions are closed.</small>
-              </>
-            )}
-
-            {stepName === 'Review' && (
-              <dl className="bt-review">
-                <div><dt>Name</dt><dd>{form.name.trim()}</dd></div>
-                <div><dt>Type</dt><dd>{form.type === 'prop' ? `Prop firm · ${cfgFirm}` : 'Standard'}</dd></div>
-                <div><dt>Balance</dt><dd>{fmtMoney(num(form.balance), form.currency, { digits: 0 })}</dd></div>
-                <div><dt>Range</dt><dd>{form.fromDate} → {form.toDate} ({days} days)</dd></div>
-                <div><dt>Interval</dt><dd>{form.interval.toUpperCase()}</dd></div>
-                <div><dt>Instruments</dt><dd>{form.instruments.join(', ')}</dd></div>
-                {form.type === 'prop' && (
-                  <>
-                    <div><dt>Account size</dt><dd>{fmtMoney(size, form.currency, { digits: 0 })}</dd></div>
-                    <div><dt>Profit target</dt><dd>{fmtMoney(amt(form.target).amount, form.currency, { digits: 0 })} · {round2(amt(form.target).pct)}%</dd></div>
-                    <div><dt>Max daily loss</dt><dd>{fmtMoney(amt(form.daily).amount, form.currency, { digits: 0 })} · {round2(amt(form.daily).pct)}%</dd></div>
-                    <div><dt>Max total loss</dt><dd>{fmtMoney(amt(form.total).amount, form.currency, { digits: 0 })} · {round2(amt(form.total).pct)}%</dd></div>
-                    <div><dt>Min trading days</dt><dd>{form.minTradingDays}</dd></div>
-                    <div><dt>Max position</dt><dd>{form.maxPositionSize || 'No limit'}</dd></div>
-                  </>
-                )}
-              </dl>
-            )}
-          </div>
-
-          <div className="bt-modal-foot">
-            {step > 0 ? (
-              <button type="button" className="bt-btn" onClick={back} disabled={saving}><ChevronLeft size={14} /> Back</button>
-            ) : (
-              <button type="button" className="bt-btn" onClick={onClose} disabled={saving}>Cancel</button>
-            )}
-            {stepName === 'Review' ? (
-              <button type="submit" className="bt-btn is-primary" disabled={saving}>{saving ? 'Creating…' : 'Create & open chart'}</button>
-            ) : (
-              <button type="button" className="bt-btn is-primary" onClick={next} disabled={saving || (stepName === 'Basics' && (noData || availQ.isLoading))}>Next <ChevronRight size={14} /></button>
-            )}
-          </div>
-        </form>
+            <div className="bt-modal-foot">
+              {step > 0 ? (
+                <button type="button" className="bt-btn" onClick={back} disabled={saving}><ChevronLeft size={14} /> Back</button>
+              ) : (
+                <button type="button" className="bt-btn" onClick={onClose} disabled={saving}>Cancel</button>
+              )}
+              {stepName === 'Review' ? (
+                <button type="submit" className="bt-btn is-primary" disabled={saving}>{saving ? 'Creating…' : 'Create & open chart'}</button>
+              ) : (
+                <button type="button" className="bt-btn is-primary" onClick={next} disabled={saving || (stepName === 'Basics' && (noData || availQ.isLoading))}>Next <ChevronRight size={14} /></button>
+              )}
+            </div>
+          </form>
         </div>
       </Portal>
 
-      {/* Template Picker Modal - always rendered via Portal (no conditional Portal to avoid hook order issues) */}
-      <Portal>
-        {showTemplatePicker && (
-          <div
-            className="bt-overlay"
-            onMouseDown={(e) => { if (e.target === e.currentTarget) setShowTemplatePicker(false); }}
-          >
-            <div className="bt-template-picker-modal">
-              <div className="bt-template-picker-head">
-                <h3>Load Prop Firm Template</h3>
-                <button
-                  type="button"
-                  className="bt-icon-btn"
-                  onClick={() => setShowTemplatePicker(false)}
-                  aria-label="Close template picker"
-                >
-                  <X size={16} />
-                </button>
-              </div>
-
-              <div className="bt-template-tabs">
-                <button
-                  type="button"
-                  className={`bt-tab ${activeTemplateTab === 'forex' ? 'is-active' : ''}`}
-                  onClick={() => setActiveTemplateTab('forex')}
-                >
-                  Forex ({FOREX_PROPFIRES.length} Firms · {FOREX_PROPFIRES.reduce((sum, f) => sum + f.plans.length, 0)} Plans)
-                </button>
-                <button
-                  type="button"
-                  className={`bt-tab ${activeTemplateTab === 'futures' ? 'is-active' : ''}`}
-                  onClick={() => setActiveTemplateTab('futures')}
-                >
-                  Futures ({FUTURES_PROPFIRES.length} Firms · {FUTURES_PROPFIRES.reduce((sum, f) => sum + f.plans.length, 0)} Plans)
-                </button>
-              </div>
-
-              <div className="bt-template-grid">
-                {(() => {
-                  const firms = activeTemplateTab === 'forex' ? FOREX_PROPFIRES : FUTURES_PROPFIRES;
-                  const plans = firms.flatMap((firm) =>
-                    firm.plans.map((plan) => ({ plan, firm }))
-                  );
-
-                  return plans.map((template) => {
-                    const { plan, firm } = template;
-                    const defaultSize = plan.accountSizes[0] || 50000;
-
-                    return (
-                      <div
-                        key={plan.id}
-                        className="bt-template-card"
-                        onClick={() => {
-                          setShowTemplatePicker(false);
-                          handleLoadTemplate(template, Number(defaultSize));
-                        }}
-                      >
-                        <div className="bt-template-header">
-                          <div
-                            className="bt-firm-badge"
-                            style={{ background: firm.color }}
-                          >
-                            {firm.name}
-                          </div>
-                        </div>
-                        <div className="bt-template-body">
-                          <h4 className="bt-template-plan-name">{plan.name}</h4>
-                          <div className="bt-template-stats">
-                            <div className="bt-template-stat">
-                              <span className="bt-label">Profit Target</span>
-                              <span className="bt-value">{plan.profitTarget}</span>
-                            </div>
-                            <div className="bt-template-stat">
-                              <span className="bt-label">Daily DD</span>
-                              <span className="bt-value">{plan.dailyDrawdown}</span>
-                            </div>
-                            <div className="bt-template-stat">
-                              <span className="bt-label">Max DD</span>
-                              <span className="bt-value">{plan.maxDrawdown}</span>
-                            </div>
-                            <div className="bt-template-stat">
-                              <span className="bt-label">Account Size</span>
-                              <span className="bt-value">${defaultSize?.toLocaleString() || '50K'}</span>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="bt-template-footer">
-                          <button
-                            type="button"
-                            className="bt-btn is-sm is-ghost"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleLoadTemplate(template, Number(defaultSize));
-                            }}
-                          >
-                            Load Template
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  });
-                })()}
-              </div>
-            </div>
-          </div>
-        )}
-      </Portal>
+      {showTemplatePicker && (
+        <Portal>
+          <TemplatePicker onClose={() => setShowTemplatePicker(false)} onApply={applyPlan} />
+        </Portal>
+      )}
     </>
   );
 }

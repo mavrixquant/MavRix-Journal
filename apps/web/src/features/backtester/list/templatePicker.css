@@ -1,0 +1,75 @@
+/* Template picker. Map the --tp-* tokens below to your existing variables, or append this to your bt-* stylesheet. */
+.bt-tp {
+  --tp-bg: var(--bt-surface, #14161b);
+  --tp-card: var(--bt-surface-2, #1b1e25);
+  --tp-border: var(--bt-border, rgba(255, 255, 255, .08));
+  --tp-text: var(--bt-text, #e8eaed);
+  --tp-muted: var(--bt-muted, #8b93a1);
+  --tp-accent: var(--bt-accent, #3b82f6);
+
+  width: min(860px, 94vw);
+  max-height: 86vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--tp-bg);
+  color: var(--tp-text);
+  border: 1px solid var(--tp-border);
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, .45);
+}
+.bt-tp-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--tp-border); }
+.bt-tp-head h3 { margin: 0; font-size: 15px; font-weight: 600; }
+.bt-tp-tabs { display: flex; gap: 4px; padding: 12px 20px 0; border-bottom: 1px solid var(--tp-border); }
+.bt-tp-tabs button { padding: 8px 16px; background: none; border: 0; border-bottom: 2px solid transparent; color: var(--tp-muted); font-size: 13px; font-weight: 500; cursor: pointer; }
+.bt-tp-tabs button.is-on { color: var(--tp-text); border-bottom-color: var(--tp-accent); }
+.bt-tp-body { padding: 20px; overflow-y: auto; }
+
+.bt-tp-firms { display: flex; flex-direction: column; gap: 10px; }
+.bt-tp-firm { display: flex; align-items: center; gap: 16px; padding: 14px 16px; text-align: left; color: inherit; cursor: pointer; background: var(--tp-card); border: 1px solid var(--tp-border); border-radius: 12px; transition: border-color .15s, transform .15s; }
+.bt-tp-firm:hover { border-color: var(--tp-accent); transform: translateY(-1px); }
+.bt-tp-firm-logo { width: 120px; height: 44px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.bt-tp-firm-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.bt-tp-firm-meta b { font-size: 14px; }
+.bt-tp-firm-meta span { font-size: 12px; color: var(--tp-muted); }
+.bt-tp-firm em { display: inline-flex; align-items: center; gap: 2px; font-style: normal; font-size: 12px; color: var(--tp-muted); }
+
+.bt-tp-logo { max-width: 100%; width: auto; object-fit: contain; }
+.bt-tp-mono { display: inline-flex; align-items: center; justify-content: center; border-radius: 10px; color: #fff; font-weight: 700; font-size: 13px; }
+
+.bt-tp-firm-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.bt-tp-firm-head span { font-size: 12px; color: var(--tp-muted); }
+.bt-tp-plans { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+.bt-tp-plan { display: flex; flex-direction: column; gap: 14px; padding: 18px; background: var(--tp-card); border: 1px solid var(--tp-border); border-radius: 12px; }
+.bt-tp-plan h4 { margin: 0; font-size: 14px; font-weight: 600; }
+
+.bt-tp-sizes { display: flex; flex-wrap: wrap; gap: 6px; }
+.bt-tp-sizes button { padding: 5px 11px; font-size: 12px; font-weight: 500; color: var(--tp-muted); background: transparent; border: 1px solid var(--tp-border); border-radius: 999px; cursor: pointer; }
+.bt-tp-sizes button.is-on { color: var(--tp-text); border-color: var(--tp-accent); background: color-mix(in srgb, var(--tp-accent) 14%, transparent); }
+
+.bt-tp-stats { margin: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 10px 16px; }
+.bt-tp-stats div { display: flex; flex-direction: column; gap: 2px; }
+.bt-tp-stats dt { font-size: 11px; color: var(--tp-muted); text-transform: uppercase; letter-spacing: .04em; }
+.bt-tp-stats dd { margin: 0; font-size: 13px; font-weight: 600; }
+.bt-tp-plan .bt-btn { align-self: stretch; justify-content: center; margin-top: auto; }
+
+/* Firm row on the Prop rules step: input + Load template button */
+.bt-row-firm { align-items: flex-end; }
+.bt-load-tpl { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
+
+@media (max-width: 560px) {
+  .bt-tp-firm-logo { width: 84px; }
+  .bt-tp-firm-meta span { display: none; }
+}
+
+/* --- additions for the extended plan data --- */
+.bt-tp-logo.is-square { width: auto; border-radius: 10px; object-fit: cover; }
+.bt-tp-plan-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.bt-tp-tag { padding: 2px 8px; font-size: 11px; font-weight: 600; color: var(--tp-accent); border: 1px solid var(--tp-accent); border-radius: 999px; white-space: nowrap; }
+.bt-tp-note { margin: 0; font-size: 12px; line-height: 1.5; color: var(--tp-muted); }
+.bt-tp-note.is-warn { color: #f59e0b; }
+.bt-tp-plan-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: auto; }
+.bt-tp-plan-foot .bt-btn { align-self: auto; margin-top: 0; }
+.bt-tp-link { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--tp-muted); text-decoration: none; }
+.bt-tp-link:hover { color: var(--tp-text); text-decoration: underline; }
+.bt-tp-stats dd { overflow-wrap: anywhere; }
