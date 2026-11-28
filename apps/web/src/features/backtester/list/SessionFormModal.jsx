@@ -14,7 +14,7 @@ import { useMarketCatalog } from '@/shared/api/marketData';
 import { useBacktestAvailability, useCreateBacktestSession } from '@/shared/api/backtestSessions';
 import {
   CURRENCIES, BACKTEST_INTERVALS, BACKTEST_INTERVAL_MAX_DAYS, BACKTEST_MAX_INSTRUMENTS,
-  BACKTEST_DEFAULT_INSTRUMENT, PROP_FIRMS, PROP_DEFAULTS, backtestSessionSchema,
+  BACKTEST_DEFAULT_INSTRUMENT, PROP_DEFAULTS, backtestSessionSchema,
 } from '@mavrix/shared';
 
 import { daysBetweenIso } from '../lib/time';
@@ -40,8 +40,7 @@ function initialForm() {
     fromDate: '',
     toDate: '',
     datesTouched: false,
-    firmName: 'FTMO',
-    firmNameCustom: '',
+    firmName: 'Other', // Default to 'Other' so it shows 'Custom' in disabled input
     accountSize: '50000',
     sizeTouched: false,
     target: limit(PROP_DEFAULTS.profitTargetPct),
@@ -114,7 +113,7 @@ function checkProp(f) {
   for (const [label, l] of rows) {
     const v = num(l.value);
     if (v == null || v <= 0) return `${label} must be above zero.`;
-    if (l.mode === 'pct' && v > 100) return `${label} can’t exceed 100%.`;
+    if (l.mode === 'pct' && v > 100) return `${label} can't exceed 100%.`;
   }
   const d = num(f.minTradingDays);
   if (d == null || d < 0 || !Number.isInteger(d)) return 'Minimum trading days must be a whole number (0 or more).';
@@ -122,7 +121,7 @@ function checkProp(f) {
   const daily = limitAmounts(f.daily, size).amount;
   const total = limitAmounts(f.total, size).amount;
   if (total >= size) return 'The total loss limit must be below the account size.';
-  if (daily > total) return 'The daily loss limit can’t exceed the total loss limit.';
+  if (daily > total) return 'The daily loss limit cannot exceed the total loss limit.';
   return null;
 }
 
@@ -207,6 +206,7 @@ export default function SessionFormModal({ isOpen, onClose, planTemplate }) {
   const saving = createM.isPending;
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
   const [activeTemplateTab, setActiveTemplateTab] = useState('forex');
+  const [templateLoaded, setTemplateLoaded] = useState(false);
   const appliedInitialTemplate = useRef(false);
 
   // Apply initial template from parent (passed from SessionListPage)
@@ -216,17 +216,19 @@ export default function SessionFormModal({ isOpen, onClose, planTemplate }) {
       setForm((f) => ({
         ...f,
         type: 'prop',
-        firmName: planTemplate.firm?.name || 'FTMO',
-        accountSize: planTemplate.plan?.accountSizes?.[0] || f.balance,
+        firmName: 'Other', // Default to custom for loaded templates
+        firmNameCustom: planTemplate.firm?.name || '',
+        accountSize: planTemplate.plan?.accountSizes?.[0] || '50000',
         target: limit(planTemplate.plan?.profitTarget || PROP_DEFAULTS.profitTargetPct),
         daily: limit(planTemplate.plan?.dailyDrawdown || PROP_DEFAULTS.maxDailyLossPct),
         total: limit(planTemplate.plan?.maxDrawdown || PROP_DEFAULTS.maxTotalLossPct),
         minTradingDays: String(planTemplate.plan?.evaluationDuration?.replace(/\D/g, '') || '30'),
         notes: planTemplate.plan?.name ? `Loaded from ${planTemplate.plan.name}` : f.notes,
       }));
-      if (step !== 1) setStep(1); // Go to Prop rules step
+      setTemplateLoaded(true);
+      setStep(1); // Go to Prop rules step
     }
-  }, [isOpen, planTemplate, step]);
+  }, [isOpen, planTemplate]);
 
   // Reset applied flag when modal closes
   useEffect(() => {
@@ -235,14 +237,15 @@ export default function SessionFormModal({ isOpen, onClose, planTemplate }) {
     }
   }, [isOpen]);
 
-  const handleLoadTemplate = (templateData) => {
+  const handleLoadTemplate = (templateData, selectedAccountSize = null) => {
     const template = planToTemplate(templateData.plan, templateData.firm);
+    const acctSize = selectedAccountSize !== null ? selectedAccountSize : (template.plan.accountSizes[0] || '50000');
     // Apply template values to form
     setForm((f) => ({
       ...f,
       type: 'prop',
-      firmName: template.firm.name,
-      accountSize: template.plan.accountSizes[0] || '50000',
+      firmName: template.firm.name, // Use actual firm name
+      accountSize: acctSize,
       target: limit(template.plan.profitTarget),
       daily: limit(template.plan.dailyDrawdown),
       total: limit(template.plan.maxDrawdown),
@@ -250,6 +253,7 @@ export default function SessionFormModal({ isOpen, onClose, planTemplate }) {
       notes: `Loaded from ${template.plan.name} (${template.firm.name})`,
     }));
     setShowTemplatePicker(false);
+    setTemplateLoaded(true);
     setStep(1); // Go to Prop rules step
   };
 
@@ -336,14 +340,6 @@ export default function SessionFormModal({ isOpen, onClose, planTemplate }) {
     return next;
   });
 
-  // Auto-open template picker when Prop firm type is selected (on Basics step)
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  useEffect(() => {
-    if (form.type === 'prop' && step === 0 && !showTemplatePicker) {
-      setShowTemplatePicker(true);
-    }
-  }, [form.type, step, showTemplatePicker]);
-
   const toggleInstrument = (code) => {
     setError('');
     setForm((p) => {
@@ -382,7 +378,7 @@ export default function SessionFormModal({ isOpen, onClose, planTemplate }) {
 
     try {
       const session = await createM.mutateAsync(parsed.data);
-      toast.success(`Session “${session.name}” created`);
+      toast.success(`Session "${session.name}" created`);
       onClose();
       navigate(`/backtester/${session.id}/replay`);
     } catch (ex) {
@@ -422,7 +418,7 @@ export default function SessionFormModal({ isOpen, onClose, planTemplate }) {
 
             {stepName === 'Basics' && availQ.isLoading && <div className="bt-note">Checking which market data is available…</div>}
             {stepName === 'Basics' && availQ.isError && (
-              <div className="bt-error" role="alert">Couldn’t load the available market data. <button type="button" className="bt-link" onClick={() => availQ.refetch()}>Retry</button></div>
+              <div className="bt-error" role="alert">Couldn't load the available market data. <button type="button" className="bt-link" onClick={() => availQ.refetch()}>Retry</button></div>
             )}
             {stepName === 'Basics' && noData && (
               <div className="bt-nodata">
@@ -440,7 +436,7 @@ export default function SessionFormModal({ isOpen, onClose, planTemplate }) {
                     <button type="button" className={form.type === 'standard' ? 'is-on' : ''} onClick={() => set('type', 'standard')}>Standard</button>
                     <button type="button" className={form.type === 'prop' ? 'is-on' : ''} onClick={() => set('type', 'prop')}>Prop firm</button>
                   </div>
-                  <small>{form.type === 'prop' ? 'Trade against a prop firm’s profit target, loss limits and minimum days.' : 'A plain account with no rules — just replay and review.'}</small>
+                  <small>{form.type === 'prop' ? 'Trade against a prop firm profit target, loss limits and minimum days.' : 'A plain account with no rules — just replay and review.'}</small>
                 </div>
 
                 <label className="bt-field">
@@ -448,28 +444,20 @@ export default function SessionFormModal({ isOpen, onClose, planTemplate }) {
                   <input className="bt-input" autoFocus maxLength={80} value={form.name} onChange={(e) => set('name', e.target.value)} placeholder="e.g. NQ opening range — Oct 2026" disabled={saving} />
                 </label>
 
-                <button
-                  type="button"
-                  className="bt-btn bt-btn-ghost"
-                  onClick={() => setShowTemplatePicker(true)}
-                  disabled={saving}
-                >
-                  <Grid3x3 size={16} className="mr-2" />
-                  Load Template
-                </button>
-
-                <div className="bt-row">
-                  <label className="bt-field">
-                    <span>Account balance <b>*</b></span>
-                    <input className="bt-input" type="number" min="0" step="any" value={form.balance} onChange={(e) => set('balance', e.target.value)} disabled={saving} />
-                  </label>
-                  <label className="bt-field">
-                    <span>Currency</span>
-                    <select className="bt-input" value={form.currency} onChange={(e) => set('currency', e.target.value)} disabled={saving}>
-                      {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
-                    </select>
-                  </label>
-                </div>
+                {form.type === 'standard' && (
+                  <div className="bt-row">
+                    <label className="bt-field">
+                      <span>Account balance <b>*</b></span>
+                      <input className="bt-input" type="number" min="0" step="any" value={form.balance} onChange={(e) => set('balance', e.target.value)} disabled={saving} />
+                    </label>
+                    <label className="bt-field">
+                      <span>Currency</span>
+                      <select className="bt-input" value={form.currency} onChange={(e) => set('currency', e.target.value)} disabled={saving}>
+                        {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                      </select>
+                    </label>
+                  </div>
+                )}
 
                 <div className="bt-field">
                   <span>Interval <i>only intervals with stored data</i></span>
@@ -501,26 +489,36 @@ export default function SessionFormModal({ isOpen, onClose, planTemplate }) {
                 <small className={`bt-hint${!range || days > maxDays ? ' is-bad' : ''}`}>
                   {range
                     ? `Data available ${range.min} → ${range.max}${form.instruments.length > 1 ? ' (common to all selected)' : ''}. ${days > 0 ? `${days} day${days === 1 ? '' : 's'} selected` : 'Pick a range'} · ${form.interval.toUpperCase()} allows up to ${maxDays} days.`
-                    : 'The selected instruments don’t share any dates.'}
+                    : 'The selected instruments don\'t share any dates.'}
                 </small>
               </>
             )}
 
             {stepName === 'Prop rules' && (
               <>
+
                 <div className="bt-row">
                   <label className="bt-field">
                     <span>Firm</span>
-                    <select className="bt-input" value={form.firmName} onChange={(e) => set('firmName', e.target.value)} disabled={saving}>
-                      {PROP_FIRMS.map((f) => <option key={f} value={f}>{f}</option>)}
-                    </select>
+                    <input
+                      className="bt-input"
+                      maxLength={60}
+                      value={templateLoaded ? (form.firmName === 'Other' ? (form.firmNameCustom || '') : form.firmName) : (form.firmName === 'Other' ? 'Custom' : form.firmName)}
+                      placeholder="Type a firm name"
+                      disabled
+                      onFocus={(e) => e.target.blur()}
+                    />
                   </label>
-                  {form.firmName === 'Other' && (
-                    <label className="bt-field">
-                      <span>Firm name <b>*</b></span>
-                      <input className="bt-input" maxLength={60} value={form.firmNameCustom} onChange={(e) => set('firmNameCustom', e.target.value)} placeholder="Your firm" disabled={saving} />
-                    </label>
-                  )}
+                  
+                  <button
+                    type="button"
+                    className="bt-btn is-sm is-ghost mb-4"
+                    onClick={() => setShowTemplatePicker(true)}
+                    disabled={saving}
+                  >
+                    <Grid3x3 size={16} className="mr-2" />
+                    Load Template
+                  </button>
                 </div>
 
                 <label className="bt-field">
@@ -635,11 +633,16 @@ export default function SessionFormModal({ isOpen, onClose, planTemplate }) {
 
                   return plans.map((template) => {
                     const { plan, firm } = template;
+                    const defaultSize = plan.accountSizes[0] || 50000;
+
                     return (
                       <div
-                        key={`${firm.id}-${plan.id}`}
+                        key={plan.id}
                         className="bt-template-card"
-                        onClick={() => handleLoadTemplate(template)}
+                        onClick={() => {
+                          setShowTemplatePicker(false);
+                          handleLoadTemplate(template, Number(defaultSize));
+                        }}
                       >
                         <div className="bt-template-header">
                           <div
@@ -666,17 +669,17 @@ export default function SessionFormModal({ isOpen, onClose, planTemplate }) {
                             </div>
                             <div className="bt-template-stat">
                               <span className="bt-label">Account Size</span>
-                              <span className="bt-value">{plan.accountSizes.length > 0 ? `$${plan.accountSizes[0].toLocaleString()}` : '—'}</span>
+                              <span className="bt-value">${defaultSize?.toLocaleString() || '50K'}</span>
                             </div>
                           </div>
                         </div>
                         <div className="bt-template-footer">
                           <button
                             type="button"
-                            className="bt-btn bt-btn-sm bt-btn-primary"
+                            className="bt-btn is-sm is-ghost"
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleLoadTemplate(template);
+                              handleLoadTemplate(template, Number(defaultSize));
                             }}
                           >
                             Load Template

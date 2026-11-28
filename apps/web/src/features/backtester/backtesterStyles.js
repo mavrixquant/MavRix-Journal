@@ -23,6 +23,11 @@ export const BT_CSS = `
   .bt-btn.is-danger { background: rgba(255,92,92,.12); border-color: rgba(255,92,92,.4); color: #FF8080; }
   .bt-btn.is-danger:hover:not(:disabled) { background: rgba(255,92,92,.22); border-color: var(--bt-loss); color: #FF8080; }
   .bt-btn.is-lg { height: 40px; padding: 0 18px; font-size: 12.5px; }
+  .bt-btn.is-sm { height: 28px; padding: 0 10px; font-size: 11px; border-radius: 8px; }
+  .bt-btn.is-ghost {margin-top:20px; background: transparent; border-color: var(--bt-line); color: var(--bt-ink-2); padding: 18px 12px; }
+  .bt-btn.is-ghost:hover:not(:disabled) { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, transparent); background: color-mix(in srgb, var(--accent) 8%, transparent); }
+  /* Load Template button styling */
+  .bt-template-picker-modal .bt-btn.is-sm.is-ghost { padding-top: 10px; }
   .bt-icon-btn { display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--bt-line); background: var(--bt-inset); color: var(--bt-ink-2); cursor: pointer; transition: all .15s; }
   .bt-icon-btn:hover:not(:disabled) { color: var(--bt-ink); border-color: var(--bt-line-2); }
   .bt-icon-btn.is-danger:hover:not(:disabled) { color: #FF8080; border-color: rgba(255,92,92,.45); background: rgba(255,92,92,.08); }

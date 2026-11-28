@@ -1735,11 +1735,6 @@ body {
   gap: 16px;
 }
 
-.bt-template-picker-modal:focus-within {
-  outline: 2px solid var(--amber);
-  outline-offset: -2px;
-}
-
 .bt-template-picker-head {
   display: flex;
   justify-content: space-between;
